@@ -3,6 +3,7 @@ import { useHub, xpNeeded } from '../store'
 
 const tabs = [
   { to: '/learning', label: '학습', ready: true },
+  { to: '/review', label: '복습', ready: true },
   { to: '/troubleshooting', label: '트러블슈팅', ready: false },
   { to: '/todo', label: 'TODO', ready: false },
   { to: '/meetings', label: '회의록', ready: false },

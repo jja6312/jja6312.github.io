@@ -323,3 +323,59 @@ kbd {
 .placeholder h2 { font-size: 20px; color: var(--text); margin-bottom: 8px; }
 
 .footer-note { max-width: 1040px; margin: 0 auto; padding: 0 24px 30px; font-size: 11.5px; color: var(--text-faint); }
+
+/* ─────────── 모바일 Lab 진도 스트립 (사이드바 대체) ─────────── */
+.mobile-lab { display: none; }
+@media (max-width: 900px) {
+  .sidebar { display: none; }   /* 기본 .sidebar(display:flex)가 소스 순서상 위 미디어쿼리를 덮으므로 재선언 */
+  .mobile-lab { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 14px; -webkit-overflow-scrolling: touch; }
+  .mobile-lab .mstep {
+    flex-shrink: 0; font-size: 10px; padding: 4px 10px; border-radius: 99px;
+    border: 1px solid var(--line); color: var(--text-faint); background: var(--bg-inset);
+    cursor: pointer; font-family: 'Galmuri11'; white-space: nowrap;
+  }
+  .mobile-lab .mstep.done { color: var(--accent); border-color: var(--accent-dim); background: var(--accent-glow); }
+  .mobile-lab .mcount { flex-shrink: 0; font-size: 10px; padding: 4px 10px; color: var(--pixel); font-family: 'Galmuri11'; }
+}
+
+/* ─────────── 모바일 (갤럭시폴드 커버 화면 ~348px 포함) ─────────── */
+@media (max-width: 760px) {
+  .hub-header { gap: 10px; padding: 8px 12px; }
+  .logo { font-size: 11px; gap: 7px; }
+  .hub-nav { gap: 0; font-size: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .hub-nav a { padding: 4px 8px; white-space: nowrap; }
+  .hub-nav .soon { display: none; }
+  .streak, .xptext { display: none; }
+  .xpbar { width: 64px; }
+  .hdr-right { gap: 8px; }
+  .iconbtn { padding: 4px 8px; }
+  .layout { padding: 20px 14px 170px; }
+  .sheet-h1 { font-size: 21px; }
+  .sheetmeta .chip { font-size: 10px; }
+  .stagebar { font-size: 10px; margin: 16px 0 22px; }
+  .scen { padding: 16px 14px; }
+  .diagram { padding: 12px 8px; }
+  .diagram svg { min-width: 560px; }   /* 다이어그램은 축소 대신 가로 스크롤 */
+  .optrow .opt, .choicecol .opt { padding: 11px 14px; }   /* 터치 타깃 확보 */
+  .cmdrow { flex-direction: column; }
+  .submitbtn { padding: 12px 18px; }
+  .chatbar { bottom: calc(12px + env(safe-area-inset-bottom)); padding-left: 12px; width: calc(100% - 24px); }
+  .chatbar .tgt { font-size: 10px; }
+  /* 댓글 패널 → 하단 시트 */
+  .cmt-panel {
+    width: 100%; top: auto; height: 62vh;
+    border-left: none; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
+    transform: translateY(100%);
+  }
+  .cmt-panel.open { transform: none; }
+  body.cmt-open .chatbar { display: none; left: 50%; }   /* 시트와 겹침 방지 */
+  .cmt-list { padding-bottom: calc(30px + env(safe-area-inset-bottom)); }
+  .helpcard { min-width: 0; width: calc(100% - 40px); padding: 20px 22px; }
+  .krow { gap: 16px; }
+  .palette { padding-top: 8vh; }
+  .toast { width: max-content; max-width: calc(100% - 40px); }
+}
+@media (max-width: 400px) {
+  .hub-nav { font-size: 11px; }
+  .xpbar { display: none; }   /* 폴드 커버 화면: 레벨 뱃지만 */
+}

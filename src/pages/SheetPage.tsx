@@ -221,6 +221,20 @@ export default function SheetPage() {
             {sheet.tags.map(t => <span key={t} className="chip">#{t}</span>)}
           </div>
 
+          {/* 모바일: 사이드바 대신 가로 스크롤 진도 스트립 */}
+          <div className="mobile-lab">
+            <span className="mcount">{doneCount}/{stepIds.length}</span>
+            {stepIds.map((id, i) => {
+              const done = steps[`${sheet.sheet}:${id}`]
+              const label = id.startsWith('c') ? `개념${i + 1}` : id.toUpperCase()
+              return (
+                <button key={id} className={`mstep${done ? ' done' : ''}`} onClick={() => goStep(id)}>
+                  {done ? '✓ ' : ''}{label}
+                </button>
+              )
+            })}
+          </div>
+
           <div className="stagebar">
             <div className="stage on"><span className="n px">STEP 1</span>개념</div>
             <div className={`stage${anyScenarioGraded ? ' on' : ''}`}><span className="n px">STEP 2</span>시나리오 실습</div>

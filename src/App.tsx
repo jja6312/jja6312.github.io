@@ -5,6 +5,7 @@ import { Toast, LevelFx, HelpOverlay } from './components/Overlays'
 import CommandPalette from './components/CommandPalette'
 import LearningHome from './pages/LearningHome'
 import SheetPage from './pages/SheetPage'
+import ReviewPage from './pages/ReviewPage'
 import Placeholder from './pages/Placeholder'
 import { useHub } from './store'
 
@@ -28,6 +29,7 @@ function Hotkeys() {
       if (gPending.current) {
         gPending.current = false
         if (e.key === 'l') nav('/learning')
+        else if (e.key === 'r') nav('/review')
         else if (e.key === 't') nav('/todo')
         else if (e.key === 's') s.setPaletteOpen(true)
         return
@@ -62,6 +64,7 @@ function Shell() {
         <Route path="/" element={<Navigate to="/learning" replace />} />
         <Route path="/learning" element={<LearningHome />} />
         <Route path="/learning/:curriculumId/:sheetId" element={<SheetPage />} />
+        <Route path="/review" element={<ReviewPage />} />
         <Route path="/troubleshooting" element={<Placeholder id="troubleshooting" />} />
         <Route path="/todo" element={<Placeholder id="todo" />} />
         <Route path="/meetings" element={<Placeholder id="meetings" />} />
