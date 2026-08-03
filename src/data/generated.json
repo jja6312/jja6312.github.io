@@ -1,0 +1,1033 @@
+{
+ "curricula": [
+  {
+   "id": "linux-basics",
+   "title": "리눅스 기본",
+   "description": "OCI 인스턴스 운영에 필요한 리눅스 핵심을 5일로 압축. 개념→시나리오→채점.",
+   "difficulty": 1,
+   "public": true,
+   "tags": [
+    "linux",
+    "os",
+    "oci"
+   ],
+   "created": "2026-08-02",
+   "days": [
+    {
+     "day": 1,
+     "sheet": "day01-boot-and-systemd",
+     "title": "부팅 과정과 systemd 서비스",
+     "goal": "부팅 5단계를 순서대로 말할 수 있고, 서비스 장애 시 systemctl/journalctl로 첫 진입을 한다",
+     "estimated_minutes": 50
+    },
+    {
+     "day": 2,
+     "sheet": "day02-storage-and-lvm",
+     "title": "파일시스템과 LVM",
+     "goal": "블록 디바이스→PV→VG→LV→fs 체인을 그릴 수 있고, 디스크 증설을 무중단으로 수행한다",
+     "estimated_minutes": 60
+    },
+    {
+     "day": 3,
+     "sheet": "day03-host-networking",
+     "title": "호스트 네트워킹",
+     "goal": "ip/ss/firewalld로 '어디서 막혔나'를 3분 안에 좁힌다. OCI SL/NSG와 OS 방화벽의 경계를 안다",
+     "estimated_minutes": 50
+    },
+    {
+     "day": 4,
+     "sheet": "day04-users-and-permissions",
+     "title": "사용자·권한·보안",
+     "goal": "sudo/소유권/모드/SELinux 컨텍스트 문제를 구분해서 진단한다",
+     "estimated_minutes": 45
+    },
+    {
+     "day": 5,
+     "sheet": "day05-logs-and-troubleshooting",
+     "title": "로그와 트러블슈팅",
+     "goal": "journald/rsyslog 구조를 알고, 장애 접수 시 로그 우선 원칙으로 원인을 좁힌다",
+     "estimated_minutes": 55
+    }
+   ]
+  },
+  {
+   "id": "oci-security",
+   "title": "OCI 보안",
+   "description": "OCI 보안 서비스를 카테고리 단위로 학습. 기간 없이 주제별로 골라 진행한다.",
+   "mode": "category",
+   "difficulty": 2,
+   "public": true,
+   "tags": [
+    "oci",
+    "security",
+    "cloud-guard"
+   ],
+   "created": "2026-08-02",
+   "topics": [
+    {
+     "topic": "cloud-guard",
+     "sheet": "cloud-guard",
+     "title": "Cloud Guard",
+     "goal": "처리 모델(Target→Detector→Problem→Responder)을 그리고, 퍼블릭 버킷 자동 교정을 실전 구축한다",
+     "estimated_minutes": 80,
+     "level": 1
+    },
+    {
+     "topic": "cloud-guard-l2",
+     "sheet": "cloud-guard-l2",
+     "title": "Cloud Guard",
+     "goal": "(예정) 커스텀 detector 규칙·조건 그룹·오탐 운영, 다중 compartment 전략",
+     "estimated_minutes": 60,
+     "level": 2,
+     "status": "planned"
+    },
+    {
+     "topic": "cloud-guard-l3",
+     "sheet": "cloud-guard-l3",
+     "title": "Cloud Guard",
+     "goal": "(예정) Threat/Instance Security 심화, SIEM 연동, 조직 단위 거버넌스",
+     "estimated_minutes": 60,
+     "level": 3,
+     "status": "planned"
+    },
+    {
+     "topic": "security-zones",
+     "sheet": "security-zones",
+     "title": "Security Zones",
+     "goal": "(예정) Cloud Guard와의 관계, recipe 기반 정책 강제를 이해한다",
+     "estimated_minutes": 40,
+     "level": 1,
+     "status": "planned"
+    },
+    {
+     "topic": "vault-kms",
+     "sheet": "vault-kms",
+     "title": "Vault·KMS",
+     "goal": "(예정) 키 계층과 시크릿 수명주기를 이해한다",
+     "estimated_minutes": 50,
+     "level": 1,
+     "status": "planned"
+    }
+   ]
+  },
+  {
+   "id": "oke",
+   "title": "OKE — Kubernetes Engine",
+   "description": "OKE를 레벨 3단계로 학습. L1 골격 → L2 네트워킹·노출 → L3 IAM·운영.",
+   "mode": "category",
+   "difficulty": 2,
+   "public": true,
+   "tags": [
+    "oci",
+    "oke",
+    "kubernetes",
+    "network",
+    "iam"
+   ],
+   "created": "2026-08-03",
+   "topics": [
+    {
+     "topic": "oke-foundations",
+     "sheet": "level01-foundations",
+     "title": "골격 — 책임 분계와 잠기는 결정",
+     "goal": "Oracle과 내가 각각 무엇을 책임지는지 선을 긋고, 되돌릴 수 없는 결정 3개(클러스터 타입·노드 종류·Pod 네트워킹)를 근거와 함께 고른 뒤 실제 클러스터를 구축한다",
+     "estimated_minutes": 70,
+     "level": 1
+    },
+    {
+     "topic": "oke-networking",
+     "sheet": "level02-networking-and-exposure",
+     "title": "네트워킹과 서비스 노출",
+     "goal": "4-subnet 구성을 그릴 수 있고, Service type=LoadBalancer로 실서비스를 노출하며 트래픽이 멈추는 지점을 순서대로 좁힌다",
+     "estimated_minutes": 80,
+     "level": 2
+    },
+    {
+     "topic": "oke-identity-ops",
+     "sheet": "level03-identity-and-operations",
+     "title": "Workload Identity와 운영",
+     "goal": "Pod이 OCI API를 호출하는 3경로를 구분하고, Pod 단위 권한을 실제로 구축하며 업그레이드·삭제 순서를 공식 근거로 설계한다",
+     "estimated_minutes": 85,
+     "level": 3
+    }
+   ]
+  }
+ ],
+ "sheets": {
+  "day01-boot-and-systemd": {
+   "curriculum": "linux-basics",
+   "day": 1,
+   "sheet": "day01-boot-and-systemd",
+   "title": "부팅 과정과 systemd 서비스",
+   "tags": [
+    "linux",
+    "systemd",
+    "boot"
+   ],
+   "difficulty": 1,
+   "estimated_minutes": 75,
+   "goal": "부팅 5단계를 순서대로 말할 수 있고, 서비스 장애 시 systemctl/journalctl로 첫 진입을 한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 부팅 5단계",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs>\n    <marker id=\"ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/>\n    </marker>\n  </defs>\n  <g text-anchor=\"middle\" font-size=\"12.5\">\n    <rect x=\"8\" y=\"34\" width=\"110\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"63\" y=\"54\" fill=\"var(--text)\" font-weight=\"600\">펌웨어</text>\n    <text x=\"63\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">BIOS / UEFI</text>\n    <rect x=\"142\" y=\"34\" width=\"110\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"197\" y=\"54\" fill=\"var(--text)\" font-weight=\"600\">부트로더</text>\n    <text x=\"197\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">GRUB2</text>\n    <rect x=\"276\" y=\"34\" width=\"110\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"331\" y=\"54\" fill=\"var(--text)\" font-weight=\"600\">커널</text>\n    <text x=\"331\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">루트 fs 마운트</text>\n    <rect x=\"410\" y=\"34\" width=\"110\" height=\"46\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"465\" y=\"54\" fill=\"var(--accent)\" font-weight=\"700\">systemd</text>\n    <text x=\"465\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">PID 1</text>\n    <rect x=\"544\" y=\"34\" width=\"110\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"599\" y=\"54\" fill=\"var(--text)\" font-weight=\"600\">target 도달</text>\n    <text x=\"599\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">multi-user</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" marker-end=\"url(#ar)\">\n    <line x1=\"118\" y1=\"57\" x2=\"138\" y2=\"57\"/>\n    <line x1=\"252\" y1=\"57\" x2=\"272\" y2=\"57\"/>\n    <line x1=\"386\" y1=\"57\" x2=\"406\" y2=\"57\"/>\n    <line x1=\"520\" y1=\"57\" x2=\"540\" y2=\"57\"/>\n  </g>\n  <g text-anchor=\"middle\" font-size=\"10\" fill=\"var(--text-faint)\">\n    <text x=\"63\" y=\"105\">HW 점검·부트 디바이스</text>\n    <text x=\"197\" y=\"105\">커널+initramfs 로드</text>\n    <text x=\"331\" y=\"105\">HW 초기화</text>\n    <text x=\"465\" y=\"105\">모든 프로세스의 조상</text>\n    <text x=\"599\" y=\"105\">유닛 병렬 기동</text>\n  </g>\n  <text x=\"330\" y=\"140\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">systemd 이후는 순차가 아니라 병렬 — 하나가 늦어도 나머지는 뜬다</text>\n</svg>",
+     "body": ""
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 유닛과 target",
+     "diagram": "<svg viewBox=\"0 0 660 240\" font-family=\"Pretendard,sans-serif\">\n  <defs>\n    <marker id=\"ar2\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/>\n    </marker>\n    <marker id=\"ar3\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--pixel)\"/>\n    </marker>\n  </defs>\n  <rect x=\"10\" y=\"14\" width=\"450\" height=\"196\" rx=\"14\" fill=\"none\" stroke=\"var(--accent)\" stroke-dasharray=\"7 5\" stroke-width=\"1.6\"/>\n  <text x=\"28\" y=\"40\" font-size=\"13\" fill=\"var(--accent)\" font-weight=\"700\">multi-user.target</text>\n  <text x=\"160\" y=\"40\" font-size=\"10.5\" fill=\"var(--text-faint)\">= 유닛 묶음 (과거 runlevel의 후계)</text>\n  <g font-size=\"12\" text-anchor=\"middle\">\n    <rect x=\"40\" y=\"70\" width=\"130\" height=\"40\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"105\" y=\"94\" fill=\"var(--text)\">nginx.service</text>\n    <rect x=\"40\" y=\"150\" width=\"130\" height=\"40\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"105\" y=\"174\" fill=\"var(--text)\">sshd.service</text>\n    <rect x=\"290\" y=\"70\" width=\"140\" height=\"40\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"360\" y=\"94\" fill=\"var(--text)\">network.target</text>\n    <rect x=\"290\" y=\"150\" width=\"140\" height=\"40\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"360\" y=\"174\" fill=\"var(--text)\">app.service</text>\n  </g>\n  <g font-size=\"10\" font-family=\"Consolas,monospace\">\n    <line x1=\"170\" y1=\"85\" x2=\"286\" y2=\"85\" stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#ar2)\"/>\n    <text x=\"228\" y=\"78\" text-anchor=\"middle\" fill=\"var(--accent)\">Requires=</text>\n    <line x1=\"290\" y1=\"165\" x2=\"174\" y2=\"165\" stroke=\"var(--pixel)\" stroke-width=\"1.6\" stroke-dasharray=\"5 4\" marker-end=\"url(#ar3)\"/>\n    <text x=\"232\" y=\"158\" text-anchor=\"middle\" fill=\"var(--pixel)\">After=</text>\n    <text x=\"232\" y=\"184\" text-anchor=\"middle\" fill=\"var(--text-faint)\" font-family=\"Pretendard\">(순서만!)</text>\n  </g>\n  <g font-size=\"11\">\n    <rect x=\"480\" y=\"60\" width=\"170\" height=\"120\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"495\" y=\"84\" fill=\"var(--text)\" font-weight=\"700\" font-size=\"11\">의존성 3형제</text>\n    <line x1=\"495\" y1=\"100\" x2=\"520\" y2=\"100\" stroke=\"var(--text-dim)\" stroke-width=\"1.6\"/>\n    <text x=\"527\" y=\"104\" fill=\"var(--text-dim)\">Wants= 약한 의존</text>\n    <line x1=\"495\" y1=\"124\" x2=\"520\" y2=\"124\" stroke=\"var(--accent)\" stroke-width=\"1.6\"/>\n    <text x=\"527\" y=\"128\" fill=\"var(--text-dim)\">Requires= 강한 의존</text>\n    <line x1=\"495\" y1=\"148\" x2=\"520\" y2=\"148\" stroke=\"var(--pixel)\" stroke-width=\"1.6\" stroke-dasharray=\"5 4\"/>\n    <text x=\"527\" y=\"152\" fill=\"var(--text-dim)\">After= 순서만</text>\n  </g>\n  <text x=\"330\" y=\"232\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--wrong)\">⚠ After=는 의존이 아니라 순서 — 없어도 시작된다 (자주 틀리는 지점)</text>\n</svg>",
+     "body": "<ul>\n<li>유닛(unit) = systemd가 관리하는 최소 단위. <code>*.service</code>(프로세스), <code>*.target</code>(그룹), <code>*.mount</code>, <code>*.timer</code> 등</li>\n<li>서버 기본 target은 <code>multi-user.target</code></li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 서비스 상태 진단 3종",
+     "diagram": "<svg viewBox=\"0 0 660 210\" font-family=\"Pretendard,sans-serif\">\n  <defs>\n    <marker id=\"ar4\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/>\n    </marker>\n  </defs>\n  <g text-anchor=\"middle\">\n    <rect x=\"10\" y=\"60\" width=\"110\" height=\"44\" rx=\"22\" fill=\"var(--wrong)\" opacity=\"0.15\" stroke=\"var(--wrong)\"/>\n    <text x=\"65\" y=\"86\" font-size=\"12.5\" fill=\"var(--wrong)\" font-weight=\"700\">장애 접수</text>\n    <rect x=\"170\" y=\"60\" width=\"150\" height=\"44\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"245\" y=\"79\" font-size=\"11.5\" fill=\"var(--accent)\" font-family=\"Consolas,monospace\">systemctl status</text>\n    <text x=\"245\" y=\"95\" font-size=\"10\" fill=\"var(--text-dim)\">상태 + 최근 로그 (첫 진입)</text>\n    <rect x=\"370\" y=\"14\" width=\"150\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"445\" y=\"33\" font-size=\"11.5\" fill=\"var(--text)\" font-family=\"Consolas,monospace\">journalctl -u -e</text>\n    <text x=\"445\" y=\"49\" font-size=\"10\" fill=\"var(--text-dim)\">유닛 로그 전체 (원인 탐색)</text>\n    <rect x=\"370\" y=\"106\" width=\"150\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"445\" y=\"125\" font-size=\"11.5\" fill=\"var(--text)\" font-family=\"Consolas,monospace\">list-dependencies</text>\n    <text x=\"445\" y=\"141\" font-size=\"10\" fill=\"var(--text-dim)\">의존 체인 (연쇄 실패)</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" fill=\"none\" marker-end=\"url(#ar4)\">\n    <line x1=\"120\" y1=\"82\" x2=\"166\" y2=\"82\"/>\n    <path d=\"M320 74 C 345 60, 345 45, 366 38\"/>\n    <path d=\"M320 92 C 345 105, 345 120, 366 126\"/>\n  </g>\n  <g font-size=\"10\" fill=\"var(--text-faint)\">\n    <text x=\"333\" y=\"42\">원인 안 보임</text>\n    <text x=\"333\" y=\"128\">의존 의심</text>\n  </g>\n  <g font-size=\"11\">\n    <rect x=\"10\" y=\"160\" width=\"310\" height=\"40\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"24\" y=\"178\" fill=\"var(--pixel)\" font-weight=\"700\" font-size=\"10.5\">enabled ≠ active</text>\n    <text x=\"24\" y=\"193\" fill=\"var(--text-dim)\" font-size=\"10.5\">enabled=부팅 자동시작 / active=지금 실행 중 — 서로 독립</text>\n  </g>\n</svg>",
+     "body": "<pre><code>systemctl status &lt;svc&gt;              ← 현재 상태 + 최근 로그 몇 줄 (첫 진입점)\njournalctl -u &lt;svc&gt; -e              ← 해당 유닛 로그 전체 (원인 탐색)\nsystemctl list-dependencies &lt;svc&gt;   ← 의존 체인 (연쇄 실패 추적)\n</code></pre>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 B의 OCI VM(Oracle Linux)에서 자바 앱을 <code>nohup java -jar app.jar &amp;</code> 로 수동 기동 중. 야간 패치 재부팅 후 앱이 안 떠 있어 아침마다 장애 콜.",
+    "request": "&quot;재부팅하면 앱이 <strong>자동으로 뜨고</strong>, 프로세스가 죽어도 <strong>스스로 재시작</strong>되게 만들어 주세요. 네트워크가 올라온 뒤에 시작해야 합니다.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — systemd 기능 매핑",
+      "body": "<pre><code>&quot;재부팅 시 자동 기동&quot;   → unit 파일 작성 + systemctl enable\n&quot;죽으면 자동 재시작&quot;     → [Service] Restart=on-failure\n&quot;네트워크 이후 시작&quot;     → After=network-online.target + Wants=\n&quot;수동 기동 폐지&quot;         → nohup 제거, 기동·중지·로그를 systemctl/journalctl로 일원화\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "unit 파일 작성",
+      "body": "<p><code>/etc/systemd/system/app.service</code>:</p>\n<pre><code>[Unit]\nDescription=Customer B java application\nWants=network-online.target\nAfter=network-online.target\n\n[Service]\nUser=appuser\nWorkingDirectory=/opt/app\nExecStart=/usr/bin/java -jar /opt/app/app.jar\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n</code></pre>\n<ul>\n<li><code>After=</code>만 쓰면 순서 보장뿐 — 네트워크 대기까지 원하면 <code>Wants=network-online.target</code> 병기 (개념 2의 함정 그대로)</li>\n<li><code>ExecStart</code>는 절대경로. <code>&amp;</code>·nohup 금지 — 백그라운드화는 systemd의 일</li>\n</ul>\n"
+     },
+     {
+      "id": "l3",
+      "title": "적용 — reload + enable --now",
+      "body": "<pre><code>sudo systemctl daemon-reload\nsudo systemctl enable --now app\nsystemctl status app            # active (running) 확인\n</code></pre>\n<p><code>enable --now</code> 한 줄이 &quot;자동 기동 + 지금 기동&quot; 동시 충족 (시나리오 S2와 동일 지점).</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "자동 재시작 검증 — 일부러 죽여본다",
+      "body": "<pre><code>sudo pkill -f &#39;java -jar /opt/app/app.jar&#39;\nsleep 6\nsystemctl status app            # 다시 active (running) 이면 합격\n</code></pre>\n<p>확인: Main PID 변경 + <code>journalctl -u app -e</code> 재시작 로그.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "재부팅 검증",
+      "body": "<pre><code>sudo reboot\nsystemctl is-enabled app        # enabled\nsystemctl is-active app         # active\njournalctl -b -u app -e         # 이번 부팅의 기동 로그\n</code></pre>\n<p><code>journalctl -b</code>(이번 부팅 한정)가 재부팅 검증의 표준 도구 — 시나리오 S5 rubric과 같은 지점.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계 — 운영 명령 3종",
+      "body": "<pre><code>systemctl status app\nsudo systemctl restart app      # 배포 후 재기동\njournalctl -u app -f            # 실시간 로그\n</code></pre>\n<ul>\n<li>&quot;nohup은 더 이상 쓰지 않는다&quot; 명시 — 이중 기동 사고 방지</li>\n<li>배포 절차: app.jar 교체 → <code>systemctl restart app</code> 한 줄</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Oracle Linux 9 — systemd 가이드",
+     "url": "https://docs.oracle.com/en/operating-systems/oracle-linux/9/systemd/"
+    },
+    {
+     "label": "systemd.unit(5) — freedesktop.org",
+     "url": "https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "동료가 'After=network.target 을 넣었으니 network이 없으면 이 서비스는 시작 안 된다'고 말한다.",
+     "question": "이 말은 맞다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "After=는 순서만 지정한다. 의존(없으면 실패)을 원하면 Requires= 를 함께 써야 한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "OCI VM 재부팅 후 웹 서비스가 안 떠 있다. systemctl status nginx 결과: inactive (dead), 유닛 파일 라인에 disabled.",
+     "question": "재부팅 때마다 자동으로 뜨게 하면서 지금 즉시 기동도 하는 가장 간결한 명령은?",
+     "choices": [
+      "systemctl start nginx",
+      "systemctl enable nginx",
+      "systemctl enable --now nginx",
+      "systemctl restart nginx"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "enable --now = enable(부팅 자동시작) + start(즉시 기동) 동시 수행. start/restart만으로는 재부팅 시 또 안 뜬다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "고객 VM에서 sshd가 몇 분 전부터 접속 불가. 콘솔 접속은 된다.",
+     "question": "sshd 유닛의 로그를 최신부터 확인하는 명령 한 줄은?",
+     "answers": [
+      "journalctl -u sshd -e",
+      "journalctl -eu sshd",
+      "journalctl -u sshd.service -e",
+      "journalctl -u sshd --reverse",
+      "journalctl -r -u sshd"
+     ],
+     "match": "normalize-flags",
+     "explanation": "journalctl -u <unit> 이 핵심. -e(끝으로 점프) 또는 -r(역순)로 최신 로그부터 본다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "부팅이 평소보다 오래 걸린다는 보고. 어떤 유닛이 병목인지 수치로 확인하고 싶다.",
+     "question": "유닛별 기동 소요 시간을 오래 걸린 순으로 보여주는 명령은?",
+     "answers": [
+      "systemd-analyze blame"
+     ],
+     "match": "exact-trim",
+     "explanation": "systemd-analyze blame 이 유닛별 소요시간 내림차순 목록. critical-chain 은 의존 경로상 병목만 보여준다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "재부팅 후 앱 서비스가 죽어 있었는데 systemctl start 로는 정상 기동됐다. 고객이 원인을 묻는다.",
+     "question": "가장 먼저 확인할 두 가지와 그 이유를 서술하라.",
+     "answers": [],
+     "rubric": "① enabled 여부 (disabled면 부팅 자동시작 자체가 안 됨) ② journalctl -b -u <svc> 로 부팅 당시 실패 로그 (의존 유닛 미기동·타임아웃 등). 두 가지 모두 언급 시 O, 하나만 △.",
+     "explanation": "start가 되는데 부팅 후 죽어 있다 = '실행 능력'이 아니라 '자동 시작 경로'의 문제. enabled 상태와 부팅 시점 로그가 첫 갈림길.",
+     "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
+  "cloud-guard": {
+   "curriculum": "oci-security",
+   "topic": "cloud-guard",
+   "level": 1,
+   "sheet": "cloud-guard",
+   "title": "Cloud Guard — 탐지와 대응의 골격",
+   "tags": [
+    "oci",
+    "security",
+    "cloud-guard",
+    "iam"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 80,
+   "goal": "처리 모델(Target→Detector→Problem→Responder)을 그리고, 퍼블릭 버킷 자동 교정을 실전 구축한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 처리 모델 — Target → Detector → Problem → Responder",
+     "diagram": "<svg viewBox=\"0 0 660 110\" font-family=\"Pretendard,sans-serif\">\n  <defs>\n    <marker id=\"cg-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/>\n    </marker>\n  </defs>\n  <g text-anchor=\"middle\" font-size=\"12.5\">\n    <rect x=\"8\" y=\"24\" width=\"130\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"73\" y=\"50\" fill=\"var(--text)\" font-weight=\"600\">Target</text>\n    <rect x=\"178\" y=\"24\" width=\"130\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"243\" y=\"50\" fill=\"var(--text)\" font-weight=\"600\">Detector Recipe</text>\n    <rect x=\"348\" y=\"24\" width=\"130\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"413\" y=\"50\" fill=\"var(--accent)\" font-weight=\"700\">Problem</text>\n    <rect x=\"518\" y=\"24\" width=\"134\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"585\" y=\"50\" fill=\"var(--text)\" font-weight=\"600\">Responder</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" marker-end=\"url(#cg-ar)\">\n    <line x1=\"138\" y1=\"45\" x2=\"174\" y2=\"45\"/>\n    <line x1=\"308\" y1=\"45\" x2=\"344\" y2=\"45\"/>\n    <line x1=\"478\" y1=\"45\" x2=\"514\" y2=\"45\"/>\n  </g>\n  <g text-anchor=\"middle\" font-size=\"10\" fill=\"var(--text-faint)\">\n    <text x=\"73\" y=\"92\">감시 대상 (compartment)</text>\n    <text x=\"243\" y=\"92\">규칙으로 검사</text>\n    <text x=\"413\" y=\"92\">탐지 결과 생성</text>\n    <text x=\"585\" y=\"92\">교정 액션 (제안/자동)</text>\n  </g>\n</svg>",
+     "body": "<p>Cloud Guard는 리소스의 보안 약점과 위험 행위를 <strong>감시하고, 문제로 만들고, 대응</strong>하는\nOCI 네이티브 보안 서비스. 전체 동작은 한 줄 파이프라인.</p>\n<pre><code>├── Target ──────── Cloud Guard가 감시하는 대상 (compartment 단위로 리소스 지정)\n├── Detector ────── 검사 규칙. recipe(규칙 묶음)를 target에 붙여서 동작\n├── Problem ─────── detector가 잡아낸 이슈. 조회·필터·해결·기각의 lifecycle을 가짐\n└── Responder ───── problem에 대한 교정 액션. 설정에 따라 제안만 하거나 자동 실행\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. Detector 4종과 recipe 소유권",
+     "diagram": "<svg viewBox=\"0 0 660 200\" font-family=\"Pretendard,sans-serif\">\n  <defs>\n    <marker id=\"cg-ar2\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/>\n    </marker>\n  </defs>\n  <!-- 좌: detector 4종 -->\n  <g font-size=\"11.5\">\n    <rect x=\"8\" y=\"14\" width=\"250\" height=\"176\" rx=\"12\" fill=\"none\" stroke=\"var(--line)\" stroke-dasharray=\"6 5\"/>\n    <text x=\"22\" y=\"36\" fill=\"var(--text-dim)\" font-size=\"11\" font-weight=\"700\">Detector 4종 (무엇을 잡나)</text>\n    <rect x=\"22\" y=\"48\" width=\"222\" height=\"28\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"34\" y=\"67\" fill=\"var(--text)\">Configuration — 설정 취약점</text>\n    <rect x=\"22\" y=\"82\" width=\"222\" height=\"28\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"34\" y=\"101\" fill=\"var(--text)\">Activity — 위험 행위</text>\n    <rect x=\"22\" y=\"116\" width=\"222\" height=\"28\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"34\" y=\"135\" fill=\"var(--text)\">Threat — 악성 패턴</text>\n    <rect x=\"22\" y=\"150\" width=\"222\" height=\"28\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"34\" y=\"169\" fill=\"var(--text)\">Instance Security — 호스트 내부</text>\n  </g>\n  <!-- 우: recipe 소유권 -->\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"300\" y=\"48\" width=\"150\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"375\" y=\"68\" fill=\"var(--text)\" font-weight=\"600\">Oracle-managed</text>\n    <text x=\"375\" y=\"84\" fill=\"var(--wrong)\" font-size=\"10\">직접 수정 불가</text>\n    <rect x=\"500\" y=\"48\" width=\"150\" height=\"46\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"575\" y=\"68\" fill=\"var(--accent)\" font-weight=\"700\">user-managed</text>\n    <text x=\"575\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">규칙 조정 가능</text>\n    <line x1=\"450\" y1=\"64\" x2=\"496\" y2=\"64\" stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#cg-ar2)\"/>\n    <text x=\"473\" y=\"56\" fill=\"var(--accent)\" font-size=\"10\" font-family=\"Consolas,monospace\">clone</text>\n    <path d=\"M575 94 C 575 130, 420 130, 385 98\" fill=\"none\" stroke=\"var(--text-faint)\" stroke-width=\"1.3\" stroke-dasharray=\"4 4\"/>\n    <text x=\"480\" y=\"140\" fill=\"var(--text-faint)\" font-size=\"10\">원본과 연결(ties) 유지 — 규칙 업데이트 이어받음</text>\n  </g>\n</svg>",
+     "body": "<p>recipe 소유권이 실무 포인트 — <strong>Oracle-managed recipe는 직접 수정 불가</strong>.\n규칙을 조정하려면 user-managed로 <strong>clone</strong> 해서 사용. clone본은 원본 Oracle-managed\nrecipe와의 연결(ties)을 유지해 규칙 업데이트를 이어받음.</p>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. Problem lifecycle과 점수",
+     "diagram": "<svg viewBox=\"0 0 660 170\" font-family=\"Pretendard,sans-serif\">\n  <defs>\n    <marker id=\"cg-ar3\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/>\n    </marker>\n  </defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\">\n    <rect x=\"8\" y=\"24\" width=\"130\" height=\"40\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"73\" y=\"49\" fill=\"var(--accent)\" font-weight=\"700\">Problem 생성</text>\n    <rect x=\"188\" y=\"24\" width=\"150\" height=\"40\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"263\" y=\"43\" fill=\"var(--text)\">조회·정렬·필터</text>\n    <text x=\"263\" y=\"57\" fill=\"var(--text-dim)\" font-size=\"9.5\">일괄 상태 변경 가능</text>\n    <rect x=\"388\" y=\"4\" width=\"120\" height=\"34\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--accent-dim)\"/>\n    <text x=\"448\" y=\"26\" fill=\"var(--accent)\">Resolve (해결)</text>\n    <rect x=\"388\" y=\"52\" width=\"120\" height=\"34\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"448\" y=\"74\" fill=\"var(--text-dim)\">Dismiss (기각)</text>\n    <rect x=\"544\" y=\"24\" width=\"108\" height=\"40\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"598\" y=\"43\" fill=\"var(--text)\" font-size=\"10.5\">responder</text>\n    <text x=\"598\" y=\"57\" fill=\"var(--text-dim)\" font-size=\"9.5\">execution 별도 이력</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" fill=\"none\" marker-end=\"url(#cg-ar3)\">\n    <line x1=\"138\" y1=\"44\" x2=\"184\" y2=\"44\"/>\n    <path d=\"M338 36 C 358 30, 364 26, 384 22\"/>\n    <path d=\"M338 52 C 358 58, 364 62, 384 68\"/>\n  </g>\n  <!-- 점수 두 지표 -->\n  <g font-size=\"11\">\n    <rect x=\"8\" y=\"110\" width=\"310\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--accent-dim)\"/>\n    <text x=\"24\" y=\"129\" fill=\"var(--accent)\" font-weight=\"700\">Security Score ↑</text>\n    <text x=\"24\" y=\"146\" fill=\"var(--text-dim)\" font-size=\"10\">시스템이 얼마나 안전한가 (높을수록 좋음)</text>\n    <rect x=\"342\" y=\"110\" width=\"310\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/>\n    <text x=\"358\" y=\"129\" fill=\"var(--wrong)\" font-weight=\"700\">Risk Score ↓</text>\n    <text x=\"358\" y=\"146\" fill=\"var(--text-dim)\" font-size=\"10\">problem들이 만드는 위험 수준 (낮을수록 좋음) — 방향이 반대</text>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>Problem은 Problems 페이지에서 조회·정렬·필터·일괄 상태 변경 가능</li>\n<li>Responder 실행 이력은 problem과 별개 리소스(responder execution)로 남음</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. IAM 권한 설계 — verb 단계가 곧 역할 설계",
+     "diagram": "<svg viewBox=\"0 0 660 210\" font-family=\"Pretendard,sans-serif\">\n  <defs>\n    <marker id=\"cg-ar4\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\">\n      <path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--pixel)\"/>\n    </marker>\n  </defs>\n  <!-- verb 포함 관계 (동심 상자) -->\n  <g font-size=\"11\" font-family=\"Consolas,monospace\">\n    <rect x=\"8\"  y=\"14\" width=\"400\" height=\"130\" rx=\"12\" fill=\"none\" stroke=\"var(--pixel)\" stroke-width=\"1.6\"/>\n    <text x=\"26\" y=\"36\" fill=\"var(--pixel)\" font-weight=\"700\">manage</text>\n    <rect x=\"26\" y=\"46\" width=\"290\" height=\"88\" rx=\"10\" fill=\"none\" stroke=\"var(--accent)\" stroke-width=\"1.4\"/>\n    <text x=\"44\" y=\"66\" fill=\"var(--accent)\" font-weight=\"700\">use</text>\n    <rect x=\"44\" y=\"74\" width=\"190\" height=\"50\" rx=\"8\" fill=\"none\" stroke=\"var(--line)\"/>\n    <text x=\"60\" y=\"93\" fill=\"var(--text-dim)\">read</text>\n    <rect x=\"60\" y=\"99\" width=\"120\" height=\"18\" rx=\"5\" fill=\"var(--bg-card)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"120\" y=\"112\" fill=\"var(--text-faint)\" text-anchor=\"middle\" font-size=\"10\">inspect</text>\n  </g>\n  <g font-size=\"10\" font-family=\"Pretendard\">\n    <text x=\"330\" y=\"66\" fill=\"var(--accent)\">← problem 상태 변경</text>\n    <text x=\"330\" y=\"80\" fill=\"var(--accent)\">   responder 수동 트리거</text>\n    <text x=\"330\" y=\"94\" fill=\"var(--accent)\">   recipe 수정</text>\n    <text x=\"424\" y=\"36\" fill=\"var(--pixel)\">← recipe·target 생성/삭제는 여기서만</text>\n  </g>\n  <text x=\"8\" y=\"166\" font-size=\"10.5\" fill=\"var(--text-dim)\" font-family=\"Pretendard\">verb 포함 관계: inspect &lt; read &lt; use &lt; manage — aggregate는 cloud-guard-family</text>\n  <!-- service principal -->\n  <g font-size=\"10.5\">\n    <rect x=\"8\" y=\"176\" width=\"404\" height=\"26\" rx=\"7\" fill=\"var(--bg-inset)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"20\" y=\"193\" fill=\"var(--text)\" font-family=\"Consolas,monospace\">allow service cloudguard to &lt;verb&gt; &lt;resource_type&gt; …</text>\n    <line x1=\"416\" y1=\"189\" x2=\"470\" y2=\"189\" stroke=\"var(--pixel)\" stroke-width=\"1.5\" marker-end=\"url(#cg-ar4)\"/>\n    <text x=\"478\" y=\"193\" fill=\"var(--text-dim)\" font-family=\"Pretendard\">Responder가 리소스를 실제로 고칠 때 필요</text>\n  </g>\n</svg>",
+     "body": "<p>Cloud Guard 권한은 <code>cloud-guard-family</code> aggregate로 묶이고, verb 포함 관계\n<code>inspect &gt; read &gt; use &gt; manage</code>를 따름. 실무에서 자주 쓰는 검증된 정책:</p>\n<pre><code>Allow group SecurityAdmins to manage cloud-guard-family in tenancy\n</code></pre>\n<p>verb 경계에서 갈리는 대표 지점 (공식 permission 표 기준):</p>\n<pre><code>├── use ───── problem 상태 변경(CG_PROBLEM_UPDATE), responder 수동 트리거,\n│             recipe 수정(CG_DETECTOR_RECIPE_UPDATE)까지 가능\n└── manage ── recipe 생성·삭제(CG_DETECTOR_RECIPE_CREATE/DELETE),\n              target 생성·삭제는 여기서만\n</code></pre>\n<p>Responder가 리소스를 실제로 고치려면 <strong>Cloud Guard 서비스 자체</strong>에게 권한이 필요:</p>\n<pre><code>allow service cloudguard to &lt;verb&gt; &lt;resource_type&gt; in &lt;compartment or tenancy details&gt;\n</code></pre>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 A는 운영 워크로드를 <code>prod</code> compartment에 모아 쓴다. 감사에서 &quot;퍼블릭 노출 버킷이 발견돼도 며칠씩 방치된다&quot;는 지적을 받았다.",
+    "request": "&quot;Cloud Guard를 켜서 <strong>prod compartment만</strong> 감시하고, <strong>퍼블릭 버킷이 생기면 자동으로 private으로 되돌려</strong> 주세요. 보안팀(SecurityAdmins)이 운영할 수 있게 권한도 잡아주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — 구성요소 매핑",
+      "body": "<p>요청 문장을 Cloud Guard 구성요소로 번역하는 것이 설계의 전부.</p>\n<pre><code>&quot;prod만 감시&quot;            → Target = prod compartment\n&quot;퍼블릭 버킷 탐지&quot;        → Configuration Detector — 규칙 &quot;Bucket is public&quot;\n&quot;자동으로 private 되돌려&quot;  → Responder — &quot;Make Bucket Private&quot; + 자동 실행\n&quot;보안팀이 운영&quot;           → IAM — SecurityAdmins에 cloud-guard-family manage\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "IAM 사전 조건 — 정책 2종",
+      "body": "<p>운영자 권한과 <strong>서비스 자신의 권한</strong>은 별개 (실무에서 가장 많이 빠뜨리는 부분).</p>\n<pre><code>Allow group SecurityAdmins to manage cloud-guard-family in tenancy\nallow service cloudguard to manage object-family in compartment prod\n</code></pre>\n<p>확인: Identity → Policies에서 두 정책이 걸려 있는지.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "Cloud Guard 활성화",
+      "body": "<p>콘솔: <code>Security → Cloud Guard → Enable Cloud Guard</code></p>\n<ul>\n<li>Reporting Region — 한 번 정하면 변경 불가. 주 운영 리전으로</li>\n<li>초기 감시 범위를 tenancy 전체로 잡지 말 것 — target에서 prod만 지정할 예정</li>\n</ul>\n<p>확인: Overview 대시보드 상태 Enabled.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "Detector recipe 클론",
+      "body": "<p>콘솔: <code>Detector Recipes → OCI Configuration Detector Recipe → Clone</code> → <code>prod-config-detector</code></p>\n<ul>\n<li>&quot;Bucket is public&quot; 규칙 Enabled 확인 — 이번 요구의 핵심</li>\n<li>소음 규칙은 클론본에서 off (problem 노이즈 절감)</li>\n</ul>\n"
+     },
+     {
+      "id": "l5",
+      "title": "Responder recipe 구성 — 자동 실행",
+      "body": "<p>콘솔: <code>Responder Recipes → OCI Responder Recipe → Clone</code> → <code>prod-responder</code></p>\n<ul>\n<li>&quot;Make Bucket Private&quot; rule Enabled</li>\n<li>실행 모드: <strong>Execute automatically</strong> (기본값 Ask me before executing 그대로면 &quot;자동&quot; 요구 미충족)</li>\n</ul>\n"
+     },
+     {
+      "id": "l6",
+      "title": "Target 생성 — prod에 recipe 부착",
+      "body": "<pre><code>Name              : prod-target\nTarget compartment: prod        ← 하위 compartment 포함 여부 확인\nDetector recipe   : prod-config-detector\nResponder recipe  : prod-responder\n</code></pre>\n<p>확인: Target 상세에서 두 recipe Attached.</p>\n"
+     },
+     {
+      "id": "l7",
+      "title": "동작 검증 — 일부러 문제를 만든다",
+      "body": "<pre><code>oci os bucket create --name cg-test --compartment-id &lt;prod-ocid&gt; --public-access-type ObjectRead\noci cloud-guard problem list --compartment-id &lt;prod-ocid&gt; --lifecycle-detail OPEN\n</code></pre>\n<ul>\n<li>수 분 내 &quot;Bucket is public&quot; problem 생성 확인</li>\n<li>Responder Activity에서 &quot;Make Bucket Private&quot; 실행 이력 → 버킷 private 복귀 재확인 → 테스트 버킷 삭제</li>\n</ul>\n"
+     },
+     {
+      "id": "l8",
+      "title": "운영 인수인계",
+      "body": "<ul>\n<li>Security Score(높을수록 좋음) / Risk Score(낮을수록 좋음) 방향 설명</li>\n<li>오탐: 규칙 조건 조정으로 해당 리소스만 예외 — 규칙 전체 off는 최후 수단</li>\n<li>주간 리뷰에서 OPEN problem 0 목표. Dismiss 시 사유 기록</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Cloud Guard 개요",
+     "url": "https://docs.oracle.com/en-us/iaas/cloud-guard/using/index.htm"
+    },
+    {
+     "label": "IAM Policies for Cloud Guard",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/cloud-guard/using/policies.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "동료가 'Oracle-managed detector recipe에서 불필요한 규칙을 끄면 되니까 그냥 원본 recipe를 편집하자'고 한다.",
+     "question": "이 말은 맞다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Oracle-managed recipe는 직접 수정할 수 없다. user-managed로 clone한 뒤 규칙을 조정한다. clone본은 원본과의 연결을 유지해 업데이트를 이어받는다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "고객사에서 '퍼블릭으로 노출된 Object Storage 버킷 같은 설정 실수를 자동으로 잡아달라'는 요구가 왔다.",
+     "question": "이 요구에 해당하는 detector 종류는?",
+     "choices": [
+      "Activity Detector",
+      "Configuration Detector",
+      "Threat Detector",
+      "Instance Security Detector"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "설정 상태의 취약점은 Configuration Detector 영역. Activity는 사용자 행위, Threat은 악성 패턴, Instance Security는 호스트 내부 활동을 본다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "보안팀 그룹 SecurityAdmins에게 tenancy 전체의 Cloud Guard 관리 권한을 부여해야 한다.",
+     "question": "필요한 IAM 정책 한 줄은? (공식 문서 예시 그대로)",
+     "answers": [
+      "Allow group SecurityAdmins to manage cloud-guard-family in tenancy",
+      "allow group SecurityAdmins to manage cloud-guard-family in tenancy"
+     ],
+     "match": "exact-trim",
+     "explanation": "cloud-guard-family aggregate + manage verb. 공식 Policy Examples에 있는 verbatim 정책이다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "choice",
+     "situation": "운영 담당자에게 'problem 상태 변경과 responder 수동 트리거는 허용하되, detector recipe나 target의 생성·삭제는 막아달라'는 요구.",
+     "question": "cloud-guard-family에 부여할 최소 verb는?",
+     "choices": [
+      "inspect",
+      "read",
+      "use",
+      "manage"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "공식 permission 표에서 CG_PROBLEM_UPDATE(상태 변경·responder 트리거)는 use 단계에 포함되고, recipe·target의 CREATE/DELETE는 manage에서만 열린다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "responder rule을 자동 실행으로 켰는데, problem은 계속 쌓이고 교정 액션은 실행되지 않는다는 고객 문의.",
+     "question": "가장 먼저 확인할 두 가지와 그 이유를 서술하라.",
+     "answers": [],
+     "rubric": "① target에 붙은 responder recipe에서 해당 rule의 실행 설정(자동 여부·조건) 확인 ② cloudguard 서비스 principal에 대상 리소스를 조작할 IAM 정책(allow service cloudguard to <verb> <resource_type> …)이 있는지 확인. 두 가지 모두 언급 시 O, 하나만 △.",
+     "explanation": "responder 실행은 rule 설정과 서비스 권한 두 조건이 모두 충족돼야 한다. 탐지(problem 생성)는 되는데 대응만 안 되면 실행 경로 쪽 — 설정 또는 서비스 principal 권한이 첫 갈림길.",
+     "concept_anchor": "c4",
+     "xp": 10
+    }
+   ]
+  },
+  "level01-foundations": {
+   "curriculum": "oke",
+   "topic": "oke-foundations",
+   "level": 1,
+   "sheet": "level01-foundations",
+   "title": "골격 — 책임 분계와 잠기는 결정",
+   "tags": [
+    "oci",
+    "oke",
+    "kubernetes",
+    "compute"
+   ],
+   "difficulty": 1,
+   "estimated_minutes": 45,
+   "goal": "Oracle과 내가 각각 무엇을 책임지는지 선을 긋고, 되돌릴 수 없는 결정 3개(클러스터 타입·노드 종류·Pod 네트워킹)를 근거와 함께 고른 뒤 실제 클러스터를 구축한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 경계선 — Oracle이 굴리는 것 / 내가 굴리는 것",
+     "diagram": "<svg viewBox=\"0 0 640 150\" role=\"img\" aria-label=\"OKE 책임 분계\" xmlns=\"http://www.w3.org/2000/svg\">\n  <g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\">\n    <rect x=\"8\" y=\"12\" width=\"300\" height=\"60\" rx=\"6\"/>\n    <rect x=\"332\" y=\"12\" width=\"300\" height=\"60\" rx=\"6\"/>\n    <rect x=\"8\" y=\"92\" width=\"300\" height=\"46\" rx=\"6\" stroke-dasharray=\"4 3\"/>\n    <rect x=\"332\" y=\"92\" width=\"300\" height=\"46\" rx=\"6\" stroke-dasharray=\"4 3\"/>\n    <path d=\"M158 72v20m316-20v20\"/>\n  </g>\n  <g fill=\"currentColor\" font-size=\"13\" text-anchor=\"middle\" font-family=\"inherit\">\n    <text x=\"158\" y=\"34\">Control Plane (Oracle)</text>\n    <text x=\"474\" y=\"34\">Worker / Workload (나)</text>\n    <text x=\"158\" y=\"54\" font-size=\"10\" opacity=\"0.65\">API server · etcd · scheduler · CCM</text>\n    <text x=\"474\" y=\"54\" font-size=\"10\" opacity=\"0.65\">노드 OS · Pod · Service · PV</text>\n    <text x=\"158\" y=\"112\" font-size=\"11\">SR 대상</text>\n    <text x=\"474\" y=\"112\" font-size=\"11\">MSP 대상</text>\n    <text x=\"158\" y=\"130\" font-size=\"10\" opacity=\"0.65\">API 응답 불가 · 업그레이드 실패</text>\n    <text x=\"474\" y=\"130\" font-size=\"10\" opacity=\"0.65\">NotReady · Pending · 502</text>\n  </g>\n</svg>",
+     "body": "<p>OKE는 <strong>Control Plane을 Oracle이 운영하는 매니지드 Kubernetes</strong>다. 장애가 왔을 때\n&quot;내 영역인가 Oracle 영역인가&quot;를 먼저 가르는 것이 진단의 1단계다.</p>\n<pre><code>OKE 한 문장\n└── Oracle이 Control Plane(API server·etcd·scheduler·controller)을 운영하고,\n    그 위의 worker node와 워크로드는 내가 굴린다 (Virtual Node면 worker도 Oracle)\n</code></pre>\n<ul>\n<li>Kubernetes 자체는 CNCF 준수(conformant) 버전 — <code>kubectl</code> 사용법은 표준 K8s 그대로다</li>\n<li>따라서 OKE 학습의 실체는 <strong>&quot;K8s 리소스가 OCI 리소스로 번역되는 지점&quot;</strong> 을 아는 것</li>\n</ul>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. Basic vs Enhanced — 되돌릴 수 없는 첫 결정",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"oke-ar1\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"12\" text-anchor=\"middle\">\n    <rect x=\"20\" y=\"30\" width=\"240\" height=\"90\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"140\" y=\"54\" fill=\"var(--text)\" font-weight=\"700\">Basic</text>\n    <text x=\"140\" y=\"76\" fill=\"var(--text-dim)\" font-size=\"10.5\">SLO(목표치)만</text>\n    <text x=\"140\" y=\"94\" fill=\"var(--wrong)\" font-size=\"10.5\">Virtual Node · Workload Identity 불가</text>\n    <rect x=\"400\" y=\"30\" width=\"240\" height=\"90\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"520\" y=\"54\" fill=\"var(--accent)\" font-weight=\"700\">Enhanced</text>\n    <text x=\"520\" y=\"76\" fill=\"var(--text-dim)\" font-size=\"10.5\">재정 보상 SLA</text>\n    <text x=\"520\" y=\"94\" fill=\"var(--text-dim)\" font-size=\"10.5\">Virtual/Self-managed · Workload Identity</text>\n  </g>\n  <line x1=\"260\" y1=\"66\" x2=\"396\" y2=\"66\" stroke=\"var(--accent)\" stroke-width=\"1.8\" marker-end=\"url(#oke-ar1)\"/>\n  <text x=\"330\" y=\"58\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--accent)\">업그레이드 가능</text>\n  <line x1=\"396\" y1=\"92\" x2=\"260\" y2=\"92\" stroke=\"var(--wrong)\" stroke-width=\"1.4\" stroke-dasharray=\"5 4\"/>\n  <text x=\"330\" y=\"108\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--wrong)\">역방향 불가</text>\n  <text x=\"330\" y=\"140\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">production 트래픽이 닿을 클러스터면 Enhanced</text>\n</svg>",
+     "body": "<pre><code>Cluster Type\n├── Basic ────── SLO(목표치)만. Virtual Node · Workload Identity · Add-on 관리 불가\n└── Enhanced ─── 재정 보상 SLA + Virtual Node + Workload Identity + Self-managed Node\n                 └── Basic → Enhanced 업그레이드는 가능, 역방향 불가\n</code></pre>\n<p>공식 문서는 Enhanced 전용 항목으로 <em>&quot;Rely on a financially-backed service level agreement (SLA)\ntied to Kubernetes API server uptime and availability&quot;</em> 를 명시한다.\nWorkload Identity 페이지도 <em>&quot;You can only use workload identities to grant access to OCI\nresources when using enhanced clusters&quot;</em> 라고 못 박는다.</p>\n<blockquote>\n<p>실무 기준 한 줄 — production 트래픽이 닿을 클러스터면 <strong>Enhanced</strong>.\nBasic으로 만들어 인수인계된 클러스터는 나중에 Workload Identity 요구가 오면 막힌다.</p>\n</blockquote>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 노드 3종 — 워커를 누가 굴리나",
+     "diagram": "<svg viewBox=\"0 0 660 170\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"12\" y=\"20\" width=\"200\" height=\"96\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"112\" y=\"44\" fill=\"var(--accent)\" font-weight=\"700\">Managed</text>\n    <text x=\"112\" y=\"64\" fill=\"var(--text-dim)\" font-size=\"10\">내 tenancy의 Compute</text>\n    <text x=\"112\" y=\"80\" fill=\"var(--text-dim)\" font-size=\"10\">OS 패치·디스크 = 내 책임</text>\n    <text x=\"112\" y=\"96\" fill=\"var(--text-faint)\" font-size=\"10\">일반 웹·API의 기본값</text>\n    <rect x=\"230\" y=\"20\" width=\"200\" height=\"96\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"330\" y=\"44\" fill=\"var(--text)\" font-weight=\"700\">Virtual</text>\n    <text x=\"330\" y=\"64\" fill=\"var(--text-dim)\" font-size=\"10\">서버리스 · Pod 단위 과금</text>\n    <text x=\"330\" y=\"80\" fill=\"var(--wrong)\" font-size=\"10\">PV(영속 스토리지) 불가</text>\n    <text x=\"330\" y=\"96\" fill=\"var(--text-faint)\" font-size=\"10\">스파이크 큰 batch</text>\n    <rect x=\"448\" y=\"20\" width=\"200\" height=\"96\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"548\" y=\"44\" fill=\"var(--text)\" font-weight=\"700\">Self-managed</text>\n    <text x=\"548\" y=\"64\" fill=\"var(--text-dim)\" font-size=\"10\">내가 만든 인스턴스를 join</text>\n    <text x=\"548\" y=\"80\" fill=\"var(--text-dim)\" font-size=\"10\">GPU · HPC · 특수 이미지</text>\n    <text x=\"548\" y=\"96\" fill=\"var(--text-faint)\" font-size=\"10\">Enhanced 전용</text>\n  </g>\n  <g font-size=\"10\" fill=\"var(--pixel)\" text-anchor=\"middle\" font-family=\"Galmuri11\">\n    <text x=\"330\" y=\"140\">Virtual · Self-managed = Enhanced 전용 — 노드 종류를 바꾸려면 새 노드 풀로 이관</text>\n  </g>\n</svg>",
+     "body": "<pre><code>Node Type\n├── Managed Node ────── 내 tenancy의 Compute 인스턴스. K8s 소프트웨어는 OKE가 설치,\n│                       OS 패치 · 디스크 · 커널은 내 책임 (공유 책임)\n├── Virtual Node ────── 서버리스. Pod 단위 과금, 노드가 내 tenancy에 안 보임 (Enhanced 전용)\n│                       └── 제약: 영속 스토리지(PV) 사용 불가\n└── Self-managed ────── 내가 Compute 인스턴스를 만들어 클러스터에 join (Enhanced 전용)\n                        └── GPU · HPC · 특수 이미지가 필요할 때\n</code></pre>\n<p>공식 문서 원문: <em>&quot;Managed nodes are OCI Compute instances running in your tenancy that you\ncontrol and configure, with a shared operational responsibility.&quot;</em> /\n<em>&quot;Virtual nodes provide a serverless Kubernetes experience... You pay for the exact compute\nresources consumed by each Kubernetes pod.&quot;</em></p>\n<p>선택 기준은 워크로드 성격 한 줄로 갈린다.</p>\n<pre><code>일반 웹·API        → Managed\n스파이크 큰 batch  → Virtual (idle 비용 없음, 단 PV 필요하면 탈락)\nGPU · 특수 shape   → Self-managed\n</code></pre>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 생성부터 kubectl 도달까지",
+     "diagram": "<svg viewBox=\"0 0 640 120\" role=\"img\" aria-label=\"클러스터 생성에서 kubectl 접속까지\" xmlns=\"http://www.w3.org/2000/svg\">\n  <g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\">\n    <rect x=\"6\"   y=\"30\" width=\"112\" height=\"38\" rx=\"6\"/>\n    <rect x=\"146\" y=\"30\" width=\"112\" height=\"38\" rx=\"6\"/>\n    <rect x=\"286\" y=\"30\" width=\"112\" height=\"38\" rx=\"6\"/>\n    <rect x=\"426\" y=\"30\" width=\"112\" height=\"38\" rx=\"6\"/>\n    <rect x=\"560\" y=\"30\" width=\"74\"  height=\"38\" rx=\"6\"/>\n    <path d=\"M118 49h28m-8-5 8 5-8 5M258 49h28m-8-5 8 5-8 5M398 49h28m-8-5 8 5-8 5M538 49h22m-8-5 8 5-8 5\"/>\n  </g>\n  <g fill=\"currentColor\" font-size=\"12\" text-anchor=\"middle\" font-family=\"inherit\">\n    <text x=\"62\"  y=\"53\">Create Cluster</text>\n    <text x=\"202\" y=\"53\">Control Plane</text>\n    <text x=\"342\" y=\"53\">Node Pool</text>\n    <text x=\"482\" y=\"53\">kubeconfig</text>\n    <text x=\"597\" y=\"53\">kubectl</text>\n    <text x=\"62\"  y=\"90\" font-size=\"10\" opacity=\"0.65\">타입·CNI 잠김</text>\n    <text x=\"202\" y=\"90\" font-size=\"10\" opacity=\"0.65\">endpoint IP 할당</text>\n    <text x=\"342\" y=\"90\" font-size=\"10\" opacity=\"0.65\">노드 join</text>\n    <text x=\"482\" y=\"90\" font-size=\"10\" opacity=\"0.65\">token 2.0.0</text>\n    <text x=\"597\" y=\"90\" font-size=\"10\" opacity=\"0.65\">도달성 필요</text>\n  </g>\n</svg>",
+     "body": "<p>kubeconfig 발급은 CLI 한 줄이며, <strong>endpoint 종류를 플래그로 명시</strong>한다.</p>\n<pre><code class=\"language-bash\">oci ce cluster create-kubeconfig \\\n  --cluster-id &quot;$CLUSTER_OCID&quot; \\\n  --file &quot;$HOME/.kube/config&quot; \\\n  --region &quot;$OCI_REGION&quot; \\\n  --token-version 2.0.0 \\\n  --kube-endpoint PRIVATE_ENDPOINT      # 또는 PUBLIC_ENDPOINT\n</code></pre>\n<p>공식 문서 원문: <em>&quot;<code>--kube-endpoint PUBLIC_ENDPOINT</code> specifies to add the public IP address of\nthe cluster&#39;s Kubernetes API endpoint to the kubeconfig file.&quot;</em></p>\n<p><code>kubectl</code> 이 안 붙을 때의 갈림길은 두 갈래뿐이다 — <strong>경로(reachability)</strong> 아니면 <strong>자격(token/권한)</strong>.</p>\n<pre><code>kubectl timeout\n├── 경로 ─── Private endpoint인데 Bastion/VPN/peering 없음, 또는 endpoint NSG 차단\n└── 자격 ─── kubeconfig 만료·잘못된 endpoint 플래그, 또는 CLUSTER_USE 권한 없음\n</code></pre>\n"
+    },
+    {
+     "id": "c5",
+     "title": "개념 5. 생성 시점에 잠기는 결정 3개",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"190\" height=\"60\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\" stroke-width=\"1.6\"/>\n    <text x=\"111\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">Cluster Type</text>\n    <text x=\"111\" y=\"68\" fill=\"var(--text-dim)\" font-size=\"10\">Basic→Enhanced 편도</text>\n    <rect x=\"235\" y=\"24\" width=\"190\" height=\"60\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\" stroke-width=\"1.6\"/>\n    <text x=\"330\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">Pod Networking</text>\n    <text x=\"330\" y=\"68\" fill=\"var(--text-dim)\" font-size=\"10\">VCN-Native / Flannel</text>\n    <rect x=\"454\" y=\"24\" width=\"190\" height=\"60\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\" stroke-width=\"1.6\"/>\n    <text x=\"549\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">Node Type</text>\n    <text x=\"549\" y=\"68\" fill=\"var(--text-dim)\" font-size=\"10\">노드 풀 생성 시 결정</text>\n  </g>\n  <text x=\"330\" y=\"112\" text-anchor=\"middle\" font-size=\"11\" fill=\"var(--wrong)\">셋 다 \"콘솔 토글\"이 아니라 재생성 또는 이관 — 설계 리뷰에서 이 셋만 확인해도 재작업 대부분을 막는다</text>\n</svg>",
+     "body": "<pre><code>[1] Cluster Type ──── Basic → Enhanced 만 가능 (역방향 불가)\n[2] Pod Networking ── VCN-Native / Flannel — 클러스터 생성 시 결정 (L2에서 다룸)\n[3] Node Type ─────── 노드 풀 생성 시 결정. 바꾸려면 새 노드 풀로 이관\n</code></pre>\n<p>세 가지 모두 &quot;나중에 콘솔에서 토글&quot; 이 아니라 <strong>재생성 또는 이관</strong>이 필요하다.\n설계 리뷰에서 이 셋만 확인해도 대형 재작업의 대부분을 막는다.</p>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 C가 컨테이너 전환을 시작한다. 첫 서비스(웹 API)를 올릴 클러스터가 필요하고, 향후 &quot;Pod별로 OCI 권한을 나눠 달라&quot;는 보안 요구가 로드맵에 있다.",
+    "request": "&quot;운영용 OKE 클러스터를 만들어 주세요. 나중에 재작업이 없게 처음부터 제대로요. kubectl 접속까지 확인해서 넘겨주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — 잠기는 결정 3개부터",
+      "body": "<p>로드맵의 &quot;Pod별 권한&quot;이 결정을 좌우한다 (개념 2·5).</p>\n<pre><code>&quot;운영용 + 재작업 없이&quot;      → Cluster Type = Enhanced (Basic이면 Workload Identity 요구에서 막힘)\n&quot;일반 웹 API&quot;               → Node Type = Managed\n&quot;NSG로 Pod 단위 통제 여지&quot;  → Pod Networking = VCN-Native\n</code></pre>\n<p>확인: 이 세 줄을 고객에게 회신해 합의 — 잠기는 결정은 구축 전에 문서로 남긴다.</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "IAM 사전 조건",
+      "body": "<p>클러스터 생성 권한은 cluster-family만으로 부족하다 (동반 권한이 실무 함정, L3 개념 3).</p>\n<pre><code>Allow group OkeAdmins to manage cluster-family in compartment prod\nAllow group OkeAdmins to manage instance-family in compartment prod\nAllow group OkeAdmins to use subnets in compartment prod\nAllow group OkeAdmins to use vnics in compartment prod\nAllow group OkeAdmins to use network-security-groups in compartment prod\nAllow group OkeAdmins to use private-ips in compartment prod\nAllow group OkeAdmins to manage public-ips in compartment prod\nAllow group OkeAdmins to inspect compartments in tenancy\n</code></pre>\n<p>확인: Identity → Policies 에서 정책 존재.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "클러스터 생성 — Quick Create",
+      "body": "<p>콘솔: <code>Developer Services → Kubernetes Clusters (OKE) → Create Cluster → Quick Create</code></p>\n<pre><code>Name              : prod-oke\nCluster Type      : Enhanced          ← 단계 1의 결정\nK8s version       : 최신 안정 버전\nAPI endpoint      : Private           ← production 기본값 (개념 4)\nNode type         : Managed\nShape / Count     : VM.Standard.E4.Flex · 3노드 (AD 분산)\n</code></pre>\n<ul>\n<li>Quick Create가 VCN·subnet 4장(endpoint/worker/pod/svc-lb)·게이트웨이를 함께 만든다</li>\n<li>확인: 클러스터 상태 Active + Node Pool의 노드 3대 Active</li>\n</ul>\n"
+     },
+     {
+      "id": "l4",
+      "title": "kubeconfig 발급",
+      "body": "<pre><code>oci ce cluster create-kubeconfig \\\n  --cluster-id &quot;$CLUSTER_OCID&quot; \\\n  --file &quot;$HOME/.kube/config&quot; \\\n  --region ap-seoul-1 \\\n  --token-version 2.0.0 \\\n  --kube-endpoint PRIVATE_ENDPOINT\n</code></pre>\n<ul>\n<li>Private endpoint이므로 Bastion/Cloud Shell(Private Access) 등 도달 경로가 먼저 있어야 한다 (개념 4의 &quot;경로 아니면 자격&quot;)</li>\n</ul>\n<p>확인: <code>kubectl get nodes</code> → 3노드 Ready.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "동작 검증 — 테스트 워크로드",
+      "body": "<pre><code>kubectl create deployment hello --image=nginx --replicas=2\nkubectl get pods -o wide        # Running + Pod IP가 pod subnet 대역인지 (VCN-Native 확인)\nkubectl delete deployment hello\n</code></pre>\n<p>확인 포인트: Pod IP가 VCN 사설 대역이면 VCN-Native가 의도대로 적용된 것.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계",
+      "body": "<ul>\n<li>잠긴 결정 3개(Enhanced / VCN-Native / Managed)와 그 근거를 1페이지로 전달</li>\n<li>kubeconfig 발급 명령과 &quot;경로 vs 자격&quot; 진단 두 갈래 공유</li>\n<li>다음 단계 예고: 서비스 노출(L2) → Pod 권한 분리(L3)</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "OKE Overview",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Concepts/contengoverview.htm"
+    },
+    {
+     "label": "Enhanced vs Basic",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengworkingwithenhancedclusters.htm"
+    },
+    {
+     "label": "Virtual Nodes",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengworkingwithvirtualnodes.htm"
+    },
+    {
+     "label": "kubeconfig 발급",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengdownloadkubeconfigfile.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "검증용으로 Basic Cluster를 만들어 쓰던 팀이 '운영 전환하면서 Enhanced로 올렸다가, 비용 이슈 생기면 다시 Basic으로 내리자'고 한다.",
+     "question": "이 계획은 실행 가능하다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Basic → Enhanced 업그레이드는 가능하지만 역방향(Enhanced → Basic)은 불가능하다. 클러스터 타입은 사실상 생성 시점에 잠기는 결정으로 다뤄야 한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "야간 배치 워크로드다. 낮에는 Pod이 거의 없고 밤에만 수십 개가 뜬다. 다만 중간 산출물을 PVC(영속 볼륨)에 써야 한다.",
+     "question": "가장 적합한 노드 종류는?",
+     "choices": [
+      "Virtual Node — idle 비용이 없다",
+      "Managed Node — PV를 쓸 수 있다",
+      "Self-managed Node — 스케줄링을 직접 제어한다",
+      "Basic Cluster의 Managed Node — 비용이 가장 싸다"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "idle 비용만 보면 Virtual Node가 매력적이지만, Virtual Node는 영속 스토리지를 쓸 수 없다(공식 명시). PVC 요구가 있는 순간 Virtual Node는 탈락하고 Managed Node가 답이 된다. 비용은 노드 풀 오토스케일로 따로 다룬다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "Private endpoint로 만든 클러스터에 Bastion에서 접속해야 한다. 클러스터 OCID와 리전은 환경변수에 있다.",
+     "question": "kubeconfig를 발급하는 OCI CLI 명령에서 endpoint를 지정하는 플래그와 값은? (플래그 + 값만)",
+     "answers": [
+      "--kube-endpoint PRIVATE_ENDPOINT",
+      "--kube-endpoint=PRIVATE_ENDPOINT"
+     ],
+     "match": "exact-trim",
+     "explanation": "`oci ce cluster create-kubeconfig` 는 `--kube-endpoint` 로 PUBLIC_ENDPOINT / PRIVATE_ENDPOINT 를 명시한다. 이 값을 잘못 주면 kubeconfig에 도달 불가능한 IP가 박혀 timeout으로 나타난다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "신규 프로덕션 클러스터를 CLI로 만든다. Workload Identity를 쓸 예정이라 클러스터 타입을 명시해야 한다.",
+     "question": "`oci ce cluster create` 에 넣을 클러스터 타입 플래그와 값은? (플래그 + 값만)",
+     "answers": [
+      "--type ENHANCED_CLUSTER",
+      "--type=ENHANCED_CLUSTER",
+      "--type \"ENHANCED_CLUSTER\""
+     ],
+     "match": "exact-trim",
+     "explanation": "Workload Identity는 Enhanced 전용이므로 생성 시점에 `--type ENHANCED_CLUSTER` 가 필요하다. 생략하면 Basic으로 만들어지고, 나중에 승격은 되지만 되돌릴 수 없다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "'어제까지 되던 kubectl get nodes 가 오늘 timeout 난다'는 문의. 콘솔에서 클러스터 상태는 ACTIVE.",
+     "question": "원인을 두 갈래로 나누고, 각 갈래에서 가장 먼저 볼 것을 서술하라.",
+     "answers": [],
+     "rubric": "① 경로(reachability) — private endpoint 접근 경로(Bastion/VPN/peering) 단절 또는 endpoint NSG/보안목록 차단 여부 ② 자격(credential) — kubeconfig 만료·잘못된 --kube-endpoint 값·CLUSTER_USE 권한 여부. 두 갈래를 나누고 각각의 확인 대상을 말하면 O, 한쪽만 언급하면 △.",
+     "explanation": "클러스터가 ACTIVE인데 kubectl만 안 되면 문제는 control plane이 아니라 '나 → API endpoint' 구간이다. 경로와 자격 두 갈래로 먼저 자르면 확인할 대상이 절반으로 줄어든다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    }
+   ]
+  },
+  "level02-networking-and-exposure": {
+   "curriculum": "oke",
+   "topic": "oke-networking",
+   "level": 2,
+   "sheet": "level02-networking-and-exposure",
+   "title": "네트워킹과 서비스 노출",
+   "tags": [
+    "oci",
+    "oke",
+    "kubernetes",
+    "network",
+    "load-balancer"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 55,
+   "goal": "4-subnet 구성을 그릴 수 있고, Service type=LoadBalancer로 실서비스를 노출하며 트래픽이 멈추는 지점을 순서대로 좁힌다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. subnet 4장 — 각각 누구를 담나",
+     "diagram": "<svg viewBox=\"0 0 640 190\" role=\"img\" aria-label=\"OKE 4-subnet 구성\" xmlns=\"http://www.w3.org/2000/svg\">\n  <g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\">\n    <rect x=\"6\" y=\"6\" width=\"628\" height=\"178\" rx=\"8\" stroke-dasharray=\"5 4\"/>\n    <rect x=\"28\"  y=\"44\" width=\"130\" height=\"46\" rx=\"6\"/>\n    <rect x=\"188\" y=\"44\" width=\"130\" height=\"46\" rx=\"6\"/>\n    <rect x=\"348\" y=\"44\" width=\"130\" height=\"46\" rx=\"6\"/>\n    <rect x=\"500\" y=\"44\" width=\"112\" height=\"46\" rx=\"6\"/>\n    <path d=\"M253 90v34h306M413 90v34\"/>\n    <rect x=\"188\" y=\"124\" width=\"130\" height=\"40\" rx=\"6\" stroke-dasharray=\"3 3\"/>\n  </g>\n  <g fill=\"currentColor\" font-size=\"12\" text-anchor=\"middle\" font-family=\"inherit\">\n    <text x=\"80\"  y=\"28\" font-size=\"11\" opacity=\"0.7\">VCN</text>\n    <text x=\"93\"  y=\"64\">endpoint</text>\n    <text x=\"253\" y=\"64\">worker</text>\n    <text x=\"413\" y=\"64\">pod</text>\n    <text x=\"556\" y=\"64\">svc-lb</text>\n    <text x=\"93\"  y=\"82\" font-size=\"10\" opacity=\"0.65\">K8s API</text>\n    <text x=\"253\" y=\"82\" font-size=\"10\" opacity=\"0.65\">노드 VNIC</text>\n    <text x=\"413\" y=\"82\" font-size=\"10\" opacity=\"0.65\">private·regional</text>\n    <text x=\"556\" y=\"82\" font-size=\"10\" opacity=\"0.65\">LB/NLB</text>\n    <text x=\"253\" y=\"148\" font-size=\"10\" opacity=\"0.65\">NodePort 30000-32767</text>\n  </g>\n</svg>",
+     "body": "<p>VCN-Native Pod Networking을 쓰는 표준 구성은 subnet이 네 개다. 역할이 다르므로\n&quot;어느 subnet의 규칙이 막혔나&quot;가 곧 장애 위치다.</p>\n<pre><code>subnet 4장\n├── endpoint ─── Kubernetes API server 주소. Public/Private 선택 지점\n├── worker ───── 워커 노드의 기본 VNIC. LB → NodePort inbound가 여기로 들어온다\n├── pod ──────── VCN-Native일 때만 필요. **private + regional** 필수\n└── svc-lb ───── Service type=LoadBalancer가 만드는 LB/NLB가 놓이는 자리\n</code></pre>\n<p>공식 문서 원문: <em>&quot;A pod subnet hosts the pods on the worker nodes in a node pool when using\nVCN-native pod networking. The pod subnet must be a private subnet... must be a single\nregional subnet.&quot;</em></p>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. Pod 네트워킹 2종 — Pod IP를 어디서 받나",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"20\" width=\"300\" height=\"110\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"44\" fill=\"var(--accent)\" font-weight=\"700\">VCN-Native (OCI CNI)</text>\n    <text x=\"166\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10.5\">Pod이 VCN 사설 IP를 직접 받음</text>\n    <text x=\"166\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10.5\">NSG로 Pod 단위 통제 · SGW 직접 호출</text>\n    <text x=\"166\" y=\"104\" fill=\"var(--wrong)\" font-size=\"10.5\">대가: pod subnet 필요 · IP 고갈 주의</text>\n    <rect x=\"344\" y=\"20\" width=\"300\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"494\" y=\"44\" fill=\"var(--text)\" font-weight=\"700\">Flannel (overlay)</text>\n    <text x=\"494\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10.5\">Pod IP가 VCN 밖 overlay CIDR</text>\n    <text x=\"494\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10.5\">pod subnet 불필요</text>\n    <text x=\"494\" y=\"104\" fill=\"var(--text-faint)\" font-size=\"10.5\">신규 구성에선 거의 선택 안 함</text>\n  </g>\n  <text x=\"330\" y=\"150\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--pixel)\">클러스터 생성 시 잠김 (L1 개념 5) — 바꾸려면 재생성</text>\n</svg>",
+     "body": "<pre><code>Pod Networking (클러스터 생성 시 잠김)\n├── VCN-Native (OCI CNI) ── Pod이 VCN 사설 IP를 직접 받음 → VCN의 1급 시민\n│   ├── 장점 ── Service Gateway 경유로 OCI 서비스 직접 호출, NSG로 Pod 단위 통제\n│   └── 대가 ── pod subnet 필요 + 노드당 Pod 수가 보조 VNIC·IP 수에 묶임\n└── Flannel ─────────────── Pod이 VCN 밖 overlay CIDR을 받음 (pod subnet 불필요)\n    └── VCN CIDR과 Pod CIDR이 겹치면 안 됨. 신규 구성에서는 거의 선택하지 않음\n</code></pre>\n<p>공식 문서 원문: <em>&quot;If you intend to use the flannel CNI plugin for pod networking, a pod subnet\nis not required.&quot;</em></p>\n<blockquote>\n<p>운영에서 실제로 터지는 지점은 <strong>pod subnet IP 고갈</strong>이다. Pod이 Pending인데 노드 자원은\n남아 있으면, 노드 자원이 아니라 IP 풀부터 본다 (pod subnet CIDR / max-pods-per-node).</p>\n</blockquote>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. API endpoint — kubectl이 붙는 문",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"oke2-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"46\" width=\"120\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"76\" y=\"72\" fill=\"var(--text)\">kubectl</text>\n    <rect x=\"250\" y=\"10\" width=\"180\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/>\n    <text x=\"340\" y=\"30\" fill=\"var(--wrong)\" font-weight=\"700\">Public endpoint</text>\n    <text x=\"340\" y=\"46\" fill=\"var(--text-dim)\" font-size=\"10\">NSG로 출처 IP 제한 필수</text>\n    <rect x=\"250\" y=\"82\" width=\"180\" height=\"44\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"340\" y=\"102\" fill=\"var(--accent)\" font-weight=\"700\">Private endpoint</text>\n    <text x=\"340\" y=\"118\" fill=\"var(--text-dim)\" font-size=\"10\">Bastion·VPN·peering 경유</text>\n    <rect x=\"500\" y=\"46\" width=\"144\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"572\" y=\"66\" fill=\"var(--text)\">K8s API server</text>\n    <text x=\"572\" y=\"82\" fill=\"var(--text-dim)\" font-size=\"10\">Control Plane</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#oke2-ar)\">\n    <path d=\"M136 60 C 190 44, 200 36, 246 32\"/>\n    <path d=\"M136 78 C 190 92, 200 100, 246 104\"/>\n    <line x1=\"430\" y1=\"32\" x2=\"496\" y2=\"58\"/>\n    <line x1=\"430\" y1=\"104\" x2=\"496\" y2=\"78\"/>\n  </g>\n  <text x=\"76\" y=\"120\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-faint)\">production 기본값 = Private</text>\n</svg>",
+     "body": "<pre><code>Cluster API Endpoint\n├── Public ──── 인터넷에서 접근. NSG로 출처 IP 제한을 반드시 건다\n└── Private ─── VCN 내부만. Bastion / Cloud Shell / VPN / FastConnect / peering 필요\n</code></pre>\n<p>Production 기본값은 Private + Bastion(또는 Cloud Shell)이다. Public을 쓰면 endpoint에\nNSG를 붙여 회사 공인 IP만 허용하는 것이 최소 방어선이다.</p>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. Service 노출 — K8s 리소스가 OCI 리소스로 번역되는 지점",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"oke2-ar4\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"30\" width=\"200\" height=\"56\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"116\" y=\"52\" fill=\"var(--text)\" font-family=\"Consolas,monospace\" font-size=\"11\">Service</text>\n    <text x=\"116\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">type: LoadBalancer + annotations</text>\n    <rect x=\"290\" y=\"30\" width=\"130\" height=\"56\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"355\" y=\"56\" fill=\"var(--accent)\" font-weight=\"700\">CCM</text>\n    <text x=\"355\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10\">K8s→OCI 번역기</text>\n    <rect x=\"494\" y=\"30\" width=\"150\" height=\"56\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"569\" y=\"52\" fill=\"var(--pixel)\" font-weight=\"700\">OCI LB / NLB</text>\n    <text x=\"569\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">svc-lb subnet에 생성</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#oke2-ar4)\">\n    <line x1=\"216\" y1=\"58\" x2=\"286\" y2=\"58\"/>\n    <line x1=\"420\" y1=\"58\" x2=\"490\" y2=\"58\"/>\n  </g>\n  <text x=\"330\" y=\"120\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--wrong)\">콘솔에서 이 LB를 직접 고치면 CCM이 되돌린다 — 수정은 항상 매니페스트 annotation으로</text>\n  <text x=\"330\" y=\"140\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-faint)\">annotation 한 줄로 LB↔NLB · shape(flexible) · min/max 대역폭 결정</text>\n</svg>",
+     "body": "<pre><code>Service 타입\n├── ClusterIP ────── 클러스터 내부 가상 IP. 외부 노출 없음\n├── NodePort ─────── 각 워커 노드의 30000~32767 포트로 노출\n├── LoadBalancer ─── CCM이 OCI LB 또는 NLB를 자동 생성 (annotation으로 제어)\n└── Ingress ──────── 컨트롤러가 L7 규칙을 LB로 번역. LB 1개로 다중 host/path\n</code></pre>\n<p>LB 종류는 애노테이션 한 줄로 갈린다 (공식 문서 verbatim):</p>\n<pre><code class=\"language-yaml\">metadata:\n  annotations:\n    oci.oraclecloud.com/load-balancer-type: &quot;nlb&quot;   # 생략하면 OCI Load Balancer\n</code></pre>\n<p>Flexible LB의 대역폭은 shape 애노테이션으로 지정한다 —\n<code>service.beta.kubernetes.io/oci-load-balancer-shape</code>,\n<code>-shape-flex-min</code>, <code>-shape-flex-max</code>.\n공식 페이지는 <em>&quot;The ability to create new fixed-shape (dynamic) load balancers has reached\nEnd-of-Life. Therefore, Oracle recommends you implement Kubernetes services of type\nLoadBalancer as cost-efficient flexible load balancers&quot;</em> 라고 안내한다 — 신규는 flexible.</p>\n<p><strong>절대 함정 (공식 경고 verbatim)</strong>: <em>&quot;do not use the Console (or the Oracle Cloud\nInfrastructure CLI or API) to modify these load balancers and network load balancers. Any\nmodifications you make will either be reverted by Kubernetes Engine or will conflict...&quot;</em>\n→ 콘솔에서 고친 값은 CCM이 되돌린다. <strong>매니페스트의 애노테이션을 고치고 다시 apply</strong> 가 정답.</p>\n<blockquote>\n<p>내부 전용(private) LB로 만드는 애노테이션도 존재하지만, 본 학습지 작성 시점에 공식 페이지에서\n문자열을 확인하지 못했다(사내 자산 기준 <code>service.beta.kubernetes.io/oci-load-balancer-internal</code>).\n실제 적용 전 공식 문서에서 문자열을 재확인할 것 — 확신 MEDIUM.</p>\n</blockquote>\n"
+    },
+    {
+     "id": "c5",
+     "title": "개념 5. 트래픽이 멈추는 지점 — 순서대로 좁히기",
+     "diagram": "<svg viewBox=\"0 0 640 120\" role=\"img\" aria-label=\"LoadBalancer 트래픽 경로와 점검 지점\" xmlns=\"http://www.w3.org/2000/svg\">\n  <g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\">\n    <rect x=\"6\"   y=\"34\" width=\"96\"  height=\"38\" rx=\"6\"/>\n    <rect x=\"146\" y=\"34\" width=\"110\" height=\"38\" rx=\"6\"/>\n    <rect x=\"300\" y=\"34\" width=\"130\" height=\"38\" rx=\"6\"/>\n    <rect x=\"474\" y=\"34\" width=\"96\"  height=\"38\" rx=\"6\"/>\n    <path d=\"M102 53h44m-8-5 8 5-8 5M256 53h44m-8-5 8 5-8 5M430 53h44m-8-5 8 5-8 5\"/>\n  </g>\n  <g fill=\"currentColor\" font-size=\"12\" text-anchor=\"middle\" font-family=\"inherit\">\n    <text x=\"54\"  y=\"57\">Client</text>\n    <text x=\"201\" y=\"57\">OCI LB</text>\n    <text x=\"365\" y=\"57\">Worker NodePort</text>\n    <text x=\"522\" y=\"57\">Pod</text>\n    <text x=\"201\" y=\"94\" font-size=\"10\" opacity=\"0.65\">① EXTERNAL-IP 떴나</text>\n    <text x=\"365\" y=\"94\" font-size=\"10\" opacity=\"0.65\">② NSG 30000-32767</text>\n    <text x=\"522\" y=\"94\" font-size=\"10\" opacity=\"0.65\">③ endpoints 비었나</text>\n  </g>\n</svg>",
+     "body": "<pre><code>증상별 첫 갈림길\n├── EXTERNAL-IP 가 &lt;pending&gt; ── CCM이 LB를 못 만듦\n│   └── kubectl describe svc &lt;name&gt; 의 Events (권한 부족 / 애노테이션 오타 / 한도 초과)\n├── EXTERNAL-IP 는 떴는데 502·timeout ── LB는 있는데 backend가 안 받음\n│   ├── worker subnet NSG/SL 이 LB → NodePort(30000~32767) inbound 허용하나\n│   ├── kubectl get endpoints &lt;name&gt; 이 비어 있나 (selector 불일치 / readinessProbe 실패)\n│   └── Service의 targetPort 가 컨테이너 listen 포트와 같나\n└── 클러스터 삭제가 안 됨 ── LB Service가 남아 있음 → Service 먼저 삭제\n</code></pre>\n"
+    },
+    {
+     "id": "c6",
+     "title": "개념 6. 스토리지 — PV가 되는 OCI 리소스",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"oke2-ar6\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"34\" width=\"130\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"81\" y=\"55\" fill=\"var(--text)\" font-family=\"Consolas,monospace\" font-size=\"11\">PVC</text>\n    <text x=\"81\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10\">storageClass 선택</text>\n    <rect x=\"240\" y=\"6\" width=\"180\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"330\" y=\"26\" fill=\"var(--accent)\" font-weight=\"700\">Block Volume CSI</text>\n    <text x=\"330\" y=\"44\" fill=\"var(--text-dim)\" font-size=\"10\">기본 SC oci-bv · RWO</text>\n    <rect x=\"240\" y=\"72\" width=\"180\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"330\" y=\"92\" fill=\"var(--text)\" font-weight=\"700\">FSS CSI</text>\n    <text x=\"330\" y=\"110\" fill=\"var(--text-dim)\" font-size=\"10\">RWX · Mount Target 필요</text>\n    <rect x=\"500\" y=\"34\" width=\"144\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"572\" y=\"55\" fill=\"var(--pixel)\" font-weight=\"700\">OCI 리소스</text>\n    <text x=\"572\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10\">BV / File System</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#oke2-ar6)\">\n    <path d=\"M146 50 C 190 40, 195 34, 236 28\"/>\n    <path d=\"M146 66 C 190 78, 195 86, 236 92\"/>\n    <line x1=\"420\" y1=\"30\" x2=\"496\" y2=\"50\"/>\n    <line x1=\"420\" y1=\"96\" x2=\"496\" y2=\"68\"/>\n  </g>\n</svg>",
+     "body": "<pre><code>CSI\n├── Block Volume CSI ── provisioner blockvolume.csi.oraclecloud.com, 기본 SC `oci-bv`, RWO\n└── FSS CSI ─────────── provisioner fss.csi.oraclecloud.com, RWX (Mount Target 필요)\n</code></pre>\n<p>공식 문서는 Virtual Node에 대해 <em>&quot;Containers running on virtual nodes cannot access\npersistent storage&quot;</em> 라고 명시한다 — stateful 워크로드는 Managed Node로 간다.</p>\n"
+    }
+   ],
+   "lab": {
+    "situation": "L1에서 구축한 prod-oke 위에 고객사 C의 웹 API가 배포됐다. 아직 클러스터 밖에서 접근할 방법이 없다.",
+    "request": "&quot;이 API를 인터넷에 열어 주세요. 비용은 flexible로 아껴 주시고, 방화벽은 필요한 것만 열어 주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — annotation으로 번역",
+      "body": "<pre><code>&quot;인터넷에 노출&quot;        → Service type=LoadBalancer (CCM이 OCI LB 생성)\n&quot;flexible로 비용 절감&quot;  → shape 애노테이션 flexible + min/max 대역폭\n&quot;필요한 것만 개방&quot;      → worker NSG는 LB→NodePort(30000-32767)만, LB는 80/443만\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "Service 매니페스트 작성",
+      "body": "<pre><code>apiVersion: v1\nkind: Service\nmetadata:\n  name: web-api\n  annotations:\n    service.beta.kubernetes.io/oci-load-balancer-shape: &quot;flexible&quot;\n    service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: &quot;10&quot;\n    service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: &quot;100&quot;\nspec:\n  type: LoadBalancer\n  selector:\n    app: web-api\n  ports:\n    - port: 80\n      targetPort: 8080        # 컨테이너가 실제 listen하는 포트\n</code></pre>\n<ul>\n<li><code>targetPort</code> ≠ 컨테이너 listen 포트가 502의 단골 원인 (개념 5)</li>\n</ul>\n"
+     },
+     {
+      "id": "l3",
+      "title": "적용 → EXTERNAL-IP 확인",
+      "body": "<pre><code>kubectl apply -f web-api-svc.yaml\nkubectl get svc web-api -w        # EXTERNAL-IP가 &lt;pending&gt;에서 실 IP로\n</code></pre>\n<ul>\n<li><code>&lt;pending&gt;</code>에 머물면: <code>kubectl describe svc web-api</code> 의 Events — 권한 부족 / 애노테이션 오타 / LB 한도 초과가 3대 원인</li>\n</ul>\n<p>확인: 콘솔 Networking → Load Balancers 에 flexible LB 생성됨 (10~100 Mbps).</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "일부러 502 만들기 — NSG 경로 검증",
+      "body": "<p>구축은 검증까지. worker subnet NSG에서 NodePort 대역 inbound를 잠시 비활성화해 본다.</p>\n<pre><code>curl http://&lt;EXTERNAL-IP&gt;/          # → 502/timeout 재현\n</code></pre>\n<ul>\n<li>LB 콘솔의 Backend Health가 Critical로 바뀌는 것 확인</li>\n<li>NSG 규칙 복원: source = LB subnet CIDR, TCP 30000-32767 허용 → Health OK → curl 200</li>\n</ul>\n<p>이 왕복이 &quot;트래픽이 멈추는 지점&quot; 3단계(개념 5)를 몸에 새긴다.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "endpoints 검증",
+      "body": "<pre><code>kubectl get endpoints web-api      # 비어 있으면 selector 불일치 or readinessProbe 실패\nkubectl get pods -l app=web-api    # selector와 라벨 대조\n</code></pre>\n<p>확인: endpoints에 Pod IP:8080 목록이 보이면 selector 체인 정상.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계",
+      "body": "<ul>\n<li>원칙 1줄 전달: <strong>이 LB는 콘솔에서 고치지 않는다</strong> — 수정은 매니페스트 annotation → re-apply</li>\n<li>502 진단 순서표(EXTERNAL-IP → NSG 30000-32767 → endpoints) 공유</li>\n<li>다음 단계 예고: Pod별 OCI 권한(L3)</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Pod/네트워크 구성",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Concepts/contengnetworkconfig.htm"
+    },
+    {
+     "label": "LoadBalancer Service",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengcreatingloadbalancer.htm"
+    },
+    {
+     "label": "NLB 애노테이션",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengcreatingnetworkloadbalancers.htm"
+    },
+    {
+     "label": "LB 애노테이션 상세",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengcreatingloadbalancers-subtopic.htm"
+    },
+    {
+     "label": "PVC/CSI",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengcreatingpersistentvolumeclaim.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "OKE가 만든 LB의 헬스체크 간격이 짧다고 판단한 담당자가 OCI 콘솔에서 해당 LB의 헬스체크 설정을 직접 수정했다.",
+     "question": "이 방식은 유효한 조치다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "공식 문서는 OKE가 만든 LB/NLB를 콘솔·CLI·API로 수정하지 말라고 명시한다 — 변경은 Kubernetes Engine이 되돌리거나 매니페스트와 충돌한다. 애노테이션을 고쳐 다시 apply 하는 것이 정상 경로다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "노드 CPU·메모리는 절반도 안 썼는데 새 Pod이 계속 Pending이다. VCN-Native Pod Networking 클러스터다.",
+     "question": "가장 먼저 확인할 것은?",
+     "choices": [
+      "노드 풀의 shape을 더 큰 것으로 변경",
+      "pod subnet의 가용 IP와 max-pods-per-node 설정",
+      "Service의 targetPort 설정",
+      "Cluster Autoscaler의 최대 노드 수"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "VCN-Native에서는 Pod이 VCN 사설 IP를 직접 받으므로, 노드 자원이 남아도 pod subnet IP나 노드당 Pod 한도에 먼저 걸린다. 자원 부족과 IP 부족은 증상이 같아 보이지만 조치가 완전히 다르다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "Service type=LoadBalancer 로 OCI Load Balancer 대신 Network Load Balancer를 만들어야 한다.",
+     "question": "매니페스트 metadata.annotations 에 넣을 한 줄은? (공식 문서 표기 그대로)",
+     "answers": [
+      "oci.oraclecloud.com/load-balancer-type: \"nlb\"",
+      "oci.oraclecloud.com/load-balancer-type: 'nlb'"
+     ],
+     "match": "exact-trim",
+     "explanation": "이 애노테이션이 없으면 기본값인 OCI Load Balancer가 만들어진다. NLB로 바뀌면 나머지 애노테이션의 접두사도 `oci-network-load-balancer.oraclecloud.com/...` 계열로 달라진다는 점이 함정이다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "hello-lb 서비스의 EXTERNAL-IP는 정상적으로 떴는데 curl이 502를 반환한다. LB 뒤에 Pod이 실제로 등록됐는지부터 확인하려 한다.",
+     "question": "Pod 등록 여부를 확인하는 kubectl 명령 한 줄은?",
+     "answers": [
+      "kubectl get endpoints hello-lb",
+      "kubectl get ep hello-lb",
+      "kubectl describe svc hello-lb"
+     ],
+     "match": "exact-trim",
+     "explanation": "endpoints가 비어 있으면 selector 불일치이거나 readinessProbe 실패로 Pod이 빠진 상태다. endpoints가 정상인데도 502면 그때 worker subnet의 NSG(LB → NodePort 30000~32767 inbound)로 넘어간다.",
+     "concept_anchor": "c5",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "신규 클러스터 설계 리뷰. 고객은 'Pod에서 Object Storage와 사내 DB를 직접 호출하고, Pod 단위로 방화벽 통제를 하고 싶다'고 한다. 다만 IP 대역은 넉넉하지 않다.",
+     "question": "VCN-Native와 Flannel 중 무엇을 고르고, 그 선택이 가져오는 대가는 무엇인지 서술하라.",
+     "answers": [],
+     "rubric": "① VCN-Native 선택 ② 근거 — Pod이 VCN 사설 IP를 직접 받아 Service Gateway 경유 OCI 서비스 호출과 NSG 기반 Pod 단위 통제가 가능 ③ 대가 — private·regional pod subnet 필요 + 노드당 Pod 수가 VNIC/IP에 묶이고 IP 고갈 위험, CIDR 산정 필요. 선택+근거+대가 모두 언급하면 O, 대가를 빠뜨리면 △.",
+     "explanation": "요구가 'OCI 서비스 직접 호출 + Pod 단위 통제'면 사실상 VCN-Native로 결정된다. 남는 문제는 IP 산정이며, 이것이 설계 단계에서 CIDR 크기와 max-pods-per-node를 미리 정해야 하는 이유다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    }
+   ]
+  },
+  "level03-identity-and-operations": {
+   "curriculum": "oke",
+   "topic": "oke-identity-ops",
+   "level": 3,
+   "sheet": "level03-identity-and-operations",
+   "title": "Workload Identity와 운영",
+   "tags": [
+    "oci",
+    "oke",
+    "kubernetes",
+    "iam",
+    "operations"
+   ],
+   "difficulty": 3,
+   "estimated_minutes": 60,
+   "goal": "Pod이 OCI API를 호출하는 3경로를 구분하고, Pod 단위 권한을 실제로 구축하며 업그레이드·삭제 순서를 공식 근거로 설계한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. Pod이 OCI API를 호출하는 3경로",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"oke3-ar1\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"56\" width=\"110\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"71\" y=\"84\" fill=\"var(--text)\" font-weight=\"700\">Pod</text>\n    <rect x=\"240\" y=\"6\" width=\"230\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"355\" y=\"24\" fill=\"var(--text)\">Instance Principal</text>\n    <text x=\"355\" y=\"40\" fill=\"var(--wrong)\" font-size=\"10\">노드 위 모든 Pod이 권한 공유 — 분리 불가</text>\n    <rect x=\"240\" y=\"58\" width=\"230\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"355\" y=\"76\" fill=\"var(--accent)\" font-weight=\"700\">Workload Identity</text>\n    <text x=\"355\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10\">ServiceAccount 단위 · Enhanced 전용 · 권장</text>\n    <rect x=\"240\" y=\"110\" width=\"230\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"355\" y=\"128\" fill=\"var(--text)\">User Principal</text>\n    <text x=\"355\" y=\"144\" fill=\"var(--text-faint)\" font-size=\"10\">API 키를 Secret 주입 — 수명주기 부담, 지양</text>\n    <rect x=\"530\" y=\"56\" width=\"114\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"587\" y=\"84\" fill=\"var(--pixel)\" font-weight=\"700\">OCI API</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#oke3-ar1)\">\n    <path d=\"M126 68 C 180 48, 190 34, 236 28\"/>\n    <line x1=\"126\" y1=\"80\" x2=\"236\" y2=\"80\"/>\n    <path d=\"M126 92 C 180 112, 190 126, 236 130\"/>\n    <line x1=\"470\" y1=\"80\" x2=\"526\" y2=\"80\"/>\n  </g>\n</svg>",
+     "body": "<pre><code>Pod → OCI API\n├── Instance Principal ─── 워커 노드 인스턴스의 권한을 그 위 모든 Pod이 공유\n│                          └── Pod 단위 분리 불가. Dynamic Group + Policy 로 구성\n├── Workload Identity ──── ServiceAccount 단위 권한 (Enhanced 전용, 권장)\n│                          └── Pod마다 다른 권한을 줄 수 있는 유일한 정공법\n└── User Principal ─────── API 키를 Secret으로 주입 — 키 수명주기 부담, 지양\n</code></pre>\n<p>공식 문서 원문: <em>&quot;You can only use workload identities to grant access to OCI resources when\nusing enhanced clusters.&quot;</em> → 요구사항이 &quot;Pod별 권한 분리&quot;면 클러스터 타입 결정(L1 c2)까지\n거슬러 올라간다.</p>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. Workload Identity — 4개 조건이 모두 맞아야 열린다",
+     "diagram": "<svg viewBox=\"0 0 640 150\" role=\"img\" aria-label=\"Workload Identity 4-튜플\" xmlns=\"http://www.w3.org/2000/svg\">\n  <g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\">\n    <rect x=\"14\" y=\"16\" width=\"150\" height=\"42\" rx=\"6\"/>\n    <rect x=\"14\" y=\"76\" width=\"150\" height=\"42\" rx=\"6\"/>\n    <rect x=\"240\" y=\"46\" width=\"150\" height=\"42\" rx=\"6\"/>\n    <rect x=\"466\" y=\"46\" width=\"160\" height=\"42\" rx=\"6\"/>\n    <path d=\"M164 37h50v30h26m-8-5 8 5-8 5M164 97h50V67M390 67h68m-8-5 8 5-8 5\"/>\n  </g>\n  <g fill=\"currentColor\" font-size=\"12\" text-anchor=\"middle\" font-family=\"inherit\">\n    <text x=\"89\"  y=\"42\">Pod + ServiceAccount</text>\n    <text x=\"89\"  y=\"102\">Namespace + Cluster</text>\n    <text x=\"315\" y=\"72\">IAM 정책 where 절</text>\n    <text x=\"546\" y=\"72\">대상 리소스 접근</text>\n    <text x=\"315\" y=\"106\" font-size=\"10\" opacity=\"0.65\">4개 조건 AND</text>\n    <text x=\"546\" y=\"106\" font-size=\"10\" opacity=\"0.65\">하나라도 틀리면 거부</text>\n  </g>\n</svg>",
+     "body": "<p>정책 형식은 공식 문서 verbatim이다.</p>\n<pre><code>Allow any-user to &lt;verb&gt; &lt;resource&gt; in &lt;location&gt; where all {\n  request.principal.type = &#39;workload&#39;,\n  request.principal.namespace = &#39;&lt;namespace-name&gt;&#39;,\n  request.principal.service_account = &#39;&lt;service-account-name&gt;&#39;,\n  request.principal.cluster_id = &#39;&lt;cluster-ocid&gt;&#39;}\n</code></pre>\n<pre><code>4개 조건이 하는 일\n├── type = &#39;workload&#39; ────── 이 호출자가 Pod 워크로드임을 선언\n├── namespace ───────────── 어느 네임스페이스의 Pod인가\n├── service_account ─────── 그 안에서 어느 SA를 쓰는 Pod인가\n└── cluster_id ──────────── 어느 클러스터인가 (다른 클러스터의 동명 SA를 차단)\n</code></pre>\n<blockquote>\n<p><code>NotAuthorizedOrNotFound</code> 는 &quot;권한 없음&quot;과 &quot;리소스 없음&quot;을 구분하지 않는 응답이다.\n4개 조건 중 하나만 어긋나도 같은 메시지가 나오므로, 메시지가 아니라 <strong>조건을 하나씩 대조</strong>한다.</p>\n</blockquote>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. IAM verb 사다리 — 사내 policy DB 기준",
+     "diagram": "<svg viewBox=\"0 0 660 180\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" font-family=\"Consolas,monospace\">\n    <rect x=\"12\" y=\"14\" width=\"420\" height=\"152\" rx=\"12\" fill=\"none\" stroke=\"var(--pixel)\" stroke-width=\"1.6\"/>\n    <text x=\"30\" y=\"38\" fill=\"var(--pixel)\" font-weight=\"700\">manage</text>\n    <text x=\"150\" y=\"38\" fill=\"var(--text-dim)\" font-size=\"10\" font-family=\"Pretendard\">+ CREATE/DELETE/UPDATE/JOIN · InstallAddon</text>\n    <rect x=\"30\" y=\"50\" width=\"300\" height=\"104\" rx=\"10\" fill=\"none\" stroke=\"var(--accent)\" stroke-width=\"1.4\"/>\n    <text x=\"48\" y=\"72\" fill=\"var(--accent)\" font-weight=\"700\">use</text>\n    <text x=\"150\" y=\"72\" fill=\"var(--accent)\" font-size=\"10\" font-family=\"Pretendard\">+ CreateKubeconfig ← 실무 분기점</text>\n    <rect x=\"48\" y=\"84\" width=\"200\" height=\"58\" rx=\"8\" fill=\"none\" stroke=\"var(--line)\"/>\n    <text x=\"66\" y=\"104\" fill=\"var(--text-dim)\">read</text>\n    <rect x=\"66\" y=\"112\" width=\"120\" height=\"20\" rx=\"5\" fill=\"var(--bg-card)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"126\" y=\"126\" fill=\"var(--text-faint)\" text-anchor=\"middle\" font-size=\"10\">inspect</text>\n  </g>\n  <g font-size=\"10.5\" font-family=\"Pretendard\" fill=\"var(--text-dim)\">\n    <text x=\"452\" y=\"52\">\"kubeconfig만 받는 담당자\"</text>\n    <text x=\"452\" y=\"68\" fill=\"var(--accent)\">→ use면 충분, manage는 과함</text>\n    <text x=\"452\" y=\"104\">동반 권한 함정:</text>\n    <text x=\"452\" y=\"120\">subnets·vnics·NSG·private-ips</text>\n    <text x=\"452\" y=\"136\">public-ips + instance-family</text>\n  </g>\n</svg>",
+     "body": "<p><code>cluster</code> 리소스 타입의 verb 포함 관계 (사내 verified policy DB / OKE Policy Reference):</p>\n<pre><code>inspect ── CLUSTER_INSPECT                     ListClusters, ListWorkRequests\n   ↓\nread ───── + CLUSTER_READ                      GetCluster, ListAddons, GetAddon …\n   ↓\nuse ────── + CLUSTER_USE                       **CreateKubeconfig**\n   ↓\nmanage ─── + CLUSTER_CREATE / DELETE / UPDATE / MANAGE / JOIN\n                                               UpdateCluster, AdministerK8s, InstallAddon …\n</code></pre>\n<p>여기서 실무 결론 하나가 바로 나온다 — <strong>kubeconfig만 받아 가면 되는 담당자에게 manage는 과하다.\n<code>use</code> 면 충분</strong>하다 (CreateKubeconfig = CLUSTER_USE).</p>\n<p>그리고 OKE 권한만으로는 클러스터가 만들어지지 않는다. 공식 표는 CreateCluster에 대해\n<em>&quot;also need use subnets, read virtual-network-family, inspect compartments, use vnics,\nuse network-security-groups, use private-ips, and manage public-ips&quot;</em> 를 명시하고,\n노드 풀 생성·삭제·수정에는 <em>&quot;also need manage instance-family, use subnets, use vnics,\nand inspect compartments&quot;</em> 를 요구한다.</p>\n<pre><code>&quot;cluster-family만 줬는데 왜 안 되나요&quot;\n└── 원인은 대부분 동반 권한 — 네트워크(subnets/vnics/NSG/private-ips/public-ips)와\n    노드 풀의 instance-family\n</code></pre>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 업그레이드 — 순서와 방식",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"oke3-ar4\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"30\" width=\"170\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"101\" y=\"52\" fill=\"var(--accent)\" font-weight=\"700\">Control Plane 먼저</text>\n    <text x=\"101\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">노드 버전과 호환 전제</text>\n    <rect x=\"256\" y=\"30\" width=\"180\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"346\" y=\"52\" fill=\"var(--text)\" font-weight=\"700\">Node Pool 버전 수정</text>\n    <text x=\"346\" y=\"70\" fill=\"var(--wrong)\" font-size=\"10\">기존 노드는 그대로! (함정)</text>\n    <rect x=\"506\" y=\"30\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"576\" y=\"52\" fill=\"var(--pixel)\" font-weight=\"700\">사이클링/교체</text>\n    <text x=\"576\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">cordon+drain 자동</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#oke3-ar4)\">\n    <line x1=\"186\" y1=\"56\" x2=\"252\" y2=\"56\"/>\n    <line x1=\"436\" y1=\"56\" x2=\"502\" y2=\"56\"/>\n  </g>\n  <text x=\"330\" y=\"120\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--wrong)\">drain 없이 노드를 교체하면 워크로드가 끊긴다 — 공식 문서의 유일한 절대 규칙</text>\n  <text x=\"330\" y=\"140\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-faint)\">방식 3택: in-place+사이클링(권장) / in-place+수동 교체 / out-of-place(새 노드 풀)</text>\n</svg>",
+     "body": "<pre><code>[1] Control Plane 먼저 ── 노드 버전은 control plane 버전과 호환되어야 함\n[2] Managed Node 방식 3택\n    ├── in-place + 노드 사이클링 ── 노드 풀 버전 수정 후 cycle\n    │   ├── Replace boot volume ── 인스턴스는 유지, 부트 볼륨만 교체\n    │   └── Replace nodes ─────── 노드를 종료하고 새로 생성\n    ├── in-place + 수동 교체 ───── 노드를 하나씩 삭제하고 새 노드로 대체\n    └── out-of-place ──────────── 새 버전의 노드 풀을 만들고 기존 노드 풀 삭제\n[3] 공통 전제 ── 기존 노드는 반드시 drain (안 하면 워크로드가 끊긴다)\n</code></pre>\n<p>공식 문서 원문: <em>&quot;You must drain existing managed nodes in the original node pool. If you\ndon&#39;t drain the managed nodes, workloads running on the cluster are subject to disruption.&quot;</em>\n사이클링 시에는 Kubernetes Engine이 <em>&quot;automatically cordons and drains existing worker nodes&quot;</em>.</p>\n<blockquote>\n<p>자주 틀리는 지점 — <strong>노드 풀의 버전 필드만 바꾸면 기존 노드는 그대로다.</strong>\n그 버전은 &quot;이후에 새로 뜨는 노드&quot;에 적용된다. 기존 노드는 사이클링/교체가 있어야 올라간다.</p>\n</blockquote>\n"
+    },
+    {
+     "id": "c5",
+     "title": "개념 5. 삭제·정리 순서",
+     "diagram": "<svg viewBox=\"0 0 660 110\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"oke3-ar5\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"28\" width=\"150\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/>\n    <text x=\"85\" y=\"48\" fill=\"var(--wrong)\" font-weight=\"700\">LB Service 삭제</text>\n    <text x=\"85\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">CCM이 만든 LB 정리</text>\n    <rect x=\"184\" y=\"28\" width=\"130\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--partial)\"/>\n    <text x=\"249\" y=\"48\" fill=\"var(--partial)\" font-weight=\"700\">PVC 삭제</text>\n    <text x=\"249\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">BV 비용 방지</text>\n    <rect x=\"338\" y=\"28\" width=\"140\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"408\" y=\"48\" fill=\"var(--text)\" font-weight=\"700\">Node Pool 삭제</text>\n    <rect x=\"502\" y=\"28\" width=\"146\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"575\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">Cluster 삭제</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" marker-end=\"url(#oke3-ar5)\">\n    <line x1=\"160\" y1=\"52\" x2=\"180\" y2=\"52\"/>\n    <line x1=\"314\" y1=\"52\" x2=\"334\" y2=\"52\"/>\n    <line x1=\"478\" y1=\"52\" x2=\"498\" y2=\"52\"/>\n  </g>\n  <text x=\"330\" y=\"100\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">역순으로 하면 남는 것: 청구되는 LB·Block Volume — \"지웠는데 비용이 나온다\"의 정체</text>\n</svg>",
+     "body": "<pre><code>정리 순서\n├── [1] Service type=LoadBalancer 삭제 ── CCM이 만든 LB/NLB가 먼저 정리돼야 함\n├── [2] PVC 삭제 ─────────────────────── 남은 Block Volume 비용 방지\n├── [3] Node Pool 삭제\n└── [4] Cluster 삭제\n</code></pre>\n<p>권한 관점에서도 같은 순서가 보인다 — 공식 표에서 DeleteCluster는\n<code>CLUSTER_DELETE, CLUSTER_NODE_POOL_DELETE</code> 를 함께 요구하고, 추가로\n<em>&quot;manage cluster-node-pools, manage instance-family, use subnets, use vnics,\nuse private-ips, and manage public-ips&quot;</em> 가 필요하다.</p>\n"
+    },
+    {
+     "id": "c6",
+     "title": "개념 6. 진단 분기 — Pod의 OCI 호출이 거부될 때",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"oke3-ar6\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"50\" width=\"180\" height=\"50\" rx=\"25\" fill=\"var(--wrong)\" opacity=\"0.15\" stroke=\"var(--wrong)\"/>\n    <text x=\"100\" y=\"72\" fill=\"var(--wrong)\" font-weight=\"700\" font-size=\"11\">NotAuthorizedOrNotFound</text>\n    <text x=\"100\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"9.5\">권한 없음/리소스 없음 구분 안 함</text>\n    <g font-family=\"Consolas,monospace\" font-size=\"10\">\n      <rect x=\"250\" y=\"8\" width=\"180\" height=\"26\" rx=\"6\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n      <text x=\"340\" y=\"25\" fill=\"var(--text)\">[1] Enhanced 인가?</text>\n      <rect x=\"250\" y=\"40\" width=\"180\" height=\"26\" rx=\"6\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n      <text x=\"340\" y=\"57\" fill=\"var(--text)\">[2] 정책 4조건 일치?</text>\n      <rect x=\"250\" y=\"72\" width=\"180\" height=\"26\" rx=\"6\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n      <text x=\"340\" y=\"89\" fill=\"var(--text)\">[3] Pod이 그 SA를 쓰나?</text>\n      <rect x=\"250\" y=\"104\" width=\"180\" height=\"26\" rx=\"6\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n      <text x=\"340\" y=\"121\" fill=\"var(--text)\">[4] SDK 버전 / [5] 경로</text>\n    </g>\n    <rect x=\"470\" y=\"50\" width=\"178\" height=\"50\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"559\" y=\"72\" fill=\"var(--accent)\" font-weight=\"700\">메시지 말고 조건 대조</text>\n    <text x=\"559\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"9.5\">[1]·[3]이 의외로 많다</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.4\" fill=\"none\" marker-end=\"url(#oke3-ar6)\">\n    <path d=\"M190 62 C 215 40, 220 28, 246 22\"/>\n    <line x1=\"190\" y1=\"70\" x2=\"246\" y2=\"54\"/>\n    <line x1=\"190\" y1=\"82\" x2=\"246\" y2=\"84\"/>\n    <path d=\"M190 90 C 215 106, 220 112, 246 116\"/>\n  </g>\n</svg>",
+     "body": "<pre><code>NotAuthorizedOrNotFound\n├── [1] 클러스터가 Enhanced 인가 ─────── Basic이면 Workload Identity 자체가 없음\n├── [2] 정책 4개 조건이 실제와 일치하나 ── namespace / SA / cluster_id / type\n├── [3] Pod이 그 SA를 실제로 쓰나 ────── spec.serviceAccountName 확인\n├── [4] SDK가 workload identity 지원 버전인가\n└── [5] 경로 문제 아닌가 ─────────────── Service Gateway 라우팅 · NSG · region 설정\n</code></pre>\n<p>[1]과 [3]이 의외로 많다 — 권한 문법을 아무리 들여다봐도, 클러스터 타입이나 Pod의\nServiceAccount가 어긋나 있으면 절대 열리지 않는다.</p>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 C의 로드맵이 도착했다. 결제 서비스 Pod은 Object Storage의 정산 버킷에 써야 하고, 다른 팀 Pod은 그 버킷에 절대 접근하면 안 된다. 노드는 여러 팀이 공유한다.",
+    "request": "&quot;Pod 단위로 권한을 나눠 주세요. 결제 Pod만 정산 버킷에 쓰고, 나머지는 전부 거부되는 걸 확인시켜 주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — 3경로 중 하나로 좁히기",
+      "body": "<pre><code>&quot;노드는 공유, 권한은 Pod 단위&quot;  → Instance Principal 탈락 (노드 위 모든 Pod이 공유)\n&quot;키 관리 부담 없이&quot;             → User Principal 탈락\n남는 정공법                     → Workload Identity (Enhanced 전용 — L1에서 Enhanced로 만든 이유)\n</code></pre>\n<p>확인: <code>oci ce cluster get --cluster-id ... --query &#39;data.type&#39;</code> → ENHANCED_CLUSTER.</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "Namespace + ServiceAccount 생성",
+      "body": "<pre><code>kubectl create namespace payment\nkubectl create serviceaccount settle-writer -n payment\n</code></pre>\n<ul>\n<li>SA 이름·네임스페이스는 다음 단계 정책의 4개 조건에 그대로 들어간다 — 오타가 곧 장애</li>\n</ul>\n"
+     },
+     {
+      "id": "l3",
+      "title": "IAM 정책 — 4개 조건 AND",
+      "body": "<pre><code>Allow any-user to manage objects in compartment prod where all {\n  request.principal.type = &#39;workload&#39;,\n  request.principal.namespace = &#39;payment&#39;,\n  request.principal.service_account = &#39;settle-writer&#39;,\n  request.principal.cluster_id = &#39;&lt;cluster-ocid&gt;&#39;}\n</code></pre>\n<ul>\n<li><code>any-user</code>가 불안해 보여도 where 4조건이 교집합으로 잠근다 (개념 2)</li>\n<li>버킷을 좁히려면 <code>where all {..., target.bucket.name = &#39;settlement&#39;}</code> 를 추가</li>\n</ul>\n"
+     },
+     {
+      "id": "l4",
+      "title": "Deployment에 SA 지정",
+      "body": "<pre><code>spec:\n  template:\n    spec:\n      serviceAccountName: settle-writer     # 이 줄이 빠지면 default SA → 거부\n      containers:\n        - name: settle-job\n          image: &lt;payment-app&gt;\n</code></pre>\n<ul>\n<li>OCI SDK는 OKE Workload Identity provider를 지원하는 버전이어야 한다 (개념 6-[4])</li>\n</ul>\n"
+     },
+     {
+      "id": "l5",
+      "title": "정상 경로 검증",
+      "body": "<p>결제 Pod 안에서 정산 버킷 쓰기:</p>\n<pre><code>kubectl exec -n payment deploy/settle-job -- \\\n  oci os object put --bucket-name settlement --file /tmp/report.csv --auth oke_workload_identity\n</code></pre>\n<p>확인: 업로드 성공 + 콘솔 버킷에 객체 생성.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "거부 경로 검증 — 일부러 실패 만들기",
+      "body": "<p>다른 네임스페이스의 Pod(다른 SA)에서 같은 명령 실행:</p>\n<pre><code>kubectl exec -n default deploy/other-app -- \\\n  oci os object put --bucket-name settlement --file /tmp/x --auth oke_workload_identity\n# → NotAuthorizedOrNotFound  ← 이게 나와야 &quot;격리 성공&quot;\n</code></pre>\n<ul>\n<li>요구사항의 절반은 &quot;되는 것&quot;이 아니라 &quot;안 되는 것&quot;의 증명이다</li>\n</ul>\n"
+     },
+     {
+      "id": "l7",
+      "title": "인수인계",
+      "body": "<ul>\n<li>정책 4조건 표 + &quot;메시지 말고 조건 대조&quot; 진단 순서(개념 6) 전달</li>\n<li>새 팀 온보딩 절차 문서화: SA 생성 → 정책 4조건 추가 → serviceAccountName 지정</li>\n<li>운영 예고: 업그레이드는 Control Plane 먼저 + drain 필수 (개념 4), 삭제는 LB→PVC→Pool→Cluster (개념 5)</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Workload Identity",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contenggrantingworkloadaccesstoresources.htm"
+    },
+    {
+     "label": "OKE Policy Reference",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/Identity/policyreference/contengpolicyreference.htm"
+    },
+    {
+     "label": "클러스터(Control Plane) 업그레이드",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengupgradingk8smasternode.htm"
+    },
+    {
+     "label": "Managed Node 업그레이드",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengupgradingk8sworkernode.htm"
+    },
+    {
+     "label": "사내 policy DB",
+     "url": "https://`docs/oracle-cloud/iam/policy-references/compute/oke.md`"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "노드 풀의 Kubernetes 버전 필드를 새 버전으로 수정하고 저장했다. 담당자는 '이제 잠시 기다리면 기존 노드들도 새 버전이 된다'고 말한다.",
+     "question": "이 말은 맞다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "노드 풀에 지정한 버전은 그 이후 새로 시작되는 노드에 적용된다. 기존 노드를 올리려면 노드 사이클링(부트 볼륨 교체 또는 노드 교체)이나 수동 삭제·재생성, 또는 새 노드 풀로의 out-of-place 교체가 필요하며, 어느 경우든 drain이 전제다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "개발자에게 kubeconfig를 받아 클러스터에 접속만 하게 하고, 클러스터·노드 풀의 생성·삭제·수정은 막아야 한다.",
+     "question": "cluster 리소스에 부여할 최소 verb는?",
+     "choices": [
+      "inspect",
+      "read",
+      "use",
+      "manage"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "공식 permission 표에서 CreateKubeconfig는 CLUSTER_USE이고, use 단계에 포함된다. CLUSTER_CREATE/DELETE/UPDATE/MANAGE는 manage부터 열리므로 use가 정확히 요구를 만족하는 경계다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "finance 네임스페이스의 financeserviceaccount ServiceAccount를 쓰는 Pod만 tenancy의 객체를 관리하게 해야 한다. 클러스터 OCID는 <cluster-ocid> 로 표기한다.",
+     "question": "필요한 IAM 정책 한 줄은? (공식 문서 형식 그대로, 조건은 한 줄로 이어서)",
+     "answers": [
+      "Allow any-user to manage objects in tenancy where all { request.principal.type = 'workload', request.principal.namespace = 'finance', request.principal.service_account = 'financeserviceaccount', request.principal.cluster_id = '<cluster-ocid>'}",
+      "Allow any-user to manage objects in tenancy where all { request.principal.type = 'workload', request.principal.namespace = 'finance', request.principal.service_account = 'financeserviceaccount', request.principal.cluster_id = '<cluster-ocid>' }",
+      "allow any-user to manage objects in tenancy where all { request.principal.type = 'workload', request.principal.namespace = 'finance', request.principal.service_account = 'financeserviceaccount', request.principal.cluster_id = '<cluster-ocid>' }"
+     ],
+     "match": "exact-trim",
+     "explanation": "Workload Identity 정책은 `Allow any-user to <verb> <resource> in <location> where all { … }` 형식에 4개 조건(type/namespace/service_account/cluster_id)을 AND로 건다. cluster_id를 빼면 다른 클러스터의 동명 ServiceAccount에도 권한이 열린다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "노드를 교체하기 전에 해당 노드에서 워크로드를 안전하게 비워야 한다. 노드 이름은 <node> 로 표기한다.",
+     "question": "노드를 비우는 kubectl 명령 한 줄은? (DaemonSet은 무시하고 emptyDir 데이터도 허용)",
+     "answers": [
+      "kubectl drain <node> --ignore-daemonsets --delete-emptydir-data",
+      "kubectl drain <node> --delete-emptydir-data --ignore-daemonsets"
+     ],
+     "match": "exact-trim",
+     "explanation": "공식 문서는 기존 managed node를 반드시 drain하라고 명시한다 — 하지 않으면 워크로드가 중단된다. DaemonSet Pod은 drain 대상이 아니라 `--ignore-daemonsets` 가 필요하고, emptyDir을 쓰는 Pod이 있으면 `--delete-emptydir-data` 없이는 drain이 멈춘다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "'Pod에서 Object Storage 호출이 NotAuthorizedOrNotFound 로 떨어진다. 정책은 분명히 만들었다'는 문의. 정책 문법 자체에는 오타가 없어 보인다.",
+     "question": "정책 문법 외에 확인할 항목을 우선순위대로 3개 이상 서술하라.",
+     "answers": [],
+     "rubric": "① 클러스터가 Enhanced인지 (Basic이면 Workload Identity 미지원) ② 정책의 4개 조건이 실제 namespace/ServiceAccount/cluster OCID와 일치하는지 ③ Pod이 실제로 그 ServiceAccount를 쓰는지(spec.serviceAccountName) ④ SDK가 workload identity 지원 버전인지 ⑤ 경로·설정 문제(Service Gateway 라우팅, NSG, region 지정). 3개 이상 언급하고 ①~③ 중 둘 이상을 포함하면 O, 2개면 △.",
+     "explanation": "NotAuthorizedOrNotFound는 권한 없음과 리소스 없음을 구분하지 않으므로 메시지로는 원인을 좁힐 수 없다. 정책 문법은 눈에 보이는 곳이라 이미 검토된 경우가 많고, 실제 원인은 클러스터 타입·SA 연결처럼 정책 바깥에 있는 경우가 많다.",
+     "concept_anchor": "c6",
+     "xp": 10
+    }
+   ]
+  }
+ }
+}
