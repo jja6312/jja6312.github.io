@@ -8,6 +8,7 @@ import SheetPage from './pages/SheetPage'
 import ReviewPage from './pages/ReviewPage'
 import FeedbackPage from './pages/FeedbackPage'
 import TroubleshootingPage from './pages/TroubleshootingPage'
+import AnnouncementsPage from './pages/AnnouncementsPage'
 import TodoPage from './pages/TodoPage'
 import MeetingsPage from './pages/MeetingsPage'
 import { useHub } from './store'
@@ -35,6 +36,7 @@ function Hotkeys() {
         else if (e.key === 'r') nav('/review')
         else if (e.key === 'f') nav('/feedback')
         else if (e.key === 't') nav('/todo')
+        else if (e.key === 'a') nav('/announcements')
         else if (e.key === 's') s.setPaletteOpen(true)
         return
       }
@@ -71,6 +73,7 @@ function Shell() {
         <Route path="/review" element={<ReviewPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/troubleshooting" element={<TroubleshootingPage />} />
+        <Route path="/announcements" element={<AnnouncementsPage />} />
         <Route path="/todo" element={<TodoPage />} />
         <Route path="/meetings" element={<MeetingsPage />} />
         <Route path="*" element={<Navigate to="/learning" replace />} />

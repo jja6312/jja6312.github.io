@@ -19,6 +19,7 @@ export default function CommandPalette() {
     { id: 'cloudguard', label: 'OCI 보안 — Cloud Guard 열기', run: () => nav('/learning/oci-security/cloud-guard') },
     { id: 'todo', label: 'TODO로 이동', kbd: 'g t', run: () => nav('/todo') },
     { id: 'ts', label: '트러블슈팅으로 이동', run: () => nav('/troubleshooting') },
+    { id: 'ann', label: 'OCI 공지로 이동', kbd: 'g a', run: () => nav('/announcements') },
     { id: 'meetings', label: '회의록으로 이동', run: () => nav('/meetings') },
     { id: 'theme', label: '다크/라이트 토글', kbd: 'd', run: toggleTheme },
     { id: 'comments', label: '댓글 패널 토글', kbd: 'c', run: () => setCmtOpen(!cmtOpen) },
