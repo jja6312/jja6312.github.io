@@ -7,7 +7,9 @@ import LearningHome from './pages/LearningHome'
 import SheetPage from './pages/SheetPage'
 import ReviewPage from './pages/ReviewPage'
 import FeedbackPage from './pages/FeedbackPage'
-import Placeholder from './pages/Placeholder'
+import TroubleshootingPage from './pages/TroubleshootingPage'
+import TodoPage from './pages/TodoPage'
+import MeetingsPage from './pages/MeetingsPage'
 import { useHub } from './store'
 
 const STEP_IDS = ['c1', 'c2', 'c3', 's1', 's2', 's3', 's4', 's5']
@@ -68,9 +70,9 @@ function Shell() {
         <Route path="/learning/:curriculumId/:sheetId" element={<SheetPage />} />
         <Route path="/review" element={<ReviewPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
-        <Route path="/troubleshooting" element={<Placeholder id="troubleshooting" />} />
-        <Route path="/todo" element={<Placeholder id="todo" />} />
-        <Route path="/meetings" element={<Placeholder id="meetings" />} />
+        <Route path="/troubleshooting" element={<TroubleshootingPage />} />
+        <Route path="/todo" element={<TodoPage />} />
+        <Route path="/meetings" element={<MeetingsPage />} />
         <Route path="*" element={<Navigate to="/learning" replace />} />
       </Routes>
       <Toast />

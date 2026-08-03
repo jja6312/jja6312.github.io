@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHub } from '../store'
 import type { FeedbackItem, FeedbackSeverity, FeedbackStatus } from '../types'
 import { getPat, setPat, commitFeedback, fetchFeedbackList } from '../lib/githubDb'
@@ -43,6 +43,23 @@ export default function FeedbackPage() {
   }, [pat, showToast])
 
   useEffect(() => { refresh() }, [refresh])
+
+  // PAT가 있는데 로컬 대기분이 남아있으면 자동 commit (등록 전 제출분 회수)
+  const autoFlushed = useRef(false)
+  useEffect(() => {
+    if (!pat || autoFlushed.current || loadPending().length === 0) return
+    autoFlushed.current = true
+    ;(async () => {
+      const pending = loadPending()
+      const remain: FeedbackItem[] = []
+      let ok = 0
+      for (const it of pending) {
+        try { await commitFeedback(pat, it); ok++ } catch { remain.push(it) }
+      }
+      savePending(remain)
+      if (ok > 0) { showToast(`로컬 대기 ${ok}건 자동 commit ✓`); refresh() }
+    })()
+  }, [pat, refresh, showToast])
 
   const submit = async () => {
     if (!title.trim()) { showToast('제목을 입력'); return }
