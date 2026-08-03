@@ -56,6 +56,12 @@ export default function ProfilePage() {
         <a className="prof-gh" href={PROFILE.github} target="_blank" rel="noreferrer">{PROFILE.github.replace('https://', '')}</a>
       </header>
 
+      <section className="prof-sec">
+        <div className="prof-h2-row">
+          <h2 className="prof-h2">프로젝트</h2>
+        </div>
+        <div className="cmt-empty" style={{ padding: '26px 0' }}>등록된 프로젝트가 없습니다.</div>
+      </section>
       <Certs />
     </div>
   )

@@ -12,18 +12,18 @@ const tabs: Tab[] = [
     to: '/learning', label: '학습', children: [
       { to: '/learning/all', label: 'ALL' },
       { to: '/learning/sprint', label: '스프린트' },
-      { to: '/learning/category', label: '카테고리' },
+      { to: '/learning/category', label: '주제별' },
+      { to: '/learning/review', label: '복습' },
     ],
   },
-  { to: '/review', label: '복습' },
   {
     to: '/knowledge', label: '지식모음', children: [
-      { to: '/knowledge/troubleshooting', label: '트러블슈팅' },
-      { to: '/knowledge/announcements', label: 'Announcement' },
       { to: '/knowledge/oci-cli', label: 'OCI CLI' },
       { to: '/knowledge/terraform', label: 'Terraform' },
+      { to: '/knowledge/troubleshooting', label: '트러블슈팅' },
       { to: '/knowledge/quote', label: '견적' },
       { to: '/knowledge/meetings', label: '회의록' },
+      { to: '/knowledge/announcements', label: 'Announcement' },
     ],
   },
   {
@@ -37,8 +37,9 @@ const tabs: Tab[] = [
 ]
 
 export default function Header() {
-  const { xp, level, streak, toggleTheme, setHelpOpen, authLevel, openAuth } = useHub()
+  const { xp, level, streak, toggleTheme, setHelpOpen, authLevel, openAuth, adjustUiScale } = useHub()
   const req = xpNeeded(level)
+
 
   return (
     <header className="hub-header">
@@ -80,6 +81,8 @@ export default function Header() {
           <LockIcon open={authLevel > 0} size={13} />
           {authLevel >= 3 ? 'PAT' : authLevel > 0 ? `Lv${authLevel}` : '로그인'}
         </button>
+        <button className="iconbtn" onClick={() => adjustUiScale(-1)} title="화면 축소">A−</button>
+        <button className="iconbtn" onClick={() => adjustUiScale(1)} title="화면 확대">A+</button>
         <button className="iconbtn" onClick={toggleTheme} title="다크모드 토글 (d)">◐</button>
         <button className="iconbtn px" onClick={() => setHelpOpen(true)} title="단축키 (?)">?</button>
       </div>

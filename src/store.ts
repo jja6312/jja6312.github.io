@@ -25,6 +25,7 @@ interface HubState {
   paletteOpen: boolean
   cmtTarget: string
   authLevel: number          // 0~3 현재 권한 (PAT=3, 비번=1~2) — 파생값(비영속)
+  uiScale: number            // 화면 배율 (영속)
   authModalOpen: boolean
   authWant: number           // 로그인 모달이 안내할 요구 레벨 (0=일반 로그인)
 
@@ -42,6 +43,7 @@ interface HubState {
   toggleSidebar: () => void
   setAuthLevel: (n: number) => void
   openAuth: (want?: number) => void
+  adjustUiScale: (dir: number) => void
   closeAuth: () => void
 }
 
@@ -55,6 +57,7 @@ export const useHub = create<HubState>()(
       sidebarCollapsed: false,
       toast: null, levelFx: 0, cmtOpen: false, helpOpen: false, paletteOpen: false, cmtTarget: '전체',
       authLevel: 0, authModalOpen: false, authWant: 0,
+      uiScale: 1,
 
       toggleTheme: () => {
         const next = get().theme === 'dark' ? 'light' : 'dark'
@@ -119,6 +122,7 @@ export const useHub = create<HubState>()(
       toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
       setAuthLevel: (n) => set({ authLevel: n }),
       openAuth: (want = 0) => set({ authModalOpen: true, authWant: want }),
+      adjustUiScale: (dir) => set({ uiScale: Math.round(Math.min(1.3, Math.max(0.85, get().uiScale + dir * 0.05)) * 100) / 100 }),
       closeAuth: () => set({ authModalOpen: false, authWant: 0 }),
     }),
     {
@@ -127,7 +131,7 @@ export const useHub = create<HubState>()(
         xp: s.xp, level: s.level, totalXp: s.totalXp, streak: s.streak,
         steps: s.steps, results: s.results, answers: s.answers,
         comments: s.comments, completedSheets: s.completedSheets,
-        lastActivity: s.lastActivity, sidebarCollapsed: s.sidebarCollapsed,
+        lastActivity: s.lastActivity, sidebarCollapsed: s.sidebarCollapsed, uiScale: s.uiScale,
       }),
     },
   ),

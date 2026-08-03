@@ -28,7 +28,7 @@ export function HelpOverlay() {
         <h3 className="px">단축키</h3>
         <div className="kgroup px">이동 — g 누르고 한 글자</div>
         <div className="krow"><span>학습</span><span><kbd>g</kbd> <kbd>l</kbd></span></div>
-        <div className="krow"><span>복습</span><span><kbd>g</kbd> <kbd>r</kbd></span></div>
+        <div className="krow"><span>학습 — 복습</span><span><kbd>g</kbd> <kbd>r</kbd></span></div>
         <div className="krow"><span>피드백</span><span><kbd>g</kbd> <kbd>f</kbd></span></div>
         <div className="krow"><span>지식모음</span><span><kbd>g</kbd> <kbd>k</kbd></span></div>
         <div className="krow"><span>지식모음 — 트러블슈팅</span><span><kbd>g</kbd> <kbd>s</kbd></span></div>

@@ -90,7 +90,7 @@ function CategoryCard({ cur }: { cur: Curriculum }) {
   )
 }
 
-// 진행 중인 학습지 — 최근 학습 순 (스프린트·카테고리 구분 없이)
+// 진행 중인 학습지 — 최근 학습 순 (스프린트·주제별 구분 없이)
 function RecentSection() {
   const { lastActivity, steps, completedSheets } = useHub()
 
@@ -147,11 +147,11 @@ function RecentSection() {
   )
 }
 
-// 서브탭 — ALL(기본) / 스프린트 / 카테고리
+// 서브탭 — ALL(기본) / 스프린트 / 주제별 / 복습
 const MODES = [
   { id: 'all', label: 'ALL', hint: '최근 학습한 것부터, 전체 커리큘럼' },
   { id: 'sprint', label: '스프린트', hint: '일정을 정해 순서대로' },
-  { id: 'category', label: '카테고리', hint: '주제를 골라 자유롭게' },
+  { id: 'category', label: '주제별', hint: '주제를 골라 자유롭게' },
 ] as const
 
 export default function LearningHome() {
@@ -169,6 +169,7 @@ export default function LearningHome() {
           <button key={m.id} className={`ksec-btn${active === m.id ? ' on' : ''}`}
             onClick={() => nav(`/learning/${m.id}`)}>{m.label}</button>
         ))}
+        <button className="ksec-btn" onClick={() => nav('/learning/review')}>복습</button>
       </div>
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 120px' }}>
         <div className="crumb"><span className="px">LEARNING</span> / {mode.label}</div>
@@ -189,7 +190,7 @@ export default function LearningHome() {
           )}
           {categories.length > 0 && (
             <details className="learn-acc">
-              <summary>카테고리 <span>{categories.length}</span></summary>
+              <summary>주제별 <span>{categories.length}</span></summary>
               <div className="learn-acc-body">{categories.map(c => <CategoryCard key={c.id} cur={c} />)}</div>
             </details>
           )}

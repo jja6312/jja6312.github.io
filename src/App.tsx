@@ -36,7 +36,7 @@ function Hotkeys() {
         gPending.current = false
         // g 시퀀스 = 탭 이동 (탭 하나당 하나씩, 헤더 순서와 동일)
         if (e.key === 'l') nav('/learning')
-        else if (e.key === 'r') nav('/review')
+        else if (e.key === 'r') nav('/learning/review')
         else if (e.key === 'f') nav('/feedback')
         else if (e.key === 'k') nav('/knowledge')
         else if (e.key === 's') nav('/knowledge/troubleshooting')
@@ -49,7 +49,7 @@ function Hotkeys() {
         else if (e.key === 'p') nav('/profile')
         // 메뉴바 순서 g1~g5 (학습·복습·지식모음·일정관리·프로필)
         else if (e.key === '1') nav('/learning')
-        else if (e.key === '2') nav('/review')
+        else if (e.key === '2') nav('/learning/review')
         else if (e.key === '3') nav('/knowledge')
         else if (e.key === '4') nav('/schedule/calendar')
         else if (e.key === '5') nav('/profile')
@@ -77,6 +77,12 @@ function Shell() {
   useEffect(() => {
     document.body.classList.toggle('cmt-open', cmtOpen)
   }, [cmtOpen])
+
+  const uiScale = useHub(s => s.uiScale)
+  useEffect(() => {
+    // 화면 배율 — Chromium/Safari 지원 zoom. 1이면 제거
+    ;(document.documentElement.style as unknown as { zoom: string }).zoom = uiScale === 1 ? '' : String(uiScale)
+  }, [uiScale])
   // 앱 로드 시 저장된 비번/PAT 로 현재 권한 레벨 계산
   useEffect(() => { currentLevel().then(setAuthLevel) }, [setAuthLevel])
 
@@ -87,9 +93,10 @@ function Shell() {
       <Routes>
         <Route path="/" element={<Navigate to="/learning" replace />} />
         <Route path="/learning" element={<LearningHome />} />
+        <Route path="/learning/review" element={<ReviewPage />} />
         <Route path="/learning/:section" element={<LearningHome />} />
         <Route path="/learning/:curriculumId/:sheetId" element={<SheetPage />} />
-        <Route path="/review" element={<ReviewPage />} />
+        <Route path="/review" element={<Navigate to="/learning/review" replace />} />
         <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/knowledge" element={<KnowledgePage />} />
         <Route path="/knowledge/:section" element={<KnowledgePage />} />

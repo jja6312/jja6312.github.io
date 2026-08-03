@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { findCurriculum, sheets } from '../data'
 import { useHub } from '../store'
 import type { Scenario, Verdict } from '../types'
@@ -122,6 +122,7 @@ function ReviewCard({ item, onGraded }: { item: PoolItem; onGraded: (v: Verdict)
 }
 
 export default function ReviewPage() {
+  const navTab = useNavigate()
   const { results, addXP, showToast } = useHub()
   const [phase, setPhase] = useState<'select' | 'run' | 'done'>('select')
   const [selected, setSelected] = useState<string[]>([])
@@ -180,7 +181,13 @@ export default function ReviewPage() {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px 120px' }}>
-      <div className="crumb"><span className="px">REVIEW</span></div>
+      <div className="ksec" style={{ margin: '0 0 26px', padding: 0 }}>
+        {[['all', 'ALL'], ['sprint', '스프린트'], ['category', '주제별']].map(([id, label]) => (
+          <button key={id} className="ksec-btn" onClick={() => navTab(`/learning/${id}`)}>{label}</button>
+        ))}
+        <button className="ksec-btn on">복습</button>
+      </div>
+      <div className="crumb"><span className="px">LEARNING</span> / 복습</div>
       <h1 className="sheet-h1">복습 퀴즈</h1>
 
       {phase === 'select' && (

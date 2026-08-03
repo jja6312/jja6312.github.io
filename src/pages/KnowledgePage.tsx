@@ -12,19 +12,19 @@ import { useHub } from '../store'
 
 // 지식모음 — 쌓이는 지식·도구 계열. 자물쇠 레벨은 auth.LOCKS 에서 파생.
 const SECTIONS = [
-  { id: 'troubleshooting', label: '트러블슈팅', kbd: 'g s' },
-  { id: 'announcements', label: 'Announcement', kbd: 'g a' },
   { id: 'oci-cli', label: 'OCI CLI', kbd: 'g c' },
   { id: 'terraform', label: 'Terraform', kbd: 'g t' },
-  { id: 'quote', label: '견적', kbd: 'g q' },
-  { id: 'meetings', label: '회의록', kbd: 'g m' },
+  { id: 'troubleshooting', label: '트러블슈팅', kbd: 'g s' },
+  { id: 'quote', label: '견적', kbd: 'g q', locked: true },
+  { id: 'meetings', label: '회의록', kbd: 'g m', locked: true },
+  { id: 'announcements', label: 'Announcement', kbd: 'g a', locked: true },
 ] as const
 
 export default function KnowledgePage() {
   const nav = useNavigate()
   const { section } = useParams()
   const { authLevel, openAuth } = useHub()
-  const active = SECTIONS.find(s => s.id === section)?.id ?? 'troubleshooting'
+  const active = SECTIONS.find(s => s.id === section)?.id ?? 'oci-cli'
   const activeLevel = requiredLevel(`/knowledge/${active}`)
   const locked = activeLevel > authLevel
 
