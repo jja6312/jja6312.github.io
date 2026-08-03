@@ -48,7 +48,7 @@ export default function MeetingsPage() {
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 120px' }}>
       <div className="crumb"><span className="px">MEETINGS</span></div>
       <h1 className="sheet-h1">회의록</h1>
-      <p style={{ color: 'var(--text-dim)', fontSize: 12.5, margin: '6px 0 18px' }}>
+      <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '6px 0 18px' }}>
         녹음·스크립트를 로컬 Claude Code 세션에 전달하면 정리된 회의록이
         blog-db <code className="mono">meetings/minutes/</code> 에 쌓이고, 여기서 열람·검색.
       </p>
@@ -68,8 +68,8 @@ export default function MeetingsPage() {
           onClick={() => setOpen(open === m.name ? null : m.name)}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
             <span className="sid px">MIN</span>
-            <b style={{ fontSize: 14 }}>{(m.content.match(/^#\s+(.+)$/m)?.[1]) ?? m.name.replace(/\.md$/, '')}</b>
-            <span className="px" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-faint)' }}>
+            <b style={{ fontSize: 15.5 }}>{(m.content.match(/^#\s+(.+)$/m)?.[1]) ?? m.name.replace(/\.md$/, '')}</b>
+            <span className="px" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-faint)' }}>
               {open === m.name ? '▲ 접기' : '▼ 열기'}
             </span>
           </div>

@@ -47,7 +47,7 @@ export default function AnnouncementsPage() {
   if (!pat) return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px' }}>
       <div className="crumb"><span className="px">ANNOUNCEMENTS</span></div>
-      <h1 className="sheet-h1">OCI 공지</h1>
+      <h1 className="sheet-h1">Announcement</h1>
       <div style={{ height: 20 }} /><PatNotice />
     </div>
   )
@@ -55,8 +55,8 @@ export default function AnnouncementsPage() {
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 120px' }}>
       <div className="crumb"><span className="px">ANNOUNCEMENTS</span></div>
-      <h1 className="sheet-h1">OCI 공지</h1>
-      <p style={{ color: 'var(--text-dim)', fontSize: 12.5, margin: '6px 0 18px' }}>
+      <h1 className="sheet-h1">Announcement</h1>
+      <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '6px 0 18px' }}>
         OCI announcement 지식 DB — blog-db <code className="mono">announcements/</code>.
         같은 공지를 다시 만나면 영문 제목으로 카탈로그 검색. 수집·갱신은 Claude Code 세션.
       </p>
@@ -77,8 +77,8 @@ export default function AnnouncementsPage() {
         if (!loading && items.length === 0) return null
         return (
           <section key={s.folder} style={{ marginBottom: 26 }}>
-            <h2 style={{ fontSize: 13, margin: '0 0 4px' }} className="px">{s.title}</h2>
-            <p style={{ color: 'var(--text-faint)', fontSize: 11.5, margin: '0 0 10px' }}>{s.desc}</p>
+            <h2 style={{ fontSize: 14.5, margin: '0 0 4px' }} className="px">{s.title}</h2>
+            <p style={{ color: 'var(--text-faint)', fontSize: 12.5, margin: '0 0 10px' }}>{s.desc}</p>
             {items.map(d => {
               const key = `${d.folder}/${d.name}`
               return (
@@ -86,8 +86,8 @@ export default function AnnouncementsPage() {
                   onClick={() => setOpen(open === key ? null : key)}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
                     <span className="sid px">{d.folder === 'snapshots' ? d.name.slice(0, 6) : 'CARD'}</span>
-                    <b style={{ fontSize: 14 }}>{(d.content.match(/^#\s+(.+)$/m)?.[1]) ?? d.name}</b>
-                    <span className="px" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-faint)' }}>
+                    <b style={{ fontSize: 15.5 }}>{(d.content.match(/^#\s+(.+)$/m)?.[1]) ?? d.name}</b>
+                    <span className="px" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-faint)' }}>
                       {open === key ? '▲ 접기' : '▼ 열기'}
                     </span>
                   </div>

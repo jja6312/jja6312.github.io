@@ -79,6 +79,42 @@ export async function putFile(pat: string, path: string, content: string, messag
   return (await res.json()).content.sha as string
 }
 
+/* ── 연결 진단 ─────────────────────────────────────────
+   "왜 안 보이나/왜 커밋이 안 되나"를 추측 대신 실측으로 가른다.
+   읽기(list)·쓰기(put)를 실제로 시도하고 각각의 결과를 문장으로 반환. */
+export interface Diagnosis { read: string; write: string; detail: string }
+
+export async function diagnose(pat: string): Promise<Diagnosis> {
+  const out: Diagnosis = { read: '', write: '', detail: '' }
+
+  // 읽기 — 주요 디렉토리 건수
+  try {
+    const [ann, cases, cli] = await Promise.all([
+      listDir(pat, 'announcements/catalog'),
+      listDir(pat, 'troubleshooting/cases'),
+      listDir(pat, 'knowledge/oci-cli'),
+    ])
+    out.read = 'OK'
+    out.detail = `Announcement ${ann.length}건 · 트러블슈팅 ${cases.length}건 · CLI ${cli.length}건`
+  } catch (e) {
+    out.read = `실패 — ${explainGhError(e)}`
+    out.detail = '읽기가 막히면 모든 탭이 비어 보인다'
+    return out
+  }
+
+  // 쓰기 — 진단용 파일 1개를 실제로 커밋
+  try {
+    const path = 'feedback/.connection-test.json'
+    const existing = await getFile(pat, path)
+    await putFile(pat, path, JSON.stringify({ checkedAt: new Date().toISOString() }, null, 2) + '\n',
+      'chore: 연결 진단', existing?.sha)
+    out.write = 'OK'
+  } catch (e) {
+    out.write = `실패 — ${explainGhError(e)}`
+  }
+  return out
+}
+
 /* ── 피드백 ───────────────────────────────────────────── */
 export async function commitFeedback(pat: string, item: FeedbackItem): Promise<void> {
   const { _pending, ...clean } = item

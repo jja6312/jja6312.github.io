@@ -15,6 +15,7 @@ interface HubState {
   answers: Record<string, string>         // sheet:scenario → 제출 답안
   comments: Comment[]
   completedSheets: string[]
+  lastActivity: Record<string, number>    // sheet → 마지막 학습 시각 (ALL 탭 정렬 기준)
   sidebarCollapsed: boolean               // 학습지 좌측 메뉴 접힘 (영속)
   // UI (비영속)
   toast: string | null
@@ -44,6 +45,7 @@ export const useHub = create<HubState>()(
       theme: (localStorage.getItem('hub-theme') as 'dark' | 'light') || 'dark',
       xp: 0, level: 1, totalXp: 0, streak: 1,
       steps: {}, results: {}, answers: {}, comments: [], completedSheets: [],
+      lastActivity: {},
       sidebarCollapsed: false,
       toast: null, levelFx: 0, cmtOpen: false, helpOpen: false, paletteOpen: false, cmtTarget: '전체',
 
@@ -71,7 +73,10 @@ export const useHub = create<HubState>()(
       markStep: (sheet, step) => {
         const key = `${sheet}:${step}`
         if (get().steps[key]) return
-        set({ steps: { ...get().steps, [key]: true } })
+        set({
+          steps: { ...get().steps, [key]: true },
+          lastActivity: { ...get().lastActivity, [sheet]: Date.now() },
+        })
       },
 
       setResult: (sheet, scenario, verdict, submitted) => {
@@ -80,6 +85,7 @@ export const useHub = create<HubState>()(
         set({
           results: { ...get().results, [key]: verdict },
           answers: { ...get().answers, [key]: submitted },
+          lastActivity: { ...get().lastActivity, [sheet]: Date.now() },
         })
         get().markStep(sheet, scenario)
       },
@@ -111,7 +117,7 @@ export const useHub = create<HubState>()(
         xp: s.xp, level: s.level, totalXp: s.totalXp, streak: s.streak,
         steps: s.steps, results: s.results, answers: s.answers,
         comments: s.comments, completedSheets: s.completedSheets,
-        sidebarCollapsed: s.sidebarCollapsed,
+        lastActivity: s.lastActivity, sidebarCollapsed: s.sidebarCollapsed,
       }),
     },
   ),

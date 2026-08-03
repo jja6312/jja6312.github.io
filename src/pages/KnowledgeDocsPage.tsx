@@ -54,7 +54,7 @@ export default function KnowledgeDocsPage({ crumb, title, desc, path, badge }: {
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 120px' }}>
       <div className="crumb"><span className="px">{crumb}</span></div>
       <h1 className="sheet-h1">{title}</h1>
-      <p style={{ color: 'var(--text-dim)', fontSize: 12.5, margin: '6px 0 18px' }}>{desc}</p>
+      <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '6px 0 18px' }}>{desc}</p>
 
       <input className="cmdinput" style={{ fontFamily: 'Pretendard', marginBottom: 16 }}
         placeholder={`검색 (${docs.length}건 · 제목·본문 전체)`}
@@ -70,8 +70,8 @@ export default function KnowledgeDocsPage({ crumb, title, desc, path, badge }: {
           onClick={() => setOpen(open === d.name ? null : d.name)}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
             <span className="sid px">{badge}</span>
-            <b style={{ fontSize: 14 }}>{docTitle(d)}</b>
-            <span className="px" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-faint)' }}>
+            <b style={{ fontSize: 15.5 }}>{docTitle(d)}</b>
+            <span className="px" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-faint)' }}>
               {open === d.name ? '▲ 접기' : '▼ 열기'}
             </span>
           </div>

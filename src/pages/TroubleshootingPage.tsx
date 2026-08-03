@@ -73,7 +73,7 @@ export default function TroubleshootingPage() {
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 120px' }}>
       <div className="crumb"><span className="px">TROUBLESHOOTING</span></div>
       <h1 className="sheet-h1">트러블슈팅</h1>
-      <p style={{ color: 'var(--text-dim)', fontSize: 12.5, margin: '6px 0 18px' }}>
+      <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '6px 0 18px' }}>
         인시던트 기록 모음 — blog-db <code className="mono">troubleshooting/cases/</code>.
         Claude Code 세션의 자동 postmortem 또는 여기서 수동 작성.
       </p>
@@ -88,7 +88,7 @@ export default function TroubleshootingPage() {
         <div className="card" style={{ padding: '16px 18px', marginBottom: 18 }}>
           <input className="cmdinput" style={{ fontFamily: 'Pretendard', marginBottom: 8 }} placeholder="제목 — 증상 한 줄"
             value={title} onChange={e => setTitle(e.target.value)} />
-          <input className="cmdinput" style={{ fontFamily: 'Pretendard', marginBottom: 8, fontSize: 12 }} placeholder="태그 (쉼표: 고객사, 서비스 …)"
+          <input className="cmdinput" style={{ fontFamily: 'Pretendard', marginBottom: 8, fontSize: 13 }} placeholder="태그 (쉼표: 고객사, 서비스 …)"
             value={tags} onChange={e => setTags(e.target.value)} />
           <textarea className="cmdinput" style={{ minHeight: 140 }} placeholder={'마크다운 본문 — 증상 / 원인 / 조치 / 재발 방지'}
             value={body} onChange={e => setBody(e.target.value)} />
@@ -110,8 +110,8 @@ export default function TroubleshootingPage() {
           onClick={() => setOpen(open?.name === c.name ? null : c)}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
             <span className="sid px">{c.name.slice(0, 6)}</span>
-            <b style={{ fontSize: 14 }}>{(c.content.match(/^#\s+(.+)$/m)?.[1]) ?? c.name}</b>
-            <span className="px" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-faint)' }}>
+            <b style={{ fontSize: 15.5 }}>{(c.content.match(/^#\s+(.+)$/m)?.[1]) ?? c.name}</b>
+            <span className="px" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-faint)' }}>
               {open?.name === c.name ? '▲ 접기' : '▼ 열기'}
             </span>
           </div>

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHub } from '../store'
 import type { FeedbackItem, FeedbackSeverity, FeedbackStatus } from '../types'
-import { getPat, setPat, commitFeedback, fetchFeedbackList, explainGhError } from '../lib/githubDb'
+import { getPat, setPat, commitFeedback, fetchFeedbackList, explainGhError, diagnose } from '../lib/githubDb'
+import type { Diagnosis } from '../lib/githubDb'
 
 const PENDING_KEY = 'hub-feedback-pending'
 const loadPending = (): FeedbackItem[] => JSON.parse(localStorage.getItem(PENDING_KEY) || '[]')
@@ -28,6 +29,7 @@ export default function FeedbackPage() {
   const [filter, setFilter] = useState<'all' | FeedbackStatus>('all')
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [diag, setDiag] = useState<Diagnosis | null>(null)
 
   const refresh = useCallback(async () => {
     const pending = loadPending()
@@ -87,6 +89,12 @@ export default function FeedbackPage() {
     } finally { setBusy(false) }
   }
 
+  const runDiagnose = async () => {
+    setBusy(true); setDiag(null)
+    try { setDiag(await diagnose(pat)) }
+    finally { setBusy(false) }
+  }
+
   const flushPending = async () => {
     if (!pat) return
     const pending = loadPending()
@@ -110,13 +118,13 @@ export default function FeedbackPage() {
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px 120px' }}>
       <div className="crumb"><span className="px">FEEDBACK</span></div>
       <h1 className="sheet-h1">피드백</h1>
-      <p style={{ color: 'var(--text-dim)', fontSize: 13.5, margin: '8px 0 20px' }}>
+      <p style={{ color: 'var(--text-dim)', fontSize: 15, margin: '8px 0 20px' }}>
         쓰다가 불편한 것·바꾸고 싶은 것을 그 자리에서 기록.
         blog-db에 commit되고, Claude Code에 "피드백 확인해줘" 한마디면 반영 루프가 돈다.
       </p>
 
       {/* PAT 설정 */}
-      <details className="card" style={{ padding: '12px 18px', marginBottom: 18, fontSize: 13 }} open={!pat}>
+      <details className="card" style={{ padding: '12px 18px', marginBottom: 18, fontSize: 14.5 }} open={!pat}>
         <summary style={{ cursor: 'pointer', color: pat ? 'var(--accent)' : 'var(--partial)' }}>
           {pat ? 'PAT 등록됨 — blog-db 직접 commit' : 'PAT 미등록 — 지금은 이 브라우저에만 저장됨'}
         </summary>
@@ -130,13 +138,31 @@ export default function FeedbackPage() {
           }}>저장</button>
           {pat && <button className="iconbtn" onClick={() => { setPat(''); setPatState(''); showToast('PAT 삭제됨') }}>삭제</button>}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 8 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 8 }}>
           github.com/settings/personal-access-tokens → Fine-grained → Repository access: blog-db만 → Contents: Read and write
         </div>
-        {pat && pendingCount > 0 && (
-          <button className="donebtn" style={{ marginTop: 10 }} disabled={busy} onClick={flushPending}>
-            로컬 대기 {pendingCount}건 지금 commit
-          </button>
+        {pat && (
+          <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button className="donebtn" style={{ marginTop: 0 }} disabled={busy} onClick={runDiagnose}>
+              연결 진단 (읽기·쓰기 실측)
+            </button>
+            {pendingCount > 0 && (
+              <button className="donebtn" style={{ marginTop: 0 }} disabled={busy} onClick={flushPending}>
+                로컬 대기 {pendingCount}건 지금 commit
+              </button>
+            )}
+          </div>
+        )}
+        {diag && (
+          <div className={`result ${diag.read === 'OK' && diag.write === 'OK' ? 'ok' : 'no'}`} style={{ marginTop: 10 }}>
+            <div className="verdict px">읽기 {diag.read} · 쓰기 {diag.write}</div>
+            <div className="exp" style={{ fontSize: 13 }}>{diag.detail}</div>
+            {diag.write !== 'OK' && (
+              <div className="ans" style={{ fontSize: 12.5 }}>
+                쓰기만 실패 = PAT 권한 문제. Contents를 <b>Read and write</b>로 재발급 후 위에 다시 등록.
+              </div>
+            )}
+          </div>
         )}
       </details>
 
@@ -152,13 +178,13 @@ export default function FeedbackPage() {
           <div className="optrow">
             {(Object.keys(sevMeta) as FeedbackSeverity[]).map(s => (
               <button key={s} className="opt" style={{
-                padding: '6px 14px', fontSize: 12,
+                padding: '6px 14px', fontSize: 13,
                 borderColor: severity === s ? sevMeta[s].color : undefined,
                 color: severity === s ? sevMeta[s].color : undefined,
               }} onClick={() => setSeverity(s)}>{sevMeta[s].label}</button>
             ))}
           </div>
-          <input className="cmdinput" style={{ fontFamily: 'Pretendard', flex: 1, minWidth: 140, padding: '7px 12px', fontSize: 12 }}
+          <input className="cmdinput" style={{ fontFamily: 'Pretendard', flex: 1, minWidth: 140, padding: '7px 12px', fontSize: 13 }}
             placeholder="태그 (쉼표 구분: 학습지, 복습 …)"
             value={tags} onChange={e => setTags(e.target.value)} />
           <button className="submitbtn" disabled={busy} onClick={submit}>제출</button>
@@ -169,13 +195,13 @@ export default function FeedbackPage() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, alignItems: 'center' }}>
         {(['all', 'open', 'in_progress', 'resolved'] as const).map(f => (
           <button key={f} className="opt" style={{
-            padding: '4px 12px', fontSize: 11, borderRadius: 99,
+            padding: '4px 12px', fontSize: 12, borderRadius: 99,
             borderColor: filter === f ? 'var(--accent)' : undefined,
             color: filter === f ? 'var(--accent)' : undefined,
           }} onClick={() => setFilter(f)}>{f === 'all' ? '전체' : statusMeta[f]}</button>
         ))}
-        {loading && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>불러오는 중…</span>}
-        <button className="iconbtn" style={{ marginLeft: 'auto', fontSize: 11 }} onClick={refresh}>새로고침</button>
+        {loading && <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>불러오는 중…</span>}
+        <button className="iconbtn" style={{ marginLeft: 'auto', fontSize: 12 }} onClick={refresh}>새로고침</button>
       </div>
 
       {filtered.length === 0 && (
@@ -190,16 +216,16 @@ export default function FeedbackPage() {
               {statusMeta[i.status]}
             </span>
           </div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>{i.title}</div>
-          {i.body && <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 4 }}>{i.body}</div>}
+          <div style={{ fontSize: 15.5, fontWeight: 600 }}>{i.title}</div>
+          {i.body && <div style={{ fontSize: 14, color: 'var(--text-dim)', marginTop: 4 }}>{i.body}</div>}
           {i.tags && i.tags.length > 0 && (
             <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
-              {i.tags.map(t => <span key={t} className="chip" style={{ fontSize: 10 }}>#{t}</span>)}
+              {i.tags.map(t => <span key={t} className="chip" style={{ fontSize: 11 }}>#{t}</span>)}
             </div>
           )}
           {i.resolution && (
             <div className="result ok show" style={{ marginTop: 10, padding: '8px 12px' }}>
-              <div className="exp" style={{ fontSize: 12 }}><b style={{ color: 'var(--accent)' }}>해결:</b> {i.resolution}</div>
+              <div className="exp" style={{ fontSize: 13 }}><b style={{ color: 'var(--accent)' }}>해결:</b> {i.resolution}</div>
             </div>
           )}
         </div>

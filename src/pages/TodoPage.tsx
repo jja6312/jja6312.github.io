@@ -106,11 +106,11 @@ export default function TodoPage() {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
         <h1 className="sheet-h1">TODO</h1>
         <span className="px" style={{
-          fontSize: 10, marginLeft: 'auto',
+          fontSize: 11, marginLeft: 'auto',
           color: sync === 'synced' ? 'var(--accent)' : sync === 'error' ? 'var(--wrong)' : 'var(--partial)',
         }}>{syncLabel[sync]}</span>
       </div>
-      <p style={{ color: 'var(--text-dim)', fontSize: 12.5, margin: '6px 0 20px' }}>
+      <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '6px 0 20px' }}>
         카드를 드래그해서 옮기면 3초 debounce 후 blog-db <code className="mono">todo/board.json</code> 에 commit — 기기 간 동기화.
       </p>
 
@@ -121,7 +121,7 @@ export default function TodoPage() {
             onDrop={e => { e.preventDefault(); moveCard(col.id) }}>
             <div className="kcol-hd">
               <b>{col.title}</b>
-              <span className="px" style={{ fontSize: 10, color: 'var(--text-faint)' }}>{col.cards.length}</span>
+              <span className="px" style={{ fontSize: 11, color: 'var(--text-faint)' }}>{col.cards.length}</span>
             </div>
             {col.cards.map(card => (
               <div key={card.id} className="kcard" draggable
@@ -133,7 +133,7 @@ export default function TodoPage() {
               </div>
             ))}
             <div className="kadd">
-              <input className="cmdinput" style={{ fontFamily: 'Pretendard', fontSize: 12.5, padding: '8px 12px' }}
+              <input className="cmdinput" style={{ fontFamily: 'Pretendard', fontSize: 14, padding: '8px 12px' }}
                 placeholder="+ 카드 추가"
                 value={inputs[col.id] || ''}
                 onChange={e => setInputs({ ...inputs, [col.id]: e.target.value })}

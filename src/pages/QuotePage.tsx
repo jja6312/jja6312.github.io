@@ -23,7 +23,7 @@ export default function QuotePage() {
   if (!pat) return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px' }}>
       <div className="crumb"><span className="px">QUOTE</span></div>
-      <h1 className="sheet-h1">견적서 작성</h1>
+      <h1 className="sheet-h1">견적</h1>
       <div style={{ height: 20 }} /><PatNotice />
     </div>
   )
@@ -32,8 +32,8 @@ export default function QuotePage() {
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px 60px' }}>
       <div className="crumb"><span className="px">QUOTE</span></div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
-        <h1 className="sheet-h1">견적서 작성</h1>
-        <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>
+        <h1 className="sheet-h1">견적</h1>
+        <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>
           검색으로 항목 추가 → 값 조정 → YAML 생성 → 복사해서 Claude Code에 "견적 만들어줘" → xlsx
         </span>
       </div>

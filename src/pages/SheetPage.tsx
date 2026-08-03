@@ -53,7 +53,7 @@ function ScenarioCard({ sheet, scen }: { sheet: string; scen: Scenario }) {
             const picked = graded && answers[key] === pick
             const cls = picked ? (isAnswer ? ' sel-right' : ' sel-wrong') : ''
             return (
-              <button key={pick} disabled={graded} className={`opt px${cls}`} style={{ fontSize: 16, padding: '9px 26px' }}
+              <button key={pick} disabled={graded} className={`opt px${cls}`} style={{ fontSize: 17.5, padding: '9px 26px' }}
                 onClick={() => grade(isAnswer ? 'O' : 'X', pick)}>{pick}</button>
             )
           })}
@@ -246,7 +246,7 @@ export default function SheetPage() {
           <div className="sheetmeta">
             <span className="chip goal">목표 — {sheet.goal}</span>
             <span className="chip">{sheet.estimated_minutes}분</span>
-            {sheet.level && <span className="chip px" style={{ fontSize: 10 }}>Lv.{sheet.level}</span>}
+            {sheet.level && <span className="chip px" style={{ fontSize: 11 }}>Lv.{sheet.level}</span>}
             {sheet.tags.map(t => <span key={t} className="chip">#{t}</span>)}
           </div>
 
@@ -340,11 +340,11 @@ export default function SheetPage() {
             <div className="summary">
               <div className="big px">채점 완료 — {oCount} / {sheet.scenarios.length}{dCount > 0 && ` (△${dCount})`}</div>
               <div className="row">{cur.title} · {sheetLabel}</div>
-              <div className="row" style={{ fontSize: 11 }}>attempt 기록이 blog-db repo에 commit 됩니다 (복습·XP 원천)</div>
+              <div className="row" style={{ fontSize: 12 }}>attempt 기록이 blog-db repo에 commit 됩니다 (복습·XP 원천)</div>
               <div className="xpgain px">완주 보너스 +{100 * sheet.difficulty} XP (난이도 ×{sheet.difficulty})</div>
             </div>
           ) : (
-            <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-faint)', padding: 10 }}>
+            <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-faint)', padding: 10 }}>
               LAB PROGRESS {stepIds.length}단계를 모두 완료하면 채점이 확정되고 XP가 정산됩니다
             </div>
           )}

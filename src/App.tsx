@@ -39,8 +39,10 @@ function Hotkeys() {
         else if (e.key === 'k') nav('/knowledge')
         else if (e.key === 's') nav('/knowledge/troubleshooting')
         else if (e.key === 'a') nav('/knowledge/announcements')
+        else if (e.key === 'c') nav('/knowledge/oci-cli')
+        else if (e.key === 't') nav('/knowledge/terraform')
         else if (e.key === 'q') nav('/knowledge/quote')
-        else if (e.key === 't') nav('/todo')
+        else if (e.key === 'd') nav('/todo')          // t 는 Terraform 이 가져감 → Do
         else if (e.key === 'm') nav('/meetings')
         return
       }

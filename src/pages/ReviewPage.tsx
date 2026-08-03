@@ -55,7 +55,7 @@ function ReviewCard({ item, onGraded }: { item: PoolItem; onGraded: (v: Verdict)
           {(['O', 'X'] as const).map(p => {
             const isAnswer = scen.answers.includes(p)
             const cls = graded && picked === p ? (isAnswer ? ' sel-right' : ' sel-wrong') : ''
-            return <button key={p} disabled={graded} className={`opt px${cls}`} style={{ fontSize: 16, padding: '9px 26px' }}
+            return <button key={p} disabled={graded} className={`opt px${cls}`} style={{ fontSize: 17.5, padding: '9px 26px' }}
               onClick={() => grade(isAnswer ? 'O' : 'X', p)}>{p}</button>
           })}
         </div>
@@ -185,12 +185,12 @@ export default function ReviewPage() {
 
       {phase === 'select' && (
         <>
-          <p style={{ color: 'var(--text-dim)', fontSize: 13.5, margin: '8px 0 24px' }}>
+          <p style={{ color: 'var(--text-dim)', fontSize: 15, margin: '8px 0 24px' }}>
             학습한 학습지를 복수 선택 → 시나리오 풀에서 혼합 출제.
             출제 순서: 틀렸던 것 → 부분점수 → 나머지 랜덤.
           </p>
           {available.length === 0 ? (
-            <div className="card" style={{ padding: '30px 24px', textAlign: 'center', fontSize: 13, color: 'var(--text-dim)' }}>
+            <div className="card" style={{ padding: '30px 24px', textAlign: 'center', fontSize: 14.5, color: 'var(--text-dim)' }}>
               아직 복습할 학습지가 없습니다.<br />
               <Link to="/learning/linux-basics/day01-boot-and-systemd" style={{ color: 'var(--accent)' }}>
                 Day 1 학습지</Link>에서 시나리오를 1개 이상 풀면 여기 나타납니다.
@@ -205,8 +205,8 @@ export default function ReviewPage() {
                       onClick={() => setSelected(s => on ? s.filter(x => x !== sh.sheet) : [...s, sh.sheet])}>
                       <span className="bx" />
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13.5, color: on ? 'var(--text)' : undefined }}>{sh.day ? `Day ${sh.day} — ` : ''}{sh.title}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{findCurriculum(sh.curriculum)?.title ?? sh.curriculum} · 풀이 {graded}/{sh.scenarios.length}문항</div>
+                        <div style={{ fontSize: 15, color: on ? 'var(--text)' : undefined }}>{sh.day ? `Day ${sh.day} — ` : ''}{sh.title}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>{findCurriculum(sh.curriculum)?.title ?? sh.curriculum} · 풀이 {graded}/{sh.scenarios.length}문항</div>
                       </div>
                       <span className="tag px">{sh.scenarios.length}문항</span>
                     </div>
@@ -214,14 +214,14 @@ export default function ReviewPage() {
                 })}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                <label style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+                <label style={{ fontSize: 14.5, color: 'var(--text-dim)' }}>
                   문항 수&nbsp;
-                  <select className="tgt" style={{ fontSize: 13, padding: '5px 10px', borderRadius: 8, background: 'var(--bg-inset)', color: 'var(--text)', border: '1px solid var(--line)' }}
+                  <select className="tgt" style={{ fontSize: 14.5, padding: '5px 10px', borderRadius: 8, background: 'var(--bg-inset)', color: 'var(--text)', border: '1px solid var(--line)' }}
                     value={count} onChange={e => setCount(Number(e.target.value))}>
                     {[3, 5, 8, 10].map(n => <option key={n} value={n} disabled={poolSize > 0 && n > poolSize}>{n}개</option>)}
                   </select>
                 </label>
-                <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>선택한 풀: {poolSize}문항</span>
+                <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>선택한 풀: {poolSize}문항</span>
                 <button className="submitbtn" disabled={selected.length === 0} onClick={start}
                   style={{ marginLeft: 'auto' }}>▶ 복습 시작 ({Math.min(count, poolSize) || 0}문항)</button>
               </div>
@@ -236,7 +236,7 @@ export default function ReviewPage() {
             <div className="labbar" style={{ flex: 1, margin: 0 }}>
               <div className="f" style={{ width: `${(verdicts.length / quiz.length) * 100}%` }} />
             </div>
-            <span className="px" style={{ fontSize: 11, color: 'var(--accent)' }}>{Math.min(verdicts.length + 1, quiz.length)} / {quiz.length}</span>
+            <span className="px" style={{ fontSize: 12, color: 'var(--accent)' }}>{Math.min(verdicts.length + 1, quiz.length)} / {quiz.length}</span>
           </div>
           <ReviewCard key={`${quiz[idx].sheet}:${quiz[idx].scen.id}:${idx}`} item={quiz[idx]} onGraded={onGraded} />
           {verdicts.length > idx && (
@@ -253,7 +253,7 @@ export default function ReviewPage() {
         <div className="summary" style={{ marginTop: 20 }}>
           <div className="big px">복습 완료 — {o} / {quiz.length}{d > 0 && ` (△${d})`}</div>
           {improved > 0 && <div className="row" style={{ color: 'var(--accent)' }}>오답 → 정답 전환 {improved}건! (+{improved * 5} XP 보너스)</div>}
-          <div className="row" style={{ fontSize: 11 }}>세션 결과가 attempt(review) 로 기록됩니다</div>
+          <div className="row" style={{ fontSize: 12 }}>세션 결과가 attempt(review) 로 기록됩니다</div>
           <div className="xpgain px">세션 완료 +{30 + improved * 5} XP</div>
           <div style={{ marginTop: 16 }}>
             <button className="submitbtn" onClick={() => { setPhase('select'); setSelected([]) }}>다시 복습</button>
