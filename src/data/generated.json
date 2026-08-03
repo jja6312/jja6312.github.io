@@ -51,6 +51,46 @@
    ]
   },
   {
+   "id": "oci-database",
+   "title": "OCI 데이터베이스",
+   "description": "OCI 데이터베이스 서비스를 카테고리 단위로 학습. 매니지드 DB의 접속·과금·운영을 레벨별로.",
+   "mode": "category",
+   "difficulty": 2,
+   "public": true,
+   "tags": [
+    "oci",
+    "database",
+    "autonomous"
+   ],
+   "created": "2026-08-03",
+   "topics": [
+    {
+     "topic": "autonomous-db",
+     "sheet": "autonomous-db",
+     "title": "Autonomous Database",
+     "goal": "ADB의 워크로드 타입·접속 3요소(Wallet/PE/ACL)를 이해하고, 새 ADB를 만들어 앱이 붙는 것까지 실제로 구축한다",
+     "estimated_minutes": 75,
+     "level": 1
+    },
+    {
+     "topic": "autonomous-db-l2",
+     "sheet": "autonomous-db-l2",
+     "title": "Autonomous Database",
+     "goal": "ECPU·Auto Scaling 과금 구조를 읽고, Private Endpoint로 사설 접속을 구축하며 백업·복구를 검증한다",
+     "estimated_minutes": 80,
+     "level": 2
+    },
+    {
+     "topic": "autonomous-db-l3",
+     "sheet": "autonomous-db-l3",
+     "title": "Autonomous Database",
+     "goal": "성능 이상을 지표로 진단하고, 재해 복구(Data Guard/Backup)와 이관·과금 최적화를 아키텍처로 설계한다",
+     "estimated_minutes": 85,
+     "level": 3
+    }
+   ]
+  },
+  {
    "id": "oci-security",
    "title": "OCI 보안",
    "description": "OCI 보안 서비스를 카테고리 단위로 학습. 기간 없이 주제별로 골라 진행한다.",
@@ -94,10 +134,49 @@
      "topic": "security-zones",
      "sheet": "security-zones",
      "title": "Security Zones",
-     "goal": "(예정) Cloud Guard와의 관계, recipe 기반 정책 강제를 이해한다",
-     "estimated_minutes": 40,
-     "level": 1,
-     "status": "planned"
+     "goal": "예방(거부)과 감지(경보)의 차이를 긋고, prod compartment를 Security Zone으로 잠가 위반 생성이 거부되는 것까지 검증한다",
+     "estimated_minutes": 70,
+     "level": 1
+    },
+    {
+     "topic": "security-zones-l2",
+     "sheet": "security-zones-l2",
+     "title": "Security Zones",
+     "goal": "custom recipe로 룰을 선별 설계하고, 기존 위반 자원 정리와 예외 요구·CI/CD 충돌을 운영 절차로 흡수한다",
+     "estimated_minutes": 75,
+     "level": 2
+    },
+    {
+     "topic": "security-zones-l3",
+     "sheet": "security-zones-l3",
+     "title": "Security Zones",
+     "goal": "compartment 트리 전체에 예방(SZ)·감지(CG)·데이터 경로(ZPR)를 배치하는 거버넌스를 설계하고 감사 대응 체계를 구축한다",
+     "estimated_minutes": 80,
+     "level": 3
+    },
+    {
+     "topic": "waf",
+     "sheet": "waf",
+     "title": "WAF",
+     "goal": "Edge/Regional 두 배치 모델을 구분하고, LB에 WAF를 붙여 공격 차단을 실측으로 검증한다",
+     "estimated_minutes": 70,
+     "level": 1
+    },
+    {
+     "topic": "waf-l2",
+     "sheet": "waf-l2",
+     "title": "WAF",
+     "goal": "오탐을 로그로 판별해 룰을 튜닝하고, rate limiting과 access control로 실서비스 보호선을 만든다",
+     "estimated_minutes": 75,
+     "level": 2
+    },
+    {
+     "topic": "waf-l3",
+     "sheet": "waf-l3",
+     "title": "WAF",
+     "goal": "WAF·NSG·SL 다계층 방어를 설계하고, 로그 파이프라인과 주간 리포트 루프로 운영을 자동화한다",
+     "estimated_minutes": 80,
+     "level": 3
     },
     {
      "topic": "vault-kms",
@@ -307,6 +386,530 @@
     }
    ]
   },
+  "autonomous-db": {
+   "curriculum": "oci-database",
+   "topic": "autonomous-db",
+   "level": 1,
+   "sheet": "autonomous-db",
+   "title": "Autonomous Database — 접속의 기본기",
+   "tags": [
+    "oci",
+    "database",
+    "autonomous",
+    "connection"
+   ],
+   "difficulty": 1,
+   "estimated_minutes": 75,
+   "goal": "ADB의 워크로드 타입·접속 3요소(Wallet/PE/ACL)를 이해하고, 새 ADB를 만들어 앱이 붙는 것까지 실제로 구축한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. ADB의 책임 경계 — 무엇을 Oracle이 하나",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">Oracle이 한다</text>\n    <text x=\"166\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">패치·업그레이드·튜닝·백업</text>\n    <text x=\"166\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">인프라·OS·DB 엔진 운영</text>\n    <text x=\"166\" y=\"110\" fill=\"var(--text-faint)\" font-size=\"10\">\"운전대를 Oracle이 잡음\"</text>\n    <rect x=\"344\" y=\"24\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"494\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">내가(MSP) 한다</text>\n    <text x=\"494\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">접속(Wallet/PE/ACL) · 스키마·SQL</text>\n    <text x=\"494\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">과금 설정(ECPU·scaling) · IAM 권한</text>\n    <text x=\"494\" y=\"110\" fill=\"var(--text-faint)\" font-size=\"10\">고객 티켓의 80%가 이 4개</text>\n  </g>\n</svg>",
+     "body": "<pre><code>ADB 한 문장\n└── &quot;DB는 Oracle이 굴리고 너는 SQL만 써라&quot; — 그래서 MSP가 손댈 건 적어 보이지만,\n    고객이 가장 자주 막히는 접속·과금·백업·권한 4개는 전부 내 영역이다\n</code></pre>\n<ul>\n<li>매니지드라고 방심하면 안 되는 지점: <strong>접속</strong>은 100% 사용자 책임 — Wallet·네트워크·ACL 셋 중 하나만 어긋나도 못 붙는다</li>\n</ul>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 워크로드 타입 — 만들기 전 첫 결정",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"114\" y=\"46\" fill=\"var(--accent)\" font-weight=\"700\">ATP</text>\n    <text x=\"114\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">Transaction Processing</text>\n    <text x=\"114\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10\">짧은 트랜잭션 대량</text>\n    <text x=\"114\" y=\"106\" fill=\"var(--text-faint)\" font-size=\"10\">OLTP·웹앱 백엔드</text>\n    <rect x=\"230\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"330\" y=\"46\" fill=\"var(--pixel)\" font-weight=\"700\">ADW</text>\n    <text x=\"330\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">Data Warehouse</text>\n    <text x=\"330\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10\">대용량 분석 쿼리</text>\n    <text x=\"330\" y=\"106\" fill=\"var(--text-faint)\" font-size=\"10\">BI·리포팅·집계</text>\n    <rect x=\"446\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"546\" y=\"46\" fill=\"var(--text)\" font-weight=\"700\">JSON / APEX</text>\n    <text x=\"546\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">문서형 · 로우코드 앱</text>\n    <text x=\"546\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10\">용도 특화 프리셋</text>\n    <text x=\"546\" y=\"106\" fill=\"var(--text-faint)\" font-size=\"10\">엔진 기본값이 다름</text>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>타입은 내부 최적화(옵티마이저·메모리·병렬)의 기본값을 바꾼다 — OLTP에 ADW를 고르면 짧은 쿼리 성능이 손해</li>\n<li>공식: <em>&quot;Autonomous Transaction Processing is designed for transactional workloads with a high volume of short-running transactions.&quot;</em></li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 접속 3요소 — 못 붙는 이유는 항상 여기",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"adb1-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"60\" width=\"110\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"71\" y=\"88\" fill=\"var(--text)\">앱 / 클라이언트</text>\n    <rect x=\"180\" y=\"14\" width=\"150\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"255\" y=\"32\" fill=\"var(--accent)\" font-weight=\"700\">① Wallet (자격)</text>\n    <text x=\"255\" y=\"48\" fill=\"var(--text-dim)\" font-size=\"10\">mTLS 인증서 번들</text>\n    <rect x=\"180\" y=\"62\" width=\"150\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"255\" y=\"80\" fill=\"var(--accent)\" font-weight=\"700\">② 네트워크 (경로)</text>\n    <text x=\"255\" y=\"96\" fill=\"var(--text-dim)\" font-size=\"10\">Public / Private Endpoint</text>\n    <rect x=\"180\" y=\"110\" width=\"150\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"255\" y=\"128\" fill=\"var(--accent)\" font-weight=\"700\">③ ACL (허가)</text>\n    <text x=\"255\" y=\"144\" fill=\"var(--text-dim)\" font-size=\"10\">Access Control List / NSG</text>\n    <rect x=\"400\" y=\"60\" width=\"130\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"465\" y=\"88\" fill=\"var(--pixel)\" font-weight=\"700\">ADB</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.4\" fill=\"none\" marker-end=\"url(#adb1-ar)\">\n    <path d=\"M126 74 C 150 50, 160 40, 176 36\"/>\n    <line x1=\"126\" y1=\"83\" x2=\"176\" y2=\"83\"/>\n    <path d=\"M126 92 C 150 116, 160 126, 176 130\"/>\n    <line x1=\"330\" y1=\"83\" x2=\"396\" y2=\"83\"/>\n  </g>\n  <text x=\"330\" y=\"0\" font-size=\"0\"> </text>\n</svg>",
+     "body": "<pre><code>&quot;접속이 안 돼요&quot; 3분 진단\n├── ① Wallet ─── 만료·버전·잘못된 파일? mTLS면 필수, TLS-only 구성이면 불필요\n├── ② 네트워크 ─ Public이면 인터넷 도달, Private면 VCN 안(같은 VCN·peering·VPN)에서만\n└── ③ ACL ────── Public ADB의 접근 제어 목록에 출발지 IP가 있나 (Secure access from allowed IPs)\n</code></pre>\n<ul>\n<li>세 개는 AND 조건 — 하나만 어긋나도 실패하고, 에러 메시지가 셋을 잘 구분해 주지 않는다. 그래서 순서대로 짚는다</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. Wallet — 무엇이 들었나",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"20\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"44\" fill=\"var(--accent)\" font-weight=\"700\">Wallet zip 내용물</text>\n    <text x=\"166\" y=\"68\" fill=\"var(--text-dim)\" font-size=\"10.5\">tnsnames.ora — 서비스명(_high/_medium/_low)</text>\n    <text x=\"166\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10.5\">cwallet.sso / ewallet — 인증서·키</text>\n    <text x=\"166\" y=\"104\" fill=\"var(--text-dim)\" font-size=\"10.5\">sqlnet.ora — wallet 위치 지정</text>\n    <rect x=\"344\" y=\"20\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"494\" y=\"44\" fill=\"var(--pixel)\" font-weight=\"700\">서비스명 3종 = 우선순위</text>\n    <text x=\"494\" y=\"68\" fill=\"var(--text-dim)\" font-size=\"10.5\">_high — 자원 많이·동시성 낮게</text>\n    <text x=\"494\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10.5\">_medium — 균형</text>\n    <text x=\"494\" y=\"104\" fill=\"var(--text-dim)\" font-size=\"10.5\">_low — 자원 적게·동시성 높게</text>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>접속 문자열의 <code>_high/_medium/_low</code> 는 자원 배분 서비스다 — 배치 잡은 low, 대화형 리포트는 high 식으로 나눠 쓴다</li>\n<li>함정: Wallet은 <strong>비밀</strong>이다 — git·이미지에 넣지 않는다. 유출되면 회전(rotate)해야 한다 (L2의 PE·보안과 연결)</li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 E가 신규 웹 서비스의 DB로 ADB를 쓰기로 했다. 개발팀은 &quot;빨리 접속 정보만 주면 된다&quot;고 하고, 보안팀은 &quot;아무나 접속하면 안 된다&quot;고 한다.",
+    "request": "&quot;ADB를 하나 만들고, 앱이 붙는 것까지 확인해 주세요. 접속은 허가된 곳에서만 되게 해 주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — 타입과 접속 모델",
+      "body": "<pre><code>&quot;웹 서비스 백엔드&quot;       → 워크로드 타입 = ATP (짧은 트랜잭션)\n&quot;빨리 + 허가된 곳만&quot;     → L1은 Public + ACL(허용 IP)로 빠르게 — 사설 격리는 L2(PE)로 승격 예고\n&quot;앱이 붙는 것까지&quot;       → Wallet 발급 + 접속 테스트가 완료 기준\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "ADB 생성",
+      "body": "<p>콘솔: <code>Oracle Database → Autonomous Database → Create Autonomous Database</code></p>\n<pre><code>Workload type     : Transaction Processing (ATP)\nDisplay name       : app-e-atp\nECPU / Storage     : 최소 구성 (Auto Scaling은 L2에서)\nNetwork access     : Secure access from allowed IPs and VCNs (ACL)\nAllowed IP         : 앱 서버 공인 IP / 사무실 IP\nAdmin password     : 강한 비밀번호 (Vault 보관 권장)\n</code></pre>\n<p>확인: ADB 상태 Available.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "IAM 권한 확인",
+      "body": "<p>앱 배포 담당이 ADB를 조회·접속 설정할 수 있어야 한다.</p>\n<pre><code>Allow group AppAdmins to use autonomous-databases in compartment prod\n</code></pre>\n<ul>\n<li>접속(SQL 레벨)은 DB 사용자/비번이지 IAM이 아니다 — IAM은 &quot;리소스 관리&quot; 권한임을 구분해 전달</li>\n</ul>\n"
+     },
+     {
+      "id": "l4",
+      "title": "Wallet 발급",
+      "body": "<p>콘솔: <code>ADB 상세 → Database Connection → Download Wallet</code> (또는 CLI)</p>\n<pre><code>oci db autonomous-database generate-wallet \\\n  --autonomous-database-id &lt;adb-ocid&gt; \\\n  --file wallet.zip \\\n  --password &lt;wallet-password&gt;\n</code></pre>\n<ul>\n<li>Wallet은 비밀 — 안전 채널로 전달하고 git·이미지에 넣지 않는다 (개념 4)</li>\n</ul>\n"
+     },
+     {
+      "id": "l5",
+      "title": "접속 검증",
+      "body": "<pre><code>[1] Wallet 압축 해제 후 TNS_ADMIN 지정\n[2] 서비스명 app_e_atp_low 로 접속 (배치·테스트는 low)\n   sqlplus admin/&lt;pw&gt;@app_e_atp_low\n[3] SELECT 1 FROM dual;   → 결과 나오면 성공\n</code></pre>\n<ul>\n<li>실패 시 3요소 순서(개념 3): Wallet → 네트워크(Public 도달) → ACL(내 IP가 목록에 있나)</li>\n</ul>\n"
+     },
+     {
+      "id": "l6",
+      "title": "허가 검증 — 격리 확인",
+      "body": "<ul>\n<li>ACL에 없는 IP(예: 개인 테더링)에서 같은 접속 시도 → 실패해야 한다</li>\n<li>&quot;허가된 곳만&quot;의 절반은 &quot;허가 안 된 곳에서 안 되는 것&quot;의 증명</li>\n</ul>\n"
+     },
+     {
+      "id": "l7",
+      "title": "인수인계",
+      "body": "<ul>\n<li>앱팀에 전달: 서비스명 3종(_high/_medium/_low)의 용도, Wallet 취급 원칙(비밀·회전)</li>\n<li>ACL 변경 절차: IP 추가는 티켓으로, 0.0.0.0/0 절대 금지</li>\n<li>승격 예고: 진짜 사설 격리가 필요하면 Public+ACL → Private Endpoint (L2)</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "ADB 개요",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/Database/Concepts/adboverview.htm"
+    },
+    {
+     "label": "접속 개요",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/connect-introduction.html"
+    },
+    {
+     "label": "Wallet 다운로드",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/connect-download-wallet.html"
+    },
+    {
+     "label": "워크로드 타입",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/adb-workload-types.html"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "고객이 'ADB는 매니지드니까 접속이 안 되면 Oracle 책임'이라고 주장한다.",
+     "question": "이 주장은 맞다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Oracle은 패치·튜닝·백업 등 DB 운영을 책임지지만, 접속(Wallet·네트워크·ACL)은 100% 사용자 영역이다. 고객 티켓의 다수가 이 접속 4요소에서 나온다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "짧은 주문/결제 트랜잭션이 초당 수백 건 발생하는 커머스 백엔드 DB를 ADB로 만든다.",
+     "question": "적합한 워크로드 타입은?",
+     "choices": [
+      "ADW (Data Warehouse)",
+      "ATP (Transaction Processing)",
+      "JSON Database",
+      "APEX Service"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "ATP는 대량의 짧은 트랜잭션(OLTP)에 최적화된 기본값을 갖는다. ADW를 고르면 분석용 최적화 때문에 짧은 쿼리 성능이 손해다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "choice",
+     "situation": "앱에서 ADB 접속이 실패한다. Public 접속 구성이고 Wallet은 어제 정상 발급받았다. 앱 서버는 사무실이 아닌 신규 클라우드 VM으로 옮겨졌다.",
+     "question": "가장 먼저 확인할 것은?",
+     "choices": [
+      "Wallet을 다시 발급받는다",
+      "워크로드 타입을 ATP로 바꾼다",
+      "ACL 허용 목록에 새 VM의 공인 IP가 있는지 확인한다",
+      "ADB를 재시작한다"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "접속 3요소 중 최근 바뀐 것은 출발지(서버 이전) — Public ADB의 ACL에 새 IP가 없으면 막힌다. Wallet·네트워크는 그대로이므로 ACL부터.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "앱팀에 접속용 Wallet을 발급해 줘야 한다. ADB OCID는 $ADB, wallet 비밀번호는 환경변수로 안 넣고 프롬프트로 받는다고 가정하되 CLI 한 줄 형태를 보여달라.",
+     "question": "Wallet을 생성하는 CLI 명령 한 줄은? (파일명 wallet.zip)",
+     "answers": [
+      "oci db autonomous-database generate-wallet --autonomous-database-id $ADB --file wallet.zip --password <pw>",
+      "oci db autonomous-database generate-wallet --autonomous-database-id \"$ADB\" --file wallet.zip --password <pw>"
+     ],
+     "match": "normalize-flags",
+     "explanation": "generate-wallet가 mTLS 접속에 필요한 인증서 번들을 만든다. Wallet은 비밀이므로 안전 채널로 전달하고 git·이미지에 넣지 않는다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "개발자가 'app_e_atp_high 로 배치 작업을 돌렸더니 낮에 대화형 리포트가 느려졌다'고 한다.",
+     "question": "원인과 조치를 서비스명 3종 관점에서 서술하라.",
+     "answers": [],
+     "rubric": "① 원인: _high는 쿼리당 자원을 많이 쓰고 동시성이 낮다 — 배치가 _high 자원을 점유해 대화형과 경합 ② 조치: 배치는 _low(자원 적게·동시성 높게)로, 대화형 리포트는 _medium/_high로 분리. 서비스명이 곧 자원 배분 정책임을 언급 + 분리 조치 시 O, 하나만 △.",
+     "explanation": "_high/_medium/_low는 단순 이름이 아니라 자원·동시성 배분 정책이다. 워크로드 성격에 맞춰 서비스명을 나눠 쓰는 것이 ADB 운영의 기본기.",
+     "concept_anchor": "c4",
+     "xp": 10
+    }
+   ]
+  },
+  "autonomous-db-l2": {
+   "curriculum": "oci-database",
+   "topic": "autonomous-db-l2",
+   "level": 2,
+   "sheet": "autonomous-db-l2",
+   "title": "Autonomous Database — 과금·사설 접속·백업",
+   "tags": [
+    "oci",
+    "database",
+    "autonomous",
+    "private-endpoint",
+    "billing",
+    "backup"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 80,
+   "goal": "ECPU·Auto Scaling 과금 구조를 읽고, Private Endpoint로 사설 접속을 구축하며 백업·복구를 검증한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. ECPU 과금 모델 — 무엇에 돈이 나가나",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"116\" y=\"46\" fill=\"var(--accent)\" font-weight=\"700\">ECPU</text>\n    <text x=\"116\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">컴퓨트 단위 (현행 모델)</text>\n    <text x=\"116\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">시간당 과금</text>\n    <text x=\"116\" y=\"104\" fill=\"var(--text-faint)\" font-size=\"10\">OCPU는 레거시</text>\n    <rect x=\"230\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"330\" y=\"46\" fill=\"var(--pixel)\" font-weight=\"700\">Storage</text>\n    <text x=\"330\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">GB·월 단위 별도</text>\n    <text x=\"330\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">백업 스토리지도 과금</text>\n    <text x=\"330\" y=\"104\" fill=\"var(--text-faint)\" font-size=\"10\">보관 기간에 비례</text>\n    <rect x=\"446\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"546\" y=\"46\" fill=\"var(--text)\" font-weight=\"700\">비용 축 2개</text>\n    <text x=\"546\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">compute(ECPU × 시간)</text>\n    <text x=\"546\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">+ storage(GB × 월)</text>\n    <text x=\"546\" y=\"104\" fill=\"var(--text-faint)\" font-size=\"10\">둘을 분리해서 본다</text>\n  </g>\n</svg>",
+     "body": "<pre><code>&quot;청구서가 예상보다 많아요&quot; 진단\n├── compute ── ECPU 수 × 가동 시간. Auto Scaling이 켜져 있으면 순간 3배까지 (개념 2)\n├── storage ─ 데이터 + 백업 스토리지. 오래된 백업이 쌓였나\n└── 결론 ──── 두 축을 나눠 본다 — 대개는 Auto Scaling 급증 또는 백업 누적 중 하나\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. Auto Scaling — 편리함의 청구서",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"300\" height=\"100\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">ON — 순간 부하 흡수</text>\n    <text x=\"166\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">기준 ECPU의 최대 3배까지 자동 확장</text>\n    <text x=\"166\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">스파이크에 응답성 유지</text>\n    <text x=\"166\" y=\"112\" fill=\"var(--partial)\" font-size=\"10.5\">대가: 확장 구간은 그만큼 과금</text>\n    <rect x=\"344\" y=\"24\" width=\"300\" height=\"100\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"494\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">OFF — 비용 예측성</text>\n    <text x=\"494\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">기준 ECPU 고정 — 청구서 예측 쉬움</text>\n    <text x=\"494\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">스파이크엔 느려질 수 있음</text>\n    <text x=\"494\" y=\"112\" fill=\"var(--text-faint)\" font-size=\"10.5\">예산 통제가 중요할 때</text>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>Auto Scaling은 &quot;성능 안전망 ↔ 비용 예측성&quot;의 트레이드오프 — 기본값을 확인 없이 두면 청구서가 튄다</li>\n<li>운영 팁: 스파이크가 드물면 OFF + 기준 ECPU를 넉넉히, 스파이크가 잦고 예측 불가면 ON + 상한 인지</li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. Private Endpoint — 사설 격리 승격",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"adb2-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"20\" width=\"300\" height=\"60\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"164\" y=\"42\" fill=\"var(--text)\" font-weight=\"700\">Public + ACL (L1)</text>\n    <text x=\"164\" y=\"62\" fill=\"var(--text-dim)\" font-size=\"10\">인터넷 경로 + IP 허용목록 — 빠르지만 표면 넓음</text>\n    <rect x=\"14\" y=\"96\" width=\"300\" height=\"60\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"164\" y=\"118\" fill=\"var(--accent)\" font-weight=\"700\">Private Endpoint (L2)</text>\n    <text x=\"164\" y=\"138\" fill=\"var(--text-dim)\" font-size=\"10\">VCN 안 사설 IP — 인터넷 노출 자체가 없음</text>\n    <rect x=\"360\" y=\"40\" width=\"130\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"425\" y=\"60\" fill=\"var(--pixel)\" font-weight=\"700\">subnet 지정</text>\n    <text x=\"425\" y=\"76\" fill=\"var(--text-dim)\" font-size=\"10\">private subnet 권장</text>\n    <rect x=\"360\" y=\"96\" width=\"130\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"425\" y=\"116\" fill=\"var(--text)\" font-weight=\"700\">NSG 부착</text>\n    <text x=\"425\" y=\"132\" fill=\"var(--text-dim)\" font-size=\"10\">앱 서브넷만 허용</text>\n    <rect x=\"520\" y=\"68\" width=\"126\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"583\" y=\"88\" fill=\"var(--text)\" font-weight=\"700\">DNS 해석</text>\n    <text x=\"583\" y=\"104\" fill=\"var(--text-dim)\" font-size=\"10\">사설 호스트명</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#adb2-ar)\">\n    <line x1=\"314\" y1=\"118\" x2=\"356\" y2=\"62\"/>\n    <line x1=\"314\" y1=\"122\" x2=\"356\" y2=\"118\"/>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>PE는 ADB를 <strong>VCN 안의 사설 IP</strong>로 만든다 — 인터넷 접근이 원천 차단되고, 접근은 VCN·peering·VPN 경유만</li>\n<li>함정: PE로 바꾸면 접속 경로(개념 L1-c3의 ②)가 통째로 달라진다 — 기존 Public 접속 설정은 폐기하고 사설 DNS·NSG를 새로 검증</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 백업과 복구 — 자동은 어디까지",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"46\" fill=\"var(--accent)\" font-weight=\"700\">자동 백업 (Oracle)</text>\n    <text x=\"166\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">주기적 자동 + 보관 기간 내 시점복구</text>\n    <text x=\"166\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">별도 설정 없이 동작</text>\n    <text x=\"166\" y=\"110\" fill=\"var(--text-faint)\" font-size=\"10\">\"백업은 되고 있다\"의 근거</text>\n    <rect x=\"344\" y=\"24\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"494\" y=\"46\" fill=\"var(--pixel)\" font-weight=\"700\">사용자의 몫</text>\n    <text x=\"494\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">복구 리허설 (실제 restore 해보기)</text>\n    <text x=\"494\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">보관 기간 정책 · 장기 보관은 수동</text>\n    <text x=\"494\" y=\"110\" fill=\"var(--text-faint)\" font-size=\"10\">\"복구가 된다\"의 증명은 내가</text>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>자동 백업이 있다 ≠ 복구가 된다 — <strong>한 번도 restore 안 해본 백업은 백업이 아니다</strong></li>\n<li>시점 복구(PITR): 실수 삭제·논리 오류를 특정 시각으로 되돌린다. 인프라 재해 대비는 L3(Data Guard)</li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "L1에서 만든 app-e-atp가 운영에 들어갔다. 보안 감사에서 &quot;DB가 인터넷에 노출됐다&quot;는 지적을 받았고, 재무팀은 &quot;지난달 DB 비용이 2배로 튀었다&quot;고 문의했다.",
+    "request": "&quot;DB를 사설로 격리해 주시고, 비용이 왜 튀었는지 밝혀서 예측 가능하게 해 주세요. 백업으로 복구가 실제 되는지도 확인해 주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "비용 급증 원인 규명",
+      "body": "<p>Cost Analysis에서 ADB 비용을 compute/storage 두 축으로 분리해 본다 (개념 1).</p>\n<pre><code>[1] compute(ECPU) 라인이 튀었나  → Auto Scaling 급증 의심\n[2] storage 라인이 튀었나        → 백업 누적·데이터 증가 의심\n</code></pre>\n<p>확인: 대개 Auto Scaling ON 상태에서 예상 못한 스파이크 — 원인 라인을 스크린샷으로 확보.</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "과금 정책 결정",
+      "body": "<pre><code>스파이크가 드물다   → Auto Scaling OFF + 기준 ECPU를 실측 피크 기준으로 상향 (예측성 확보)\n스파이크가 잦다     → Auto Scaling ON 유지 + 상한(3배) 인지 + 알람(예산 초과 경보) 설정\n</code></pre>\n<p>확인: 결정과 근거(트래픽 패턴)를 재무팀에 1장으로 회신.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "Private Endpoint 신설 — 사설 격리",
+      "body": "<p>주의: Public→Private 전환은 접속 경로가 통째로 바뀐다. 앱 다운타임 창을 잡고 진행.</p>\n<p>콘솔: <code>ADB → More actions → Update network access → Private endpoint access only</code></p>\n<pre><code>VCN     : 앱 VCN\nSubnet  : private subnet\nNSG     : 앱 서브넷에서 1521만 허용\n</code></pre>\n<p>확인: ADB에 인터넷 경로가 사라지고 사설 IP가 부여됨.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "사설 접속 재검증",
+      "body": "<pre><code>[1] 앱 VCN 안(또는 Bastion)에서 사설 호스트명으로 접속\n[2] sqlplus admin/&lt;pw&gt;@app_e_atp_low  → 성공\n[3] 인터넷(사무실 외부)에서 시도 → 도달 불가(격리 증명)\n</code></pre>\n<ul>\n<li>L1의 Public ACL 설정은 제거 — 접속 3요소 중 ②(경로)가 바뀌었으므로 전체 재검증.</li>\n</ul>\n"
+     },
+     {
+      "id": "l5",
+      "title": "복구 리허설",
+      "body": "<p>&quot;백업이 있다&quot;를 &quot;복구가 된다&quot;로 바꾸는 단계.</p>\n<pre><code>[1] 테스트 테이블 생성 후 특정 시각 기록\n[2] 데이터 변경/삭제\n[3] 시점 복구(PITR) 또는 백업에서 복제본 생성으로 그 시각 상태 확인\n</code></pre>\n<p>확인: 복구된 데이터가 기록 시점과 일치 — 복구 소요 시간(RTO)도 함께 측정해 기록.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계",
+      "body": "<ul>\n<li>비용 리포트: compute/storage 분리 + 과금 정책 결정 근거</li>\n<li>접속 정보 갱신: 사설 호스트명·경로, 기존 Public 설정 폐기 명시</li>\n<li>복구 리허설 결과: 복구 가능 확인 + RTO 실측치. 정기 리허설 주기 제안</li>\n<li>재해(리전 장애) 대비는 별도 — L3 Data Guard 예고</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "ECPU Compute 모델",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/ecpu-compute-model.html"
+    },
+    {
+     "label": "Auto Scaling",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/autonomous-auto-scale.html"
+    },
+    {
+     "label": "Private Endpoint",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/private-endpoint-overview.html"
+    },
+    {
+     "label": "Backup & Restore",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/backup-restore.html"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "choice",
+     "situation": "재무팀이 'ADB 비용이 지난달 2배'라고 문의했다. 데이터량은 거의 그대로다.",
+     "question": "가장 먼저 볼 곳은?",
+     "choices": [
+      "storage 사용량 추이",
+      "Auto Scaling으로 인한 ECPU(compute) 사용 추이",
+      "Wallet 발급 횟수",
+      "백업 보관 기간 설정"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "비용 축은 compute(ECPU×시간)와 storage(GB×월) 둘 — 데이터가 그대로면 compute 축, 특히 Auto Scaling이 스파이크에서 기준의 3배까지 확장된 구간이 단골 원인이다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "ox",
+     "situation": "동료가 '예산 통제가 최우선인 고객이니 Auto Scaling을 끄면 성능 문제는 알아서 해결된다'고 말한다.",
+     "question": "이 말은 맞다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "OFF는 비용 예측성을 주지만 스파이크에서 느려질 수 있다 — 트레이드오프다. OFF를 선택하면 기준 ECPU를 실측 피크 기준으로 상향하는 보완이 따라야 한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "choice",
+     "situation": "보안 감사에서 'ADB가 인터넷에 노출'이라는 지적. Public+ACL로 운영 중이다.",
+     "question": "근본 해결책은?",
+     "choices": [
+      "ACL 허용 IP를 더 줄인다",
+      "Wallet 비밀번호를 강화한다",
+      "Private Endpoint로 전환해 인터넷 경로를 원천 제거한다",
+      "mTLS를 TLS로 바꾼다"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "ACL은 허용목록일 뿐 인터넷 노출 자체는 남는다. PE 전환이 노출을 원천 제거한다 — 단 접속 경로가 통째로 바뀌므로 다운타임 창 + 사설 DNS·NSG 재검증이 따라온다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "PE 전환 후 앱 VCN의 Bastion에서 사설 접속을 검증한다. 서비스명은 app_e_atp_low, 사용자 admin.",
+     "question": "접속 검증 명령 한 줄은? (sqlplus)",
+     "answers": [
+      "sqlplus admin/<pw>@app_e_atp_low",
+      "sqlplus admin@app_e_atp_low"
+     ],
+     "match": "normalize-flags",
+     "explanation": "PE 전환 후에는 반드시 VCN 안에서 사설 호스트명 경유 접속을 재검증한다 — 기존 Public 경로 설정은 폐기 대상이다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "고객이 '자동 백업이 있다니 안심'이라며 복구 테스트 없이 운영하려 한다.",
+     "question": "이 상태의 위험과 리허설 절차를 서술하라.",
+     "answers": [],
+     "rubric": "① 위험: 백업 존재 ≠ 복구 가능 — 한 번도 restore 안 해본 백업은 실제 장애 때 RTO·절차·권한 문제로 실패할 수 있다 ② 리허설: 테스트 데이터 기록 → 변경/삭제 → PITR(또는 백업 복제본)로 시점 복원 → 데이터 일치 확인 + RTO 실측 기록, 정기 주기화. 위험과 절차(검증 포인트 포함) 모두 언급 시 O, 하나만 △.",
+     "explanation": "'백업이 있다'를 '복구가 된다'로 바꾸는 것은 사용자 몫이다 — 리허설과 RTO 실측이 운영의 증거가 된다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    }
+   ]
+  },
+  "autonomous-db-l3": {
+   "curriculum": "oci-database",
+   "topic": "autonomous-db-l3",
+   "level": 3,
+   "sheet": "autonomous-db-l3",
+   "title": "Autonomous Database — 성능 진단과 재해 복구 설계",
+   "tags": [
+    "oci",
+    "database",
+    "autonomous",
+    "data-guard",
+    "performance",
+    "dr"
+   ],
+   "difficulty": 3,
+   "estimated_minutes": 85,
+   "goal": "성능 이상을 지표로 진단하고, 재해 복구(Data Guard/Backup)와 이관·과금 최적화를 아키텍처로 설계한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. \"느려요\"의 해부 — 매니지드에서 성능을 보는 법",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"adb3-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"54\" width=\"140\" height=\"52\" rx=\"25\" fill=\"var(--wrong)\" opacity=\"0.15\" stroke=\"var(--wrong)\"/>\n    <text x=\"80\" y=\"84\" fill=\"var(--wrong)\" font-weight=\"700\">\"DB가 느려요\"</text>\n    <rect x=\"210\" y=\"10\" width=\"190\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"305\" y=\"28\" fill=\"var(--text)\">① 자원 포화인가</text>\n    <text x=\"305\" y=\"44\" fill=\"var(--text-dim)\" font-size=\"9.5\">ECPU 사용률·대기 세션 (Perf Hub)</text>\n    <rect x=\"210\" y=\"60\" width=\"190\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"305\" y=\"78\" fill=\"var(--text)\">② 특정 SQL인가</text>\n    <text x=\"305\" y=\"94\" fill=\"var(--text-dim)\" font-size=\"9.5\">Top SQL·실행계획 변화</text>\n    <rect x=\"210\" y=\"110\" width=\"190\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"305\" y=\"128\" fill=\"var(--text)\">③ 경로/서비스명인가</text>\n    <text x=\"305\" y=\"144\" fill=\"var(--text-dim)\" font-size=\"9.5\">_high 혼용·네트워크 지연</text>\n    <rect x=\"450\" y=\"54\" width=\"200\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"550\" y=\"76\" fill=\"var(--accent)\" font-weight=\"700\">지표로 갈라서 조치</text>\n    <text x=\"550\" y=\"94\" fill=\"var(--text-dim)\" font-size=\"10\">스케일 vs SQL 튜닝 vs 배분</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.4\" fill=\"none\" marker-end=\"url(#adb3-ar)\">\n    <path d=\"M150 68 C 175 50, 185 38, 206 30\"/>\n    <line x1=\"150\" y1=\"80\" x2=\"206\" y2=\"80\"/>\n    <path d=\"M150 92 C 175 110, 185 122, 206 130\"/>\n    <line x1=\"400\" y1=\"80\" x2=\"446\" y2=\"80\"/>\n  </g>\n</svg>",
+     "body": "<pre><code>매니지드라서 다른 점\n├── 인프라 튜닝(메모리·패치)은 Oracle 영역 — 내가 도구로 보는 건 Performance Hub\n├── 갈림길 3개: 자원 포화(→ ECPU 스케일) / 특정 SQL(→ 튜닝·계획 고정) / 배분(→ 서비스명 재배치)\n└── &quot;느려요&quot;에 ECPU부터 올리는 건 진단 생략 — 포화가 아니면 돈만 나간다\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 클론 전략 — 운영을 건드리지 않는 실험실",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"24\" width=\"200\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"114\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">Full Clone</text>\n    <text x=\"114\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">데이터+메타데이터 전부</text>\n    <text x=\"114\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"10\">부하테스트·검증 환경</text>\n    <text x=\"114\" y=\"112\" fill=\"var(--text-faint)\" font-size=\"10\">스토리지 비용 그대로</text>\n    <rect x=\"230\" y=\"24\" width=\"200\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"330\" y=\"48\" fill=\"var(--text)\" font-weight=\"700\">Metadata Clone</text>\n    <text x=\"330\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">스키마만, 데이터 없음</text>\n    <text x=\"330\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"10\">개발 초기·구조 검토</text>\n    <text x=\"330\" y=\"112\" fill=\"var(--text-faint)\" font-size=\"10\">가볍고 저렴</text>\n    <rect x=\"446\" y=\"24\" width=\"200\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"546\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">Refreshable Clone</text>\n    <text x=\"546\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">원본을 주기 반영 (읽기)</text>\n    <text x=\"546\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"10\">리포팅 분리·읽기 오프로드</text>\n    <text x=\"546\" y=\"112\" fill=\"var(--text-faint)\" font-size=\"10\">refresh 주기 관리 필요</text>\n  </g>\n  <text x=\"330\" y=\"152\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">패치 검증·성능 실험·리포팅 — 운영 DB를 직접 건드릴 이유를 클론이 없애준다</text>\n</svg>",
+     "body": "<ul>\n<li>L2의 &quot;복구 리허설&quot;도 클론으로 한다 — 특정 시점 백업에서 클론을 떠서 검증하면 운영 무중단</li>\n<li>리포팅 쿼리가 운영을 누르는 고전 문제의 정답이 Refreshable Clone — 읽기 부하를 통째로 분리</li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 재해 복구 2단 — Backup 기반과 Autonomous Data Guard",
+     "diagram": "<svg viewBox=\"0 0 660 170\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"300\" height=\"120\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"166\" y=\"48\" fill=\"var(--text)\" font-weight=\"700\">Backup-based DR</text>\n    <text x=\"166\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">백업을 다른 리전에 복제 → 장애 시 복원</text>\n    <text x=\"166\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">RTO 길다 (복원 시간) · 비용 낮음</text>\n    <text x=\"166\" y=\"116\" fill=\"var(--text-faint)\" font-size=\"10\">\"하루쯤 멈춰도 되는\" 시스템</text>\n    <rect x=\"344\" y=\"24\" width=\"300\" height=\"120\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"494\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">Autonomous Data Guard</text>\n    <text x=\"494\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">Standby DB 상시 유지 (동일/원격 리전)</text>\n    <text x=\"494\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">스위치오버/페일오버 — RTO 분 단위</text>\n    <text x=\"494\" y=\"116\" fill=\"var(--text-faint)\" font-size=\"10\">Standby 유지 비용 — RTO가 돈이다</text>\n  </g>\n</svg>",
+     "body": "<pre><code>선택은 숫자로 한다\n├── RTO(복구 시간 목표)·RPO(허용 데이터 손실)를 고객에게 먼저 묻는다\n├── &quot;몇 시간 정지 허용 + 저비용&quot;  → Backup-based\n└── &quot;분 단위 복구 + 리전 재해 대비&quot; → Autonomous Data Guard (원격 리전 standby)\n</code></pre>\n<ul>\n<li>함정: Data Guard를 켜고 스위치오버를 한 번도 안 해본 조직 — 전환 리허설 없는 DR은 DR이 아니다 (L2 백업 교훈의 반복)</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 이관과 총비용 — 아키텍트의 마지막 질문",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"adb3-ar4\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"34\" width=\"160\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"94\" y=\"56\" fill=\"var(--text)\" font-weight=\"700\">온프렘/타DB</text>\n    <text x=\"94\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"10\">기존 Oracle·기타</text>\n    <rect x=\"250\" y=\"10\" width=\"170\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"335\" y=\"30\" fill=\"var(--accent)\">Data Pump</text>\n    <text x=\"335\" y=\"46\" fill=\"var(--text-dim)\" font-size=\"9.5\">중단 창 허용 시 — 단순·확실</text>\n    <rect x=\"250\" y=\"66\" width=\"170\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"335\" y=\"86\" fill=\"var(--pixel)\">GoldenGate</text>\n    <text x=\"335\" y=\"102\" fill=\"var(--text-dim)\" font-size=\"9.5\">무중단 요구 시 — 실시간 복제</text>\n    <rect x=\"486\" y=\"34\" width=\"160\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"566\" y=\"56\" fill=\"var(--accent)\" font-weight=\"700\">ADB</text>\n    <text x=\"566\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"10\">운영비 재계산</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#adb3-ar4)\">\n    <path d=\"M174 52 C 205 40, 215 34, 246 28\"/>\n    <path d=\"M174 68 C 205 80, 215 86, 246 90\"/>\n    <line x1=\"420\" y1=\"32\" x2=\"482\" y2=\"52\"/>\n    <line x1=\"420\" y1=\"88\" x2=\"482\" y2=\"68\"/>\n  </g>\n  <text x=\"330\" y=\"138\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">이관 방식은 \"중단 창\"이 결정한다 — 그리고 총비용에는 compute·storage + DR(standby)·클론까지 넣어야 정직한 견적이다</text>\n</svg>",
+     "body": "<ul>\n<li>아키텍처 리뷰 4문항: 워크로드 타입(L1) / 접속·격리 모델(L2) / RTO·RPO와 DR 방식(L3) / 총비용(스케일링·백업·standby 포함)</li>\n<li>이 4문항에 근거가 있으면 ADB 설계는 끝난 것이다</li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "app-e-atp가 매출 시스템의 핵심이 됐다. 경영진이 &quot;리전 장애가 나도 서비스는 살아야 한다&quot;고 선언했고, 동시에 월말 리포팅 쿼리가 운영 트랜잭션을 느리게 만들고 있다.",
+    "request": "&quot;리전 재해에도 분 단위로 복구되게 해 주세요. 리포팅이 운영을 누르는 것도 해결해 주세요. 전환이 진짜 되는지 증명까지.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — 숫자부터",
+      "body": "<pre><code>&quot;리전 장애에도 생존 + 분 단위&quot;  → RTO 분 단위 = Backup-based 탈락 → Autonomous Data Guard (원격 리전)\n&quot;리포팅이 운영을 누름&quot;          → Refreshable Clone으로 읽기 부하 분리\n&quot;증명까지&quot;                      → 스위치오버 리허설이 완료 기준\n</code></pre>\n<p>확인: RTO·RPO 숫자를 경영진 문서로 합의 (구두 아님).</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "Autonomous Data Guard 활성화",
+      "body": "<p>콘솔: <code>ADB 상세 → Autonomous Data Guard → Enable</code></p>\n<pre><code>Standby 위치 : 원격 리전 (리전 재해 대비가 요구이므로 Local이 아닌 Cross-region)\n</code></pre>\n<ul>\n<li>비용 고지: standby는 상시 유지 비용이 든다 — &quot;RTO가 돈이다&quot;를 견적으로 먼저 승인받는다</li>\n</ul>\n<p>확인: Standby 상태 Available, role 표시(Primary/Standby).</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "리포팅 분리 — Refreshable Clone",
+      "body": "<p>콘솔: <code>More actions → Create clone → Refreshable clone</code></p>\n<pre><code>Clone 이름   : app-e-report\nRefresh 방식 : 주기 refresh (리포팅 허용 지연에 맞춰)\n</code></pre>\n<ul>\n<li>BI·월말 배치의 접속 문자열을 클론으로 전환 — 운영 DB에는 트랜잭션만 남긴다</li>\n</ul>\n<p>확인: 운영 Perf Hub에서 리포팅성 Top SQL이 사라짐.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "스위치오버 리허설",
+      "body": "<p>DR의 완료 기준 — 계획 전환을 실제로 한다 (야간 창).</p>\n<pre><code>[1] 콘솔에서 Switchover 실행 (Primary ↔ Standby 역할 교대)\n[2] 앱 접속 확인 — 신규 Primary로 트랜잭션 정상\n[3] RTO 실측 기록 (선언 목표와 대조)\n[4] Switchover 원복\n</code></pre>\n<p>확인: 실측 RTO ≤ 합의 RTO — 미달이면 아키텍처 재검토가 지금 필요한 것.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "운영 체계화",
+      "body": "<pre><code>├── 분기 1회 스위치오버 리허설 일정화 (전환 안 해본 DR은 DR이 아니다)\n├── 클론 refresh 실패 알람 (리포팅 데이터 신선도 감시)\n└── 비용 리포트에 standby·클론 항목 명시 — 총비용의 정직성\n</code></pre>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계",
+      "body": "<ul>\n<li>DR 런북 1장: 페일오버 판단 기준 → 실행 절차 → 확인 목록 → 원복 절차</li>\n<li>아키텍처 리뷰 4문항 답안(타입/접속/DR/총비용)을 문서로 — 이것이 이 커리큘럼의 최종 산출물</li>\n<li>성능 문의 대응 순서(개념 1): 포화 → SQL → 배분, ECPU 증설은 진단 뒤에</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Autonomous Data Guard",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/autonomous-data-guard.html"
+    },
+    {
+     "label": "Backup & Restore",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/backup-restore.html"
+    },
+    {
+     "label": "Performance Hub",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/perf-hub.html"
+    },
+    {
+     "label": "Clone",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/clone-autonomous-database.html"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "choice",
+     "situation": "'DB가 느리다'는 티켓. 담당자가 곧바로 ECPU를 2배로 올리자고 한다.",
+     "question": "올바른 이의 제기는?",
+     "choices": [
+      "ECPU 증설은 다운타임이 필요하므로 안 된다",
+      "Performance Hub로 포화/특정 SQL/배분 중 어디인지 진단이 먼저 — 포화가 아니면 돈만 나간다",
+      "매니지드라 성능은 Oracle 책임이므로 SR부터 연다",
+      "Auto Scaling을 끄면 해결된다"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "갈림길 3개(자원 포화/특정 SQL/서비스명 배분)를 지표로 가른 뒤 조치가 정석 — 특정 SQL의 계획 변화가 원인이면 ECPU 2배는 비용만 2배다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "월말 리포팅 배치가 운영 트랜잭션을 누른다. 데이터는 하루 지연까지 허용된다.",
+     "question": "가장 알맞은 분리 수단은?",
+     "choices": [
+      "Full Clone을 매일 새로 뜬다",
+      "Metadata Clone에 리포팅을 돌린다",
+      "Refreshable Clone으로 읽기 부하를 분리한다",
+      "ECPU Auto Scaling을 켠다"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "Refreshable Clone은 원본을 주기 반영하는 읽기 복제본 — 리포팅을 통째로 옮기면 운영 DB에는 트랜잭션만 남는다. 하루 지연 허용이면 refresh 주기로 충분히 커버.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "ox",
+     "situation": "경영진이 'RTO 5분, 리전 재해 대비'를 선언했다. 담당자가 '백업을 원격 리전에 복제하고 있으니 충족된다'고 보고했다.",
+     "question": "이 보고는 맞다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Backup-based DR은 복원 시간이 필요해 RTO가 길다 — 분 단위 RTO + 리전 재해면 원격 리전 standby를 상시 유지하는 Autonomous Data Guard가 답이다. 선택은 RTO·RPO 숫자가 결정한다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "이관 협의 — 기존 온프렘 Oracle을 ADB로 옮긴다. 서비스는 주말 6시간 중단 창이 허용된다.",
+     "question": "이 조건에서 표준 이관 도구는? (도구 이름만)",
+     "answers": [
+      "Data Pump",
+      "data pump",
+      "datapump",
+      "expdp/impdp"
+     ],
+     "match": "exact-trim",
+     "explanation": "중단 창이 허용되면 Data Pump(export/import)가 단순·확실한 표준 경로다. 무중단 요구일 때만 GoldenGate 실시간 복제로 올라간다 — 이관 방식은 중단 창이 결정한다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "Autonomous Data Guard를 켠 지 1년, 스위치오버는 한 번도 안 해봤다. DR 점검 요청이 왔다.",
+     "question": "이 상태의 문제와 리허설 절차를 서술하라.",
+     "answers": [],
+     "rubric": "① 문제: 전환 안 해본 DR은 DR이 아니다 — 실제 페일오버 때 앱 재접속·DNS·권한·RTO가 검증 안 된 상태 ② 절차: 야간 창에 계획 Switchover → 신규 Primary로 앱 트랜잭션 확인 → RTO 실측·목표 대조 → 원복, 분기 주기화. 문제 인식과 절차(실측 포함) 모두 언급 시 O, 하나만 △.",
+     "explanation": "L2 백업 교훈의 반복 — 존재가 아니라 전환 증명이 DR의 완료 기준이다. 실측 RTO가 목표에 미달이면 지금이 아키텍처 재검토 시점이다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
   "cloud-guard": {
    "curriculum": "oci-security",
    "topic": "cloud-guard",
@@ -475,6 +1078,1013 @@
      "answers": [],
      "rubric": "① target에 붙은 responder recipe에서 해당 rule의 실행 설정(자동 여부·조건) 확인 ② cloudguard 서비스 principal에 대상 리소스를 조작할 IAM 정책(allow service cloudguard to <verb> <resource_type> …)이 있는지 확인. 두 가지 모두 언급 시 O, 하나만 △.",
      "explanation": "responder 실행은 rule 설정과 서비스 권한 두 조건이 모두 충족돼야 한다. 탐지(problem 생성)는 되는데 대응만 안 되면 실행 경로 쪽 — 설정 또는 서비스 principal 권한이 첫 갈림길.",
+     "concept_anchor": "c4",
+     "xp": 10
+    }
+   ]
+  },
+  "security-zones": {
+   "curriculum": "oci-security",
+   "topic": "security-zones",
+   "level": 1,
+   "sheet": "security-zones",
+   "title": "Security Zones — 예방적 통제의 기본기",
+   "tags": [
+    "oci",
+    "security",
+    "security-zones",
+    "compartment"
+   ],
+   "difficulty": 1,
+   "estimated_minutes": 70,
+   "goal": "예방(거부)과 감지(경보)의 차이를 긋고, prod compartment를 Security Zone으로 잠가 위반 생성이 거부되는 것까지 검증한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 예방 vs 감지 — Cloud Guard와의 분업",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"sz1-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"56\" width=\"130\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"81\" y=\"84\" fill=\"var(--text)\">자원 생성 요청</text>\n    <rect x=\"240\" y=\"14\" width=\"200\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"340\" y=\"36\" fill=\"var(--accent)\" font-weight=\"700\">Security Zone (예방)</text>\n    <text x=\"340\" y=\"54\" fill=\"var(--text-dim)\" font-size=\"10\">생성 전 평가 — 위반이면 거부</text>\n    <rect x=\"240\" y=\"94\" width=\"200\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"340\" y=\"116\" fill=\"var(--pixel)\" font-weight=\"700\">Cloud Guard (감지)</text>\n    <text x=\"340\" y=\"134\" fill=\"var(--text-dim)\" font-size=\"10\">생성 후 발견 — Problem·대응</text>\n    <rect x=\"510\" y=\"14\" width=\"136\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/>\n    <text x=\"578\" y=\"44\" fill=\"var(--wrong)\" font-weight=\"700\">생성 자체 실패</text>\n    <rect x=\"510\" y=\"94\" width=\"136\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"578\" y=\"118\" fill=\"var(--text)\">생성됨 + 경보</text>\n    <text x=\"578\" y=\"134\" fill=\"var(--text-dim)\" font-size=\"10\">교정은 별도</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#sz1-ar)\">\n    <path d=\"M146 70 C 185 52, 195 44, 236 38\"/>\n    <path d=\"M146 90 C 185 108, 195 116, 236 122\"/>\n    <line x1=\"440\" y1=\"40\" x2=\"506\" y2=\"40\"/>\n    <line x1=\"440\" y1=\"120\" x2=\"506\" y2=\"120\"/>\n  </g>\n</svg>",
+     "body": "<pre><code>같은 목표(안전한 tenancy), 다른 시점\n├── Security Zone ── 사고가 나기 전에 문을 잠근다 — 위반 자원은 태어나지 못함\n└── Cloud Guard ─── 사고 흔적을 찾아 알리고 고친다 — 이미 태어난 것을 다룸\n</code></pre>\n<ul>\n<li>강제력이 다르다: Cloud Guard의 교정(responder)은 설정에 따라 조건적, Security Zone의 거부는 <strong>절대적</strong></li>\n<li>그래서 배치도 다르다: 일반 compartment는 Cloud Guard, production·민감 compartment는 Security Zone 추가</li>\n</ul>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 구성요소 — Zone, Recipe, 룰",
+     "diagram": "<svg viewBox=\"0 0 660 170\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"14\" width=\"380\" height=\"142\" rx=\"12\" fill=\"none\" stroke=\"var(--accent)\" stroke-dasharray=\"7 5\" stroke-width=\"1.6\"/>\n    <text x=\"110\" y=\"38\" fill=\"var(--accent)\" font-weight=\"700\">Security Zone = compartment 마킹</text>\n    <rect x=\"34\" y=\"54\" width=\"150\" height=\"40\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"109\" y=\"78\" fill=\"var(--text)\">prod compartment</text>\n    <rect x=\"34\" y=\"104\" width=\"150\" height=\"40\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\" stroke-dasharray=\"4 3\"/>\n    <text x=\"109\" y=\"124\" fill=\"var(--text-dim)\" font-size=\"10.5\">자식 compartment</text>\n    <text x=\"109\" y=\"140\" fill=\"var(--text-faint)\" font-size=\"9.5\">자동으로 같은 Zone</text>\n    <rect x=\"230\" y=\"70\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"300\" y=\"92\" fill=\"var(--accent)\" font-weight=\"700\">Recipe 1개</text>\n    <text x=\"300\" y=\"110\" fill=\"var(--text-dim)\" font-size=\"10\">룰 묶음 attach</text>\n  </g>\n  <g font-size=\"10.5\">\n    <rect x=\"430\" y=\"24\" width=\"216\" height=\"130\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"446\" y=\"48\" fill=\"var(--text)\" font-weight=\"700\" font-size=\"11\">Recipe 2종</text>\n    <text x=\"446\" y=\"72\" fill=\"var(--pixel)\">Oracle-managed</text>\n    <text x=\"446\" y=\"88\" fill=\"var(--text-dim)\">Maximum Security — 전체 룰 켜짐</text>\n    <text x=\"446\" y=\"112\" fill=\"var(--accent)\">Custom</text>\n    <text x=\"446\" y=\"128\" fill=\"var(--text-dim)\">필요한 룰만 선별 (L2에서 설계)</text>\n  </g>\n</svg>",
+     "body": "<pre><code>구성 3단\n├── Security Zone ── compartment 하나를 &quot;잠긴 구역&quot;으로 지정. 자식 compartment까지 상속\n├── Recipe ───────── zone에 붙는 룰 묶음. Oracle-managed(Maximum) 또는 Custom\n└── 룰 ───────────── &quot;Bucket must not be public&quot;, &quot;Subnet must be private&quot; 등 개별 강제 조항\n</code></pre>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 대표 룰 — 무엇이 거부되나",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"10.5\" font-family=\"Consolas,monospace\">\n    <rect x=\"14\" y=\"16\" width=\"306\" height=\"120\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"30\" y=\"40\" fill=\"var(--text)\" font-weight=\"700\" font-family=\"Pretendard\" font-size=\"11.5\">노출 차단 계열</text>\n    <text x=\"30\" y=\"62\" fill=\"var(--text-dim)\">Bucket must not be public</text>\n    <text x=\"30\" y=\"82\" fill=\"var(--text-dim)\">Subnet must be private</text>\n    <text x=\"30\" y=\"102\" fill=\"var(--text-dim)\">DB must not be publicly accessible</text>\n    <text x=\"30\" y=\"122\" fill=\"var(--text-dim)\">ADB must require mTLS</text>\n    <rect x=\"340\" y=\"16\" width=\"306\" height=\"120\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"356\" y=\"40\" fill=\"var(--text)\" font-weight=\"700\" font-family=\"Pretendard\" font-size=\"11.5\">암호화 강제 계열</text>\n    <text x=\"356\" y=\"62\" fill=\"var(--text-dim)\">Volume must use customer-managed key</text>\n    <text x=\"356\" y=\"82\" fill=\"var(--text-dim)\">Bucket must use customer-managed key</text>\n    <text x=\"356\" y=\"108\" fill=\"var(--pixel)\" font-family=\"Pretendard\" font-size=\"10\">Maximum Recipe = 이런 룰 100+ 전부 on</text>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>룰의 문장 형태가 곧 동작이다 — &quot;must / must not&quot; 조건을 어기는 생성·변경 API 호출이 거부된다</li>\n<li><strong>이미 존재하던 위반 자원</strong>은 지워지지 않는다 — Cloud Guard 통합으로 Problem이 생성된다 (기존 자원 정리는 L2)</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 거부의 모양 — 신청자는 무엇을 보나",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"sz1-ar4\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"34\" width=\"180\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"104\" y=\"56\" fill=\"var(--text)\" font-family=\"Consolas,monospace\" font-size=\"10.5\">콘솔/CLI/Terraform</text>\n    <text x=\"104\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10\">public bucket 생성 시도</text>\n    <rect x=\"260\" y=\"34\" width=\"160\" height=\"48\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"340\" y=\"56\" fill=\"var(--accent)\" font-weight=\"700\">룰 평가</text>\n    <text x=\"340\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10\">생성 전, 동기적으로</text>\n    <rect x=\"486\" y=\"34\" width=\"160\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/>\n    <text x=\"566\" y=\"56\" fill=\"var(--wrong)\" font-weight=\"700\">400 위반 에러</text>\n    <text x=\"566\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10\">\"security zone policy\"</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" marker-end=\"url(#sz1-ar4)\">\n    <line x1=\"194\" y1=\"58\" x2=\"256\" y2=\"58\"/>\n    <line x1=\"420\" y1=\"58\" x2=\"482\" y2=\"58\"/>\n  </g>\n  <text x=\"330\" y=\"116\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">Terraform apply도 같은 지점에서 실패한다 — CI/CD가 \"권한도 있는데 왜 실패하지?\"라고 물으면 Security Zone부터 의심</text>\n</svg>",
+     "body": "<ul>\n<li>에러가 IAM 거부와 비슷해 보여서 헷갈린다 — <strong>권한(policy)은 &quot;누가&quot;의 문제, Security Zone은 &quot;무엇을&quot;의 문제</strong></li>\n<li>진단 첫 질문: &quot;그 compartment가 Security Zone인가?&quot; — 콘솔 compartment 상세 또는 <code>oci cloud-guard security-zone list</code></li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 A의 감사 지적: &quot;prod에서 실수로 public bucket을 만들 수 있는 상태.&quot; Cloud Guard(감지)는 이미 켜져 있지만, 감사팀은 &quot;만들어진 후 잡는 것 말고, 아예 못 만들게&quot;를 요구했다.",
+    "request": "&quot;prod compartment에서는 public bucket 생성이 <strong>애초에 거부</strong>되게 해 주세요. 실제로 거부되는 화면까지 보여 주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — 감지가 아니라 예방",
+      "body": "<pre><code>&quot;만들어진 후 잡는 것 말고&quot;   → Cloud Guard responder로는 부족 (사후 교정)\n&quot;애초에 거부&quot;                → Security Zone (생성 전 평가·거부)\n적용 범위                    → prod compartment (자식 compartment 상속 주의 — 함께 잠김을 고객에 고지)\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "사전 조건 — 권한과 Cloud Guard",
+      "body": "<p>Security Zone은 Cloud Guard 서비스군이다 — Cloud Guard가 Enable 상태여야 한다 (Lv.1 Cloud Guard 학습지에서 완료).</p>\n<pre><code>Allow group SecurityAdmins to manage security-zone in tenancy\nAllow group SecurityAdmins to manage security-recipes in tenancy\n</code></pre>\n<p>확인: Identity → Policies + Cloud Guard Overview가 Enabled.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "Recipe 선택",
+      "body": "<p>콘솔: <code>Security → Security Zones → Recipes</code></p>\n<ul>\n<li>L1에서는 <strong>Oracle-managed Maximum Security Recipe</strong> 그대로 사용 (룰 전체 on)</li>\n<li>룰 목록에서 &quot;Object Storage buckets must not be public&quot; 이 포함돼 있는지 눈으로 확인 — 요구사항과 룰의 1:1 매핑을 기록</li>\n</ul>\n"
+     },
+     {
+      "id": "l4",
+      "title": "Security Zone 생성 — prod에 부착",
+      "body": "<p>콘솔: <code>Security → Security Zones → Create Security Zone</code></p>\n<pre><code>Name        : prod-secure-zone\nCompartment : prod\nRecipe      : Maximum Security Recipe\n</code></pre>\n<p>CLI 동일 작업:</p>\n<pre><code>oci cloud-guard security-zone create \\\n  --compartment-id &lt;prod-ocid&gt; \\\n  --display-name prod-secure-zone \\\n  --security-zone-recipe-id &lt;recipe-ocid&gt;\n</code></pre>\n<p>확인: Security Zones 목록에서 prod가 Active.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "거부 검증 — 일부러 위반을 만든다",
+      "body": "<pre><code>oci os bucket create --name sz-test --compartment-id &lt;prod-ocid&gt; --public-access-type ObjectRead\n</code></pre>\n<ul>\n<li>기대 결과: <strong>400 계열 에러 + security zone 위반 메시지</strong> — 이 에러 화면이 곧 감사팀 증빙</li>\n<li>대조군: 같은 명령을 private(<code>NoPublicAccess</code>)으로 → 정상 생성 → 삭제</li>\n</ul>\n<p>확인 포인트: &quot;거부되는 것&quot;과 &quot;정상 업무는 되는 것&quot;을 모두 증명해야 운영 반발이 없다.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계",
+      "body": "<ul>\n<li>감사 증빙 패키지: Zone 설정 화면 + 거부 에러 화면 + 룰↔요구 매핑 1장</li>\n<li>개발팀 공지 1줄: &quot;prod에서 400 security zone 에러 = 권한 문제 아님, 룰 위반 — 우회 아닌 설계 변경으로&quot;</li>\n<li>예고: 룰이 과하게 잡히면(오탐·업무 차단) Custom Recipe로 선별 — L2</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Security Zones 개요",
+     "url": "https://docs.oracle.com/en-us/iaas/security-zone/home.htm"
+    },
+    {
+     "label": "Security Zone Policies (룰 목록)",
+     "url": "https://docs.oracle.com/en-us/iaas/security-zone/using/security-zone-policies.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "동료가 'Cloud Guard responder를 자동 실행으로 켰으니 public bucket은 애초에 생성이 안 된다'고 말한다.",
+     "question": "이 말은 맞다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Cloud Guard는 감지(사후) — 생성은 되고, 이후 problem을 만들고 교정한다. 생성 자체를 거부하는 것은 Security Zone(예방)이다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "prod compartment 아래에 자식 compartment prod-app이 있다. prod만 Security Zone으로 지정했다.",
+     "question": "prod-app에서 public bucket을 만들면 어떻게 되나?",
+     "choices": [
+      "정상 생성된다 — 자식은 별도 지정 필요",
+      "거부된다 — 자식 compartment도 같은 Zone에 속한다",
+      "생성되지만 Cloud Guard problem이 뜬다",
+      "prod-app이 자동으로 별도 Zone으로 분리된다"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "Security Zone 지정은 자식 compartment까지 상속된다 — 하위 전체가 같은 룰로 잠긴다. 그래서 지정 전에 하위 트리 사용자들에게 고지가 필요하다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "고객 tenancy에서 '이 compartment가 Security Zone인지' CLI로 확인해 달라는 요청. compartment OCID는 환경변수 $COMP에 있다.",
+     "question": "Security Zone 목록을 조회하는 명령 한 줄은?",
+     "answers": [
+      "oci cloud-guard security-zone list --compartment-id $COMP",
+      "oci cloud-guard security-zone list --compartment-id \"$COMP\""
+     ],
+     "match": "normalize-flags",
+     "explanation": "Security Zone은 cloud-guard 서비스군 CLI에 속한다 — oci cloud-guard security-zone list. IAM policy와 별개 축이라는 것을 명령 경로가 보여준다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "choice",
+     "situation": "CI/CD 파이프라인이 prod에 Terraform apply를 하다 실패했다. 실행 계정의 IAM 정책은 manage all-resources로 충분하다. 에러에 'security zone policy' 문구가 있다.",
+     "question": "가장 그럴듯한 원인은?",
+     "choices": [
+      "IAM 정책의 verb가 부족하다",
+      "Terraform provider 버전이 낮다",
+      "생성하려는 자원이 Security Zone 룰을 위반한다 — 권한과 무관",
+      "Cloud Guard responder가 apply를 차단했다"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "권한(누가)은 충분해도 Security Zone(무엇을)이 위반이면 거부된다. 에러 문구의 security zone이 결정적 단서 — 해법은 권한 추가가 아니라 리소스 설계 변경.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "Security Zone을 prod에 걸었더니 '기존에 이미 있던 public bucket은 어떻게 되냐'는 질문이 왔다.",
+     "question": "기존 위반 자원의 처리 방식과, 운영자가 해야 할 일을 서술하라.",
+     "answers": [],
+     "rubric": "① 기존 자원은 삭제·차단되지 않고 그대로 남는다 (Zone은 생성/변경 시점 평가) ② Cloud Guard 통합으로 위반 자원에 problem이 생성된다 → 운영자는 problem 목록을 보고 수동 정리(또는 responder)한다. 두 가지 모두 언급 시 O, 하나만 △.",
+     "explanation": "예방은 미래의 생성만 막는다. 과거의 위반은 감지(Cloud Guard) 경로로 넘어온다 — 그래서 Zone 적용 직후에는 problem 정리 작업이 한 차례 필요하다 (L2의 운영 주제).",
+     "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
+  "security-zones-l2": {
+   "curriculum": "oci-security",
+   "topic": "security-zones-l2",
+   "level": 2,
+   "sheet": "security-zones-l2",
+   "title": "Security Zones — 운영 심화, Custom Recipe와 예외",
+   "tags": [
+    "oci",
+    "security",
+    "security-zones",
+    "operations"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 75,
+   "goal": "custom recipe로 룰을 선별 설계하고, 기존 위반 자원 정리와 예외 요구·CI/CD 충돌을 운영 절차로 흡수한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. Maximum의 대가 — 룰 과잉이 만드는 운영 마비",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"20\" width=\"300\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"166\" y=\"46\" fill=\"var(--pixel)\" font-weight=\"700\">Maximum Recipe</text>\n    <text x=\"166\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">룰 100+ 전부 on — 가장 안전</text>\n    <text x=\"166\" y=\"90\" fill=\"var(--wrong)\" font-size=\"10.5\">customer-managed key 강제 등</text>\n    <text x=\"166\" y=\"108\" fill=\"var(--wrong)\" font-size=\"10.5\">준비 안 된 조직은 업무가 멈춤</text>\n    <rect x=\"344\" y=\"20\" width=\"300\" height=\"110\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"494\" y=\"46\" fill=\"var(--accent)\" font-weight=\"700\">Custom Recipe</text>\n    <text x=\"494\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">요구사항에 맞는 룰만 선별</text>\n    <text x=\"494\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">\"감사 지적 항목\"부터 시작</text>\n    <text x=\"494\" y=\"108\" fill=\"var(--text-faint)\" font-size=\"10.5\">운영이 소화 가능한 강제만</text>\n  </g>\n</svg>",
+     "body": "<pre><code>룰 하나하나가 &quot;지금부터 이건 무조건&quot;이다\n├── 노출 차단 계열 ──── 대부분 조직이 바로 수용 가능 (public bucket/subnet/DB 금지)\n├── 암호화 강제 계열 ── Vault·키 운영이 준비돼야 가능 — 준비 없이 켜면 모든 볼륨 생성이 거부\n└── 결론 ───────────── L1의 Maximum은 출발점. 운영은 Custom으로 &quot;지킬 수 있는 약속&quot;만 강제\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. Custom Recipe 설계 순서",
+     "diagram": "<svg viewBox=\"0 0 660 120\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"sz2-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"30\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"80\" y=\"52\" fill=\"var(--text)\" font-weight=\"700\">요구 목록화</text>\n    <text x=\"80\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">감사 지적·보안 표준</text>\n    <rect x=\"180\" y=\"30\" width=\"150\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"255\" y=\"52\" fill=\"var(--text)\" font-weight=\"700\">룰 매핑</text>\n    <text x=\"255\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">요구 1건 ↔ 룰 1개 표</text>\n    <rect x=\"360\" y=\"30\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"430\" y=\"52\" fill=\"var(--accent)\" font-weight=\"700\">영향 검토</text>\n    <text x=\"430\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">현재 위반 자원 수 조사</text>\n    <rect x=\"530\" y=\"30\" width=\"120\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"590\" y=\"52\" fill=\"var(--pixel)\" font-weight=\"700\">적용</text>\n    <text x=\"590\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">공지 후 attach</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#sz2-ar)\">\n    <line x1=\"150\" y1=\"56\" x2=\"176\" y2=\"56\"/>\n    <line x1=\"330\" y1=\"56\" x2=\"356\" y2=\"56\"/>\n    <line x1=\"500\" y1=\"56\" x2=\"526\" y2=\"56\"/>\n  </g>\n  <text x=\"330\" y=\"110\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">영향 검토 없이 켜면 \"적용 당일 업무 중단\" — 룰별 현재 위반 수가 곧 사전 작업량</text>\n</svg>",
+     "body": "<ul>\n<li>콘솔: <code>Security Zones → Recipes → Create Recipe</code> — 룰 목록에서 체크박스 선별</li>\n<li>Recipe는 여러 Zone에 재사용된다 — 이름에 목적을 담는다 (<code>baseline-exposure-v1</code>)</li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. Zone 적용 직후 — 기존 위반 스윕",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"sz2-ar3\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"26\" width=\"150\" height=\"50\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"85\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">Zone 적용</text>\n    <text x=\"85\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">신규 생성은 즉시 차단</text>\n    <rect x=\"200\" y=\"26\" width=\"170\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"285\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">CG Problem 목록</text>\n    <text x=\"285\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">기존 위반이 여기 모임</text>\n    <rect x=\"410\" y=\"26\" width=\"240\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"530\" y=\"48\" fill=\"var(--text)\" font-weight=\"700\">스윕 — 소유자별 배정·기한</text>\n    <text x=\"530\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">수정 / 이관 / 예외 판정</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" marker-end=\"url(#sz2-ar3)\">\n    <line x1=\"160\" y1=\"51\" x2=\"196\" y2=\"51\"/>\n    <line x1=\"370\" y1=\"51\" x2=\"406\" y2=\"51\"/>\n  </g>\n  <text x=\"330\" y=\"122\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--wrong)\">스윕 없이 방치하면 \"예방은 걸었는데 위반은 그대로\" — 감사에서 더 나쁜 그림</text>\n</svg>",
+     "body": "<pre><code>스윕 우선순위\n├── 1순위 ── 인터넷 노출 계열 (public bucket·subnet) — 실위험\n├── 2순위 ── 암호화 미적용 — 마이그레이션 계획 수립\n└── 판정 ── &quot;위반이지만 필요&quot; 자원은 예외가 아니라 경계 이동 (개념 4)\n</code></pre>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 예외는 룰이 아니라 경계로",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"40\" width=\"290\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\" stroke-dasharray=\"5 4\"/>\n    <text x=\"161\" y=\"28\" fill=\"var(--wrong)\" font-size=\"11\" font-weight=\"700\">나쁜 답 — 룰을 끈다</text>\n    <text x=\"161\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">\"이 팀만 잠깐 public 허용\"</text>\n    <text x=\"161\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">→ Zone 전체(자식 포함)에서 룰 소멸</text>\n    <text x=\"161\" y=\"114\" fill=\"var(--wrong)\" font-size=\"10.5\">한 팀의 예외가 전체의 구멍</text>\n    <rect x=\"350\" y=\"40\" width=\"296\" height=\"104\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"498\" y=\"28\" fill=\"var(--accent)\" font-size=\"11\" font-weight=\"700\">정답 — compartment 분리</text>\n    <text x=\"498\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">예외 워크로드를 Zone 밖</text>\n    <text x=\"498\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">전용 compartment로 이동</text>\n    <text x=\"498\" y=\"114\" fill=\"var(--text-dim)\" font-size=\"10.5\">그 경계엔 CG 감지 + 별도 통제</text>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>Security Zone에는 &quot;이 자원만 예외&quot; 메커니즘이 없다 — 이것은 결함이 아니라 설계 사상 (예외 없는 강제)</li>\n<li>그래서 예외 요구의 답은 항상 <strong>경계(compartment) 재설계</strong>다. CI/CD 충돌도 동일 — 파이프라인이 만드는 자원이 룰과 충돌하면 코드(리소스 설계)를 바꾸거나 대상 compartment를 바꾼다</li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "L1에서 Maximum Recipe로 잠근 prod에서 아우성이 나왔다. &quot;볼륨을 만들 때마다 customer-managed key를 내라며 거부됩니다. 우리는 아직 Vault 운영 준비가 안 됐어요.&quot; 한편 데이터팀은 &quot;외부 협력사 공유용 public bucket이 꼭 하나 필요하다&quot;고 한다.",
+    "request": "&quot;감사 지적(노출 차단)은 유지하되 업무는 돌아가게 해 주세요. 협력사 공유 요구도 안전하게 풀어 주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — 유지할 것과 뺄 것",
+      "body": "<pre><code>&quot;감사 지적 유지&quot;        → 노출 차단 계열 룰은 그대로 (public bucket/subnet/DB 금지)\n&quot;볼륨 생성이 막힘&quot;       → 암호화 강제 계열은 제외 — Vault 준비 후 v2에서 추가 (로드맵 명시)\n&quot;협력사 public bucket&quot;  → 룰 예외가 아니라 경계 분리 — Zone 밖 전용 compartment\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "영향 조사 — 현재 위반 수",
+      "body": "<p>Custom Recipe에 담을 룰별로, 이미 위반 중인 자원을 센다.</p>\n<pre><code>oci os bucket list --compartment-id &lt;prod-ocid&gt; --query &#39;data[?&quot;public-access-type&quot;!=`NoPublicAccess`].name&#39;\n</code></pre>\n<p>확인: 위반 목록이 곧 단계 5 스윕의 작업 목록이 된다 — 적용 공지에 첨부.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "Custom Recipe 생성",
+      "body": "<p>콘솔: <code>Security → Security Zones → Recipes → Create Recipe</code></p>\n<pre><code>Name  : baseline-exposure-v1\nRules : Bucket must not be public\n        Subnet must be private\n        Database must not be publicly accessible\n</code></pre>\n<ul>\n<li>이름의 v1이 중요 — 암호화 계열을 더한 v2가 로드맵에 이미 있다</li>\n</ul>\n"
+     },
+     {
+      "id": "l4",
+      "title": "Zone의 Recipe 교체",
+      "body": "<p><code>prod-secure-zone</code>의 recipe를 Maximum → <code>baseline-exposure-v1</code>로 교체.</p>\n<p>검증 2방향:</p>\n<pre><code>볼륨 생성 (customer key 없이)  → 이제 성공해야 함   ← 업무 복구 증명\npublic bucket 생성             → 여전히 거부         ← 감사 요구 유지 증명\n</code></pre>\n"
+     },
+     {
+      "id": "l5",
+      "title": "기존 위반 스윕",
+      "body": "<ul>\n<li>Cloud Guard Problems에서 prod의 노출 계열 problem 목록 추출</li>\n<li>소유자별 배정 + 기한 — 수정(visibility 변경)이 기본, &quot;필요&quot; 주장 건은 단계 6으로</li>\n</ul>\n<p>확인: 스윕 완료 후 OPEN problem 0 스크린샷 = 감사 증빙 2호.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "협력사 공유 — 경계 분리",
+      "body": "<pre><code>[1] 신규 compartment: external-share (prod 트리 밖)\n[2] Zone 미지정 — 대신 Cloud Guard 감시 + bucket은 PAR(Pre-Authenticated Request) 우선 검토\n[3] 데이터팀 bucket을 external-share로 이동, prod에는 남기지 않음\n</code></pre>\n<ul>\n<li>&quot;public bucket이 꼭 필요&quot;의 절반은 PAR로 대체 가능 — 기한 있는 URL이 상시 public보다 안전</li>\n</ul>\n"
+     },
+     {
+      "id": "l7",
+      "title": "인수인계",
+      "body": "<ul>\n<li>recipe 버전 표 (v1 현재 / v2 암호화 계열 — Vault 준비 완료 시)</li>\n<li>예외 처리 원칙 1줄: &quot;룰을 끄지 않는다, 경계를 옮긴다&quot;</li>\n<li>신규 위반 시도는 자동 거부되므로, 운영 잔여 업무는 CG problem 모니터링뿐</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Security Zones 개요",
+     "url": "https://docs.oracle.com/en-us/iaas/security-zone/home.htm"
+    },
+    {
+     "label": "Security Zone Policies (룰 목록)",
+     "url": "https://docs.oracle.com/en-us/iaas/security-zone/using/security-zone-policies.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "동료가 'Maximum Security Recipe가 가장 안전하니 모든 고객 prod에 무조건 Maximum을 걸자'고 제안한다.",
+     "question": "이 제안은 항상 옳다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Maximum은 암호화 강제 계열(customer-managed key 등)까지 전부 켠다 — Vault 운영이 준비 안 된 조직은 볼륨·버킷 생성이 전부 거부돼 업무가 멈춘다. 운영은 '지킬 수 있는 약속'만 강제하는 Custom으로 시작한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "한 팀이 'prod 안에서 우리 버킷 하나만 public 예외로 해달라'고 요청했다.",
+     "question": "Security Zone 운영 원칙에 맞는 대응은?",
+     "choices": [
+      "해당 룰을 recipe에서 제거한다",
+      "그 버킷에만 예외 태그를 붙인다",
+      "예외 워크로드를 Zone 밖 전용 compartment로 분리한다",
+      "Cloud Guard responder로 대신 처리한다"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "Zone에는 자원 단위 예외 메커니즘이 없다(설계 사상). 룰을 끄면 Zone 전체에 구멍이 난다 — 답은 항상 경계(compartment) 재설계다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "Custom Recipe 적용 전 영향 조사 — prod에서 public 접근이 열린 버킷 이름만 뽑아야 한다. compartment OCID는 $COMP.",
+     "question": "위반 버킷 이름을 조회하는 명령 한 줄은? (JMESPath 쿼리 포함)",
+     "answers": [
+      "oci os bucket list --compartment-id $COMP --query 'data[?\"public-access-type\"!=`NoPublicAccess`].name'",
+      "oci os bucket list --compartment-id \"$COMP\" --query 'data[?\"public-access-type\"!=`NoPublicAccess`].name'"
+     ],
+     "match": "normalize-flags",
+     "explanation": "적용 전 영향 조사가 운영의 핵심 — 이 목록이 곧 스윕 작업량이자 적용 공지의 첨부물이 된다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "choice",
+     "situation": "Zone 적용 2주 후 점검 — 신규 위반 생성은 잘 거부되는데, Cloud Guard에 노출 계열 OPEN problem이 30건 그대로 쌓여 있다.",
+     "question": "이 상태에 대한 올바른 판단은?",
+     "choices": [
+      "예방이 동작 중이므로 문제없다",
+      "기존 위반이 방치된 것 — 스윕(소유자 배정·기한)이 빠졌다",
+      "Zone이 오동작 중이므로 재적용해야 한다",
+      "problem은 시간이 지나면 자동 소멸한다"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "Zone은 미래의 생성만 막는다. 기존 위반은 CG problem으로 넘어오고, 스윕하지 않으면 '예방은 걸었는데 위반은 그대로'가 된다 — 감사 관점에서 더 나쁜 그림.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "CI/CD 파이프라인이 prod에 public subnet을 만들려다 Zone 거부로 실패했다. 파이프라인 팀은 '배포가 급하니 잠깐 룰을 꺼달라'고 한다.",
+     "question": "대응 방안 두 가지와 각각의 근거를 서술하라.",
+     "answers": [],
+     "rubric": "① 룰 해제 거부 + 리소스 설계 변경 유도 (private subnet + NAT/LB 구조로 코드 수정 — 룰 해제는 Zone 전체의 구멍) ② 정말 public이 필요한 워크로드라면 Zone 밖 compartment로 배포 대상 변경 (경계 이동). 두 방향 모두 언급 시 O, 하나만 △.",
+     "explanation": "'잠깐 끄기'는 존재하지 않는 운영이다 — 끄는 순간 전체가 열리고 다시 켤 때 새 위반이 쌓인다. 코드 수정 또는 경계 이동만이 정답 경로.",
+     "concept_anchor": "c4",
+     "xp": 10
+    }
+   ]
+  },
+  "security-zones-l3": {
+   "curriculum": "oci-security",
+   "topic": "security-zones-l3",
+   "level": 3,
+   "sheet": "security-zones-l3",
+   "title": "Security Zones — 거버넌스 설계",
+   "tags": [
+    "oci",
+    "security",
+    "security-zones",
+    "governance",
+    "landing-zone"
+   ],
+   "difficulty": 3,
+   "estimated_minutes": 80,
+   "goal": "compartment 트리 전체에 예방(SZ)·감지(CG)·데이터 경로(ZPR)를 배치하는 거버넌스를 설계하고 감사 대응 체계를 구축한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. compartment 트리 위의 Zone 배치 전략",
+     "diagram": "<svg viewBox=\"0 0 660 200\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"sz3-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"270\" y=\"10\" width=\"120\" height=\"36\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"330\" y=\"33\" fill=\"var(--text)\">tenancy (root)</text>\n    <rect x=\"60\" y=\"86\" width=\"150\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"135\" y=\"105\" fill=\"var(--text)\">shared / dev</text>\n    <text x=\"135\" y=\"122\" fill=\"var(--text-faint)\" font-size=\"9.5\">Zone 없음 · CG 감지만</text>\n    <rect x=\"255\" y=\"86\" width=\"150\" height=\"44\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"330\" y=\"105\" fill=\"var(--accent)\" font-weight=\"700\">prod</text>\n    <text x=\"330\" y=\"122\" fill=\"var(--text-dim)\" font-size=\"9.5\">baseline recipe (노출 차단)</text>\n    <rect x=\"450\" y=\"86\" width=\"150\" height=\"44\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--pixel)\" stroke-width=\"1.8\"/>\n    <text x=\"525\" y=\"105\" fill=\"var(--pixel)\" font-weight=\"700\">data (민감)</text>\n    <text x=\"525\" y=\"122\" fill=\"var(--text-dim)\" font-size=\"9.5\">강화 recipe (+암호화 강제)</text>\n    <rect x=\"255\" y=\"152\" width=\"150\" height=\"38\" rx=\"8\" fill=\"var(--bg-inset)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"330\" y=\"176\" fill=\"var(--text-faint)\" font-size=\"10\">prod-app · prod-net (상속)</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.4\" fill=\"none\" marker-end=\"url(#sz3-ar)\">\n    <path d=\"M300 46 C 240 60, 190 70, 150 82\"/>\n    <line x1=\"330\" y1=\"46\" x2=\"330\" y2=\"82\"/>\n    <path d=\"M360 46 C 420 60, 470 70, 510 82\"/>\n    <line x1=\"330\" y1=\"130\" x2=\"330\" y2=\"148\"/>\n  </g>\n</svg>",
+     "body": "<pre><code>배치 원칙 3개\n├── 차등 적용 ──── 전 트리에 한 recipe가 아니라, 민감도 등급별로 recipe를 달리한다\n├── 상속 활용 ──── Zone은 자식으로 상속된다 — prod 아래를 잘게 쪼개도 통제는 한 번\n└── 자유 구역 ──── dev/실험 구역은 Zone 없이 CG 감지만 — 혁신 속도와 통제의 분리\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 3종 조합 — 예방·감지·데이터 경로",
+     "diagram": "<svg viewBox=\"0 0 660 170\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"30\" width=\"200\" height=\"100\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"116\" y=\"56\" fill=\"var(--accent)\" font-weight=\"700\">Security Zone</text>\n    <text x=\"116\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"10.5\">예방 — 위반 자원의 탄생 차단</text>\n    <text x=\"116\" y=\"98\" fill=\"var(--text-faint)\" font-size=\"10\">단위: compartment</text>\n    <rect x=\"230\" y=\"30\" width=\"200\" height=\"100\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"330\" y=\"56\" fill=\"var(--pixel)\" font-weight=\"700\">Cloud Guard</text>\n    <text x=\"330\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"10.5\">감지 — 설정·행위·위협 발견</text>\n    <text x=\"330\" y=\"98\" fill=\"var(--text-faint)\" font-size=\"10\">단위: target(트리)</text>\n    <rect x=\"444\" y=\"30\" width=\"200\" height=\"100\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"544\" y=\"56\" fill=\"var(--text)\" font-weight=\"700\">ZPR</text>\n    <text x=\"544\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"10.5\">데이터 경로 — 네트워크 의도 강제</text>\n    <text x=\"544\" y=\"98\" fill=\"var(--text-faint)\" font-size=\"10\">단위: 리소스 속성(태그)</text>\n  </g>\n  <text x=\"330\" y=\"156\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">겹치는 도구가 아니라 다른 축 — \"만들 수 있나(SZ) / 만들어진 게 위험한가(CG) / 흐를 수 있나(ZPR)\"</text>\n</svg>",
+     "body": "<pre><code>감사 질문 → 담당 도구\n├── &quot;위험한 설정을 만들 수 있습니까?&quot;          → Security Zone이 막는다\n├── &quot;이미 위험한 것이 있습니까?&quot;               → Cloud Guard가 찾는다\n└── &quot;민감 데이터가 밖으로 흐를 수 있습니까?&quot;    → ZPR(Zero Trust Packet Routing)이 막는다\n</code></pre>\n<ul>\n<li>셋을 다 켜는 게 목표가 아니다 — 각 축의 질문에 답할 수 있는 최소 조합이 설계다</li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 변경 관리 — Recipe도 코드처럼",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"sz3-ar3\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"30\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"80\" y=\"52\" fill=\"var(--text)\" font-weight=\"700\">변경 제안</text>\n    <text x=\"80\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">룰 추가/제거 + 사유</text>\n    <rect x=\"180\" y=\"30\" width=\"150\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"255\" y=\"52\" fill=\"var(--text)\" font-weight=\"700\">영향 조사 리포트</text>\n    <text x=\"255\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">현재 위반 수·영향 팀</text>\n    <rect x=\"360\" y=\"30\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"430\" y=\"52\" fill=\"var(--accent)\" font-weight=\"700\">보안 승인</text>\n    <text x=\"430\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">기록 남는 채널로</text>\n    <rect x=\"530\" y=\"30\" width=\"120\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"590\" y=\"52\" fill=\"var(--pixel)\" font-weight=\"700\">vN+1 적용</text>\n    <text x=\"590\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">recipe 버전업</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#sz3-ar3)\">\n    <line x1=\"150\" y1=\"56\" x2=\"176\" y2=\"56\"/>\n    <line x1=\"330\" y1=\"56\" x2=\"356\" y2=\"56\"/>\n    <line x1=\"500\" y1=\"56\" x2=\"526\" y2=\"56\"/>\n  </g>\n  <text x=\"330\" y=\"118\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">recipe 이름의 버전(baseline-v1→v2)과 변경 이력이 곧 감사 문서 — Terraform으로 recipe를 코드화하면 이력은 git이 남긴다</text>\n</svg>",
+     "body": "<ul>\n<li>감사가 실제로 묻는 것: &quot;이 룰은 언제, 누가, 왜 바꿨나&quot; — 콘솔 클릭 운영으로는 답이 없다</li>\n<li>Terraform <code>oci_cloud_guard_security_recipe</code> + <code>oci_cloud_guard_security_zone</code> 리소스로 코드화하면 PR이 곧 승인 기록</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 조직 확장 — 신규 구역 온보딩 표준",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"150\" height=\"80\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"91\" y=\"50\" fill=\"var(--text)\" font-weight=\"700\">새 팀/프로젝트</text>\n    <text x=\"91\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10\">compartment 신청</text>\n    <rect x=\"200\" y=\"24\" width=\"270\" height=\"80\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"335\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">등급 판정 1문항</text>\n    <text x=\"335\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">\"민감 데이터 또는 대외 서비스를 다루는가\"</text>\n    <text x=\"335\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">Yes → prod/data 트리 (Zone 상속)  ·  No → dev 트리</text>\n    <rect x=\"504\" y=\"24\" width=\"142\" height=\"80\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"575\" y=\"52\" fill=\"var(--pixel)\" font-weight=\"700\">자동 통제</text>\n    <text x=\"575\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"10\">상속이라 추가 작업 0</text>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>확장 가능한 거버넌스의 본질: <strong>개별 판단을 없애고 트리 위치가 통제를 결정</strong>하게 하는 것</li>\n<li>신규 compartment마다 Zone을 새로 거는 조직은 반드시 누락이 생긴다 — 상속 구조가 누락을 구조적으로 차단</li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 B가 OCI 전사 확대를 앞두고 있다. 지금은 compartment 3개(dev, prod, data)가 평면으로 나열돼 있고 통제는 제각각이다. 앞으로 팀이 늘며 compartment가 계속 생긴다.",
+    "request": "&quot;팀이 늘어도 보안 수준이 알아서 유지되는 구조를 만들어 주세요. 감사에서 &#39;통제 변경 이력&#39;을 물어도 바로 답이 나와야 합니다.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "등급 설계 — 트리가 통제를 결정하게",
+      "body": "<pre><code>tenancy\n├── dev      ── Zone 없음. CG 감지만 (자유 구역)\n├── prod     ── baseline recipe (노출 차단 계열)\n│   └── prod-* 자식들은 전부 상속 — 팀 추가 시 작업 0\n└── data     ── hardened recipe (baseline + 암호화 강제)\n</code></pre>\n<p>확인: 온보딩 판정 1문항(&quot;민감 데이터/대외 서비스?&quot;)과 트리 위치 매핑을 문서 1장으로.</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "recipe 2종 정의 — 코드로",
+      "body": "<pre><code>resource &quot;oci_cloud_guard_security_recipe&quot; &quot;baseline&quot; {\n  compartment_id = var.tenancy_ocid\n  display_name   = &quot;baseline-exposure-v1&quot;\n  security_policies = [ /* 노출 차단 계열 policy OCID 목록 */ ]\n}\n\nresource &quot;oci_cloud_guard_security_recipe&quot; &quot;hardened&quot; {\n  compartment_id = var.tenancy_ocid\n  display_name   = &quot;hardened-data-v1&quot;\n  security_policies = [ /* baseline + customer-managed key 계열 */ ]\n}\n</code></pre>\n<ul>\n<li>recipe를 코드로 두면 변경 관리(개념 3)가 git PR로 해결된다</li>\n</ul>\n"
+     },
+     {
+      "id": "l3",
+      "title": "Zone 부착 — prod·data",
+      "body": "<pre><code>resource &quot;oci_cloud_guard_security_zone&quot; &quot;prod&quot; {\n  compartment_id          = oci_identity_compartment.prod.id\n  display_name            = &quot;prod-zone&quot;\n  security_zone_recipe_id = oci_cloud_guard_security_recipe.baseline.id\n}\n# data compartment에는 hardened recipe로 동일 패턴\n</code></pre>\n<p>확인: <code>terraform plan</code> 리뷰에서 recipe↔compartment 매핑이 의도와 일치.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "상속 검증 — 새 팀 시뮬레이션",
+      "body": "<pre><code>[1] prod 아래 자식 compartment prod-newteam 생성 (추가 보안 작업 없이)\n[2] prod-newteam에서 public bucket 생성 시도 → 거부 확인\n</code></pre>\n<ul>\n<li>이 검증이 &quot;팀이 늘어도 알아서 유지&quot;의 증명 — 온보딩 절차서에 이 결과를 첨부</li>\n</ul>\n"
+     },
+     {
+      "id": "l5",
+      "title": "감사 응답 리허설",
+      "body": "<p>감사 3문항에 대한 답을 실제로 뽑아본다.</p>\n<pre><code>&quot;위험 설정을 만들 수 있나&quot;   → Zone 목록 + recipe 룰 목록 (콘솔 export)\n&quot;이미 위험한 게 있나&quot;        → CG problem 리포트 (OPEN 0 목표)\n&quot;통제는 언제 누가 바꿨나&quot;    → recipe 코드의 git log\n</code></pre>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계",
+      "body": "<ul>\n<li>거버넌스 1페이지: 트리 다이어그램 + 온보딩 1문항 + recipe 버전표</li>\n<li>운영 루틴: 신규 compartment는 위치만 정하면 끝, recipe 변경은 PR로만</li>\n<li>다음 단계 예고: 민감 데이터의 네트워크 경로 통제가 필요해지면 ZPR 검토 (개념 2)</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Security Zones 개요",
+     "url": "https://docs.oracle.com/en-us/iaas/security-zone/home.htm"
+    },
+    {
+     "label": "Security Zone Policies (룰 목록)",
+     "url": "https://docs.oracle.com/en-us/iaas/security-zone/using/security-zone-policies.htm"
+    },
+    {
+     "label": "Zero Trust Packet Routing",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/zero-trust-packet-routing/home.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "choice",
+     "situation": "전사 확대를 앞둔 고객이 'tenancy 전체(root)를 Security Zone으로 지정해 한 번에 끝내자'고 한다.",
+     "question": "이 설계의 가장 큰 문제는?",
+     "choices": [
+      "root는 Zone 지정이 기술적으로 더 느리다",
+      "dev·실험 구역까지 잠겨 혁신 속도가 죽고, 예외 요구가 폭증한다",
+      "Cloud Guard와 충돌해 problem이 중복된다",
+      "recipe를 여러 개 붙일 수 없게 된다"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "차등 적용이 배치 원칙 — 민감도 등급별로 recipe를 달리하고 dev는 감지만 둔다. 전체를 잠그면 예외 요구가 폭증하고, 예외 없는 강제라는 Zone의 설계 사상과 정면 충돌한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "감사관이 '민감 데이터가 외부로 흐를 수 있는 네트워크 경로가 있습니까'라고 물었다. Security Zone과 Cloud Guard는 이미 운영 중이다.",
+     "question": "이 질문에 답하는 도구는?",
+     "choices": [
+      "Security Zone — 경로 위반 자원 생성을 거부한다",
+      "Cloud Guard — 경로를 스캔해 problem을 만든다",
+      "ZPR(Zero Trust Packet Routing) — 데이터 경로 의도를 강제한다",
+      "WAF — 외부 유출 트래픽을 차단한다"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "세 도구는 다른 축이다: 만들 수 있나(SZ)/만들어진 게 위험한가(CG)/흐를 수 있나(ZPR). 데이터 경로 질문의 담당은 ZPR.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "ox",
+     "situation": "prod 아래 자식 compartment를 새로 만들 때마다 Security Zone을 개별로 걸어주는 운영 절차가 있다.",
+     "question": "이 절차는 필요하다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Zone은 자식 compartment로 상속된다 — prod 트리 안에 만들면 자동으로 같은 통제를 받는다. 개별 지정 절차는 불필요할 뿐 아니라, '깜빡한 compartment'라는 구조적 누락 위험을 만든다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "감사관이 'baseline recipe의 룰이 언제 왜 바뀌었는지'를 물었다. recipe는 Terraform으로 코드화되어 recipes.tf에 있다.",
+     "question": "변경 이력을 보여주는 명령 한 줄은?",
+     "answers": [
+      "git log -p recipes.tf",
+      "git log -p -- recipes.tf",
+      "git log --follow -p recipes.tf"
+     ],
+     "match": "normalize-flags",
+     "explanation": "recipe를 코드로 두는 이유가 이 질문 하나로 요약된다 — 변경 이력·사유(커밋 메시지)·승인(PR)이 git에 자동으로 남는다. 콘솔 클릭 운영으로는 이 질문에 답할 수 없다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "새 팀이 '민감 고객 데이터를 다루는 대외 API 서비스'를 시작한다. 온보딩 담당자가 compartment 위치를 물어왔다.",
+     "question": "배치 결정과 그 결과로 자동 적용되는 통제를 서술하라.",
+     "answers": [],
+     "rubric": "① 판정 1문항(민감 데이터/대외 서비스 = Yes) → data(또는 prod) 트리 하위 compartment로 배치 ② 상속으로 hardened(또는 baseline) recipe의 Zone 통제가 추가 작업 없이 적용 + CG 감지 동반. 배치 근거와 상속 자동 적용 모두 언급 시 O, 하나만 △.",
+     "explanation": "확장 가능한 거버넌스의 본질 — 개별 판단 대신 트리 위치가 통제를 결정한다. 온보딩은 위치 결정 1개로 끝나야 한다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    }
+   ]
+  },
+  "waf": {
+   "curriculum": "oci-security",
+   "topic": "waf",
+   "level": 1,
+   "sheet": "waf",
+   "title": "WAF — HTTP 방어선의 기본기",
+   "tags": [
+    "oci",
+    "security",
+    "waf",
+    "load-balancer"
+   ],
+   "difficulty": 1,
+   "estimated_minutes": 70,
+   "goal": "Edge/Regional 두 배치 모델을 구분하고, LB에 WAF를 붙여 공격 차단을 실측으로 검증한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 두 배치 모델 — Edge와 Regional",
+     "diagram": "<svg viewBox=\"0 0 660 180\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"waf1-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"64\" width=\"90\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"55\" y=\"90\" fill=\"var(--text)\">Client</text>\n    <rect x=\"150\" y=\"14\" width=\"180\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"240\" y=\"36\" fill=\"var(--pixel)\" font-weight=\"700\">Edge WAF</text>\n    <text x=\"240\" y=\"54\" fill=\"var(--text-dim)\" font-size=\"10\">글로벌 edge · DNS CNAME 전환</text>\n    <rect x=\"150\" y=\"108\" width=\"180\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"240\" y=\"130\" fill=\"var(--accent)\" font-weight=\"700\">Regional WAF</text>\n    <text x=\"240\" y=\"148\" fill=\"var(--text-dim)\" font-size=\"10\">Region 안 · LB에 attach</text>\n    <rect x=\"400\" y=\"14\" width=\"120\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"460\" y=\"44\" fill=\"var(--text)\">Origin 서버</text>\n    <rect x=\"400\" y=\"108\" width=\"120\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"460\" y=\"132\" fill=\"var(--text)\">OCI LB</text>\n    <text x=\"460\" y=\"148\" fill=\"var(--text-dim)\" font-size=\"10\">→ backend</text>\n    <rect x=\"556\" y=\"60\" width=\"94\" height=\"52\" rx=\"9\" fill=\"var(--bg-inset)\" stroke=\"var(--line-soft)\"/>\n    <text x=\"603\" y=\"82\" fill=\"var(--text-dim)\" font-size=\"10\">어디에 있든</text>\n    <text x=\"603\" y=\"98\" fill=\"var(--text-dim)\" font-size=\"10\">origin 가능(Edge)</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#waf1-ar)\">\n    <path d=\"M100 76 C 120 60, 128 50, 146 42\"/>\n    <path d=\"M100 96 C 120 112, 128 122, 146 130\"/>\n    <line x1=\"330\" y1=\"40\" x2=\"396\" y2=\"40\"/>\n    <line x1=\"330\" y1=\"134\" x2=\"396\" y2=\"134\"/>\n  </g>\n</svg>",
+     "body": "<pre><code>선택 기준\n├── Regional WAF ── 보호 대상이 OCI LB 뒤에 있다 → LB에 붙이는 게 표준 (이 학습지의 중심)\n└── Edge WAF ────── origin이 OCI 밖이거나(온프렘·타 클라우드), CDN 캐싱·글로벌 edge 차단이 필요\n                    └── DNS를 WAF endpoint로 CNAME 전환하는 방식 — 전환·롤백 계획 필수\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. Regional WAF 구성요소 — Policy와 부착",
+     "diagram": "<svg viewBox=\"0 0 660 170\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"14\" width=\"400\" height=\"142\" rx=\"12\" fill=\"none\" stroke=\"var(--accent)\" stroke-dasharray=\"7 5\" stroke-width=\"1.6\"/>\n    <text x=\"120\" y=\"38\" fill=\"var(--accent)\" font-weight=\"700\">WAF Policy (룰의 그릇)</text>\n    <g font-size=\"10.5\">\n      <rect x=\"34\" y=\"52\" width=\"170\" height=\"28\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n      <text x=\"119\" y=\"70\" fill=\"var(--text)\">Access Control</text>\n      <rect x=\"34\" y=\"86\" width=\"170\" height=\"28\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n      <text x=\"119\" y=\"104\" fill=\"var(--text)\">Rate Limiting</text>\n      <rect x=\"34\" y=\"120\" width=\"170\" height=\"28\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n      <text x=\"119\" y=\"138\" fill=\"var(--text)\">Protection Rules (OWASP)</text>\n    </g>\n    <rect x=\"240\" y=\"70\" width=\"150\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"315\" y=\"92\" fill=\"var(--accent)\" font-weight=\"700\">Firewall</text>\n    <text x=\"315\" y=\"110\" fill=\"var(--text-dim)\" font-size=\"10\">policy ↔ LB 연결체</text>\n    <rect x=\"480\" y=\"70\" width=\"150\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"555\" y=\"92\" fill=\"var(--pixel)\" font-weight=\"700\">OCI Load Balancer</text>\n    <text x=\"555\" y=\"110\" fill=\"var(--text-dim)\" font-size=\"10\">enforcement point</text>\n  </g>\n</svg>",
+     "body": "<pre><code>구성 3단\n├── WAF Policy ── 룰 묶음 (access control / rate limiting / protection rules)\n├── Firewall ──── policy를 LB에 부착하는 연결체 — 하나의 policy를 여러 LB에 재사용 가능\n└── LB ────────── 실제 검사 지점 — 트래픽이 LB를 지나야 WAF가 본다 (LB 안 거치면 무방비)\n</code></pre>\n<ul>\n<li>함정: WAF는 LB에 붙는다 — <strong>LB를 우회하는 경로(인스턴스 공인 IP 직접 접근)가 열려 있으면 WAF는 장식</strong>이다. NSG로 backend 직접 접근을 막는 것까지가 한 세트 (L3에서 다계층 설계)</li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. Protection Rules — 탐지와 차단의 두 모드",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"20\" width=\"300\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"166\" y=\"46\" fill=\"var(--pixel)\" font-weight=\"700\">CHECK (탐지만)</text>\n    <text x=\"166\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">요청은 통과 + 로그에 기록</text>\n    <text x=\"166\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">오탐 여부를 관찰하는 모드</text>\n    <text x=\"166\" y=\"110\" fill=\"var(--accent)\" font-size=\"10.5\">신규 적용은 여기서 시작</text>\n    <rect x=\"344\" y=\"20\" width=\"300\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/>\n    <text x=\"494\" y=\"46\" fill=\"var(--wrong)\" font-weight=\"700\">BLOCK (차단)</text>\n    <text x=\"494\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">403 등으로 요청 거부</text>\n    <text x=\"494\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">오탐이면 정상 사용자가 죽는다</text>\n    <text x=\"494\" y=\"110\" fill=\"var(--text-faint)\" font-size=\"10.5\">관찰 후 전환이 원칙</text>\n  </g>\n</svg>",
+     "body": "<pre><code>룰 카탈로그 (OWASP 계열)\n├── SQL Injection / XSS / 경로 조작 등 시그니처 룰 다수\n├── 룰마다 action을 따로 정한다 — 전부 BLOCK이 아니라 선별적으로\n└── 원칙: CHECK로 켜서 오탐 관찰 → 조용한 룰부터 BLOCK 전환 (L2의 튜닝 주제)\n</code></pre>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 요청의 여정 — 평가 순서",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"waf1-ar4\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"10.5\" text-anchor=\"middle\">\n    <rect x=\"8\" y=\"34\" width=\"86\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"51\" y=\"60\" fill=\"var(--text)\">요청</text>\n    <rect x=\"122\" y=\"34\" width=\"130\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"187\" y=\"54\" fill=\"var(--text)\">Access Control</text>\n    <text x=\"187\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"9.5\">IP·국가·헤더 allow/deny</text>\n    <rect x=\"280\" y=\"34\" width=\"120\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"340\" y=\"54\" fill=\"var(--text)\">Rate Limiting</text>\n    <text x=\"340\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"9.5\">초과 시 제한</text>\n    <rect x=\"428\" y=\"34\" width=\"130\" height=\"44\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"493\" y=\"54\" fill=\"var(--accent)\">Protection Rules</text>\n    <text x=\"493\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"9.5\">시그니처 검사</text>\n    <rect x=\"586\" y=\"34\" width=\"64\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"618\" y=\"60\" fill=\"var(--pixel)\">LB→백엔드</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#waf1-ar4)\">\n    <line x1=\"94\" y1=\"56\" x2=\"118\" y2=\"56\"/>\n    <line x1=\"252\" y1=\"56\" x2=\"276\" y2=\"56\"/>\n    <line x1=\"400\" y1=\"56\" x2=\"424\" y2=\"56\"/>\n    <line x1=\"558\" y1=\"56\" x2=\"582\" y2=\"56\"/>\n  </g>\n  <text x=\"330\" y=\"112\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">앞 단계에서 걸리면 뒤는 안 본다 — \"왜 403이지?\"는 이 순서대로 좁힌다 (allowlist 누락 → rate → 룰)</text>\n</svg>",
+     "body": "<ul>\n<li>진단 습관: 403의 원인은 세 관문 중 하나 — 로그의 action 주체(rule id)가 어느 관문인지부터 확인 (L2 로그 읽기)</li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 D의 웹 서비스가 OCI LB 뒤에서 운영 중이다. 보안 점검에서 &quot;웹 공격(XSS·SQLi) 방어 수단이 없다&quot;는 지적을 받았다.",
+    "request": "&quot;LB에 WAF를 붙여 주세요. 실제 공격 패턴이 차단되는 것까지 보여 주시고, 정상 서비스에는 영향이 없어야 합니다.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "요구 분석 — Regional + detect-first",
+      "body": "<pre><code>&quot;LB 뒤에서 운영 중&quot;        → Regional WAF (LB attach형) — Edge 불필요\n&quot;정상 서비스 영향 금지&quot;     → 룰은 CHECK(탐지)로 시작 → 관찰 후 BLOCK 전환\n&quot;공격 차단 시연&quot;            → 시연용 핵심 룰(XSS·SQLi)만 선별 BLOCK\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "WAF Policy 생성",
+      "body": "<p>콘솔: <code>Identity &amp; Security → Web Application Firewall → Policies → Create WAF Policy</code></p>\n<pre><code>Name              : prod-web-waf\nActions           : 기본 제공 (Allow / Check / 401·403 Return Response)\nProtection Rules  : XSS·SQL Injection 계열 룰 추가\n                    └── 시연 대상 2~3개 룰만 BLOCK, 나머지는 CHECK\n</code></pre>\n"
+     },
+     {
+      "id": "l3",
+      "title": "Firewall 생성 — LB 부착",
+      "body": "<p>같은 마법사(또는 <code>Firewalls → Create</code>)에서 enforcement point 지정:</p>\n<pre><code>Firewall     : prod-web-fw\nPolicy       : prod-web-waf\nLoad balancer: &lt;고객 LB 선택&gt;\n</code></pre>\n<p>확인: Firewall 상태 Active — 이 순간부터 LB 유입 트래픽이 정책을 통과한다.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "정상 트래픽 무영향 확인",
+      "body": "<pre><code>curl -s -o /dev/null -w &quot;%{http_code}\\n&quot; https://&lt;서비스도메인&gt;/        # 200\ncurl -s -o /dev/null -w &quot;%{http_code}\\n&quot; &quot;https://&lt;서비스도메인&gt;/search?q=hello&quot;   # 200\n</code></pre>\n<p>확인: 주요 사용자 시나리오(로그인·검색·제출) 몇 개를 통과시켜 &quot;영향 없음&quot;을 먼저 증명.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "공격 재현 — 차단 검증",
+      "body": "<pre><code>curl -s -o /dev/null -w &quot;%{http_code}\\n&quot; &quot;https://&lt;서비스도메인&gt;/search?q=&lt;script&gt;alert(1)&lt;/script&gt;&quot;\n# 기대: 403 (BLOCK 룰)\ncurl -s -o /dev/null -w &quot;%{http_code}\\n&quot; &quot;https://&lt;서비스도메인&gt;/item?id=1&#39; OR &#39;1&#39;=&#39;1&quot;\n# 기대: 403\n</code></pre>\n<ul>\n<li>403 응답 + 콘솔 WAF 로그에서 해당 rule id의 차단 기록 확인 — 이 화면이 보안 점검 증빙</li>\n</ul>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계",
+      "body": "<ul>\n<li>룰 표: BLOCK 전환된 룰 / CHECK 관찰 중인 룰 목록과 사유</li>\n<li>&quot;403 문의가 오면&quot;: 로그에서 rule id 확인 → 오탐이면 L2 절차(조건부 예외)로 — 룰 전체 끄기 금지</li>\n<li>백엔드 직접 접근 경로(공인 IP) 차단 여부 점검 예고 (L3 다계층)</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "WAF 개요",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/WAF/home.htm"
+    },
+    {
+     "label": "Regional WAF",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/WAF/Concepts/regional-waf.htm"
+    },
+    {
+     "label": "Edge WAF",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/WAF/Concepts/edge-waf.htm"
+    },
+    {
+     "label": "Protection Rules",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/WAF/Tasks/protectionrules.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "choice",
+     "situation": "고객의 origin 서버가 온프렘 IDC에 있고, OCI에는 아무 리소스도 없다. 웹 공격 방어를 요청받았다.",
+     "question": "적합한 WAF 배치 모델은?",
+     "choices": [
+      "Regional WAF — LB를 새로 만들어 붙인다",
+      "Edge WAF — DNS를 WAF endpoint로 CNAME 전환해 origin을 보호한다",
+      "Security Zone — compartment를 잠근다",
+      "NSG — origin IP에 규칙을 건다"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "Regional WAF는 OCI LB에 붙는다 — origin이 OCI 밖이면 Edge WAF가 정답. 글로벌 edge에서 차단하고 DNS CNAME 전환으로 트래픽을 끌어온다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "ox",
+     "situation": "동료가 'LB에 WAF를 붙였으니 이 서비스는 웹 공격에서 안전하다'고 보고했다. backend 인스턴스에는 공인 IP가 있고 80 포트가 인터넷에 열려 있다.",
+     "question": "이 보고는 맞다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "WAF는 LB를 지나는 트래픽만 본다 — 인스턴스 공인 IP로 직접 접근하는 경로가 열려 있으면 WAF는 장식이다. backend 직접 접근을 NSG로 막는 것까지가 한 세트.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "choice",
+     "situation": "신규 서비스에 WAF를 처음 적용한다. 팀장이 '모든 OWASP 룰을 즉시 BLOCK으로 켜라'고 지시했다.",
+     "question": "올바른 이의 제기는?",
+     "choices": [
+      "BLOCK은 성능을 떨어뜨리므로 CHECK가 항상 낫다",
+      "오탐 시 정상 사용자가 403을 받는다 — CHECK로 관찰 후 조용한 룰부터 BLOCK 전환",
+      "OWASP 룰은 기본으로 켤 수 없다",
+      "룰은 한 번에 하나만 켤 수 있다"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "detect-first 원칙 — CHECK는 통과+기록이라 서비스 영향 없이 오탐을 관찰할 수 있다. 관찰 기간 후 오탐 없는 룰부터 BLOCK으로 올린다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "WAF 적용 후 XSS 차단을 시연해야 한다. 서비스 도메인은 app.example.com, 검색 파라미터 q에 스크립트 패턴을 넣어 상태코드만 확인하려 한다.",
+     "question": "차단(403) 여부를 확인하는 curl 한 줄은?",
+     "answers": [
+      "curl -s -o /dev/null -w \"%{http_code}\\n\" \"https://app.example.com/search?q=<script>alert(1)</script>\"",
+      "curl -o /dev/null -s -w \"%{http_code}\\n\" \"https://app.example.com/search?q=<script>alert(1)</script>\""
+     ],
+     "match": "normalize-flags",
+     "explanation": "-s(조용히) -o /dev/null(본문 버림) -w %{http_code}(상태코드만) 조합이 차단 시연의 표준 — 403이면 BLOCK 룰이 동작한 것.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "WAF 적용 다음 날, 특정 사무실에서만 서비스 전체가 403이라는 문의가 왔다.",
+     "question": "평가 순서(개념 4)에 근거해 확인할 순서 두 가지를 서술하라.",
+     "answers": [],
+     "rubric": "① Access Control부터 — 해당 사무실 공인 IP가 deny 목록(또는 국가 차단)에 걸렸는지 (전체 403 + 특정 출처 = 관문 1 특성) ② 아니라면 Rate Limiting — 사무실 NAT로 한 IP에 요청이 몰려 한도 초과인지. 로그의 rule id/action으로 관문을 특정한다까지 언급 시 O, 한 가지만 △.",
+     "explanation": "'특정 출처에서 전부 403'은 시그니처 룰(요청 내용 기반)보다 앞 관문(출처 기반) 특성이다 — 평가 순서대로 좁히면 두 번 안에 원인이 나온다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    }
+   ]
+  },
+  "waf-l2": {
+   "curriculum": "oci-security",
+   "topic": "waf-l2",
+   "level": 2,
+   "sheet": "waf-l2",
+   "title": "WAF — 오탐 튜닝과 보호선 운영",
+   "tags": [
+    "oci",
+    "security",
+    "waf",
+    "operations",
+    "logging"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 75,
+   "goal": "오탐을 로그로 판별해 룰을 튜닝하고, rate limiting과 access control로 실서비스 보호선을 만든다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 오탐의 해부 — 정상 요청이 왜 걸리나",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"290\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"161\" y=\"48\" fill=\"var(--text)\" font-weight=\"700\">시그니처 룰의 본질</text>\n    <text x=\"161\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">\"공격처럼 생긴 패턴\"을 찾는다</text>\n    <text x=\"161\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">에디터 본문의 SQL 예제, JSON 안의</text>\n    <text x=\"161\" y=\"110\" fill=\"var(--text-dim)\" font-size=\"10.5\">스크립트 문자열도 \"공격처럼\" 보인다</text>\n    <rect x=\"350\" y=\"24\" width=\"296\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--partial)\"/>\n    <text x=\"498\" y=\"48\" fill=\"var(--partial)\" font-weight=\"700\">오탐 단골 손님</text>\n    <text x=\"498\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">글 작성/댓글 (자유 텍스트 본문)</text>\n    <text x=\"498\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">파일 업로드 · rich text 에디터</text>\n    <text x=\"498\" y=\"110\" fill=\"var(--text-dim)\" font-size=\"10.5\">개발자 도구성 파라미터 (쿼리 조각)</text>\n  </g>\n</svg>",
+     "body": "<pre><code>오탐이 생기는 이유는 결함이 아니라 원리다\n└── 룰은 문맥을 모른다 — &quot;본문에 &lt;script&gt;가 있다&quot;와 &quot;공격이다&quot;를 구분 못 한다\n    → 그래서 운영의 일은 룰 삭제가 아니라, 문맥(경로·파라미터)을 룰에 가르치는 것\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 로그 읽기 — 차단의 지문",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"waf2-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"34\" width=\"150\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"89\" y=\"56\" fill=\"var(--text)\" font-weight=\"700\">WAF Policy</text>\n    <text x=\"89\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"10\">Logging 활성화</text>\n    <rect x=\"210\" y=\"34\" width=\"180\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"300\" y=\"56\" fill=\"var(--accent)\" font-weight=\"700\">OCI Logging</text>\n    <text x=\"300\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"10\">요청 1건 = 로그 1건</text>\n    <rect x=\"436\" y=\"34\" width=\"210\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"541\" y=\"52\" fill=\"var(--pixel)\" font-weight=\"700\" font-size=\"10.5\">핵심 필드 4개</text>\n    <text x=\"541\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"9.5\">action · ruleId(protectionRuleIds)</text>\n    <text x=\"541\" y=\"82\" fill=\"var(--text-dim)\" font-size=\"9.5\">clientAddr · requestUrl</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" marker-end=\"url(#waf2-ar)\">\n    <line x1=\"164\" y1=\"60\" x2=\"206\" y2=\"60\"/>\n    <line x1=\"390\" y1=\"60\" x2=\"432\" y2=\"60\"/>\n  </g>\n  <text x=\"330\" y=\"126\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">\"어느 룰이(ruleId), 누구를(clientAddr), 어떤 요청에서(requestUrl), 어떻게(action)\" — 오탐 판정의 4문항이 그대로 필드다</text>\n</svg>",
+     "body": "<pre><code>오탐 판정 공식\n├── 같은 ruleId + 같은 requestUrl 패턴 + 다수의 서로 다른 정상 사용자 IP → 오탐 심증\n├── 같은 ruleId + 같은 소수 IP + 기괴한 requestUrl → 진짜 공격 심증\n└── 심증 후 확증: 해당 요청 원문을 서비스 담당자와 함께 읽는다 (정상 업무 요청인가)\n</code></pre>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 튜닝 사다리 — 룰을 끄지 않고 좁힌다",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"waf2-ar3\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"10.5\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"30\" width=\"130\" height=\"56\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"75\" y=\"52\" fill=\"var(--pixel)\" font-weight=\"700\">CHECK 강등</text>\n    <text x=\"75\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"9.5\">차단 급한 불 끄기</text>\n    <rect x=\"170\" y=\"30\" width=\"160\" height=\"56\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"250\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">조건 좁히기 (정석)</text>\n    <text x=\"250\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"9.5\">특정 경로·파라미터만</text>\n    <text x=\"250\" y=\"80\" fill=\"var(--text-dim)\" font-size=\"9.5\">검사 제외 (exclusion)</text>\n    <rect x=\"360\" y=\"30\" width=\"140\" height=\"56\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"430\" y=\"52\" fill=\"var(--text)\" font-weight=\"700\">재검증</text>\n    <text x=\"430\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"9.5\">정상 200 + 공격 403</text>\n    <rect x=\"530\" y=\"30\" width=\"120\" height=\"56\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\" stroke-dasharray=\"5 4\"/>\n    <text x=\"590\" y=\"52\" fill=\"var(--wrong)\" font-weight=\"700\">룰 OFF</text>\n    <text x=\"590\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"9.5\">최후 수단 + 기록</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#waf2-ar3)\">\n    <line x1=\"140\" y1=\"58\" x2=\"166\" y2=\"58\"/>\n    <line x1=\"330\" y1=\"58\" x2=\"356\" y2=\"58\"/>\n    <line x1=\"500\" y1=\"58\" x2=\"526\" y2=\"58\"/>\n  </g>\n  <text x=\"330\" y=\"128\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">\"글 작성 API에서만 오탐\" → 그 경로의 그 파라미터만 제외 — 나머지 서비스는 여전히 그 룰의 보호를 받는다</text>\n</svg>",
+     "body": "<ul>\n<li>exclusion의 단위가 좁을수록 방어선 손실이 작다 — 경로 전체보다 파라미터 하나, 룰 전체 OFF보다 exclusion</li>\n<li>모든 튜닝에는 기록을 남긴다: ruleId / 사유 / 범위 / 일자 — 다음 점검 때 &quot;왜 빠져 있지?&quot;의 답</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 출처 기반 보호선 — Rate Limiting과 Access Control",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"20\" width=\"300\" height=\"120\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"44\" fill=\"var(--accent)\" font-weight=\"700\">Rate Limiting</text>\n    <text x=\"166\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10.5\">IP당 초당 요청 한도 → 초과 시 제한</text>\n    <text x=\"166\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10.5\">크리덴셜 스터핑·스크래핑 방어</text>\n    <text x=\"166\" y=\"112\" fill=\"var(--partial)\" font-size=\"10.5\">함정: 사옥 NAT·프록시 = 한 IP에 다수 사용자</text>\n    <text x=\"166\" y=\"128\" fill=\"var(--partial)\" font-size=\"10.5\">→ 한도는 실측 트래픽 기반으로</text>\n    <rect x=\"344\" y=\"20\" width=\"300\" height=\"120\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"494\" y=\"44\" fill=\"var(--pixel)\" font-weight=\"700\">Access Control</text>\n    <text x=\"494\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10.5\">IP·국가·헤더 조건으로 allow/deny</text>\n    <text x=\"494\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10.5\">관리자 경로는 사무실 IP만 등</text>\n    <text x=\"494\" y=\"112\" fill=\"var(--partial)\" font-size=\"10.5\">함정: 국가 차단은 VPN·CDN로 우회 가능</text>\n    <text x=\"494\" y=\"128\" fill=\"var(--partial)\" font-size=\"10.5\">→ 보조선이지 주방어선이 아님</text>\n  </g>\n</svg>",
+     "body": "<pre><code>설계 순서\n├── [1] 실측 — 현재 정상 트래픽의 IP당 최대 요청률을 로그로 관찰 (하루 이상)\n├── [2] 한도 — 실측 최대의 여유 배수로 설정 (정상 NAT 사용자가 걸리지 않게)\n└── [3] 예외 — 헬스체크·모니터링 IP는 allowlist 선등록 (자체 감시를 스스로 차단하는 사고 방지)\n</code></pre>\n"
+    }
+   ],
+   "lab": {
+    "situation": "L1에서 구축한 WAF 운영 2주차. 고객 CS팀에서 &quot;공지 작성 화면에서 저장이 403으로 실패한다&quot;는 신고가 3건 왔다. 동시에 로그인 API에 해외 IP의 비정상 시도가 늘고 있다.",
+    "request": "&quot;공지 저장 오탐을 고쳐 주시되 방어력은 유지해 주세요. 로그인 무차별 시도도 막아 주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "로그 활성화 확인",
+      "body": "<p>WAF Policy에 Logging이 꺼져 있으면 오탐 분석 자체가 불가능하다.</p>\n<p>콘솔: <code>WAF Policy → Logs → Enable Log</code> (미설정 시)</p>\n<p>확인: Logging → 해당 로그에 실시간 요청 레코드 유입.</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "오탐 지문 채취",
+      "body": "<p>Logging 검색에서 공지 저장 실패 건을 특정:</p>\n<pre><code>search &quot;&lt;log-ocid&gt;&quot; | action=&#39;BLOCK&#39; and requestUrl like &#39;/api/notice*&#39; | summarize count() by ruleId, clientAddr\n</code></pre>\n<ul>\n<li>판정: 여러 정상 사무실 IP + 동일 ruleId + 본문에 HTML 태그 → 오탐 확정 (개념 2 공식)</li>\n</ul>\n"
+     },
+     {
+      "id": "l3",
+      "title": "조건 좁히기 — exclusion",
+      "body": "<p>해당 protection rule에 exclusion 추가:</p>\n<pre><code>대상 룰   : &lt;ruleId&gt; (XSS 계열)\n제외 범위 : 경로 /api/notice, 파라미터 body 한정\n</code></pre>\n<ul>\n<li>룰 OFF·CHECK 강등이 아니라 <strong>그 경로의 그 파라미터만</strong> 검사 제외 — 나머지 서비스는 보호 유지</li>\n</ul>\n"
+     },
+     {
+      "id": "l4",
+      "title": "재검증 — 양방향",
+      "body": "<pre><code>공지 저장 (HTML 본문 포함)                         → 200   ← 오탐 해소 증명\n/search?q=&lt;script&gt;alert(1)&lt;/script&gt;               → 403   ← 방어력 유지 증명\n</code></pre>\n<p>확인: 두 결과를 튜닝 기록(ruleId/사유/범위/일자)과 함께 CS팀에 회신.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "로그인 보호 — Rate Limiting",
+      "body": "<pre><code>[1] 실측: 로그로 /api/login의 정상 IP당 최대 요청률 관찰 (예: 분당 최대 10)\n[2] 룰: /api/login 경로 한정, IP당 분당 30 초과 시 제한 응답\n[3] 예외: 모니터링·헬스체크 IP allowlist 선등록\n</code></pre>\n<p>확인: 반복 curl로 한도 초과 시 제한 응답, 정상 속도 로그인은 무영향.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계",
+      "body": "<ul>\n<li>튜닝 대장 시작: 일자 / ruleId / 조치(exclusion·전환) / 사유 / 검증 결과 — 이후 모든 변경은 여기에</li>\n<li>CS팀 1줄 가이드: &quot;403 신고 = 로그의 ruleId부터&quot; (스크린샷 요청 항목 포함)</li>\n<li>다음 단계 예고: 로그를 매번 손으로 뒤지지 않는 주간 리포트 루프 — L3</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Protection Rules",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/WAF/Tasks/protectionrules.htm"
+    },
+    {
+     "label": "Rate Limiting",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/WAF/Tasks/rate-limiting.htm"
+    },
+    {
+     "label": "OCI Logging 개요",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/loggingoverview.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "choice",
+     "situation": "게시판 글 저장이 403으로 실패한다는 신고. 로그를 보니 XSS 룰이 본문 파라미터에서 발화했고, 발화 IP는 전국의 다양한 사무실 대역이다.",
+     "question": "올바른 조치는?",
+     "choices": [
+      "해당 XSS 룰을 정책에서 제거한다",
+      "룰 전체를 CHECK로 강등하고 종료한다",
+      "글 저장 경로의 본문 파라미터만 exclusion 처리하고 양방향 재검증한다",
+      "사용자에게 HTML 태그를 쓰지 말라고 공지한다"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "튜닝 사다리 — 룰을 끄지 않고 문맥(경로·파라미터)을 좁힌다. exclusion 단위가 좁을수록 방어선 손실이 작고, 재검증은 정상 200 + 공격 403 양방향이어야 완료다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "ox",
+     "situation": "동료가 '오탐인지 진짜 공격인지는 요청 수가 많으면 공격, 적으면 오탐으로 보면 된다'고 말한다.",
+     "question": "이 판별법은 맞다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "판별 축은 요청 수가 아니라 출처와 패턴이다 — 다수의 서로 다른 정상 사용자 IP + 업무 경로면 오탐 심증, 소수 IP + 기괴한 URL이면 공격 심증. 확증은 요청 원문을 서비스 담당자와 읽는 것.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "오탐 분석 — BLOCK된 요청을 룰·출처별로 집계해야 한다. 로그 OCID는 <log-ocid>, 대상 경로는 /api/notice 하위.",
+     "question": "Logging 검색 쿼리 한 줄은? (action·경로 필터 + ruleId, clientAddr 집계)",
+     "answers": [
+      "search \"<log-ocid>\" | action='BLOCK' and requestUrl like '/api/notice*' | summarize count() by ruleId, clientAddr"
+     ],
+     "match": "exact-trim",
+     "explanation": "오탐 판정 4문항(어느 룰이·누구를·어떤 요청에서·어떻게)이 그대로 쿼리가 된다 — 이 집계 한 줄이 오탐/공격 심증을 가르는 첫 화면.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "choice",
+     "situation": "로그인 API에 rate limiting을 걸려고 한다. 고객사 본사는 직원 800명이 NAT 하나로 나간다.",
+     "question": "한도 설계에서 반드시 반영할 것은?",
+     "choices": [
+      "IP당 분당 5회로 강하게 잡는다 — 보안이 우선",
+      "실측 없이 업계 표준값을 쓴다",
+      "NAT 뒤 다수 사용자를 고려해 실측 최대치에 여유 배수를 두고, 모니터링 IP는 allowlist 선등록",
+      "본사 IP는 rate limiting에서 완전히 제외한다"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "사옥 NAT = 한 IP에 다수 사용자 — 이론값으로 잡으면 정상 직원 전체가 걸린다. 실측 기반 여유 배수 + 감시 체계 자기차단 방지(allowlist)가 설계 순서다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "반년 뒤 보안 점검에서 'XSS 룰에 exclusion이 있는데 왜 있는지 아무도 모른다'는 지적이 나왔다.",
+     "question": "이 상황을 예방하는 운영 장치와 그 내용을 서술하라.",
+     "answers": [],
+     "rubric": "① 튜닝 대장(기록) 운영 — 모든 튜닝에 일자/ruleId/조치/사유/검증 결과를 남긴다 ② 주기 점검에서 대장의 exclusion을 재검토(아직 필요한가, 범위를 더 좁힐 수 있나). 기록과 주기 재검토 모두 언급 시 O, 하나만 △.",
+     "explanation": "튜닝은 부채이기도 하다 — 기록 없는 exclusion은 반년 뒤 아무도 못 지우는 영구 구멍이 된다. 대장 + 재검토 주기가 부채 상환 장치다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
+  "waf-l3": {
+   "curriculum": "oci-security",
+   "topic": "waf-l3",
+   "level": 3,
+   "sheet": "waf-l3",
+   "title": "WAF — 다계층 방어와 운영 자동화",
+   "tags": [
+    "oci",
+    "security",
+    "waf",
+    "architecture",
+    "logging",
+    "automation"
+   ],
+   "difficulty": 3,
+   "estimated_minutes": 80,
+   "goal": "WAF·NSG·SL 다계층 방어를 설계하고, 로그 파이프라인과 주간 리포트 루프로 운영을 자동화한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 방어의 층위 — WAF는 한 겹일 뿐",
+     "diagram": "<svg viewBox=\"0 0 660 180\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"waf3-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"10.5\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"70\" width=\"80\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"50\" y=\"96\" fill=\"var(--text)\">Client</text>\n    <rect x=\"120\" y=\"70\" width=\"110\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"175\" y=\"90\" fill=\"var(--pixel)\" font-weight=\"700\">WAF (L7)</text>\n    <text x=\"175\" y=\"106\" fill=\"var(--text-dim)\" font-size=\"9.5\">앱 공격·봇·rate</text>\n    <rect x=\"260\" y=\"70\" width=\"110\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"315\" y=\"90\" fill=\"var(--accent)\" font-weight=\"700\">LB</text>\n    <text x=\"315\" y=\"106\" fill=\"var(--text-dim)\" font-size=\"9.5\">TLS 종단·분산</text>\n    <rect x=\"400\" y=\"70\" width=\"120\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"460\" y=\"90\" fill=\"var(--text)\" font-weight=\"700\">NSG (L3/4)</text>\n    <text x=\"460\" y=\"106\" fill=\"var(--text-dim)\" font-size=\"9.5\">LB만 backend 접근</text>\n    <rect x=\"550\" y=\"70\" width=\"100\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"600\" y=\"90\" fill=\"var(--text)\" font-weight=\"700\">Backend</text>\n    <text x=\"600\" y=\"106\" fill=\"var(--text-dim)\" font-size=\"9.5\">공인 IP 없음</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#waf3-ar)\">\n    <line x1=\"90\" y1=\"92\" x2=\"116\" y2=\"92\"/>\n    <line x1=\"230\" y1=\"92\" x2=\"256\" y2=\"92\"/>\n    <line x1=\"370\" y1=\"92\" x2=\"396\" y2=\"92\"/>\n    <line x1=\"520\" y1=\"92\" x2=\"546\" y2=\"92\"/>\n  </g>\n  <text x=\"330\" y=\"150\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--wrong)\">WAF만 있고 NSG가 backend 직결을 안 막으면 — 공격자는 LB를 건너뛰고 WAF를 무력화한다</text>\n  <text x=\"330\" y=\"168\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">각 층이 다른 공격을 막는다 — WAF는 L7 콘텐츠, NSG/SL은 L3/4 경로. 한 층의 부재가 전체를 무너뜨린다</text>\n</svg>",
+     "body": "<pre><code>심층 방어 (defense in depth)\n├── WAF ──────── 애플리케이션 계층 공격 (요청 내용) — L1~L2에서 구축\n├── LB ───────── 유일한 정문 — TLS 종단, WAF enforcement point\n├── NSG / SL ─── backend는 LB에서 오는 트래픽만 수신, 공인 IP 제거 (WAF 우회 차단)\n└── 결론 ─────── WAF 하나로 &quot;안전&quot;은 없다 — 우회 경로를 함께 닫아야 방어선이 완성\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 로그 파이프라인 — 사람이 매번 뒤지지 않도록",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"waf3-ar2\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"10.5\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"40\" width=\"110\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"65\" y=\"60\" fill=\"var(--pixel)\" font-weight=\"700\">WAF Log</text>\n    <text x=\"65\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"9.5\">OCI Logging</text>\n    <rect x=\"160\" y=\"40\" width=\"130\" height=\"48\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"225\" y=\"60\" fill=\"var(--accent)\" font-weight=\"700\">Connector Hub</text>\n    <text x=\"225\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"9.5\">라우팅·트리거</text>\n    <rect x=\"330\" y=\"14\" width=\"150\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"405\" y=\"34\" fill=\"var(--text)\">Object Storage</text>\n    <text x=\"405\" y=\"50\" fill=\"var(--text-dim)\" font-size=\"9.5\">장기 보관·리포트 원천</text>\n    <rect x=\"330\" y=\"70\" width=\"150\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"405\" y=\"90\" fill=\"var(--text)\">Notifications</text>\n    <text x=\"405\" y=\"106\" fill=\"var(--text-dim)\" font-size=\"9.5\">급증 시 경보</text>\n    <rect x=\"520\" y=\"40\" width=\"130\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"585\" y=\"60\" fill=\"var(--pixel)\" font-weight=\"700\">주간 리포트</text>\n    <text x=\"585\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"9.5\">스크립트 생성</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.6\" fill=\"none\" marker-end=\"url(#waf3-ar2)\">\n    <line x1=\"120\" y1=\"64\" x2=\"156\" y2=\"64\"/>\n    <path d=\"M290 56 L 326 40\"/>\n    <path d=\"M290 72 L 326 88\"/>\n    <path d=\"M480 40 C 500 44, 505 52, 518 58\"/>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>운영 성숙도의 척도: &quot;공격이 있었나?&quot;에 로그를 손으로 뒤져 답하는가, 리포트가 먼저 와 있는가</li>\n<li>Connector Hub가 WAF 로그를 Object Storage(보관)·Notifications(경보)로 흘린다 — 사람은 예외만 본다</li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 봇 관리 — 정상 봇과 악성 봇의 분리",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"205\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"118\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">허용해야 할 봇</text>\n    <text x=\"118\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">검색엔진 크롤러</text>\n    <text x=\"118\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"10\">모니터링·헬스체크</text>\n    <text x=\"118\" y=\"108\" fill=\"var(--text-dim)\" font-size=\"10\">결제 웹훅</text>\n    <rect x=\"231\" y=\"24\" width=\"205\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/>\n    <text x=\"333\" y=\"48\" fill=\"var(--wrong)\" font-weight=\"700\">막아야 할 봇</text>\n    <text x=\"333\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">스크래핑·콘텐츠 도용</text>\n    <text x=\"333\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"10\">크리덴셜 스터핑</text>\n    <text x=\"333\" y=\"108\" fill=\"var(--text-dim)\" font-size=\"10\">재고·티켓 사재기</text>\n    <rect x=\"446\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"546\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">분리 신호</text>\n    <text x=\"546\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">User-Agent + 역방향 DNS</text>\n    <text x=\"546\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"10\">행동 패턴 · 챌린지(JS/CAPTCHA)</text>\n    <text x=\"546\" y=\"108\" fill=\"var(--text-faint)\" font-size=\"10\">허용 봇은 allowlist 우선</text>\n  </g>\n</svg>",
+     "body": "<ul>\n<li>봇 차단의 실패 1순위는 <strong>정상 봇 오차단</strong> — 검색 크롤러를 막으면 SEO가 죽고, 웹훅을 막으면 결제가 끊긴다</li>\n<li>그래서 순서가 있다: 허용 봇 allowlist 먼저 확정 → 그 다음 악성 봇 챌린지</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 운영 루프 — 주간 리포트가 만드는 개선 사이클",
+     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"waf3-ar4\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"10.5\" text-anchor=\"middle\">\n    <circle cx=\"120\" cy=\"80\" r=\"42\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"120\" y=\"76\" fill=\"var(--pixel)\" font-weight=\"700\">수집</text>\n    <text x=\"120\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"9\">주간 로그 집계</text>\n    <circle cx=\"290\" cy=\"80\" r=\"42\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"290\" y=\"76\" fill=\"var(--accent)\" font-weight=\"700\">판독</text>\n    <text x=\"290\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"9\">top 룰·출처·오탐</text>\n    <circle cx=\"460\" cy=\"80\" r=\"42\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"460\" y=\"76\" fill=\"var(--text)\" font-weight=\"700\">조치</text>\n    <text x=\"460\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"9\">튜닝·BLOCK 승격</text>\n    <circle cx=\"600\" cy=\"80\" r=\"42\" fill=\"var(--bg-card)\" stroke=\"var(--accent-dim)\"/>\n    <text x=\"600\" y=\"76\" fill=\"var(--text)\" font-weight=\"700\">공유</text>\n    <text x=\"600\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"9\">고객 리포트</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.6\" marker-end=\"url(#waf3-ar4)\">\n    <line x1=\"162\" y1=\"80\" x2=\"246\" y2=\"80\"/>\n    <line x1=\"332\" y1=\"80\" x2=\"416\" y2=\"80\"/>\n    <line x1=\"502\" y1=\"80\" x2=\"556\" y2=\"80\"/>\n  </g>\n  <text x=\"330\" y=\"150\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">CHECK로 관찰하던 룰이 \"이번 주 오탐 0\"이면 BLOCK 승격 — 리포트가 방어선을 스스로 조인다</text>\n</svg>",
+     "body": "<ul>\n<li>이 루프가 MSP의 실제 산출물이다 — WAF는 켜두면 끝이 아니라 매주 조여지는 살아있는 방어선</li>\n<li>리포트 항목: 총 요청/차단 수, top 발화 룰, top 출처 국가/IP, 신규 오탐, 이번 주 조치, CHECK→BLOCK 후보</li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 D의 WAF가 안정화됐다. 그런데 보안 담당이 매주 로그를 손으로 뒤져 리포트를 만드느라 지쳤고, 지난주엔 backend 인스턴스의 공인 IP로 직접 들어온 스캔이 발견됐다.",
+    "request": "&quot;WAF를 우회하는 경로를 닫아 주시고, 주간 리포트를 사람이 안 만들어도 되게 해 주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "우회 경로 진단",
+      "body": "<pre><code>[1] backend 인스턴스에 공인 IP가 있는가         → oci compute instance list-vnics\n[2] worker/backend NSG가 0.0.0.0/0 inbound 허용?  → 콘솔 NSG 규칙 확인\n[3] LB만이 backend에 닿는 유일한 경로인가         → 이것이 목표 상태\n</code></pre>\n<p>확인: 공인 IP 존재 또는 광역 inbound = 우회 구멍.</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "우회 차단 — NSG 조이기",
+      "body": "<pre><code>[1] backend NSG inbound: source = LB subnet(또는 LB NSG), 앱 포트만 허용\n[2] 0.0.0.0/0 광역 규칙 제거\n[3] 공인 IP 분리 (필요 없으면 unassign)\n</code></pre>\n<p>검증: LB 경유는 200, 인스턴스 공인 IP 직접 curl은 timeout(도달 불가) — WAF 우회 봉쇄 증명.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "로그 라우팅 — Connector Hub",
+      "body": "<p>콘솔: <code>Observability → Connector Hub → Create Connector</code></p>\n<pre><code>Source : Logging (WAF 로그)\nTarget : Object Storage 버킷 waf-logs (장기 보관·리포트 원천)\n</code></pre>\n<ul>\n<li>필요 시 두 번째 타깃으로 Notifications(차단 급증 경보) 추가</li>\n</ul>\n<p>확인: 버킷에 로그 객체가 주기적으로 쌓임.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "주간 집계 스크립트",
+      "body": "<p>보관 로그(또는 Logging Search API)에서 리포트 지표를 뽑는다.</p>\n<pre><code>- 총 요청 / 차단 수\n- top 발화 protectionRuleId 10\n- top 차단 출처 국가·IP 10\n- 신규 오탐 후보 (정상 IP 다수 + 업무 경로)\n- CHECK 상태로 이번 주 발화 0 인 룰 (BLOCK 승격 후보)\n</code></pre>\n<ul>\n<li>이 스크립트가 cc2의 기존 WAF 주간 리포트 자동화(<code>lockton_perf_report</code> 계열)와 같은 계보 — 산출물은 Excel/MD 리포트</li>\n</ul>\n"
+     },
+     {
+      "id": "l5",
+      "title": "스케줄 자동화",
+      "body": "<pre><code>[1] 스크립트를 주 1회 실행 (작업 스케줄러 또는 Functions/Resource Scheduler)\n[2] 산출 리포트를 담당 메일·채널로 전달 (초안까지 자동, 발송은 사람 승인)\n</code></pre>\n<p>확인: 사람 개입 없이 월요일 아침 리포트 초안이 도착.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "인수인계 — 운영 루프 정착",
+      "body": "<ul>\n<li>주간 루프 문서화: 수집(자동) → 판독(담당 15분) → 조치(튜닝·BLOCK 승격) → 공유(리포트)</li>\n<li>&quot;이번 주 오탐 0&quot; 룰의 BLOCK 승격을 리포트의 상시 항목으로 — 방어선이 매주 조여진다</li>\n<li>심층 방어 체크리스트 전달: WAF + LB 정문 + NSG 우회 차단 3층이 모두 서 있는가</li>\n</ul>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "WAF 개요",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/WAF/home.htm"
+    },
+    {
+     "label": "OCI Logging",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/loggingoverview.htm"
+    },
+    {
+     "label": "Service Connector Hub",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/connector-hub/home.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "WAF를 LB에 붙이고 모든 OWASP 룰을 BLOCK으로 튜닝까지 마쳤다. backend 인스턴스에는 공인 IP가 있고 앱 포트가 0.0.0.0/0에 열려 있다.",
+     "question": "이 구성은 안전하다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "공격자는 LB를 건너뛰고 backend 공인 IP로 직접 들어와 WAF를 통째로 우회한다. 심층 방어 — WAF(L7) 위에 NSG(L3/4)로 'LB만 backend 접근'을 강제해야 방어선이 완성된다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "쇼핑몰이 재고 스크래핑 봇에 시달린다. 봇 차단을 강하게 켰더니 매출이 급감했다.",
+     "question": "가장 가능성 높은 원인은?",
+     "choices": [
+      "봇 차단이 서버 CPU를 잡아먹었다",
+      "검색엔진 크롤러·결제 웹훅 등 정상 봇까지 막혀 SEO·결제가 끊겼다",
+      "rate limiting 한도가 너무 높았다",
+      "WAF 로그가 디스크를 채웠다"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "봇 차단 실패 1순위는 정상 봇 오차단 — 크롤러를 막으면 SEO가 죽고 웹훅을 막으면 결제가 끊긴다. 순서는 허용 봇 allowlist 먼저, 악성 봇 챌린지는 그 다음.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "choice",
+     "situation": "보안 담당이 매주 WAF 로그를 손으로 뒤져 리포트를 만든다. 자동화를 요청받았다.",
+     "question": "로그를 장기 보관·경보로 흘려보내는 OCI 구성요소는?",
+     "choices": [
+      "Cloud Guard responder",
+      "Service Connector Hub — Logging을 Object Storage·Notifications로 라우팅",
+      "Security Zone recipe",
+      "Load Balancer backend set"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "Connector Hub가 WAF 로그(Logging)를 Object Storage(보관·리포트 원천)와 Notifications(급증 경보)로 흘린다. 사람은 예외만 보게 된다 — 운영 성숙도의 척도.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "우회 경로 진단 첫 단계 — backend 인스턴스에 공인 IP가 붙어 있는지 VNIC를 확인해야 한다. 인스턴스 OCID는 $INST.",
+     "question": "인스턴스의 VNIC 목록을 조회하는 명령 한 줄은?",
+     "answers": [
+      "oci compute instance list-vnics --instance-id $INST",
+      "oci compute instance list-vnics --instance-id \"$INST\""
+     ],
+     "match": "normalize-flags",
+     "explanation": "list-vnics로 public-ip 필드를 확인 — 공인 IP가 있으면 WAF 우회 통로다. NSG 조이기 전에 공인 IP 존재부터 진단하는 것이 우회 차단의 1단계.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "WAF를 켤 때 오탐이 무서워 다수 룰을 CHECK로 두었다. 반년째 그대로 CHECK다.",
+     "question": "이 상태의 문제와, 운영 루프로 개선하는 방법을 서술하라.",
+     "answers": [],
+     "rubric": "① 문제: CHECK는 탐지만 — 실제로는 아무것도 차단하지 않아 방어선이 반년째 무력 상태 ② 개선: 주간 리포트 루프에서 '이번 주 발화 0(또는 오탐 0)'인 CHECK 룰을 BLOCK으로 승격하는 것을 상시 항목화 → 방어선이 매주 조여진다. 무력 상태 진단과 승격 루프 모두 언급 시 O, 하나만 △.",
+     "explanation": "detect-first는 시작점이지 종착점이 아니다. 관찰 데이터가 쌓이면 BLOCK으로 올려야 방어가 실체화된다 — 리포트 루프가 그 승격을 자동으로 제안한다.",
      "concept_anchor": "c4",
      "xp": 10
     }
