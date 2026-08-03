@@ -6,6 +6,7 @@ import CommandPalette from './components/CommandPalette'
 import LearningHome from './pages/LearningHome'
 import SheetPage from './pages/SheetPage'
 import ReviewPage from './pages/ReviewPage'
+import FeedbackPage from './pages/FeedbackPage'
 import Placeholder from './pages/Placeholder'
 import { useHub } from './store'
 
@@ -30,6 +31,7 @@ function Hotkeys() {
         gPending.current = false
         if (e.key === 'l') nav('/learning')
         else if (e.key === 'r') nav('/review')
+        else if (e.key === 'f') nav('/feedback')
         else if (e.key === 't') nav('/todo')
         else if (e.key === 's') s.setPaletteOpen(true)
         return
@@ -65,6 +67,7 @@ function Shell() {
         <Route path="/learning" element={<LearningHome />} />
         <Route path="/learning/:curriculumId/:sheetId" element={<SheetPage />} />
         <Route path="/review" element={<ReviewPage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/troubleshooting" element={<Placeholder id="troubleshooting" />} />
         <Route path="/todo" element={<Placeholder id="todo" />} />
         <Route path="/meetings" element={<Placeholder id="meetings" />} />

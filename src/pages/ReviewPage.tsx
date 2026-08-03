@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { linuxBasics, sheets } from '../data/linuxBasics'
+import { findCurriculum, sheets } from '../data'
 import { useHub } from '../store'
 import type { Scenario, Verdict } from '../types'
 
@@ -150,7 +150,7 @@ export default function ReviewPage() {
       .filter(a => selected.includes(a.sheet.sheet))
       .flatMap(a => a.sheet.scenarios.map(scen => ({
         sheet: a.sheet.sheet,
-        sheetTitle: `Day ${a.sheet.day}`,
+        sheetTitle: a.sheet.day ? `Day ${a.sheet.day}` : (a.sheet.topic ?? a.sheet.sheet),
         scen,
         firstVerdict: results[`${a.sheet.sheet}:${scen.id}`],
       })))
@@ -205,8 +205,8 @@ export default function ReviewPage() {
                       onClick={() => setSelected(s => on ? s.filter(x => x !== sh.sheet) : [...s, sh.sheet])}>
                       <span className="bx" />
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13.5, color: on ? 'var(--text)' : undefined }}>Day {sh.day} — {sh.title}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{linuxBasics.title} · 풀이 {graded}/{sh.scenarios.length}문항</div>
+                        <div style={{ fontSize: 13.5, color: on ? 'var(--text)' : undefined }}>{sh.day ? `Day ${sh.day} — ` : ''}{sh.title}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{findCurriculum(sh.curriculum)?.title ?? sh.curriculum} · 풀이 {graded}/{sh.scenarios.length}문항</div>
                       </div>
                       <span className="tag px">{sh.scenarios.length}문항</span>
                     </div>

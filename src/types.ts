@@ -6,15 +6,26 @@ export interface CurriculumDay {
   estimated_minutes: number
 }
 
+export interface CurriculumTopic {
+  topic: string
+  sheet: string
+  title: string
+  goal: string
+  estimated_minutes: number
+  status?: 'planned' | 'ready'
+}
+
 export interface Curriculum {
   id: string
   title: string
   description: string
+  mode?: 'sprint' | 'category'   // 생략 시 sprint
   difficulty: number
   public: boolean
   tags: string[]
   created: string
-  days: CurriculumDay[]
+  days?: CurriculumDay[]         // sprint
+  topics?: CurriculumTopic[]     // category
 }
 
 export interface Concept {
@@ -42,7 +53,8 @@ export interface Scenario {
 
 export interface Sheet {
   curriculum: string
-  day: number
+  day?: number                   // sprint
+  topic?: string                 // category
   sheet: string
   title: string
   tags: string[]
@@ -61,4 +73,20 @@ export interface Comment {
   anchor: string      // cN | sN | 전체
   text: string
   created: string
+}
+
+export type FeedbackSeverity = 'bug' | 'friction' | 'idea'
+export type FeedbackStatus = 'open' | 'in_progress' | 'resolved' | 'wontfix'
+
+export interface FeedbackItem {
+  id: string          // YYMMDD-HHMMSS
+  created: string
+  status: FeedbackStatus
+  title: string
+  body: string
+  tags?: string[]
+  severity: FeedbackSeverity
+  resolution?: string
+  resolved_at?: string
+  _pending?: boolean  // 로컬 전용 — PAT 미등록 시 커밋 대기
 }

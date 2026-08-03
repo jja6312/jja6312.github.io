@@ -15,6 +15,8 @@ export default function CommandPalette() {
     { id: 'learning', ico: '📚', label: '학습으로 이동', kbd: 'g l', run: () => nav('/learning') },
     { id: 'sheet', ico: '📝', label: '리눅스 기본 Day 1 열기', run: () => nav('/learning/linux-basics/day01-boot-and-systemd') },
     { id: 'review', ico: '🔁', label: '복습 퀴즈 시작', kbd: 'g r', run: () => nav('/review') },
+    { id: 'feedback', ico: '📮', label: '피드백 남기기', kbd: 'g f', run: () => nav('/feedback') },
+    { id: 'cloudguard', ico: '🛡', label: 'OCI 보안 — Cloud Guard 열기', run: () => nav('/learning/oci-security/cloud-guard') },
     { id: 'todo', ico: '🗂', label: 'TODO로 이동', kbd: 'g t', run: () => nav('/todo') },
     { id: 'ts', ico: '🔧', label: '트러블슈팅으로 이동', run: () => nav('/troubleshooting') },
     { id: 'meetings', ico: '🎙', label: '회의록으로 이동', run: () => nav('/meetings') },

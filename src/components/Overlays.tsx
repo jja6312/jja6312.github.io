@@ -30,7 +30,7 @@ export function HelpOverlay() {
         <div className="krow"><span>다크/라이트 토글</span><kbd>d</kbd></div>
         <div className="krow"><span>댓글 패널 토글</span><kbd>c</kbd></div>
         <div className="krow"><span>다음/이전 단계</span><span><kbd>j</kbd> <kbd>k</kbd></span></div>
-        <div className="krow"><span>이동: 학습 / 복습 / TODO</span><span><kbd>g</kbd>+<kbd>l</kbd> / <kbd>g</kbd>+<kbd>r</kbd> / <kbd>g</kbd>+<kbd>t</kbd></span></div>
+        <div className="krow"><span>이동: 학습 / 복습 / 피드백</span><span><kbd>g</kbd>+<kbd>l</kbd> / <kbd>g</kbd>+<kbd>r</kbd> / <kbd>g</kbd>+<kbd>f</kbd></span></div>
         <div className="krow"><span>이 가이드</span><span><kbd>?</kbd> <kbd>Esc</kbd></span></div>
       </div>
     </div>

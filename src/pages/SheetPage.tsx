@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { linuxBasics, sheets } from '../data/linuxBasics'
+import { findCurriculum, sheets } from '../data'
 import { useHub } from '../store'
 import type { Scenario, Verdict } from '../types'
 import CommentDock from '../components/CommentDock'
@@ -144,8 +144,9 @@ function ScenarioCard({ sheet, scen }: { sheet: string; scen: Scenario }) {
 }
 
 export default function SheetPage() {
-  const { sheetId } = useParams()
+  const { curriculumId, sheetId } = useParams()
   const sheet = sheets[sheetId ?? '']
+  const cur = findCurriculum(curriculumId) ?? findCurriculum(sheet?.curriculum)
   const { steps, results, markStep, addXP, showToast, completedSheets, completeSheet } = useHub()
   const bonusRef = useRef(false)
 
@@ -166,7 +167,7 @@ export default function SheetPage() {
     setTimeout(() => { addXP(100 * sheet.difficulty); showToast('🏆 완주 보너스!') }, 400)
   }, [allDone, sheet, completedSheets, completeSheet, addXP, showToast])
 
-  if (!sheet) {
+  if (!sheet || !cur) {
     return <div className="placeholder"><div className="big px">404</div><h2>학습지를 찾을 수 없습니다</h2>
       <Link to="/learning" style={{ color: 'var(--accent)' }}>← 학습 목록으로</Link></div>
   }
@@ -174,7 +175,8 @@ export default function SheetPage() {
   const goStep = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
-  const dayMeta = linuxBasics.days.find(d => d.sheet === sheet.sheet)
+  const isSprint = (cur.mode ?? 'sprint') === 'sprint'
+  const sheetLabel = isSprint ? `Day ${sheet.day}` : (cur.topics?.find(t => t.sheet === sheet.sheet)?.title ?? sheet.topic)
   const oCount = sheet.scenarios.filter(s => results[`${sheet.sheet}:${s.id}`] === 'O').length
   const dCount = sheet.scenarios.filter(s => results[`${sheet.sheet}:${s.id}`] === '△').length
 
@@ -186,14 +188,23 @@ export default function SheetPage() {
             <div className="side-title px">CURRICULUM</div>
             <div className="card">
               <div className="course-hd">
-                <b>{linuxBasics.title}</b>
-                <div className="meta">{linuxBasics.days.length}일 · 난이도 {'★'.repeat(linuxBasics.difficulty)}{'☆'.repeat(3 - linuxBasics.difficulty)} · 공개</div>
-              </div>
-              {linuxBasics.days.map(d => (
-                <div key={d.day} className={`dayitem${d.sheet === sheet.sheet ? ' active' : ''}`}>
-                  <span className="dnum px">D-{String(d.day).padStart(2, '0')}</span> {d.title}
+                <b>{cur.title}</b>
+                <div className="meta">
+                  {isSprint ? `${cur.days?.length}일` : `주제 ${cur.topics?.length}개`} · 난이도 {'★'.repeat(cur.difficulty)}{'☆'.repeat(3 - cur.difficulty)} · 공개
                 </div>
-              ))}
+              </div>
+              {isSprint
+                ? cur.days?.map(d => (
+                    <div key={d.day} className={`dayitem${d.sheet === sheet.sheet ? ' active' : ''}`}>
+                      <span className="dnum px">D-{String(d.day).padStart(2, '0')}</span> {d.title}
+                    </div>
+                  ))
+                : cur.topics?.map(t => (
+                    <div key={t.topic} className={`dayitem${t.sheet === sheet.sheet ? ' active' : ''}`}
+                      style={t.status === 'planned' ? { opacity: .5 } : undefined}>
+                      <span className="dnum px">{t.status === 'planned' ? '🔒' : '●'}</span> {t.title.split(' — ')[0]}
+                    </div>
+                  ))}
             </div>
           </div>
           <div className="card">
@@ -213,7 +224,7 @@ export default function SheetPage() {
         </aside>
 
         <main>
-          <div className="crumb"><span className="px">LEARNING</span> / <Link to="/learning" style={{ color: 'inherit' }}>{linuxBasics.title}</Link> / Day {sheet.day}</div>
+          <div className="crumb"><span className="px">LEARNING</span> / <Link to="/learning" style={{ color: 'inherit' }}>{cur.title}</Link> / {sheetLabel}</div>
           <h1 className="sheet-h1">{sheet.title}</h1>
           <div className="sheetmeta">
             <span className="chip goal">🎯 {sheet.goal}</span>
@@ -275,7 +286,7 @@ export default function SheetPage() {
           {allDone ? (
             <div className="summary">
               <div className="big px">채점 완료 — {oCount} / {sheet.scenarios.length}{dCount > 0 && ` (△${dCount})`}</div>
-              <div className="row">{linuxBasics.title} · Day {sheet.day} {dayMeta?.title}</div>
+              <div className="row">{cur.title} · {sheetLabel}</div>
               <div className="row" style={{ fontSize: 11 }}>attempt 기록이 blog-db repo에 commit 됩니다 (복습·XP 원천)</div>
               <div className="xpgain px">🏆 완주 보너스 +{100 * sheet.difficulty} XP (난이도 ×{sheet.difficulty})</div>
             </div>
