@@ -4,7 +4,6 @@ import { useHub, xpNeeded } from '../store'
 const tabs = [
   { to: '/learning', label: '학습', ready: true },
   { to: '/review', label: '복습', ready: true },
-  { to: '/feedback', label: '피드백', ready: true },
   { to: '/knowledge', label: '지식모음', ready: true },
   { to: '/todo', label: 'TODO', ready: true },
   { to: '/meetings', label: '회의록', ready: true },

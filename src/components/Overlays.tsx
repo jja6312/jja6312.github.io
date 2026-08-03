@@ -33,6 +33,7 @@ export function HelpOverlay() {
         <div className="krow"><span>지식모음</span><span><kbd>g</kbd> <kbd>k</kbd></span></div>
         <div className="krow"><span>지식모음 — 트러블슈팅</span><span><kbd>g</kbd> <kbd>s</kbd></span></div>
         <div className="krow"><span>지식모음 — OCI공지</span><span><kbd>g</kbd> <kbd>a</kbd></span></div>
+        <div className="krow"><span>지식모음 — 견적서 작성</span><span><kbd>g</kbd> <kbd>q</kbd></span></div>
         <div className="krow"><span>TODO</span><span><kbd>g</kbd> <kbd>t</kbd></span></div>
         <div className="krow"><span>회의록</span><span><kbd>g</kbd> <kbd>m</kbd></span></div>
         <div className="kgroup px">화면</div>

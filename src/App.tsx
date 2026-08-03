@@ -39,6 +39,7 @@ function Hotkeys() {
         else if (e.key === 'k') nav('/knowledge')
         else if (e.key === 's') nav('/knowledge/troubleshooting')
         else if (e.key === 'a') nav('/knowledge/announcements')
+        else if (e.key === 'q') nav('/knowledge/quote')
         else if (e.key === 't') nav('/todo')
         else if (e.key === 'm') nav('/meetings')
         return
@@ -72,6 +73,7 @@ function Shell() {
       <Routes>
         <Route path="/" element={<Navigate to="/learning" replace />} />
         <Route path="/learning" element={<LearningHome />} />
+        <Route path="/learning/:section" element={<LearningHome />} />
         <Route path="/learning/:curriculumId/:sheetId" element={<SheetPage />} />
         <Route path="/review" element={<ReviewPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />

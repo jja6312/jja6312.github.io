@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { curricula, sheets } from '../data'
 import { useHub } from '../store'
 import type { Curriculum } from '../types'
@@ -90,28 +90,43 @@ function CategoryCard({ cur }: { cur: Curriculum }) {
   )
 }
 
+// 지식모음과 같은 서브탭 이분화 — 스프린트 / 카테고리
+const MODES = [
+  { id: 'sprint', label: '스프린트', hint: '일정을 정해 순서대로' },
+  { id: 'category', label: '카테고리', hint: '주제를 골라 자유롭게' },
+] as const
+
 export default function LearningHome() {
+  const nav = useNavigate()
+  const { section } = useParams()
+  const active = MODES.find(m => m.id === section)?.id ?? 'sprint'
   const sprints = curricula.filter(c => (c.mode ?? 'sprint') === 'sprint')
   const categories = curricula.filter(c => c.mode === 'category')
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 120px' }}>
-      <div className="crumb"><span className="px">LEARNING</span></div>
-      <h1 className="sheet-h1">학습</h1>
-      <p style={{ color: 'var(--text-dim)', fontSize: 13.5, margin: '8px 0 28px' }}>
-        학습지 = 개념 → 시나리오 실습 → 채점 3단.
-        Claude Code에 "OOO 학습지 만들어줘"라고 하면 여기에 추가된다.
-      </p>
+    <div>
+      <div className="ksec">
+        {MODES.map(m => (
+          <button key={m.id} className={`ksec-btn${active === m.id ? ' on' : ''}`}
+            onClick={() => nav(`/learning/${m.id}`)}>{m.label}</button>
+        ))}
+      </div>
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 120px' }}>
+        <div className="crumb"><span className="px">LEARNING</span> / {active === 'sprint' ? '스프린트' : '카테고리'}</div>
+        <h1 className="sheet-h1">학습 — {MODES.find(m => m.id === active)!.label}</h1>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13.5, margin: '8px 0 28px' }}>
+          {MODES.find(m => m.id === active)!.hint}. 학습지 = 개념 → 실전 구축 → 시나리오 → 채점.
+          Claude Code에 "OOO 학습지 만들어줘"라고 하면 여기에 추가된다.
+        </p>
 
-      {sprints.length > 0 && <>
-        <div className="side-title px" style={{ marginBottom: 10 }}>SPRINT — 일정을 정해 순서대로</div>
-        {sprints.map(c => <SprintCard key={c.id} cur={c} />)}
-      </>}
+        {active === 'sprint' && (sprints.length > 0
+          ? sprints.map(c => <SprintCard key={c.id} cur={c} />)
+          : <div className="cmt-empty">스프린트 커리큘럼이 없습니다.</div>)}
 
-      {categories.length > 0 && <>
-        <div className="side-title px" style={{ margin: '26px 0 10px' }}>CATEGORY — 주제를 골라 자유롭게</div>
-        {categories.map(c => <CategoryCard key={c.id} cur={c} />)}
-      </>}
+        {active === 'category' && (categories.length > 0
+          ? categories.map(c => <CategoryCard key={c.id} cur={c} />)
+          : <div className="cmt-empty">카테고리 커리큘럼이 없습니다.</div>)}
+      </div>
     </div>
   )
 }
