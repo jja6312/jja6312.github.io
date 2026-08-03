@@ -45,6 +45,12 @@ function Hotkeys() {
         else if (e.key === 'm') nav('/knowledge/meetings')   // 회의록 = 지식모음 하위
         else if (e.key === 'd') nav('/schedule/todo')  // t 는 Terraform 이 가져감 → Do(일정관리)
         else if (e.key === 'p') nav('/profile')
+        // 메뉴바 순서 g1~g5 (학습·복습·지식모음·일정관리·프로필)
+        else if (e.key === '1') nav('/learning')
+        else if (e.key === '2') nav('/review')
+        else if (e.key === '3') nav('/knowledge')
+        else if (e.key === '4') nav('/schedule/calendar')
+        else if (e.key === '5') nav('/profile')
         return
       }
       if (e.key === 'g') { gPending.current = true; setTimeout(() => { gPending.current = false }, 800); return }

@@ -691,3 +691,43 @@ select.cli-input { cursor: pointer; }
 .jr-row { display: flex; gap: 8px; font-size: 13.5px; margin: 3px 0; }
 .jr-tag { flex-shrink: 0; font-size: 10px; padding: 1px 7px; border-radius: 4px; background: var(--bg-inset); color: var(--text-dim); height: fit-content; }
 .jr-taglist { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+
+/* ─────────── 헤더 hover 하위메뉴 ─────────── */
+.hub-navitem { position: relative; display: inline-flex; }
+.hub-submenu {
+  position: absolute; top: 100%; left: 0; min-width: 170px; z-index: 60;
+  display: none; flex-direction: column; gap: 2px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 11px;
+  padding: 6px; box-shadow: var(--shadow);
+}
+.hub-navitem:hover .hub-submenu { display: flex; }
+.hub-nav .hub-subitem {
+  display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 7px;
+  font-size: 13.5px; color: var(--text-dim); white-space: nowrap; background: none;
+}
+.hub-nav .hub-subitem:hover { background: var(--bg-inset); color: var(--text); }
+.hub-nav .hub-subitem.on { color: var(--accent); background: transparent; }
+@media (max-width: 860px) {
+  /* 모바일: hover 불가 → 하위메뉴는 각 페이지의 서브탭(ksec)으로 접근, 헤더 드롭다운 숨김 */
+  .hub-submenu { display: none !important; }
+}
+
+/* ─────────── 학습 ALL 아코디언 ─────────── */
+.learn-acc { border: 1px solid var(--line-soft); border-radius: 12px; margin-bottom: 14px; background: var(--bg-inset); overflow: hidden; }
+.learn-acc > summary { cursor: pointer; padding: 15px 18px; font-weight: 600; font-size: 15.5px; list-style: none; display: flex; align-items: center; gap: 9px; }
+.learn-acc > summary::-webkit-details-marker { display: none; }
+.learn-acc > summary::before { content: '▸'; color: var(--text-faint); transition: transform .15s; display: inline-block; }
+.learn-acc[open] > summary::before { transform: rotate(90deg); color: var(--accent); }
+.learn-acc > summary span { margin-left: auto; font-size: 12px; color: var(--text-faint); }
+.learn-acc-body { padding: 4px 14px 2px; }
+
+/* ─────────── OCI CLI 검증 표시 (확인한 명령 = 파란색) ─────────── */
+.cli-verified { color: #3b82f6 !important; }
+.cli-navitem.verified { color: #3b82f6; }
+.cli-vmark { margin-left: 6px; font-size: 11px; color: #3b82f6; }
+.cli-verify { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-dim); margin: 12px 0 4px; cursor: pointer; }
+.cli-verify input { cursor: pointer; flex-shrink: 0; }
+
+/* ─────────── 트러블슈팅 구조화 입력 ─────────── */
+.ts-flabel { display: block; font-size: 11.5px; color: var(--text-dim); margin-bottom: 5px; letter-spacing: .3px; }
+.ts-req { color: var(--wrong); margin-left: 3px; }

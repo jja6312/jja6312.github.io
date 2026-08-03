@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
+import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import catalog from '../data/cliCatalog.json'
 
 interface CliOption {
@@ -125,6 +126,28 @@ export default function CliBuilderPage() {
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
   }, [rParam])
 
+  // 검증 상태 — 내가 직접 실행해 확인한 명령만 파란색. blog-db knowledge/oci-cli/verified.json 공유.
+  const pat = getPat()
+  const [verified, setVerified] = useState<string[]>([])
+  const vShaRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!pat) return
+    getFile(pat, 'knowledge/oci-cli/verified.json').then(f => {
+      if (f) { vShaRef.current = f.sha; try { setVerified(JSON.parse(f.content).verified ?? []) } catch { /* keep */ } }
+    }).catch(() => { /* 미생성/권한없음 → 빈 목록 */ })
+  }, [pat])
+  const isVerified = (r: string) => verified.includes(r)
+  const toggleVerified = async (r: string) => {
+    if (!pat) { showToast('검증 표시는 PAT 등록 후 가능'); return }
+    const prev = verified
+    const next = verified.includes(r) ? verified.filter(x => x !== r) : [...verified, r]
+    setVerified(next)
+    try {
+      vShaRef.current = await putFile(pat, 'knowledge/oci-cli/verified.json',
+        JSON.stringify({ verified: next }, null, 2) + '\n', 'cli: 검증 상태 갱신', vShaRef.current)
+    } catch (e) { showToast(`저장 실패: ${explainGhError(e)}`); setVerified(prev) }
+  }
+
   const cmd = active !== '__custom' ? CAT.commands[active] : null
   const cli = useMemo(() => cmd ? buildCli(cmd, values, dyn) : customText, [cmd, values, dyn, customText])
 
@@ -179,8 +202,9 @@ export default function CliBuilderPage() {
               <div key={g.label} className="cli-group">
                 <div className="cli-group-label px">{g.label}</div>
                 {g.resources.map(r => (
-                  <button key={r} className={`cli-navitem${active === r ? ' on' : ''}`} onClick={() => selectResource(r)}>
+                  <button key={r} className={`cli-navitem${active === r ? ' on' : ''}${isVerified(r) ? ' verified' : ''}`} onClick={() => selectResource(r)}>
                     {CAT.commands[r].label}
+                    {isVerified(r) && <span className="cli-vmark" title="검증됨">✓</span>}
                   </button>
                 ))}
               </div>
@@ -203,10 +227,16 @@ export default function CliBuilderPage() {
       {/* 우측 폼 + 결과 */}
       <main className="cli-main">
         <div className="crumb"><span className="px">OCI CLI</span> / {cmd ? cmd.label : 'Custom'}</div>
-        <h1 className="sheet-h1">{cmd ? cmd.label : 'Custom 명령'}</h1>
+        <h1 className={`sheet-h1${cmd && isVerified(active) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
         {cmd
           ? <p className="cli-help">{cmd.help}</p>
           : <p className="cli-help">자유 입력 — 직접 작성하거나, 왼쪽에서 자원을 골라 폼으로 만드세요. 저장하면 즐겨찾기로 재사용됩니다.</p>}
+        {cmd && (
+          <label className="cli-verify">
+            <input type="checkbox" checked={isVerified(active)} onChange={() => toggleVerified(active)} />
+            <span>내가 직접 실행해 확인함 — 확인 전 명령은 모두 의심 대상, 확인하면 <b className="cli-verified">파란색</b>으로 표시</span>
+          </label>
+        )}
 
         {cmd ? (
           <div className="cli-form">

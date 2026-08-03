@@ -180,14 +180,19 @@ export default function LearningHome() {
 
         {active === 'all' && <>
           <RecentSection />
-          {sprints.length > 0 && <>
-            <div className="side-title px" style={{ marginBottom: 10 }}>스프린트</div>
-            {sprints.map(c => <SprintCard key={c.id} cur={c} />)}
-          </>}
-          {categories.length > 0 && <>
-            <div className="side-title px" style={{ margin: '26px 0 10px' }}>카테고리</div>
-            {categories.map(c => <CategoryCard key={c.id} cur={c} />)}
-          </>}
+          {/* 전체 커리큘럼은 접힌 드롭다운 — ALL 은 이어서 학습(최근) 빠른 접근이 주목적 */}
+          {sprints.length > 0 && (
+            <details className="learn-acc">
+              <summary>스프린트 <span>{sprints.length}</span></summary>
+              <div className="learn-acc-body">{sprints.map(c => <SprintCard key={c.id} cur={c} />)}</div>
+            </details>
+          )}
+          {categories.length > 0 && (
+            <details className="learn-acc">
+              <summary>카테고리 <span>{categories.length}</span></summary>
+              <div className="learn-acc-body">{categories.map(c => <CategoryCard key={c.id} cur={c} />)}</div>
+            </details>
+          )}
         </>}
 
         {active === 'sprint' && (sprints.length > 0

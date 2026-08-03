@@ -3,11 +3,35 @@ import { useHub, xpNeeded } from '../store'
 import { getPat } from '../lib/githubDb'
 import LockIcon from './LockIcon'
 
-const tabs = [
-  { to: '/learning', label: '학습' },
+interface SubTab { to: string; label: string; locked?: boolean }
+interface Tab { to: string; label: string; locked?: boolean; children?: SubTab[] }
+
+const tabs: Tab[] = [
+  {
+    to: '/learning', label: '학습', children: [
+      { to: '/learning/all', label: 'ALL' },
+      { to: '/learning/sprint', label: '스프린트' },
+      { to: '/learning/category', label: '카테고리' },
+    ],
+  },
   { to: '/review', label: '복습' },
-  { to: '/knowledge', label: '지식모음' },
-  { to: '/schedule', label: '일정관리', locked: true },
+  {
+    to: '/knowledge', label: '지식모음', children: [
+      { to: '/knowledge/troubleshooting', label: '트러블슈팅' },
+      { to: '/knowledge/announcements', label: 'Announcement', locked: true },
+      { to: '/knowledge/oci-cli', label: 'OCI CLI' },
+      { to: '/knowledge/terraform', label: 'Terraform' },
+      { to: '/knowledge/quote', label: '견적', locked: true },
+      { to: '/knowledge/meetings', label: '회의록', locked: true },
+    ],
+  },
+  {
+    to: '/schedule', label: '일정관리', locked: true, children: [
+      { to: '/schedule/calendar', label: '월간일정' },
+      { to: '/schedule/todo', label: 'TODO LIST' },
+      { to: '/schedule/goals', label: '목표' },
+    ],
+  },
   { to: '/profile', label: '프로필' },
 ]
 
@@ -20,10 +44,22 @@ export default function Header() {
       <Link to="/" className="logo"><span className="dot" /><span className="px">정지안의 업무허브</span></Link>
       <nav className="hub-nav">
         {tabs.map(t => (
-          <NavLink key={t.to} to={t.to} className={({ isActive }) => (isActive ? 'on' : '')}>
-            {t.label}
-            {t.locked && !hasPat && <span className="lockmark" title="PAT 등록 시 열람"><LockIcon /></span>}
-          </NavLink>
+          <div key={t.to} className="hub-navitem">
+            <NavLink to={t.to} className={({ isActive }) => (isActive ? 'on' : '')}>
+              {t.label}
+              {t.locked && !hasPat && <span className="lockmark" title="PAT 등록 시 열람"><LockIcon /></span>}
+            </NavLink>
+            {t.children && (
+              <div className="hub-submenu">
+                {t.children.map(c => (
+                  <NavLink key={c.to} to={c.to} className={({ isActive }) => `hub-subitem${isActive ? ' on' : ''}`}>
+                    {c.label}
+                    {c.locked && !hasPat && <span className="lockmark" title="PAT 등록 시 열람"><LockIcon /></span>}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </nav>
       <div className="hdr-right">
