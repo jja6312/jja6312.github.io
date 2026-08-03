@@ -26,8 +26,9 @@ function Hotkeys() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault(); s.setPaletteOpen(!s.paletteOpen); return
       }
-      const target = e.target as HTMLElement
-      if (target.matches('input,textarea,select')) return
+      // target 이 Element 가 아닐 수 있음(window 등) — matches 가 없으면 입력창이 아니라고 본다
+      const target = e.target as HTMLElement | null
+      if (target?.matches?.('input,textarea,select')) return
       if (s.paletteOpen) return
 
       if (gPending.current) {
