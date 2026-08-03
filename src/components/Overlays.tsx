@@ -36,8 +36,9 @@ export function HelpOverlay() {
         <div className="krow"><span>지식모음 — OCI CLI</span><span><kbd>g</kbd> <kbd>c</kbd></span></div>
         <div className="krow"><span>지식모음 — Terraform</span><span><kbd>g</kbd> <kbd>t</kbd></span></div>
         <div className="krow"><span>지식모음 — 견적</span><span><kbd>g</kbd> <kbd>q</kbd></span></div>
+        <div className="krow"><span>지식모음 — 회의록</span><span><kbd>g</kbd> <kbd>m</kbd></span></div>
         <div className="krow"><span>TODO</span><span><kbd>g</kbd> <kbd>d</kbd></span></div>
-        <div className="krow"><span>회의록</span><span><kbd>g</kbd> <kbd>m</kbd></span></div>
+        <div className="krow"><span>프로필</span><span><kbd>g</kbd> <kbd>p</kbd></span></div>
         <div className="kgroup px">화면</div>
         <div className="krow"><span>커맨드 팔레트</span><span><kbd>Ctrl</kbd> <kbd>K</kbd></span></div>
         <div className="krow"><span>다크/라이트 토글</span><kbd>d</kbd></div>

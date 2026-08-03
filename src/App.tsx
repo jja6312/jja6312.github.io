@@ -9,7 +9,7 @@ import ReviewPage from './pages/ReviewPage'
 import FeedbackPage from './pages/FeedbackPage'
 import KnowledgePage from './pages/KnowledgePage'
 import TodoPage from './pages/TodoPage'
-import MeetingsPage from './pages/MeetingsPage'
+import ProfilePage from './pages/ProfilePage'
 import { useHub } from './store'
 
 const STEP_IDS = ['c1', 'c2', 'c3', 's1', 's2', 's3', 's4', 's5']
@@ -42,8 +42,9 @@ function Hotkeys() {
         else if (e.key === 'c') nav('/knowledge/oci-cli')
         else if (e.key === 't') nav('/knowledge/terraform')
         else if (e.key === 'q') nav('/knowledge/quote')
+        else if (e.key === 'm') nav('/knowledge/meetings')   // 회의록 = 지식모음 하위
         else if (e.key === 'd') nav('/todo')          // t 는 Terraform 이 가져감 → Do
-        else if (e.key === 'm') nav('/meetings')
+        else if (e.key === 'p') nav('/profile')
         return
       }
       if (e.key === 'g') { gPending.current = true; setTimeout(() => { gPending.current = false }, 800); return }
@@ -84,8 +85,9 @@ function Shell() {
         {/* 구 경로 호환 */}
         <Route path="/troubleshooting" element={<Navigate to="/knowledge/troubleshooting" replace />} />
         <Route path="/announcements" element={<Navigate to="/knowledge/announcements" replace />} />
+        <Route path="/meetings" element={<Navigate to="/knowledge/meetings" replace />} />
         <Route path="/todo" element={<TodoPage />} />
-        <Route path="/meetings" element={<MeetingsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/learning" replace />} />
       </Routes>
       <Toast />

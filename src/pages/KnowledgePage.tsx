@@ -3,19 +3,24 @@ import TroubleshootingPage from './TroubleshootingPage'
 import AnnouncementsPage from './AnnouncementsPage'
 import KnowledgeDocsPage from './KnowledgeDocsPage'
 import QuotePage from './QuotePage'
+import MeetingsPage from './MeetingsPage'
+import LockIcon from '../components/LockIcon'
+import { getPat } from '../lib/githubDb'
 
-// 지식모음 — 쌓이는 지식·도구 계열을 한 메뉴로 묶는다
+// 지식모음 — 쌓이는 지식·도구 계열을 한 메뉴로 묶는다. locked = PAT 있어야 열람
 const SECTIONS = [
   { id: 'troubleshooting', label: '트러블슈팅', kbd: 'g s' },
-  { id: 'announcements', label: 'Announcement', kbd: 'g a' },
+  { id: 'announcements', label: 'Announcement', kbd: 'g a', locked: true },
   { id: 'oci-cli', label: 'OCI CLI', kbd: 'g c' },
   { id: 'terraform', label: 'Terraform', kbd: 'g t' },
-  { id: 'quote', label: '견적', kbd: 'g q' },
+  { id: 'quote', label: '견적', kbd: 'g q', locked: true },
+  { id: 'meetings', label: '회의록', kbd: 'g m', locked: true },
 ] as const
 
 export default function KnowledgePage() {
   const nav = useNavigate()
   const { section } = useParams()
+  const hasPat = !!getPat()
   const active = SECTIONS.find(s => s.id === section)?.id ?? 'troubleshooting'
 
   return (
@@ -24,6 +29,7 @@ export default function KnowledgePage() {
         {SECTIONS.map(s => (
           <button key={s.id} className={`ksec-btn${active === s.id ? ' on' : ''}`}
             onClick={() => nav(`/knowledge/${s.id}`)}>
+            {'locked' in s && s.locked && !hasPat && <span className="lockmark" style={{ marginRight: 5 }}><LockIcon /></span>}
             {s.label}{s.kbd && <> <span className="px" style={{ fontSize: 10, opacity: .7 }}>{s.kbd}</span></>}
           </button>
         ))}
@@ -41,6 +47,7 @@ export default function KnowledgePage() {
           path="knowledge/terraform" />
       )}
       {active === 'quote' && <QuotePage />}
+      {active === 'meetings' && <MeetingsPage />}
     </div>
   )
 }

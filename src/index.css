@@ -420,6 +420,85 @@ kbd {
   .mobile-lab .mcount { flex-shrink: 0; font-size: 11px; padding: 4px 10px; color: var(--pixel); font-family: 'Galmuri11'; }
 }
 
+/* ─────────── 잠금 마크 (PAT 게이팅 표시) ─────────── */
+.lockmark { display: inline-flex; align-items: center; color: var(--partial); vertical-align: -1px; }
+.lock-ico { display: block; }
+
+/* ─────────── 프로필 ─────────── */
+.prof-wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 120px; }
+.prof-hero { margin-bottom: 30px; }
+.prof-role { font-size: 15.5px; color: var(--accent); margin-top: 8px; font-weight: 600; }
+.prof-sub { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
+.prof-tag { font-size: 14px; color: var(--text-dim); margin: 14px 0 8px; line-height: 1.7; max-width: 640px; }
+.prof-gh { font-size: 13px; color: var(--accent); text-decoration: none; font-family: Consolas, monospace; }
+.prof-gh:hover { text-decoration: underline; }
+
+.prof-sec { margin-top: 40px; }
+.prof-h2-row { display: flex; align-items: center; gap: 12px; }
+.prof-h2 { font-size: 20px; font-weight: 700; letter-spacing: -.2px; }
+.prof-h3 { font-size: 15px; font-weight: 700; margin: 24px 0 12px; color: var(--text); }
+.prof-desc { font-size: 13.5px; color: var(--text-dim); margin: 6px 0 18px; line-height: 1.7; }
+
+/* 로드맵 */
+.road { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 760px) { .road { grid-template-columns: 1fr; } }
+.road-col { background: var(--bg-card); border: 1px solid var(--line-soft); border-left: 3px solid var(--accent-dim); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+.road-span { font-size: 13px; color: var(--accent); margin-bottom: 10px; }
+.road-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.road-col li { font-size: 13.5px; color: var(--text-dim); line-height: 1.55; padding-left: 14px; position: relative; }
+.road-col li::before { content: '·'; position: absolute; left: 2px; color: var(--accent); font-weight: 900; }
+
+.up-list { display: flex; flex-direction: column; gap: 8px; }
+.up-item { display: flex; align-items: center; gap: 10px; background: var(--bg-inset); border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px 14px; font-size: 14px; }
+.up-item b { color: var(--text); font-weight: 600; }
+.up-item .up-when { margin-left: auto; font-size: 11px; color: var(--text-faint); }
+.up-dot { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; }
+.up-item.progress .up-dot { background: var(--pixel); box-shadow: 0 0 6px var(--pixel); }
+.up-item.progress .up-when { color: var(--pixel); }
+.up-item.planned .up-dot { background: var(--line); border: 1px solid var(--text-faint); }
+
+/* 자격증 */
+.cert-grp { margin-bottom: 22px; }
+.cert-dom { font-size: 12px; color: var(--accent); letter-spacing: .5px; margin-bottom: 10px; }
+.cert-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (max-width: 620px) { .cert-list { grid-template-columns: 1fr; } }
+.cert-card { background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 12px; padding: 12px 15px; box-shadow: var(--shadow); }
+.cert-card b { font-size: 14px; display: block; line-height: 1.45; }
+.cert-meta { display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: 12px; color: var(--text-dim); flex-wrap: wrap; }
+.cert-id { font-size: 10.5px; color: var(--text-faint); background: var(--code-bg); border: 1px solid var(--line-soft); border-radius: 5px; padding: 1px 6px; }
+
+/* 달력 */
+.cal-top { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.cal-nav { display: flex; align-items: center; gap: 8px; }
+.cal-nav b { font-size: 15px; min-width: 120px; text-align: center; }
+.cal-today { font-size: 12px; padding: 4px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg-inset); color: var(--text-dim); cursor: pointer; font-family: inherit; }
+.cal-today:hover { border-color: var(--accent); color: var(--accent); }
+.cal-legend { display: flex; gap: 12px; flex-wrap: wrap; }
+.cal-lg { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-dim); }
+.cal-lg i { width: 9px; height: 9px; border-radius: 99px; display: inline-block; }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-wk { text-align: center; font-size: 11px; color: var(--text-faint); padding: 4px 0; font-family: 'Galmuri11'; }
+.cal-wk.sun { color: var(--wrong); } .cal-wk.sat { color: var(--partial); }
+.cal-cell { min-height: 62px; background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 10px; padding: 6px; cursor: pointer; transition: border-color .13s, background .13s; display: flex; flex-direction: column; gap: 5px; }
+.cal-cell.empty { background: none; border: none; cursor: default; }
+.cal-cell:not(.empty):hover { border-color: var(--accent-dim); }
+.cal-cell.today { border-color: var(--accent); }
+.cal-cell.sel { background: var(--accent-glow); border-color: var(--accent); }
+.cal-d { font-size: 12.5px; color: var(--text-dim); font-family: 'Galmuri11'; }
+.cal-cell.today .cal-d { color: var(--accent); }
+.cal-dots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: auto; }
+.cal-dots i { width: 6px; height: 6px; border-radius: 99px; display: inline-block; }
+
+.cal-editor { margin-top: 14px; background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+.cal-ed-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cal-ev { display: flex; align-items: center; gap: 9px; background: var(--bg-inset); border: 1px solid var(--line-soft); border-radius: 9px; padding: 8px 11px; margin-bottom: 7px; font-size: 14px; }
+.cal-ev i { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; }
+.cal-add { margin-top: 10px; }
+.cal-cats { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.cal-cat { font-size: 12px; padding: 4px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg-inset); color: var(--text-dim); cursor: pointer; font-family: inherit; transition: all .13s; }
+.cal-cat.on { background: var(--accent-glow); }
+
 /* ─────────── 모바일 (갤럭시폴드 커버 화면 ~348px 포함) ─────────── */
 @media (max-width: 760px) {
   .hub-header { gap: 10px; padding: 8px 12px; }
