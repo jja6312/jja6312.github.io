@@ -388,6 +388,10 @@ kbd {
   padding: 2px 10px; cursor: pointer; user-select: none;
 }
 .cli-dyn-toggle input { accent-color: var(--accent); cursor: pointer; }
+/* 콘솔 마법사식 섹션 */
+.cli-sec { margin: 0 0 22px; padding: 14px 16px 6px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--bg-card); }
+.cli-sec .cli-section-label { color: var(--text); font-size: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line-soft); padding-bottom: 8px; }
+.cli-console-req { font-size: 10px; color: var(--pixel); border: 1px solid var(--pixel); border-radius: 99px; padding: 1px 8px; }
 .cli-navitem {
   display: block; width: 100%; text-align: left; background: none; border: none;
   color: var(--text-dim); font-size: 13px; padding: 7px 12px; border-radius: 8px;

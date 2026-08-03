@@ -7,15 +7,20 @@ import catalog from '../data/cliCatalog.json'
 interface CliOption {
   name: string
   required: boolean
+  console?: boolean          // CLI 스키마상 optional 이지만 콘솔 기준 필수 (승격)
   type: string
   choices: string[] | null
   help: string
   placeholder: string
 }
+interface CliSection { label: string; options: CliOption[] }
 interface CliCommand {
   resource: string; label: string
-  cmd: string; help: string; options: CliOption[]
+  cmd: string; help: string
+  sections: CliSection[]; advanced: CliOption[]
 }
+// 조립·검색용 평탄화 — 섹션 순서(콘솔 마법사 순서)를 그대로 유지
+const allOptions = (c: CliCommand): CliOption[] => [...c.sections.flatMap(s => s.options), ...c.advanced]
 interface Catalog {
   categories: { id: string; label: string; groups: { label: string; resources: string[] }[] }[]
   commands: Record<string, CliCommand>
@@ -44,7 +49,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
   const prelude: string[] = []
   const args: string[] = []
 
-  const compDynamic = cmd.options.some(o => o.name === '--compartment-id') && isDynamic(dyn, '--compartment-id')
+  const compDynamic = allOptions(cmd).some(o => o.name === '--compartment-id') && isDynamic(dyn, '--compartment-id')
   const compStatic = (values['--compartment-id'] ?? '').trim()
   // 다른 동적 조회가 참조할 compartment 표현
   const compRef = compDynamic ? '"$COMP"' : (compStatic ? compStatic : '<compartment-ocid>')
@@ -57,7 +62,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
     )
   }
 
-  for (const o of cmd.options) {
+  for (const o of allOptions(cmd)) {
     const v = (values[o.name] ?? '').trim()
     // 값 없는 선택 옵션은 동적 모드여도 생략 — 명령을 어지럽히지 않는다
     if (!o.required && !v) continue
@@ -177,8 +182,7 @@ export default function CliBuilderPage() {
   }
   const delFav = (id: string) => { const n = favs.filter(f => f.id !== id); setFavs(n); saveFavs(n) }
 
-  const requiredOpts = cmd?.options.filter(o => o.required) ?? []
-  const optionalOpts = cmd?.options.filter(o => !o.required) ?? []
+
 
   const field = (o: CliOption, optional?: boolean) => (
     <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
@@ -240,13 +244,17 @@ export default function CliBuilderPage() {
 
         {cmd ? (
           <div className="cli-form">
-            <div className="cli-section-label px">필수 <span>{requiredOpts.length}</span></div>
-            {requiredOpts.map(o => field(o))}
-            {optionalOpts.length > 0 && <>
+            {cmd.sections.map(sec => (
+              <div key={sec.label} className="cli-sec">
+                <div className="cli-section-label px">{sec.label}</div>
+                {sec.options.map(o => field(o, !o.required))}
+              </div>
+            ))}
+            {cmd.advanced.length > 0 && <>
               <button className="cli-optional-toggle" onClick={() => setShowOptional(s => !s)}>
-                {showOptional ? '▾' : '▸'} 선택 옵션 {optionalOpts.length}개 {showOptional ? '접기' : '펼치기'}
+                {showOptional ? '▾' : '▸'} 고급 옵션 {cmd.advanced.length}개 (태그·대기 등) {showOptional ? '접기' : '펼치기'}
               </button>
-              {showOptional && optionalOpts.map(o => field(o, true))}
+              {showOptional && cmd.advanced.map(o => field(o, true))}
             </>}
           </div>
         ) : (
@@ -276,6 +284,7 @@ function Field({ o, value, onChange, optional, dynamic, onToggleDynamic }: {
     <label className={`cli-field-label${optional ? ' optional' : ''}`}>
       <code>{o.name}</code>
       {o.required && <span className="req">*</span>}
+      {o.console && <span className="cli-console-req px">콘솔 필수</span>}
       {onToggleDynamic && (
         <span className="cli-dyn-toggle" title={dynMeta.note}>
           <input type="checkbox" checked={dynamic} onChange={e => onToggleDynamic(e.target.checked)} />
