@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHub } from '../store'
-import { getPat, getFile, putFile } from '../lib/githubDb'
+import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import PatNotice from '../components/PatNotice'
 
 interface Card { id: string; text: string; created: string; tags?: string[] }
@@ -55,8 +55,8 @@ export default function TodoPage() {
         const f = await getFile(pat, 'todo/board.json')
         shaRef.current = await putFile(pat, 'todo/board.json', body, 'todo: 보드 갱신', f?.sha)
         setSync('synced')
-      } catch {
-        setSync('error'); showToast('board.json commit 실패')
+      } catch (e) {
+        setSync('error'); showToast(`저장 실패: ${explainGhError(e)}`)
       }
     }
   }, [pat, showToast])

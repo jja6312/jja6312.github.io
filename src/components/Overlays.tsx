@@ -30,8 +30,9 @@ export function HelpOverlay() {
         <div className="krow"><span>학습</span><span><kbd>g</kbd> <kbd>l</kbd></span></div>
         <div className="krow"><span>복습</span><span><kbd>g</kbd> <kbd>r</kbd></span></div>
         <div className="krow"><span>피드백</span><span><kbd>g</kbd> <kbd>f</kbd></span></div>
-        <div className="krow"><span>트러블슈팅</span><span><kbd>g</kbd> <kbd>s</kbd></span></div>
-        <div className="krow"><span>OCI공지</span><span><kbd>g</kbd> <kbd>a</kbd></span></div>
+        <div className="krow"><span>지식모음</span><span><kbd>g</kbd> <kbd>k</kbd></span></div>
+        <div className="krow"><span>지식모음 — 트러블슈팅</span><span><kbd>g</kbd> <kbd>s</kbd></span></div>
+        <div className="krow"><span>지식모음 — OCI공지</span><span><kbd>g</kbd> <kbd>a</kbd></span></div>
         <div className="krow"><span>TODO</span><span><kbd>g</kbd> <kbd>t</kbd></span></div>
         <div className="krow"><span>회의록</span><span><kbd>g</kbd> <kbd>m</kbd></span></div>
         <div className="kgroup px">화면</div>

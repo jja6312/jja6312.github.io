@@ -7,8 +7,7 @@ import LearningHome from './pages/LearningHome'
 import SheetPage from './pages/SheetPage'
 import ReviewPage from './pages/ReviewPage'
 import FeedbackPage from './pages/FeedbackPage'
-import TroubleshootingPage from './pages/TroubleshootingPage'
-import AnnouncementsPage from './pages/AnnouncementsPage'
+import KnowledgePage from './pages/KnowledgePage'
 import TodoPage from './pages/TodoPage'
 import MeetingsPage from './pages/MeetingsPage'
 import { useHub } from './store'
@@ -37,8 +36,9 @@ function Hotkeys() {
         if (e.key === 'l') nav('/learning')
         else if (e.key === 'r') nav('/review')
         else if (e.key === 'f') nav('/feedback')
-        else if (e.key === 's') nav('/troubleshooting')
-        else if (e.key === 'a') nav('/announcements')
+        else if (e.key === 'k') nav('/knowledge')
+        else if (e.key === 's') nav('/knowledge/troubleshooting')
+        else if (e.key === 'a') nav('/knowledge/announcements')
         else if (e.key === 't') nav('/todo')
         else if (e.key === 'm') nav('/meetings')
         return
@@ -75,8 +75,11 @@ function Shell() {
         <Route path="/learning/:curriculumId/:sheetId" element={<SheetPage />} />
         <Route path="/review" element={<ReviewPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
-        <Route path="/troubleshooting" element={<TroubleshootingPage />} />
-        <Route path="/announcements" element={<AnnouncementsPage />} />
+        <Route path="/knowledge" element={<KnowledgePage />} />
+        <Route path="/knowledge/:section" element={<KnowledgePage />} />
+        {/* 구 경로 호환 */}
+        <Route path="/troubleshooting" element={<Navigate to="/knowledge/troubleshooting" replace />} />
+        <Route path="/announcements" element={<Navigate to="/knowledge/announcements" replace />} />
         <Route path="/todo" element={<TodoPage />} />
         <Route path="/meetings" element={<MeetingsPage />} />
         <Route path="*" element={<Navigate to="/learning" replace />} />

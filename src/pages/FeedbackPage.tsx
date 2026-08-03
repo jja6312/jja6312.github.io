@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useHub } from '../store'
 import type { FeedbackItem, FeedbackSeverity, FeedbackStatus } from '../types'
-import { getPat, setPat, commitFeedback, fetchFeedbackList } from '../lib/githubDb'
+import { getPat, setPat, commitFeedback, fetchFeedbackList, explainGhError } from '../lib/githubDb'
 
 const PENDING_KEY = 'hub-feedback-pending'
 const loadPending = (): FeedbackItem[] => JSON.parse(localStorage.getItem(PENDING_KEY) || '[]')
@@ -36,8 +36,8 @@ export default function FeedbackPage() {
     try {
       const remote = await fetchFeedbackList(pat)
       setItems([...pending, ...remote])
-    } catch {
-      showToast('blog-db 조회 실패 — PAT 확인')
+    } catch (e) {
+      showToast(`조회 실패: ${explainGhError(e)}`)
       setItems(pending)
     } finally { setLoading(false) }
   }, [pat, showToast])
@@ -82,8 +82,8 @@ export default function FeedbackPage() {
       }
       setTitle(''); setBody(''); setTags('')
       refresh()
-    } catch {
-      showToast('commit 실패 — PAT 권한 확인')
+    } catch (e) {
+      showToast(`commit 실패: ${explainGhError(e)}`)
     } finally { setBusy(false) }
   }
 

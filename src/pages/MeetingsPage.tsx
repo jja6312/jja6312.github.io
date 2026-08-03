@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
 import { useHub } from '../store'
-import { getPat, listDir, getFileByUrl } from '../lib/githubDb'
+import { getPat, listDir, getFileByUrl, explainGhError } from '../lib/githubDb'
 import PatNotice from '../components/PatNotice'
 
 interface Minute { name: string; content: string }
@@ -24,7 +24,7 @@ export default function MeetingsPage() {
         return content ? { name: e.name, content } : null
       }))
       setMinutes(docs.filter((x): x is Minute => !!x).sort((a, b) => b.name.localeCompare(a.name)))
-    } catch { showToast('회의록 조회 실패') }
+    } catch (e) { showToast(`회의록 조회 실패: ${explainGhError(e)}`) }
     finally { setLoading(false) }
   }, [pat, showToast])
 

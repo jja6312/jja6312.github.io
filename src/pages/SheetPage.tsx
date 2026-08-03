@@ -147,7 +147,7 @@ export default function SheetPage() {
   const { curriculumId, sheetId } = useParams()
   const sheet = sheets[sheetId ?? '']
   const cur = findCurriculum(curriculumId) ?? findCurriculum(sheet?.curriculum)
-  const { steps, results, markStep, addXP, showToast, completedSheets, completeSheet } = useHub()
+  const { steps, results, markStep, addXP, showToast, completedSheets, completeSheet, sidebarCollapsed, toggleSidebar } = useHub()
   const bonusRef = useRef(false)
 
   const stepIds = useMemo(
@@ -187,10 +187,17 @@ export default function SheetPage() {
 
   return (
     <>
-      <div className="layout">
+      <div className={`layout${sidebarCollapsed ? ' side-collapsed' : ''}`}>
+        {sidebarCollapsed && (
+          <button className="side-expand" onClick={toggleSidebar} title="메뉴 펼치기">
+            <span className="px">☰ 메뉴</span>
+          </button>
+        )}
         <aside className="sidebar">
           <div>
-            <div className="side-title px">CURRICULUM</div>
+            <div className="side-title px">CURRICULUM
+              <button className="side-fold" onClick={toggleSidebar} title="메뉴 접기">접기 ◂</button>
+            </div>
             <div className="card">
               <div className="course-hd">
                 <b>{cur.title}</b>

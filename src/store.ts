@@ -15,6 +15,7 @@ interface HubState {
   answers: Record<string, string>         // sheet:scenario → 제출 답안
   comments: Comment[]
   completedSheets: string[]
+  sidebarCollapsed: boolean               // 학습지 좌측 메뉴 접힘 (영속)
   // UI (비영속)
   toast: string | null
   levelFx: number
@@ -34,6 +35,7 @@ interface HubState {
   setHelpOpen: (v: boolean) => void
   setPaletteOpen: (v: boolean) => void
   setCmtTarget: (v: string) => void
+  toggleSidebar: () => void
 }
 
 export const useHub = create<HubState>()(
@@ -42,6 +44,7 @@ export const useHub = create<HubState>()(
       theme: (localStorage.getItem('hub-theme') as 'dark' | 'light') || 'dark',
       xp: 0, level: 1, totalXp: 0, streak: 1,
       steps: {}, results: {}, answers: {}, comments: [], completedSheets: [],
+      sidebarCollapsed: false,
       toast: null, levelFx: 0, cmtOpen: false, helpOpen: false, paletteOpen: false, cmtTarget: '전체',
 
       toggleTheme: () => {
@@ -100,6 +103,7 @@ export const useHub = create<HubState>()(
       setHelpOpen: (v) => set({ helpOpen: v }),
       setPaletteOpen: (v) => set({ paletteOpen: v }),
       setCmtTarget: (v) => set({ cmtTarget: v }),
+      toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
     }),
     {
       name: 'hub-state-v1',
@@ -107,6 +111,7 @@ export const useHub = create<HubState>()(
         xp: s.xp, level: s.level, totalXp: s.totalXp, streak: s.streak,
         steps: s.steps, results: s.results, answers: s.answers,
         comments: s.comments, completedSheets: s.completedSheets,
+        sidebarCollapsed: s.sidebarCollapsed,
       }),
     },
   ),

@@ -5,8 +5,7 @@ const tabs = [
   { to: '/learning', label: '학습', ready: true },
   { to: '/review', label: '복습', ready: true },
   { to: '/feedback', label: '피드백', ready: true },
-  { to: '/troubleshooting', label: '트러블슈팅', ready: true },
-  { to: '/announcements', label: 'OCI공지', ready: true },
+  { to: '/knowledge', label: '지식모음', ready: true },
   { to: '/todo', label: 'TODO', ready: true },
   { to: '/meetings', label: '회의록', ready: true },
 ]

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
 import { useHub } from '../store'
-import { getPat, listDir, getFileByUrl, putFile } from '../lib/githubDb'
+import { getPat, listDir, getFileByUrl, putFile, explainGhError } from '../lib/githubDb'
 import PatNotice from '../components/PatNotice'
 
 interface CaseDoc { name: string; content: string }
@@ -32,7 +32,7 @@ export default function TroubleshootingPage() {
         return content ? { name: e.name, content } : null
       }))
       setCases(docs.filter((x): x is CaseDoc => !!x).sort((a, b) => b.name.localeCompare(a.name)))
-    } catch { showToast('케이스 목록 조회 실패') }
+    } catch (e) { showToast(`목록 조회 실패: ${explainGhError(e)}`) }
     finally { setLoading(false) }
   }, [pat, showToast])
 
@@ -57,7 +57,7 @@ export default function TroubleshootingPage() {
       showToast('케이스 commit 완료 ✓')
       setWriting(false); setTitle(''); setTags(''); setBody('')
       refresh()
-    } catch { showToast('commit 실패') }
+    } catch (e) { showToast(`commit 실패: ${explainGhError(e)}`) }
     finally { setBusy(false) }
   }
 

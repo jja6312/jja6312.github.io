@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
 import { useHub } from '../store'
-import { getPat, listDir, getFileByUrl } from '../lib/githubDb'
+import { getPat, listDir, getFileByUrl, explainGhError } from '../lib/githubDb'
 import PatNotice from '../components/PatNotice'
 
 interface AnnDoc { name: string; folder: 'catalog' | 'snapshots'; content: string }
@@ -32,7 +32,7 @@ export default function AnnouncementsPage() {
         return files.filter((x): x is AnnDoc => !!x)
       }))
       setDocs(loaded.flat().sort((a, b) => b.name.localeCompare(a.name)))
-    } catch { showToast('공지 DB 조회 실패') }
+    } catch (e) { showToast(`공지 DB 조회 실패: ${explainGhError(e)}`) }
     finally { setLoading(false) }
   }, [pat, showToast])
 
