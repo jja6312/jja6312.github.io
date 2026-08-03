@@ -26,12 +26,20 @@ export function HelpOverlay() {
     <div className="overlay" onClick={() => setHelpOpen(false)}>
       <div className="helpcard" onClick={e => e.stopPropagation()}>
         <h3 className="px">단축키</h3>
+        <div className="kgroup px">이동 — g 누르고 한 글자</div>
+        <div className="krow"><span>학습</span><span><kbd>g</kbd> <kbd>l</kbd></span></div>
+        <div className="krow"><span>복습</span><span><kbd>g</kbd> <kbd>r</kbd></span></div>
+        <div className="krow"><span>피드백</span><span><kbd>g</kbd> <kbd>f</kbd></span></div>
+        <div className="krow"><span>트러블슈팅</span><span><kbd>g</kbd> <kbd>s</kbd></span></div>
+        <div className="krow"><span>OCI공지</span><span><kbd>g</kbd> <kbd>a</kbd></span></div>
+        <div className="krow"><span>TODO</span><span><kbd>g</kbd> <kbd>t</kbd></span></div>
+        <div className="krow"><span>회의록</span><span><kbd>g</kbd> <kbd>m</kbd></span></div>
+        <div className="kgroup px">화면</div>
         <div className="krow"><span>커맨드 팔레트</span><span><kbd>Ctrl</kbd> <kbd>K</kbd></span></div>
         <div className="krow"><span>다크/라이트 토글</span><kbd>d</kbd></div>
         <div className="krow"><span>댓글 패널 토글</span><kbd>c</kbd></div>
         <div className="krow"><span>다음/이전 단계</span><span><kbd>j</kbd> <kbd>k</kbd></span></div>
-        <div className="krow"><span>이동: 학습 / 복습 / 피드백</span><span><kbd>g</kbd>+<kbd>l</kbd> / <kbd>g</kbd>+<kbd>r</kbd> / <kbd>g</kbd>+<kbd>f</kbd></span></div>
-        <div className="krow"><span>이 가이드</span><span><kbd>?</kbd> <kbd>Esc</kbd></span></div>
+        <div className="krow"><span>이 가이드 열기·닫기</span><span><kbd>?</kbd> <kbd>Esc</kbd></span></div>
       </div>
     </div>
   )

@@ -32,12 +32,14 @@ function Hotkeys() {
 
       if (gPending.current) {
         gPending.current = false
+        // g 시퀀스 = 탭 이동 (탭 하나당 하나씩, 헤더 순서와 동일)
         if (e.key === 'l') nav('/learning')
         else if (e.key === 'r') nav('/review')
         else if (e.key === 'f') nav('/feedback')
-        else if (e.key === 't') nav('/todo')
+        else if (e.key === 's') nav('/troubleshooting')
         else if (e.key === 'a') nav('/announcements')
-        else if (e.key === 's') s.setPaletteOpen(true)
+        else if (e.key === 't') nav('/todo')
+        else if (e.key === 'm') nav('/meetings')
         return
       }
       if (e.key === 'g') { gPending.current = true; setTimeout(() => { gPending.current = false }, 800); return }
