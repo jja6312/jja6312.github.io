@@ -36,6 +36,55 @@ const DYNAMIC: Record<string, { input: string; note: string }> = {
   '--subnet-id': { input: 'Subnet 이름', note: '이름으로 OCID 자동 조회 (compartment 기준)' },
 }
 
+/* ── JSON 옵션 서브필드 스키마 — 사용자는 값만 넣고 {} 는 자동 조립 ── */
+interface JsonSubField { key: string; label: string; kind: 'text' | 'num' | 'bool' | 'strlist' | 'ssh'; ph?: string }
+const JSONSPEC: Record<string, { list?: boolean; ph?: string; fields?: JsonSubField[] }> = {
+  '--metadata': { fields: [
+    { key: 'ssh_authorized_keys', label: 'SSH 공개키', kind: 'ssh', ph: 'ssh-rsa AAAA… (.pub 파일 업로드 또는 붙여넣기)' },
+  ] },
+  '--create-vnic-details': { fields: [
+    { key: 'assignPublicIp', label: '공인 IP 할당', kind: 'bool' },
+    { key: 'hostnameLabel', label: 'Hostname', kind: 'text', ph: 'web01' },
+    { key: 'privateIp', label: '사설 IP (고정)', kind: 'text', ph: '10.0.1.10' },
+    { key: 'nsgIds', label: 'NSG OCID (콤마 구분)', kind: 'strlist', ph: 'ocid1.networksecuritygroup…' },
+  ] },
+  '--shape-config': { fields: [
+    { key: 'ocpus', label: 'OCPU 수', kind: 'num', ph: '1' },
+    { key: 'memoryInGBs', label: '메모리(GB)', kind: 'num', ph: '16' },
+  ] },
+  '--shape-details': { fields: [
+    { key: 'minimumBandwidthInMbps', label: '최소 대역폭(Mbps)', kind: 'num', ph: '10' },
+    { key: 'maximumBandwidthInMbps', label: '최대 대역폭(Mbps)', kind: 'num', ph: '100' },
+  ] },
+  '--subnet-ids': { list: true, ph: 'ocid1.subnet… (콤마로 여러 개)' },
+  '--nsg-ids': { list: true, ph: 'ocid1.networksecuritygroup… (콤마 구분)' },
+  '--network-security-group-ids': { list: true, ph: 'ocid1.networksecuritygroup… (콤마 구분)' },
+  '--security-list-ids': { list: true, ph: 'ocid1.securitylist… (콤마 구분)' },
+  '--whitelisted-ips': { list: true, ph: '1.2.3.4, 5.6.7.8/29' },
+}
+const subKey = (opt: string, key: string) => `${opt}::${key}`
+
+/* 서브필드 값 → JSON 문자열 (비면 '') */
+function buildJsonValue(optName: string, values: Record<string, string>): string {
+  const spec = JSONSPEC[optName]
+  if (!spec) return ''
+  if (spec.list) {
+    const raw = (values[optName] ?? '').trim()
+    if (!raw) return ''
+    return JSON.stringify(raw.split(',').map(s => s.trim()).filter(Boolean))
+  }
+  const obj: Record<string, unknown> = {}
+  for (const f of spec.fields ?? []) {
+    const v = (values[subKey(optName, f.key)] ?? '').trim()
+    if (!v) continue
+    obj[f.key] = f.kind === 'num' ? Number(v)
+      : f.kind === 'bool' ? v === 'true'
+      : f.kind === 'strlist' ? v.split(',').map(s => s.trim()).filter(Boolean)
+      : v
+  }
+  return Object.keys(obj).length ? JSON.stringify(obj) : ''
+}
+
 interface Favorite { id: string; name: string; resource: string; values: Record<string, string>; dyn?: Record<string, boolean> }
 const FAV_KEY = 'hub-cli-favorites'
 const loadFavs = (): Favorite[] => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]') } catch { return [] } }
@@ -64,6 +113,12 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
 
   for (const o of allOptions(cmd)) {
     const v = (values[o.name] ?? '').trim()
+    // JSON 서브필드 스펙 — 값이 조립되면 넣고, 비면 생략
+    if (JSONSPEC[o.name]) {
+      const j = buildJsonValue(o.name, values)
+      if (j) args.push(`  ${o.name} '${j}'`)
+      continue
+    }
     // 값 없는 선택 옵션은 동적 모드여도 생략 — 명령을 어지럽히지 않는다
     if (!o.required && !v) continue
     if (o.name === '--compartment-id') {
@@ -187,7 +242,9 @@ export default function CliBuilderPage() {
   const field = (o: CliOption, optional?: boolean) => (
     <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
       dynamic={isDynamic(dyn, o.name)}
-      onToggleDynamic={o.name in DYNAMIC ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined} />
+      onToggleDynamic={o.name in DYNAMIC ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
+      subVal={k => values[subKey(o.name, k)] || ''}
+      onSub={(k, v) => setVal(subKey(o.name, k), v)} />
   )
 
   return (
@@ -275,16 +332,17 @@ export default function CliBuilderPage() {
   )
 }
 
-function Field({ o, value, onChange, optional, dynamic, onToggleDynamic }: {
+function Field({ o, value, onChange, optional, dynamic, onToggleDynamic, subVal, onSub }: {
   o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean
   dynamic: boolean; onToggleDynamic?: (on: boolean) => void
+  subVal: (key: string) => string; onSub: (key: string, v: string) => void
 }) {
   const dynMeta = DYNAMIC[o.name]
   const label = (
     <label className={`cli-field-label${optional ? ' optional' : ''}`}>
       <code>{o.name}</code>
       {o.required && <span className="req">*</span>}
-      {o.console && <span className="cli-console-req px">콘솔 필수</span>}
+      {o.console && <span className="cli-console-req px">필수</span>}
       {onToggleDynamic && (
         <span className="cli-dyn-toggle" title={dynMeta.note}>
           <input type="checkbox" checked={dynamic} onChange={e => onToggleDynamic(e.target.checked)} />
@@ -302,6 +360,53 @@ function Field({ o, value, onChange, optional, dynamic, onToggleDynamic }: {
           <option value="">(선택 안 함)</option>
           {o.choices.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+      </div>
+    )
+  }
+  const spec = JSONSPEC[o.name]
+  if (spec?.list) {
+    return (
+      <div className="cli-field">
+        {label}
+        <input className="cli-input" value={value} placeholder={spec.ph} onChange={e => onChange(e.target.value)} />
+      </div>
+    )
+  }
+  if (spec?.fields) {
+    return (
+      <div className="cli-field">
+        {label}
+        <div className="cli-json-group">
+          {spec.fields.map(f => (
+            <div key={f.key} className="cli-subfield">
+              <span className="cli-sublabel">{f.label}</span>
+              {f.kind === 'bool' ? (
+                <select className="cli-input" value={subVal(f.key)} onChange={e => onSub(f.key, e.target.value)}>
+                  <option value="">(미설정)</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              ) : f.kind === 'ssh' ? (
+                <div className="cli-sshrow">
+                  <label className="cli-filebtn">
+                    파일 업로드
+                    <input type="file" accept=".pub,.txt,.pem,text/plain" style={{ display: 'none' }}
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (file) file.text().then(txt => onSub(f.key, txt.trim()))
+                        e.target.value = ''
+                      }} />
+                  </label>
+                  <input className="cli-input" value={subVal(f.key)} placeholder={f.ph}
+                    onChange={e => onSub(f.key, e.target.value)} />
+                </div>
+              ) : (
+                <input className="cli-input" value={subVal(f.key)} placeholder={f.ph}
+                  onChange={e => onSub(f.key, e.target.value)} />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
