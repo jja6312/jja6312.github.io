@@ -13,7 +13,7 @@ const sevMeta: Record<FeedbackSeverity, { label: string; color: string }> = {
   idea: { label: '아이디어', color: 'var(--accent)' },
 }
 const statusMeta: Record<FeedbackStatus, string> = {
-  open: '⏳ open', in_progress: '🔧 진행중', resolved: '✅ 해결', wontfix: '⛔ wontfix',
+  open: 'open', in_progress: '진행중', resolved: '해결', wontfix: 'wontfix',
 }
 
 export default function FeedbackPage() {
@@ -118,7 +118,7 @@ export default function FeedbackPage() {
       {/* PAT 설정 */}
       <details className="card" style={{ padding: '12px 18px', marginBottom: 18, fontSize: 13 }} open={!pat}>
         <summary style={{ cursor: 'pointer', color: pat ? 'var(--accent)' : 'var(--partial)' }}>
-          {pat ? '🔑 PAT 등록됨 — blog-db 직접 commit' : '🔑 PAT 미등록 — 지금은 이 브라우저에만 저장됨'}
+          {pat ? 'PAT 등록됨 — blog-db 직접 commit' : 'PAT 미등록 — 지금은 이 브라우저에만 저장됨'}
         </summary>
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <input className="cmdinput" type="password" style={{ flex: 1, minWidth: 200 }}

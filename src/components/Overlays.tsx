@@ -25,7 +25,7 @@ export function HelpOverlay() {
   return (
     <div className="overlay" onClick={() => setHelpOpen(false)}>
       <div className="helpcard" onClick={e => e.stopPropagation()}>
-        <h3 className="px">⌨ 단축키</h3>
+        <h3 className="px">단축키</h3>
         <div className="krow"><span>커맨드 팔레트</span><span><kbd>Ctrl</kbd> <kbd>K</kbd></span></div>
         <div className="krow"><span>다크/라이트 토글</span><kbd>d</kbd></div>
         <div className="krow"><span>댓글 패널 토글</span><kbd>c</kbd></div>

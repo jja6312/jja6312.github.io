@@ -111,7 +111,7 @@ function ReviewCard({ item, onGraded }: { item: PoolItem; onGraded: (v: Verdict)
 
       {graded && (
         <div className={`result ${verdict === 'O' ? 'ok' : verdict === '△' ? 'mid' : 'no'}`}>
-          <div className="verdict px">{verdict === 'O' ? '⭕ 정답!' : verdict === '△' ? '🔺 부분 정답' : '❌ 오답'}</div>
+          <div className="verdict px">{verdict === 'O' ? '정답' : verdict === '△' ? '부분 정답' : '오답'}</div>
           <div className="exp" dangerouslySetInnerHTML={{ __html: scen.explanation }} />
           {scen.type === 'command' && verdict !== 'O' &&
             <div className="ans">정답 예: <code>{scen.answers[0]}</code></div>}
@@ -254,7 +254,7 @@ export default function ReviewPage() {
           <div className="big px">복습 완료 — {o} / {quiz.length}{d > 0 && ` (△${d})`}</div>
           {improved > 0 && <div className="row" style={{ color: 'var(--accent)' }}>오답 → 정답 전환 {improved}건! (+{improved * 5} XP 보너스)</div>}
           <div className="row" style={{ fontSize: 11 }}>세션 결과가 attempt(review) 로 기록됩니다</div>
-          <div className="xpgain px">🏆 세션 완료 +{30 + improved * 5} XP</div>
+          <div className="xpgain px">세션 완료 +{30 + improved * 5} XP</div>
           <div style={{ marginTop: 16 }}>
             <button className="submitbtn" onClick={() => { setPhase('select'); setSelected([]) }}>다시 복습</button>
           </div>

@@ -113,8 +113,78 @@ export const day01: Sheet = {
   title: '부팅 과정과 systemd 서비스',
   tags: ['linux', 'systemd', 'boot'],
   difficulty: 1,
-  estimated_minutes: 50,
-  goal: '부팅 5단계 + systemctl/journalctl 첫 진입',
+  estimated_minutes: 75,
+  goal: '부팅 5단계 + 앱 서비스 자동 기동을 실전 구축',
+  lab: {
+    situation: `고객사 B의 OCI VM(Oracle Linux)에서 자바 애플리케이션을 <code>nohup java -jar app.jar &amp;</code> 로 수동 기동 중이다.
+야간 패치 재부팅 후 앱이 안 떠 있어 아침마다 장애 콜이 온다.`,
+    request: `"재부팅하면 앱이 <b>자동으로 뜨고</b>, 프로세스가 죽어도 <b>스스로 재시작</b>되게 만들어 주세요.
+네트워크가 올라온 뒤에 시작해야 합니다."`,
+    steps: [
+      {
+        id: 'l1', title: '요구 분석 — systemd 기능 매핑',
+        body: `<pre>"재부팅 시 자동 기동"   → unit 파일 작성 + systemctl enable
+"죽으면 자동 재시작"     → [Service] Restart=on-failure
+"네트워크 이후 시작"     → After=network-online.target + Wants=
+"수동 기동 폐지"         → nohup 제거, 기동·중지·로그를 systemctl/journalctl로 일원화</pre>`,
+      },
+      {
+        id: 'l2', title: 'unit 파일 작성',
+        body: `<p><code>/etc/systemd/system/app.service</code> 생성:</p>
+<pre>[Unit]
+Description=Customer B java application
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=appuser
+WorkingDirectory=/opt/app
+ExecStart=/usr/bin/java -jar /opt/app/app.jar
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</pre>
+<ul>
+<li><code>After=</code>만 쓰면 순서 보장뿐 — 네트워크 대기까지 원하면 <code>Wants=network-online.target</code>을 함께 (개념 2의 함정 그대로)</li>
+<li><code>ExecStart</code>는 절대경로. <code>&amp;</code>·nohup 금지 — 백그라운드화는 systemd의 일</li>
+</ul>`,
+      },
+      {
+        id: 'l3', title: '적용 — reload + enable --now',
+        body: `<pre>sudo systemctl daemon-reload          # unit 파일 변경 인지
+sudo systemctl enable --now app       # 부팅 자동시작 + 즉시 기동
+systemctl status app                  # active (running) 확인</pre>
+<p><code>enable --now</code> 한 줄이 "자동 기동 + 지금 기동" 요구를 동시에 충족한다 (시나리오 S2와 동일 지점).</p>`,
+      },
+      {
+        id: 'l4', title: '자동 재시작 검증 — 일부러 죽여본다',
+        body: `<pre>sudo pkill -f 'java -jar /opt/app/app.jar'   # 프로세스 강제 종료
+sleep 6
+systemctl status app                          # 다시 active (running) 이면 합격</pre>
+<p>확인 포인트: status의 <code>Main PID</code>가 바뀌어 있고, <code>journalctl -u app -e</code> 에 재시작 로그가 남는다.</p>`,
+      },
+      {
+        id: 'l5', title: '재부팅 검증',
+        body: `<pre>sudo reboot
+# 재접속 후
+systemctl is-enabled app    # enabled
+systemctl is-active app     # active
+journalctl -b -u app -e     # 이번 부팅에서의 기동 로그</pre>
+<p><code>journalctl -b</code>(이번 부팅 한정)가 재부팅 검증의 표준 도구다 — 시나리오 S5의 rubric과 같은 지점.</p>`,
+      },
+      {
+        id: 'l6', title: '인수인계 — 운영 명령 3종 전달',
+        body: `<pre>systemctl status app        # 상태
+sudo systemctl restart app  # 재기동 (배포 후)
+journalctl -u app -f        # 실시간 로그</pre>
+<ul>
+<li>고객에게 "nohup은 더 이상 쓰지 않는다"를 명시 — 이중 기동 사고 방지</li>
+<li>app.jar 교체 배포 절차: 파일 교체 → <code>systemctl restart app</code> 한 줄</li>
+</ul>`,
+      },
+    ],
+  },
   concepts: [
     { id: 'c1', title: '개념 1. 부팅 5단계', diagram: svgBoot, body: '' },
     {

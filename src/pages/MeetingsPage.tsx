@@ -53,7 +53,7 @@ export default function MeetingsPage() {
         blog-db <code className="mono">meetings/minutes/</code> 에 쌓이고, 여기서 열람·검색.
       </p>
 
-      <input className="cmdinput" style={{ fontFamily: 'Pretendard', marginBottom: 16 }} placeholder="🔍 검색 (파일명·본문)"
+      <input className="cmdinput" style={{ fontFamily: 'Pretendard', marginBottom: 16 }} placeholder="검색 (파일명·본문)"
         value={q} onChange={e => setQ(e.target.value)} />
 
       {loading && <div className="cmt-empty">불러오는 중…</div>}
@@ -67,7 +67,7 @@ export default function MeetingsPage() {
         <div key={m.name} className="scen" style={{ padding: '14px 18px', marginBottom: 10, cursor: 'pointer' }}
           onClick={() => setOpen(open === m.name ? null : m.name)}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-            <span className="sid px">🎙</span>
+            <span className="sid px">MIN</span>
             <b style={{ fontSize: 14 }}>{(m.content.match(/^#\s+(.+)$/m)?.[1]) ?? m.name.replace(/\.md$/, '')}</b>
             <span className="px" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-faint)' }}>
               {open === m.name ? '▲ 접기' : '▼ 열기'}

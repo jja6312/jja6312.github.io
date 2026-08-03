@@ -51,30 +51,41 @@ function CategoryCard({ cur }: { cur: Curriculum }) {
         </div>
         <div className="meta" style={{ marginTop: 6 }}>{cur.description}</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12, padding: '14px 20px 18px' }}>
-        {cur.topics?.map(t => {
-          const planned = t.status === 'planned' || !sheets[t.sheet]
-          const done = completedSheets.includes(t.sheet)
-          const started = Object.keys(steps).some(k => k.startsWith(`${t.sheet}:`))
-          const box = (
-            <div className="topic-box" style={{
-              border: `1px solid ${done ? 'var(--accent-dim)' : 'var(--line-soft)'}`,
-              borderRadius: 12, padding: '14px 16px', height: '100%',
-              background: done ? 'var(--accent-glow)' : 'var(--bg-inset)',
-              opacity: planned ? .55 : 1,
-            }}>
-              <span className="px" style={{ fontSize: 9, color: planned ? 'var(--text-faint)' : done ? 'var(--accent)' : 'var(--pixel)' }}>
-                {planned ? '🔒 예정' : done ? '✓ 완료' : started ? '진행중' : `${t.estimated_minutes}m`}
-              </span>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: planned ? 'var(--text-dim)' : 'var(--text)', margin: '6px 0 4px' }}>{t.title}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-faint)', lineHeight: 1.6 }}>{t.goal}</div>
+      {[1, 2, 3].map(lv => {
+        const topics = cur.topics?.filter(t => (t.level ?? 1) === lv) ?? []
+        if (topics.length === 0) return null
+        return (
+          <div key={lv} style={{ padding: '4px 20px 14px' }}>
+            <div className="px" style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: 1, margin: '8px 0 8px' }}>
+              LEVEL {lv} <span style={{ color: 'var(--line)' }}>{'─'.repeat(3)}</span> {lv === 1 ? '기본기' : lv === 2 ? '운영 심화' : '아키텍처·거버넌스'}
             </div>
-          )
-          return planned
-            ? <div key={t.topic}>{box}</div>
-            : <Link key={t.topic} to={`/learning/${cur.id}/${t.sheet}`} style={{ textDecoration: 'none' }}>{box}</Link>
-        })}
-      </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12 }}>
+              {topics.map(t => {
+                const planned = t.status === 'planned' || !sheets[t.sheet]
+                const done = completedSheets.includes(t.sheet)
+                const started = Object.keys(steps).some(k => k.startsWith(`${t.sheet}:`))
+                const box = (
+                  <div style={{
+                    border: `1px solid ${done ? 'var(--accent-dim)' : 'var(--line-soft)'}`,
+                    borderRadius: 12, padding: '14px 16px', height: '100%',
+                    background: done ? 'var(--accent-glow)' : 'var(--bg-inset)',
+                    opacity: planned ? .55 : 1,
+                  }}>
+                    <span className="px" style={{ fontSize: 9, color: planned ? 'var(--text-faint)' : done ? 'var(--accent)' : 'var(--pixel)' }}>
+                      {planned ? '예정' : done ? '완료' : started ? '진행중' : `${t.estimated_minutes}m`}
+                    </span>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: planned ? 'var(--text-dim)' : 'var(--text)', margin: '6px 0 4px' }}>{t.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-faint)', lineHeight: 1.6 }}>{t.goal}</div>
+                  </div>
+                )
+                return planned
+                  ? <div key={t.topic}>{box}</div>
+                  : <Link key={t.topic} to={`/learning/${cur.id}/${t.sheet}`} style={{ textDecoration: 'none' }}>{box}</Link>
+              })}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -129,15 +129,15 @@ function ScenarioCard({ sheet, scen }: { sheet: string; scen: Scenario }) {
 
       {graded && scen.type !== 'essay' && (
         verdict === 'O'
-          ? resultBox('ok', `⭕ 정답! +${scen.xp} XP`, scen.explanation,
+          ? resultBox('ok', `정답 · +${scen.xp} XP`, scen.explanation,
               scen.type === 'command' ? `정답 예: <code>${scen.answers[0]}</code>` : undefined)
-          : resultBox('no', scen.type === 'choice' ? `❌ 오답 — 정답: ${scen.answers[0]}번` : '❌ 오답', scen.explanation,
+          : resultBox('no', scen.type === 'choice' ? `오답 — 정답: ${scen.answers[0]}번` : '오답', scen.explanation,
               scen.type === 'command' ? `정답 예: <code>${scen.answers[0]}</code> <span style="color:var(--text-faint)">(오탐이라 생각되면 이의 → 수동 정정)</span>` : undefined)
       )}
       {graded && scen.type === 'essay' && (
-        verdict === 'O' ? resultBox('ok', `⭕ 자기채점 O · +${scen.xp} XP`, '자기채점 결과와 답안이 attempt 로 기록됩니다 — 복습 모드에서 틀린 것부터 재출제.')
-        : verdict === '△' ? resultBox('mid', `🔺 자기채점 △ · +${Math.floor(scen.xp / 2)} XP (부분점수)`, '자기채점 결과와 답안이 attempt 로 기록됩니다.')
-        : resultBox('no', '❌ 자기채점 X', '복습 모드에서 이 시나리오부터 재출제됩니다.')
+        verdict === 'O' ? resultBox('ok', `자기채점 O · +${scen.xp} XP`, '자기채점 결과와 답안이 attempt 로 기록됩니다 — 복습 모드에서 틀린 것부터 재출제.')
+        : verdict === '△' ? resultBox('mid', `자기채점 △ · +${Math.floor(scen.xp / 2)} XP (부분점수)`, '자기채점 결과와 답안이 attempt 로 기록됩니다.')
+        : resultBox('no', '자기채점 X', '복습 모드에서 이 시나리오부터 재출제됩니다.')
       )}
     </div>
   )
@@ -151,12 +151,17 @@ export default function SheetPage() {
   const bonusRef = useRef(false)
 
   const stepIds = useMemo(
-    () => sheet ? [...sheet.concepts.map(c => c.id), ...sheet.scenarios.map(s => s.id)] : [],
+    () => sheet ? [
+      ...sheet.concepts.map(c => c.id),
+      ...(sheet.lab?.steps.map(l => l.id) ?? []),
+      ...sheet.scenarios.map(s => s.id),
+    ] : [],
     [sheet],
   )
   const doneCount = stepIds.filter(id => steps[`${sheet?.sheet}:${id}`]).length
   const allDone = sheet && doneCount === stepIds.length
   const anyScenarioGraded = sheet && sheet.scenarios.some(s => results[`${sheet.sheet}:${s.id}`])
+  const anyLabDone = sheet && (sheet.lab?.steps.some(l => steps[`${sheet.sheet}:${l.id}`]) ?? false)
 
   // 전 단계 완료 → 완주 보너스 1회
   useEffect(() => {
@@ -164,7 +169,7 @@ export default function SheetPage() {
     if (completedSheets.includes(sheet.sheet)) return
     bonusRef.current = true
     completeSheet(sheet.sheet)
-    setTimeout(() => { addXP(100 * sheet.difficulty); showToast('🏆 완주 보너스!') }, 400)
+    setTimeout(() => { addXP(100 * sheet.difficulty); showToast('완주 보너스!') }, 400)
   }, [allDone, sheet, completedSheets, completeSheet, addXP, showToast])
 
   if (!sheet || !cur) {
@@ -202,7 +207,7 @@ export default function SheetPage() {
                 : cur.topics?.map(t => (
                     <div key={t.topic} className={`dayitem${t.sheet === sheet.sheet ? ' active' : ''}`}
                       style={t.status === 'planned' ? { opacity: .5 } : undefined}>
-                      <span className="dnum px">{t.status === 'planned' ? '🔒' : '●'}</span> {t.title.split(' — ')[0]}
+                      <span className="dnum px">{t.status === 'planned' ? '-' : '●'}</span> {t.title.split(' — ')[0]}
                     </div>
                   ))}
             </div>
@@ -213,6 +218,11 @@ export default function SheetPage() {
             {sheet.concepts.map((c, i) => (
               <div key={c.id} className={`step${steps[`${sheet.sheet}:${c.id}`] ? ' done' : ''}`} onClick={() => goStep(c.id)}>
                 <span className="bx" />개념 {i + 1} — {c.title.replace(/^개념 \d+\. /, '')}<span className="tag px">개념</span>
+              </div>
+            ))}
+            {sheet.lab?.steps.map((l, i) => (
+              <div key={l.id} className={`step${steps[`${sheet.sheet}:${l.id}`] ? ' done' : ''}`} onClick={() => goStep(l.id)}>
+                <span className="bx" />구축 {i + 1} — {l.title.split(' — ')[0]}<span className="tag px">실습</span>
               </div>
             ))}
             {sheet.scenarios.map(s => (
@@ -227,8 +237,9 @@ export default function SheetPage() {
           <div className="crumb"><span className="px">LEARNING</span> / <Link to="/learning" style={{ color: 'inherit' }}>{cur.title}</Link> / {sheetLabel}</div>
           <h1 className="sheet-h1">{sheet.title}</h1>
           <div className="sheetmeta">
-            <span className="chip goal">🎯 {sheet.goal}</span>
-            <span className="chip">⏱ {sheet.estimated_minutes}분</span>
+            <span className="chip goal">목표 — {sheet.goal}</span>
+            <span className="chip">{sheet.estimated_minutes}분</span>
+            {sheet.level && <span className="chip px" style={{ fontSize: 10 }}>Lv.{sheet.level}</span>}
             {sheet.tags.map(t => <span key={t} className="chip">#{t}</span>)}
           </div>
 
@@ -237,7 +248,7 @@ export default function SheetPage() {
             <span className="mcount">{doneCount}/{stepIds.length}</span>
             {stepIds.map((id, i) => {
               const done = steps[`${sheet.sheet}:${id}`]
-              const label = id.startsWith('c') ? `개념${i + 1}` : id.toUpperCase()
+              const label = id.startsWith('c') ? `개념${i + 1}` : id.startsWith('l') ? `실습${id.slice(1)}` : id.toUpperCase()
               return (
                 <button key={id} className={`mstep${done ? ' done' : ''}`} onClick={() => goStep(id)}>
                   {done ? '✓ ' : ''}{label}
@@ -246,10 +257,14 @@ export default function SheetPage() {
             })}
           </div>
 
+          {/* STEP 바 — 클릭 시 해당 화면으로 이동 */}
           <div className="stagebar">
-            <div className="stage on"><span className="n px">STEP 1</span>개념</div>
-            <div className={`stage${anyScenarioGraded ? ' on' : ''}`}><span className="n px">STEP 2</span>시나리오 실습</div>
-            <div className={`stage${allDone ? ' on' : ''}`}><span className="n px">STEP 3</span>채점</div>
+            <div className="stage on" onClick={() => goStep('c1')}><span className="n px">STEP 1</span>개념</div>
+            {sheet.lab && (
+              <div className={`stage${anyLabDone ? ' on' : ''}`} onClick={() => goStep('lab')}><span className="n px">STEP 2</span>실전 구축</div>
+            )}
+            <div className={`stage${anyScenarioGraded ? ' on' : ''}`} onClick={() => goStep('s1')}><span className="n px">STEP {sheet.lab ? 3 : 2}</span>시나리오</div>
+            <div className={`stage${allDone ? ' on' : ''}`} onClick={() => goStep('grading')}><span className="n px">STEP {sheet.lab ? 4 : 3}</span>채점</div>
           </div>
 
           {sheet.concepts.map((c, i) => {
@@ -275,20 +290,51 @@ export default function SheetPage() {
           <section className="concept">
             <h2 className="concept-h2">공식 문서 <span className="anchor px">#c{sheet.concepts.length + 1}</span></h2>
             <p className="doclink">
-              {sheet.sources.map(s => <span key={s.url}>📄 <a href={s.url} target="_blank" rel="noreferrer">{s.label}</a><br /></span>)}
+              {sheet.sources.map(s => <span key={s.url}><a href={s.url} target="_blank" rel="noreferrer">{s.label}</a><br /></span>)}
             </p>
           </section>
 
-          <div className="divider"><span className="ln" /><span className="px">▶ STEP 2 — 시나리오 실습 ({sheet.scenarios.length}문항)</span><span className="ln" /></div>
+          {/* 실습 — 실전 구축 챕터 (문제풀이가 아니라 고객 요청 구현) */}
+          {sheet.lab && (
+            <>
+              <div className="divider" id="lab"><span className="ln" /><span className="px">STEP 2 — 실전 구축 ({sheet.lab.steps.length}단계)</span><span className="ln" /></div>
+              <div className="labbrief">
+                <div className="labrow"><span className="labtag px">상황</span><span dangerouslySetInnerHTML={{ __html: sheet.lab.situation }} /></div>
+                <div className="labrow"><span className="labtag px req">요청</span><span dangerouslySetInnerHTML={{ __html: sheet.lab.request }} /></div>
+              </div>
+              {sheet.lab.steps.map((l, i) => {
+                const done = steps[`${sheet.sheet}:${l.id}`]
+                return (
+                  <section key={l.id} className="concept labstep" id={l.id}>
+                    <h2 className="concept-h2">
+                      <span className="labnum px">{String(i + 1).padStart(2, '0')}</span>
+                      {l.title} <span className="anchor px">#{l.id}</span>
+                      <button className="cbtn" onClick={() => {
+                        useHub.getState().setCmtTarget(l.id)
+                        document.getElementById('cmt-input')?.focus()
+                      }}>+ 댓글</button>
+                    </h2>
+                    <div className="concept-body" dangerouslySetInnerHTML={{ __html: l.body }} />
+                    <button className={`donebtn${done ? ' checked' : ''}`} disabled={done}
+                      onClick={() => { markStep(sheet.sheet, l.id); showToast(`진도 저장 ${doneCount + 1}/${stepIds.length}`) }}>
+                      {done ? '✓ 완료됨' : `✓ 단계 ${i + 1} 완료`}
+                    </button>
+                  </section>
+                )
+              })}
+            </>
+          )}
+
+          <div className="divider"><span className="ln" /><span className="px">STEP {sheet.lab ? 3 : 2} — 시나리오 ({sheet.scenarios.length}문항)</span><span className="ln" /></div>
           {sheet.scenarios.map(s => <ScenarioCard key={s.id} sheet={sheet.sheet} scen={s} />)}
 
-          <div className="divider"><span className="ln" /><span className="px">▶ STEP 3 — 채점</span><span className="ln" /></div>
+          <div className="divider" id="grading"><span className="ln" /><span className="px">STEP {sheet.lab ? 4 : 3} — 채점</span><span className="ln" /></div>
           {allDone ? (
             <div className="summary">
               <div className="big px">채점 완료 — {oCount} / {sheet.scenarios.length}{dCount > 0 && ` (△${dCount})`}</div>
               <div className="row">{cur.title} · {sheetLabel}</div>
               <div className="row" style={{ fontSize: 11 }}>attempt 기록이 blog-db repo에 commit 됩니다 (복습·XP 원천)</div>
-              <div className="xpgain px">🏆 완주 보너스 +{100 * sheet.difficulty} XP (난이도 ×{sheet.difficulty})</div>
+              <div className="xpgain px">완주 보너스 +{100 * sheet.difficulty} XP (난이도 ×{sheet.difficulty})</div>
             </div>
           ) : (
             <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-faint)', padding: 10 }}>

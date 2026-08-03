@@ -22,7 +22,7 @@ export default function CommentDock() {
     <>
       <div className="chatbar">
         <select className="tgt" value={cmtTarget} onChange={e => setCmtTarget(e.target.value)}>
-          {anchors.map(a => <option key={a} value={a}>{a === '전체' ? '📄 전체' : `#${a}`}</option>)}
+          {anchors.map(a => <option key={a} value={a}>{a === '전체' ? '전체' : `#${a}`}</option>)}
         </select>
         <input
           id="cmt-input"
@@ -45,7 +45,7 @@ export default function CommentDock() {
           {comments.map(c => (
             <div key={c.id} className="cmt-item">
               <div className="meta">
-                <span className="tgt" onClick={() => jump(c.anchor)}>{c.anchor === '전체' ? '📄 전체' : `#${c.anchor}`}</span>
+                <span className="tgt" onClick={() => jump(c.anchor)}>{c.anchor === '전체' ? '전체' : `#${c.anchor}`}</span>
                 <span className="time">{new Date(c.created).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
               {c.text}

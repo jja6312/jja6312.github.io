@@ -79,7 +79,7 @@ export default function TroubleshootingPage() {
       </p>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-        <input className="cmdinput" style={{ fontFamily: 'Pretendard' }} placeholder="🔍 검색 (제목·본문 전체)"
+        <input className="cmdinput" style={{ fontFamily: 'Pretendard' }} placeholder="검색 (제목·본문 전체)"
           value={q} onChange={e => setQ(e.target.value)} />
         <button className="submitbtn" onClick={() => setWriting(w => !w)}>{writing ? '닫기' : '+ 새 기록'}</button>
       </div>

@@ -24,7 +24,7 @@ export default function Header() {
         ))}
       </nav>
       <div className="hdr-right">
-        <span className="streak px">🔥 {streak}일</span>
+        <span className="streak px">{streak}일차</span>
         <div className="flex items-center gap-[10px]">
           <span className="lvbadge px">Lv.{level}</span>
           <div className="xpbar"><div className="fill" style={{ width: `${Math.min(100, (xp / req) * 100)}%` }} /></div>

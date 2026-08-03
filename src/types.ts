@@ -12,6 +12,7 @@ export interface CurriculumTopic {
   title: string
   goal: string
   estimated_minutes: number
+  level?: 1 | 2 | 3            // category 과목 수준 (기본 1)
   status?: 'planned' | 'ready'
 }
 
@@ -33,6 +34,19 @@ export interface Concept {
   title: string
   diagram: string     // inline SVG (v3: 개념마다 필수)
   body: string        // 부가 설명 HTML
+}
+
+// 실습 = 실전 구축 챕터 — 문제풀이가 아니라 고객 요청을 실제로 구현하는 단계별 진행
+export interface LabStep {
+  id: string          // l1, l2 …
+  title: string
+  body: string        // HTML (콘솔 경로 · CLI · 확인 방법)
+}
+
+export interface Lab {
+  situation: string   // 고객 상황 (HTML)
+  request: string     // 구축 요청 원문 (HTML)
+  steps: LabStep[]
 }
 
 export type ScenarioType = 'ox' | 'choice' | 'command' | 'essay'
@@ -60,8 +74,10 @@ export interface Sheet {
   tags: string[]
   difficulty: number
   estimated_minutes: number
+  level?: 1 | 2 | 3
   goal: string
   concepts: Concept[]
+  lab?: Lab
   sources: { label: string; url: string }[]
   scenarios: Scenario[]
 }

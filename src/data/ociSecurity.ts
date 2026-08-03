@@ -11,9 +11,11 @@ export const ociSecurity: Curriculum = {
   tags: ['oci', 'security', 'cloud-guard'],
   created: '2026-08-02',
   topics: [
-    { topic: 'cloud-guard', sheet: 'cloud-guard', title: 'Cloud Guard — 탐지와 대응의 골격', goal: 'Target→Detector→Problem→Responder 처리 모델을 그릴 수 있고, 권한 설계(verb 단계)를 실무 요구에 맞게 고른다', estimated_minutes: 50 },
-    { topic: 'security-zones', sheet: 'security-zones', title: 'Security Zones — 예방적 통제', goal: '(예정) Cloud Guard와의 관계, recipe 기반 정책 강제를 이해한다', estimated_minutes: 40, status: 'planned' },
-    { topic: 'vault-kms', sheet: 'vault-kms', title: 'Vault·KMS — 키와 시크릿', goal: '(예정) 키 계층과 시크릿 수명주기를 이해한다', estimated_minutes: 50, status: 'planned' },
+    { topic: 'cloud-guard', sheet: 'cloud-guard', title: 'Cloud Guard', goal: '처리 모델(Target→Detector→Problem→Responder)을 그리고, 퍼블릭 버킷 자동 교정을 실전 구축한다', estimated_minutes: 80, level: 1 },
+    { topic: 'cloud-guard-l2', sheet: 'cloud-guard-l2', title: 'Cloud Guard', goal: '(예정) 커스텀 detector 규칙·조건 그룹·오탐 운영, 다중 compartment 전략', estimated_minutes: 60, level: 2, status: 'planned' },
+    { topic: 'cloud-guard-l3', sheet: 'cloud-guard-l3', title: 'Cloud Guard', goal: '(예정) Threat/Instance Security 심화, SIEM 연동, 조직 단위 거버넌스', estimated_minutes: 60, level: 3, status: 'planned' },
+    { topic: 'security-zones', sheet: 'security-zones', title: 'Security Zones', goal: '(예정) Cloud Guard와의 관계, recipe 기반 정책 강제를 이해한다', estimated_minutes: 40, level: 1, status: 'planned' },
+    { topic: 'vault-kms', sheet: 'vault-kms', title: 'Vault·KMS', goal: '(예정) 키 계층과 시크릿 수명주기를 이해한다', estimated_minutes: 50, level: 1, status: 'planned' },
   ],
 }
 
@@ -53,7 +55,7 @@ const svgDetectors = `
   <g font-size="11.5" text-anchor="middle">
     <rect x="300" y="48" width="150" height="46" rx="9" fill="var(--bg-card)" stroke="var(--line)"/>
     <text x="375" y="68" fill="var(--text)" font-weight="600">Oracle-managed</text>
-    <text x="375" y="84" fill="var(--wrong)" font-size="10">직접 수정 불가 🔒</text>
+    <text x="375" y="84" fill="var(--wrong)" font-size="10">직접 수정 불가</text>
     <rect x="500" y="48" width="150" height="46" rx="9" fill="var(--accent-glow)" stroke="var(--accent)"/>
     <text x="575" y="68" fill="var(--accent)" font-weight="700">user-managed</text>
     <text x="575" y="84" fill="var(--text-dim)" font-size="10">규칙 조정 가능</text>
@@ -131,8 +133,91 @@ export const cloudGuard: Sheet = {
   title: 'Cloud Guard — 탐지와 대응의 골격',
   tags: ['oci', 'security', 'cloud-guard', 'iam'],
   difficulty: 2,
-  estimated_minutes: 50,
-  goal: 'Target→Detector→Problem→Responder 모델 + verb 단계 권한 설계',
+  estimated_minutes: 80,
+  level: 1,
+  goal: 'Target→Detector→Problem→Responder 모델 + 퍼블릭 버킷 자동 교정 실전 구축',
+  lab: {
+    situation: `고객사 A는 OCI 테넌시에서 운영 워크로드를 <code>prod</code> compartment에 모아 쓰고 있다.
+최근 감사에서 "퍼블릭으로 노출된 Object Storage 버킷이 발견돼도 며칠씩 방치된다"는 지적을 받았다.`,
+    request: `"Cloud Guard를 켜서 <b>prod compartment만</b> 감시하고, <b>퍼블릭 버킷이 생기면 자동으로 private으로 되돌려</b> 주세요.
+보안팀(SecurityAdmins 그룹)이 운영할 수 있게 권한도 잡아주세요."`,
+    steps: [
+      {
+        id: 'l1', title: '요구 분석 — 구성요소 매핑',
+        body: `<p>요청 문장을 Cloud Guard 구성요소로 번역하는 것이 설계의 전부다.</p>
+<pre>"prod만 감시"            → Target = prod compartment
+"퍼블릭 버킷 탐지"        → Configuration Detector — 규칙 "Bucket is public"
+"자동으로 private 되돌려"  → Responder — "Make Bucket Private" + 자동 실행
+"보안팀이 운영"           → IAM — SecurityAdmins에 cloud-guard-family manage</pre>`,
+      },
+      {
+        id: 'l2', title: 'IAM 사전 조건 — 정책 2종',
+        body: `<p>구축 전에 정책부터. 운영자 권한과 <b>서비스 자신의 권한</b>은 별개다 (실무에서 가장 많이 빠뜨리는 부분).</p>
+<pre>Allow group SecurityAdmins to manage cloud-guard-family in tenancy</pre>
+<p>Responder가 버킷을 실제로 수정하려면 Cloud Guard 서비스 principal에게도 권한이 필요하다:</p>
+<pre>allow service cloudguard to manage object-family in compartment prod</pre>
+<p>확인: Identity → Policies에서 두 정책이 tenancy/해당 compartment에 걸려 있는지.</p>`,
+      },
+      {
+        id: 'l3', title: 'Cloud Guard 활성화',
+        body: `<p>콘솔: <code>Security → Cloud Guard → Enable Cloud Guard</code></p>
+<ul>
+<li>Reporting Region 선택 — 한 번 정하면 변경 불가. 주 운영 리전(예: ap-seoul-1)으로.</li>
+<li>초기 감시 범위를 여기서 tenancy 전체로 잡지 말 것 — 이후 target에서 prod만 지정할 것이므로 좁게 시작.</li>
+</ul>
+<p>확인: Cloud Guard Overview 대시보드가 열리고 상태가 Enabled.</p>`,
+      },
+      {
+        id: 'l4', title: 'Detector recipe 클론',
+        body: `<p>Oracle-managed는 수정 불가이므로 규칙을 조정하려면 클론이 먼저다.</p>
+<p>콘솔: <code>Cloud Guard → Detector Recipes → OCI Configuration Detector Recipe → Clone</code></p>
+<ul>
+<li>이름: <code>prod-config-detector</code> (대상·용도가 이름에 드러나게)</li>
+<li>클론본에서 "Bucket is public" 규칙이 Enabled인지 확인 — 이 규칙이 이번 요구의 핵심</li>
+<li>불필요한 소음 규칙(개발용 등)은 여기서 꺼서 problem 노이즈를 줄인다</li>
+</ul>`,
+      },
+      {
+        id: 'l5', title: 'Responder recipe 구성 — 자동 실행',
+        body: `<p>콘솔: <code>Cloud Guard → Responder Recipes → OCI Responder Recipe → Clone</code> → <code>prod-responder</code></p>
+<ul>
+<li>"Make Bucket Private" rule → Enabled</li>
+<li>Rule 설정에서 실행 모드: <b>Execute automatically</b> (기본은 Ask me before executing — 이대로 두면 "자동" 요구 미충족)</li>
+</ul>
+<p>이 한 칸이 요구사항의 절반이다. 자동/수동 모드를 놓치면 탐지만 되고 교정이 안 된다.</p>`,
+      },
+      {
+        id: 'l6', title: 'Target 생성 — prod에 recipe 부착',
+        body: `<p>콘솔: <code>Cloud Guard → Targets → Create Target</code></p>
+<pre>Name              : prod-target
+Target compartment: prod          ← 하위 compartment 포함 여부 확인
+Detector recipe   : prod-config-detector   (클론본)
+Responder recipe  : prod-responder         (클론본)</pre>
+<p>확인: Target 상세에서 두 recipe가 Attached 상태.</p>`,
+      },
+      {
+        id: 'l7', title: '동작 검증 — 일부러 문제를 만든다',
+        body: `<p>구축은 검증까지가 구축이다. prod에 테스트 버킷을 만들고 퍼블릭으로 바꿔본다.</p>
+<pre>oci os bucket create --name cg-test --compartment-id &lt;prod-ocid&gt; --public-access-type ObjectRead</pre>
+<ul>
+<li>수 분 내 Problems에 "Bucket is public" 생성 확인 (콘솔 또는 아래 CLI)</li>
+</ul>
+<pre>oci cloud-guard problem list --compartment-id &lt;prod-ocid&gt; --lifecycle-detail OPEN</pre>
+<ul>
+<li>Responder Activity에서 "Make Bucket Private" 실행 이력 확인 → 버킷 Visibility가 private으로 돌아왔는지 재확인</li>
+<li>끝나면 테스트 버킷 삭제</li>
+</ul>`,
+      },
+      {
+        id: 'l8', title: '운영 인수인계',
+        body: `<ul>
+<li>대시보드의 Security Score / Risk Score 방향을 팀에 설명 (높을수록 좋음 / 낮을수록 좋음)</li>
+<li>오탐 처리 절차: 반복 오탐은 규칙 조건(condition) 조정 → 해당 리소스만 예외, 규칙 전체 off는 최후 수단</li>
+<li>problem 방치 방지: 주간 리뷰에서 OPEN problem 0 목표. Dismiss 시 사유 기록</li>
+</ul>`,
+      },
+    ],
+  },
   concepts: [
     {
       id: 'c1', title: '개념 1. 처리 모델 — Target → Detector → Problem → Responder', diagram: svgPipeline,

@@ -116,7 +116,8 @@ body {
 .chip { font-size: 11px; padding: 3px 10px; border-radius: 99px; background: var(--bg-inset); border: 1px solid var(--line-soft); color: var(--text-dim); }
 .chip.goal { border-color: var(--accent-dim); color: var(--accent); }
 .stagebar { display: flex; margin: 22px 0 30px; font-size: 11px; }
-.stage { flex: 1; text-align: center; padding: 8px 0; background: var(--bg-inset); border: 1px solid var(--line-soft); color: var(--text-faint); }
+.stage { flex: 1; text-align: center; padding: 8px 0; background: var(--bg-inset); border: 1px solid var(--line-soft); color: var(--text-faint); cursor: pointer; transition: background .13s, color .13s; }
+.stage:hover { color: var(--text-dim); background: var(--bg-card); }
 .stage:first-child { border-radius: 8px 0 0 8px; }
 .stage:last-child { border-radius: 0 8px 8px 0; }
 .stage.on { background: var(--accent-glow); color: var(--accent); border-color: var(--accent-dim); }
@@ -323,6 +324,16 @@ kbd {
 .placeholder h2 { font-size: 20px; color: var(--text); margin-bottom: 8px; }
 
 .footer-note { max-width: 1040px; margin: 0 auto; padding: 0 24px 30px; font-size: 11.5px; color: var(--text-faint); }
+
+/* ─────────── 실습(실전 구축) 챕터 ─────────── */
+.labbrief { background: var(--bg-card); border: 1px solid var(--line-soft); border-left: 3px solid var(--pixel);
+  border-radius: 12px; padding: 14px 18px; margin-bottom: 26px; box-shadow: var(--shadow); }
+.labrow { display: flex; gap: 12px; align-items: baseline; font-size: 13.5px; color: var(--text-dim); margin: 4px 0; line-height: 1.75; }
+.labtag { flex-shrink: 0; font-size: 10px; color: var(--text-faint); min-width: 30px; }
+.labtag.req { color: var(--pixel); }
+.labrow b { color: var(--text); }
+.labstep .concept-h2 { align-items: baseline; }
+.labnum { font-size: 11px; color: var(--pixel); }
 
 /* ─────────── TODO 칸반 ─────────── */
 .kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
