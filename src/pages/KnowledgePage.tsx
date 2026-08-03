@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import TroubleshootingPage from './TroubleshootingPage'
 import AnnouncementsPage from './AnnouncementsPage'
 import KnowledgeDocsPage from './KnowledgeDocsPage'
+import CliBuilderPage from './CliBuilderPage'
 import QuotePage from './QuotePage'
 import MeetingsPage from './MeetingsPage'
 import LockIcon from '../components/LockIcon'
@@ -36,11 +37,7 @@ export default function KnowledgePage() {
       </div>
       {active === 'troubleshooting' && <TroubleshootingPage />}
       {active === 'announcements' && <AnnouncementsPage />}
-      {active === 'oci-cli' && (
-        <KnowledgeDocsPage crumb="OCI CLI" title="OCI CLI 레시피" badge="CLI"
-          desc="자원 종류별 oci cli 생성 레시피 — required/optional 트리 + 복사 즉시 실행. 추가·갱신은 Claude Code에."
-          path="knowledge/oci-cli" />
-      )}
+      {active === 'oci-cli' && <CliBuilderPage />}
       {active === 'terraform' && (
         <KnowledgeDocsPage crumb="TERRAFORM" title="OCI Terraform" badge="TF"
           desc="모듈 라이브러리 사용법 — 플레이북·모듈 카탈로그·apply 함정 모음."

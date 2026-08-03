@@ -363,6 +363,62 @@ kbd {
 .ksec-btn:hover { color: var(--text); }
 .ksec-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
 
+/* ─────────── OCI CLI 빌더 ─────────── */
+.cli-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 28px; max-width: 1100px; margin: 0 auto; padding: 30px 24px 80px; }
+@media (max-width: 860px) { .cli-layout { grid-template-columns: 1fr; } .cli-nav { max-height: 200px; } }
+.cli-nav { position: sticky; top: 66px; align-self: start; max-height: calc(100vh - 90px); overflow-y: auto; padding-right: 4px; }
+.cli-cat { margin-bottom: 12px; }
+.cli-cat-label { font-size: 10.5px; color: var(--text-faint); letter-spacing: 1px; padding: 8px 8px 4px; }
+.cli-navitem {
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  color: var(--text-dim); font-size: 13px; padding: 7px 12px; border-radius: 8px;
+  cursor: pointer; font-family: inherit; transition: all .13s; border-left: 3px solid transparent;
+}
+.cli-navitem:hover { background: var(--bg-inset); color: var(--text); }
+.cli-navitem.on { background: var(--accent-glow); color: var(--accent); border-left-color: var(--accent); }
+.cli-navitem.custom { color: var(--pixel); margin-bottom: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.cli-navitem.custom.on { border-color: var(--pixel); background: var(--bg-inset); }
+.cli-fav { display: flex; align-items: center; }
+.cli-navitem.fav { flex: 1; font-size: 12.5px; }
+.cli-favdel { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 11px; padding: 4px 8px; }
+.cli-favdel:hover { color: var(--wrong); }
+
+.cli-main { min-width: 0; }
+.cli-help { color: var(--text-dim); font-size: 13.5px; margin: 8px 0 22px; line-height: 1.7; }
+.cli-form { margin-bottom: 22px; }
+.cli-section-label { font-size: 11px; color: var(--accent); letter-spacing: 1px; margin: 4px 0 12px; }
+.cli-section-label span { color: var(--text-faint); }
+.cli-field { margin-bottom: 14px; }
+.cli-field-label { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+.cli-field-label code { background: var(--code-bg); border: 1px solid var(--line-soft); border-radius: 5px; padding: 1px 7px; font-size: 12.5px; font-family: Consolas, monospace; color: var(--text); }
+.cli-field-label.optional code { color: var(--text-faint); }
+.cli-field-label .req { color: var(--wrong); font-weight: 700; }
+.cli-field-help { font-size: 11.5px; color: var(--text-faint); }
+.cli-input {
+  width: 100%; background: var(--code-bg); border: 1px solid var(--line); color: var(--text);
+  border-radius: 9px; padding: 9px 13px; font-family: Consolas, monospace; font-size: 13px;
+  outline: none; transition: border-color .14s;
+}
+.cli-input:focus { border-color: var(--accent); }
+.cli-input::placeholder { color: var(--text-faint); }
+select.cli-input { cursor: pointer; }
+.cli-json { min-height: 60px; resize: vertical; }
+.cli-custom { min-height: 120px; margin-bottom: 22px; }
+.cli-optional-toggle {
+  background: none; border: 1px dashed var(--line); color: var(--text-dim); border-radius: 8px;
+  padding: 7px 14px; font-size: 12.5px; cursor: pointer; font-family: inherit; margin: 6px 0 14px; width: 100%; text-align: left;
+}
+.cli-optional-toggle:hover { color: var(--text); border-color: var(--text-dim); }
+
+.cli-result { position: sticky; bottom: 0; background: var(--bg); padding-top: 6px; }
+.cli-result-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cli-result-hd .px { font-size: 11px; color: var(--text-faint); letter-spacing: 1px; margin-right: auto; }
+.cli-output {
+  background: var(--code-bg); border: 1px solid var(--accent-dim); border-radius: 12px;
+  padding: 16px 18px; font-family: Consolas, monospace; font-size: 13px; line-height: 1.7;
+  color: var(--accent); overflow-x: auto; white-space: pre; box-shadow: var(--shadow);
+}
+
 /* ─────────── 실습(실전 구축) 챕터 ─────────── */
 .labbrief { background: var(--bg-card); border: 1px solid var(--line-soft); border-left: 3px solid var(--pixel);
   border-radius: 12px; padding: 14px 18px; margin-bottom: 26px; box-shadow: var(--shadow); }

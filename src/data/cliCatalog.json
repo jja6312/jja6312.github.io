@@ -1,0 +1,5233 @@
+{
+ "categories": [
+  {
+   "id": "02-compute",
+   "label": "Compute",
+   "resources": [
+    "capacity-reservation",
+    "compute-cluster",
+    "custom-image",
+    "dedicated-vm-host",
+    "instance-configuration",
+    "instance-pool",
+    "instance"
+   ]
+  },
+  {
+   "id": "03-storage",
+   "label": "Storage",
+   "resources": [
+    "export",
+    "volume-backup-policy",
+    "volume-group",
+    "mount-target",
+    "boot-volume",
+    "block-volume",
+    "bucket",
+    "file-system"
+   ]
+  },
+  {
+   "id": "04-network",
+   "label": "Network",
+   "resources": [
+    "drg",
+    "nat-gateway",
+    "nsg",
+    "vcn",
+    "dhcp-options",
+    "drg-attachment",
+    "local-peering-gateway",
+    "remote-peering-connection",
+    "public-ip",
+    "network-load-balancer",
+    "route-table",
+    "load-balancer",
+    "security-list",
+    "subnet",
+    "service-gateway",
+    "internet-gateway"
+   ]
+  },
+  {
+   "id": "05-database",
+   "label": "Database",
+   "resources": [
+    "autonomous-database",
+    "base-db",
+    "mysql"
+   ]
+  },
+  {
+   "id": "06-observability",
+   "label": "Observability",
+   "resources": [
+    "alarm",
+    "subscription",
+    "topic"
+   ]
+  }
+ ],
+ "commands": {
+  "alarm": {
+   "resource": "alarm",
+   "category": "06-observability",
+   "label": "알람",
+   "cmd": "oci monitoring alarm create",
+   "help": "Creates a new alarm in the specified compartment.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment containing the alarm.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--destinations",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "A list of destinations for alarm notifications.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name for the alarm.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--is-enabled",
+     "required": true,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether the alarm is enabled.",
+     "placeholder": ""
+    },
+    {
+     "name": "--metric-compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment containing the metric being evaluated by the alarm.",
+     "placeholder": "ocid1.metriccompartment.oc1..xxxx"
+    },
+    {
+     "name": "--namespace",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The source service or application emitting the metric that is evaluated by the alarm.",
+     "placeholder": ""
+    },
+    {
+     "name": "--query-parameterconflict",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The Monitoring Query Language (MQL) expression to evaluate for the alarm.",
+     "placeholder": ""
+    },
+    {
+     "name": "--severity",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The perceived type of response required when the alarm is in the \"FIRING\" state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--alarm-summary",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Customizable alarm summary (`alarmSummary` [alarm message parameter]).",
+     "placeholder": ""
+    },
+    {
+     "name": "--body",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The human-readable content of the delivered alarm notification.",
+     "placeholder": ""
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Usage of predefined tag keys.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--evaluation-slack-duration",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Customizable slack period to wait for metric ingestion before evaluating the alarm.",
+     "placeholder": ""
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Simple key-value pair that is applied without any predefined name, type or scope.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--is-notifications-per-metric-dimension-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "When set to `true`, splits alarm notifications per metric stream.",
+     "placeholder": ""
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--message-format",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "RAW",
+      "PRETTY_JSON",
+      "ONS_OPTIMIZED"
+     ],
+     "help": "The format to use for alarm notifications.",
+     "placeholder": ""
+    },
+    {
+     "name": "--metric-compartment-id-in-subtree",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "When true, the alarm evaluates metrics from all compartments and subcompartments.",
+     "placeholder": "ocid1.metriccompartmentinsubtree.oc1..xxxx"
+    },
+    {
+     "name": "--notification-title",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Customizable notification title (`title` [alarm message parameter]).",
+     "placeholder": ""
+    },
+    {
+     "name": "--notification-version",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The version of the alarm notification to be delivered.",
+     "placeholder": ""
+    },
+    {
+     "name": "--overrides",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "A set of overrides that control evaluations of the alarm.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--pending-duration",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The period of time that the condition defined in the alarm must persist before the alarm state changes from \"OK\" to \"FIRING\".",
+     "placeholder": ""
+    },
+    {
+     "name": "--repeat-notification-duration",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The frequency for re-submitting alarm notifications, if the alarm keeps firing without interruption.",
+     "placeholder": ""
+    },
+    {
+     "name": "--resolution",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The time between calculated aggregation windows for the alarm.",
+     "placeholder": ""
+    },
+    {
+     "name": "--resource-group",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Resource group that you want to match.",
+     "placeholder": ""
+    },
+    {
+     "name": "--rule-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Identifier of the alarm's base values for alarm evaluation, for use when the alarm contains overrides.",
+     "placeholder": ""
+    },
+    {
+     "name": "--suppression",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The configuration details for suppressing an alarm.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ACTIVE",
+      "DELETING",
+      "DELETED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "autonomous-database": {
+   "resource": "autonomous-database",
+   "category": "05-database",
+   "label": "Autonomous Database",
+   "cmd": "oci db autonomous-database create",
+   "help": "Creates a new Autonomous Database.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment of the Autonomous Database.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--admin-password",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "**Important** The `adminPassword` or `secretId` must be specified for all Autonomous Databases except for refreshable clones.",
+     "placeholder": ""
+    },
+    {
+     "name": "--are-primary-whitelisted-ips-used",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "This field will be null if the Autonomous Database is not Data Guard enabled or Access Control is disabled.",
+     "placeholder": ""
+    },
+    {
+     "name": "--autonomous-container-database-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The Autonomous Container Database [OCID].",
+     "placeholder": "ocid1.autonomouscontainerdatabase.oc1..xxxx"
+    },
+    {
+     "name": "--autonomous-maintenance-schedule-type",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "EARLY",
+      "REGULAR"
+     ],
+     "help": "The maintenance schedule type of the Autonomous Database Serverless.",
+     "placeholder": ""
+    },
+    {
+     "name": "--backup-retention-period-in-days",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Retention period, in days, for long-term backups",
+     "placeholder": ""
+    },
+    {
+     "name": "--byol-compute-count-limit",
+     "required": false,
+     "type": "float",
+     "choices": null,
+     "help": "The maximum number of CPUs allowed with a Bring Your Own License (BYOL), including those used for auto-scaling, disaster recovery, tools, et",
+     "placeholder": ""
+    },
+    {
+     "name": "--character-set",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The character set for the autonomous database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compute-count",
+     "required": false,
+     "type": "float",
+     "choices": null,
+     "help": "The compute amount (CPUs) available to the database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compute-model",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ECPU",
+      "OCPU"
+     ],
+     "help": "The compute model of the Autonomous Database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--cpu-core-count",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The number of CPU cores to be made available to the database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--customer-contacts",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Customer Contacts.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--data-storage-size-in-gbs",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The size, in gigabytes, of the data volume that will be created and attached to the database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--data-storage-size-in-tbs",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The size, in terabytes, of the data volume that will be created and attached to the database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--database-edition",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The Oracle Database Edition that applies to the Autonomous databases.",
+     "placeholder": ""
+    },
+    {
+     "name": "--db-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The database name.",
+     "placeholder": ""
+    },
+    {
+     "name": "--db-tools-details",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of database tools details.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--db-version",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A valid Oracle Database version for Autonomous Database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--db-workload",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "OLTP",
+      "DW",
+      "AJD",
+      "APEX"
+     ],
+     "help": "The Autonomous Database workload type.",
+     "placeholder": ""
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The user-friendly name for the Autonomous Database.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--encryption-key",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--in-memory-percentage",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The percentage of the System Global Area(SGA) assigned to In-Memory tables in Autonomous Database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-access-control-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Indicates if the database-level access control is enabled.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-auto-scaling-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Indicates if auto scaling is enabled for the Autonomous Database CPU core count.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-auto-scaling-for-storage-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Indicates if auto scaling is enabled for the Autonomous Database storage.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-backup-retention-locked",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "True if the Autonomous Database is backup retention locked.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-data-guard-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "**Deprecated.** Indicates whether the Autonomous Database has local (in-region) Data Guard enabled.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-dedicated",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "True if the database is on [dedicated Exadata infrastructure].",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-dev-tier",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Autonomous Database for Developers are fixed-shape Autonomous Databases that developers can use to build and test new applications.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-free-tier",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Indicates if this is an Always Free resource.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-local-data-guard-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Indicates whether the Autonomous Database has local (in-region) Data Guard enabled.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-mtls-connection-required",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Specifies if the Autonomous Database requires mTLS connections.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-preview-version-with-service-terms-accepted",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "If set to `TRUE`, indicates that an Autonomous Database preview version is being provisioned, and that the preview version's terms of servic",
+     "placeholder": ""
+    },
+    {
+     "name": "--kms-key-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the key container that is used as the master encryption key in database transparent data encryption (TDE) operations.",
+     "placeholder": "ocid1.kmskey.oc1..xxxx"
+    },
+    {
+     "name": "--license-model",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "LICENSE_INCLUDED",
+      "BRING_YOUR_OWN_LICENSE"
+     ],
+     "help": "The Oracle license model that applies to the Oracle Autonomous Database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--ncharacter-set",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The character set for the Autonomous Database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--nsg-ids",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of [OCIDs] for the network security groups (NSGs) to which this resource belongs.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--ocpu-count",
+     "required": false,
+     "type": "float",
+     "choices": null,
+     "help": "The number of OCPU cores to be made available to the database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--private-endpoint-ip",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The private endpoint Ip address for the resource.",
+     "placeholder": ""
+    },
+    {
+     "name": "--private-endpoint-label",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The resource's private endpoint label.",
+     "placeholder": ""
+    },
+    {
+     "name": "--resource-pool-leader-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The unique identifier for leader autonomous database OCID [OCID].",
+     "placeholder": "ocid1.resourcepoolleader.oc1..xxxx"
+    },
+    {
+     "name": "--resource-pool-summary",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--scheduled-operations",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of scheduled operations.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--secret-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCI vault secret [/Content/General/Concepts/identifiers.htm]OCID.",
+     "placeholder": "ocid1.secret.oc1..xxxx"
+    },
+    {
+     "name": "--secret-version-number",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The version of the vault secret.",
+     "placeholder": ""
+    },
+    {
+     "name": "--security-attributes",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Security Attributes for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--source",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "NONE",
+      "DATABASE",
+      "BACKUP_FROM_ID",
+      "BACKUP_FROM_TIMESTAMP",
+      "UNDELETE_ADB",
+      "CLONE_TO_REFRESHABLE",
+      "CROSS_REGION_DATAGUARD",
+      "CROSS_REGION_DISASTER_RECOVERY"
+     ],
+     "help": "The source of the database: Use `NONE` for creating a new Autonomous Database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--standby-whitelisted-ips",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The client IP access control list (ACL).",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--subnet-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the subnet the resource is associated with.",
+     "placeholder": "ocid1.subnet.oc1..xxxx"
+    },
+    {
+     "name": "--subscription-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the subscription with which resource needs to be associated with.",
+     "placeholder": "ocid1.subscription.oc1..xxxx"
+    },
+    {
+     "name": "--vault-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the Oracle Cloud Infrastructure [vault].",
+     "placeholder": "ocid1.vault.oc1..xxxx"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "STOPPING",
+      "STOPPED",
+      "STARTING",
+      "TERMINATING",
+      "TERMINATED",
+      "UNAVAILABLE",
+      "RESTORE_IN_PROGRESS",
+      "RESTORE_FAILED",
+      "BACKUP_IN_PROGRESS",
+      "SCALE_IN_PROGRESS",
+      "AVAILABLE_NEEDS_ATTENTION",
+      "UPDATING",
+      "MAINTENANCE_IN_PROGRESS",
+      "RESTARTING",
+      "RECREATING",
+      "ROLE_CHANGE_IN_PROGRESS",
+      "UPGRADING",
+      "INACCESSIBLE",
+      "STANDBY"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--whitelisted-ips",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The client IP access control list (ACL).",
+     "placeholder": "{ }"
+    }
+   ]
+  },
+  "base-db": {
+   "resource": "base-db",
+   "category": "05-database",
+   "label": "Base Database",
+   "cmd": "oci db system launch",
+   "help": "Creates a new DB system in the specified compartment and availability domain.",
+   "options": [
+    {
+     "name": "--availability-domain",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain where the DB system is located.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment the DB system belongs in.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--cpu-core-count",
+     "required": true,
+     "type": "int",
+     "choices": null,
+     "help": "The number of CPU cores to enable for a bare metal or Exadata DB system or AMD VMDB Systems.",
+     "placeholder": ""
+    },
+    {
+     "name": "--hostname",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The hostname for the DB system.",
+     "placeholder": ""
+    },
+    {
+     "name": "--shape",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The shape of the DB system.",
+     "placeholder": "VM.Standard.E4.Flex"
+    },
+    {
+     "name": "--ssh-public-keys",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "The public key portion of the key pair to use for SSH access to the DB system.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--subnet-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the subnet the DB system is associated with.",
+     "placeholder": "ocid1.subnet.oc1..xxxx"
+    },
+    {
+     "name": "--backup-network-nsg-ids",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "A list of the [OCIDs] of the network security groups (NSGs) that the backup network of this DB system belongs to.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--backup-subnet-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the backup network subnet the DB system is associated with.",
+     "placeholder": "ocid1.backupsubnet.oc1..xxxx"
+    },
+    {
+     "name": "--cluster-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The cluster name for Exadata and 2-node RAC virtual machine DB systems.",
+     "placeholder": ""
+    },
+    {
+     "name": "--data-collection-options",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--data-storage-percentage",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The percentage assigned to DATA storage (user data and database files).",
+     "placeholder": ""
+    },
+    {
+     "name": "--db-system-options",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The user-friendly name for the DB system.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--domain",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A domain name used for the DB system.",
+     "placeholder": ""
+    },
+    {
+     "name": "--fault-domains",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "A Fault Domain is a grouping of hardware and infrastructure within an availability domain.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--initial-data-storage-size-in-gb",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Size (in GB) of the initial data volume that will be created and attached to a virtual machine DB system.",
+     "placeholder": ""
+    },
+    {
+     "name": "--kms-key-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the key container that is used as the master encryption key in database transparent data encryption (TDE) operations.",
+     "placeholder": "ocid1.kmskey.oc1..xxxx"
+    },
+    {
+     "name": "--kms-key-version-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the key container version that is used in database transparent data encryption (TDE) operations KMS Key can have multiple key ve",
+     "placeholder": "ocid1.kmskeyversion.oc1..xxxx"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--node-count",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The number of nodes to launch for a 2-node RAC virtual machine DB system.",
+     "placeholder": ""
+    },
+    {
+     "name": "--nsg-ids",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of [OCIDs] for the network security groups (NSGs) to which this resource belongs.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--private-ip",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A private IP address of your choice.",
+     "placeholder": ""
+    },
+    {
+     "name": "--security-attributes",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Security Attributes for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--source",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "NONE",
+      "DB_BACKUP",
+      "DATABASE",
+      "DB_SYSTEM"
+     ],
+     "help": "The source of the database: Use `NONE` for creating a new database.",
+     "placeholder": ""
+    },
+    {
+     "name": "--sparse-diskgroup",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "If true, Sparse Diskgroup is configured for Exadata dbsystem.",
+     "placeholder": ""
+    },
+    {
+     "name": "--storage-volume-performance-mode",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "BALANCED",
+      "HIGH_PERFORMANCE"
+     ],
+     "help": "The block storage volume performance level.",
+     "placeholder": ""
+    },
+    {
+     "name": "--time-zone",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The time zone to use for the DB system.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "UPDATING",
+      "TERMINATING",
+      "TERMINATED",
+      "FAILED",
+      "MIGRATED",
+      "MAINTENANCE_IN_PROGRESS",
+      "NEEDS_ATTENTION",
+      "UPGRADING"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "block-volume": {
+   "resource": "block-volume",
+   "category": "03-storage",
+   "label": "블록 볼륨",
+   "cmd": "oci bv volume create",
+   "help": "Creates a new volume in the specified compartment.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the compartment that contains the volume.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--autotune-policies",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of autotune policies to be enabled for this volume.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--availability-domain",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain of the volume.",
+     "placeholder": ""
+    },
+    {
+     "name": "--backup-policy-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "If provided, specifies the ID of the volume backup policy to assign to the newly created volume.",
+     "placeholder": "ocid1.backuppolicy.oc1..xxxx"
+    },
+    {
+     "name": "--block-volume-replicas",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of block volume replicas to be enabled for this volume in the specified destination availability domains.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--cluster-placement-group-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The clusterPlacementGroup Id of the volume for volume placement.",
+     "placeholder": "ocid1.clusterplacementgroup.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--is-auto-tune-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Specifies whether the auto-tune performance is enabled for this volume.",
+     "placeholder": ""
+    },
+    {
+     "name": "--kms-key-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the Vault service key to assign as the master encryption key for the volume.",
+     "placeholder": "ocid1.kmskey.oc1..xxxx"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--size-in-gbs",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The size of the volume in GBs.",
+     "placeholder": ""
+    },
+    {
+     "name": "--size-in-mbs",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The size of the volume in MBs.",
+     "placeholder": ""
+    },
+    {
+     "name": "--source-details",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--volume-backup-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the volume backup from which the data should be restored on the newly created volume.",
+     "placeholder": "ocid1.volumebackup.oc1..xxxx"
+    },
+    {
+     "name": "--vpus-per-gb",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The number of volume performance units (VPUs) that will be applied to this volume per GB, representing the Block Volume service's elastic pe",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "RESTORING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED",
+      "FAULTY"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--xrc-kms-key-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the Vault service key which is the master encryption key for the block volume cross region backups, which will be used in the de",
+     "placeholder": "ocid1.xrckmskey.oc1..xxxx"
+    }
+   ]
+  },
+  "boot-volume": {
+   "resource": "boot-volume",
+   "category": "03-storage",
+   "label": "부트 볼륨",
+   "cmd": "oci bv boot-volume create",
+   "help": "Creates a new boot volume in the specified compartment from an existing boot volume or a boot volume backup.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the compartment that contains the boot volume.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--source-details",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--autotune-policies",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of autotune policies to be enabled for this volume.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--availability-domain",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain of the volume.",
+     "placeholder": ""
+    },
+    {
+     "name": "--backup-policy-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "If provided, specifies the ID of the boot volume backup policy to assign to the newly created boot volume.",
+     "placeholder": "ocid1.backuppolicy.oc1..xxxx"
+    },
+    {
+     "name": "--boot-volume-replicas",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of boot volume replicas to be enabled for this boot volume in the specified destination availability domains.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--cluster-placement-group-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The clusterPlacementGroup Id of the volume for volume placement.",
+     "placeholder": "ocid1.clusterplacementgroup.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--is-auto-tune-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Specifies whether the auto-tune performance is enabled for this boot volume.",
+     "placeholder": ""
+    },
+    {
+     "name": "--kms-key-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the Vault service key to assign as the master encryption key for the boot volume.",
+     "placeholder": "ocid1.kmskey.oc1..xxxx"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--size-in-gbs",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The size of the volume in GBs.",
+     "placeholder": ""
+    },
+    {
+     "name": "--vpus-per-gb",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The number of volume performance units (VPUs) that will be applied to this volume per GB, representing the Block Volume service's elastic pe",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "RESTORING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED",
+      "FAULTY"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--xrc-kms-key-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the Vault service key which is the master encryption key for the boot volume cross region backups, which will be used in the des",
+     "placeholder": "ocid1.xrckmskey.oc1..xxxx"
+    }
+   ]
+  },
+  "bucket": {
+   "resource": "bucket",
+   "category": "03-storage",
+   "label": "오브젝트 스토리지 버킷",
+   "cmd": "oci os bucket create",
+   "help": "Creates a bucket in the given namespace with a bucket name and optional user-defined metadata.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The ID of the compartment in which to create the bucket.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--name",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The name of the bucket.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--namespace-name",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The Object Storage namespace used for the request.",
+     "placeholder": ""
+    },
+    {
+     "name": "--auto-tiering",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Set the auto tiering status on the bucket.",
+     "placeholder": ""
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--kms-key-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of a master encryption key used to call the Key Management service to generate a data encryption key or to encrypt or decrypt a d",
+     "placeholder": "ocid1.kmskey.oc1..xxxx"
+    },
+    {
+     "name": "--metadata",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Arbitrary string, up to 4KB, of keys and values for user-defined metadata.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--object-events-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether or not events are emitted for object state changes in this bucket.",
+     "placeholder": ""
+    },
+    {
+     "name": "--public-access-type",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "NoPublicAccess",
+      "ObjectRead",
+      "ObjectReadWithoutList"
+     ],
+     "help": "The type of public access enabled on this bucket.",
+     "placeholder": ""
+    },
+    {
+     "name": "--storage-tier",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "Standard",
+      "Archive"
+     ],
+     "help": "The type of storage tier of this bucket.",
+     "placeholder": ""
+    },
+    {
+     "name": "--versioning",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "Enabled",
+      "Disabled"
+     ],
+     "help": "Set the versioning status on the bucket.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "capacity-reservation": {
+   "resource": "capacity-reservation",
+   "category": "02-compute",
+   "label": "capacity-reservation",
+   "cmd": "oci compute capacity-reservation create",
+   "help": "Creates a new compute capacity reservation in the specified compartment and availability domain.",
+   "options": [
+    {
+     "name": "--availability-domain",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain of this compute capacity reservation.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment containing the capacity reservation.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--instance-reservation-configs",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The capacity configurations for the capacity reservation.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--is-default-reservation",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether this capacity reservation is the default.",
+     "placeholder": ""
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ACTIVE",
+      "CREATING",
+      "UPDATING",
+      "MOVING",
+      "DELETED",
+      "DELETING"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "compute-cluster": {
+   "resource": "compute-cluster",
+   "category": "02-compute",
+   "label": "compute-cluster",
+   "cmd": "oci compute compute-cluster create",
+   "help": "Creates an empty [compute cluster].",
+   "options": [
+    {
+     "name": "--availability-domain",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain to place the compute cluster in.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ACTIVE",
+      "DELETED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "custom-image": {
+   "resource": "custom-image",
+   "category": "02-compute",
+   "label": "custom-image",
+   "cmd": "oci compute image create",
+   "help": "Creates a boot disk image for the specified instance or imports an exported image from the Oracle Cloud Infrastructure Object Storage service.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the compartment you want the image to be created in.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name for the image.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--image-source-details",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--instance-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the instance you want to use as the basis for the image.",
+     "placeholder": "ocid1.instance.oc1..xxxx"
+    },
+    {
+     "name": "--launch-mode",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "NATIVE",
+      "EMULATED",
+      "PARAVIRTUALIZED",
+      "CUSTOM"
+     ],
+     "help": "Specifies the configuration mode for launching virtual machine (VM) instances.",
+     "placeholder": ""
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "IMPORTING",
+      "AVAILABLE",
+      "EXPORTING",
+      "DISABLED",
+      "DELETED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "dedicated-vm-host": {
+   "resource": "dedicated-vm-host",
+   "category": "02-compute",
+   "label": "dedicated-vm-host",
+   "cmd": "oci compute dedicated-vm-host create",
+   "help": "Creates a new dedicated virtual machine host in the specified compartment and the specified availability domain.",
+   "options": [
+    {
+     "name": "--availability-domain",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain of the dedicated virtual machine host.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the compartment.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--dedicated-vm-host-shape",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The dedicated virtual machine host shape.",
+     "placeholder": "VM.Standard.E4.Flex"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--fault-domain",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The fault domain for the dedicated virtual machine host's assigned instances.",
+     "placeholder": ""
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "CREATING",
+      "ACTIVE",
+      "UPDATING",
+      "DELETING",
+      "DELETED",
+      "FAILED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "dhcp-options": {
+   "resource": "dhcp-options",
+   "category": "04-network",
+   "label": "dhcp-options",
+   "cmd": "oci network dhcp-options create",
+   "help": "Creates a new set of DHCP options for the specified VCN.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the set of DHCP options.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--options",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "A set of DHCP options.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--vcn-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN the set of DHCP options belongs to.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--domain-name-type",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "SUBNET_DOMAIN",
+      "VCN_DOMAIN",
+      "CUSTOM_DOMAIN"
+     ],
+     "help": "The search domain name type of DHCP options",
+     "placeholder": ""
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "drg-attachment": {
+   "resource": "drg-attachment",
+   "category": "04-network",
+   "label": "drg-attachment",
+   "cmd": "oci network drg-attachment create",
+   "help": "Attaches the specified DRG to the specified network resource.",
+   "options": [
+    {
+     "name": "--drg-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the DRG.",
+     "placeholder": "ocid1.drg.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--drg-route-table-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the DRG route table that is assigned to this attachment.",
+     "placeholder": "ocid1.drgroutetable.oc1..xxxx"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--network-details",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--route-table-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the route table used by the DRG attachment.",
+     "placeholder": "ocid1.routetable.oc1..xxxx"
+    },
+    {
+     "name": "--vcn-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ATTACHING",
+      "ATTACHED",
+      "DETACHING",
+      "DETACHED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "drg": {
+   "resource": "drg",
+   "category": "04-network",
+   "label": "DRG",
+   "cmd": "oci network drg create",
+   "help": "Creates a new dynamic routing gateway (DRG) in the specified compartment.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the DRG.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "export": {
+   "resource": "export",
+   "category": "03-storage",
+   "label": "export",
+   "cmd": "oci fs export create",
+   "help": "Creates a new export in the specified export set, path, and file system.",
+   "options": [
+    {
+     "name": "--export-set-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of this export's export set.",
+     "placeholder": "ocid1.exportset.oc1..xxxx"
+    },
+    {
+     "name": "--file-system-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of this export's file system.",
+     "placeholder": "ocid1.filesystem.oc1..xxxx"
+    },
+    {
+     "name": "--path",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "Path used to access the associated file system.",
+     "placeholder": ""
+    },
+    {
+     "name": "--export-options",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Export options for the new export.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--is-idmap-groups-for-sys-auth",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether or not the export should use ID mapping for Unix groups rather than the group list provided within an NFS request's RPC header.",
+     "placeholder": ""
+    },
+    {
+     "name": "--locks",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Locks associated with this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "CREATING",
+      "ACTIVE",
+      "DELETING",
+      "DELETED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "file-system": {
+   "resource": "file-system",
+   "category": "03-storage",
+   "label": "파일 시스템(FSS)",
+   "cmd": "oci fs file-system create",
+   "help": "Creates a new file system in the specified compartment and availability domain.",
+   "options": [
+    {
+     "name": "--availability-domain",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain to create the file system in.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to create the file system in.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--clone-attach-status",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "DETACH",
+      "ATTACH"
+     ],
+     "help": "Specifies whether the clone file system is attached to its parent file system.",
+     "placeholder": ""
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--filesystem-snapshot-policy-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the associated file system snapshot policy, which controls the frequency of snapshot creation and retention period of the take",
+     "placeholder": "ocid1.filesystemsnapshotpolicy.oc1..xxxx"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--kms-key-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the KMS key used to encrypt the encryption keys associated with this file system.",
+     "placeholder": "ocid1.kmskey.oc1..xxxx"
+    },
+    {
+     "name": "--locks",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Locks associated with this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--source-snapshot-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the snapshot used to create a cloned file system.",
+     "placeholder": "ocid1.sourcesnapshot.oc1..xxxx"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "CREATING",
+      "ACTIVE",
+      "UPDATING",
+      "DELETING",
+      "DELETED",
+      "FAILED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "instance-configuration": {
+   "resource": "instance-configuration",
+   "category": "02-compute",
+   "label": "instance-configuration",
+   "cmd": "oci compute-management instance-configuration create",
+   "help": "Creates an instance configuration.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment containing the instance configuration.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--source",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "NONE",
+      "INSTANCE"
+     ],
+     "help": "The source of the instance configuration.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "instance-pool": {
+   "resource": "instance-pool",
+   "category": "02-compute",
+   "label": "instance-pool",
+   "cmd": "oci compute-management instance-pool create",
+   "help": "Creates an instance pool.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment containing the instance pool.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--instance-configuration-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the instance configuration associated with the instance pool.",
+     "placeholder": "ocid1.instanceconfiguration.oc1..xxxx"
+    },
+    {
+     "name": "--placement-configurations",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "The placement configurations for the instance pool.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--size",
+     "required": true,
+     "type": "int",
+     "choices": null,
+     "help": "The number of instances that should be in the instance pool.",
+     "placeholder": ""
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--instance-display-name-formatter",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly formatter for the instance pool's instances.",
+     "placeholder": ""
+    },
+    {
+     "name": "--instance-hostname-formatter",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly formatter for the instance pool's instances.",
+     "placeholder": ""
+    },
+    {
+     "name": "--load-balancers",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The load balancers to attach to the instance pool.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "SCALING",
+      "STARTING",
+      "STOPPING",
+      "TERMINATING",
+      "STOPPED",
+      "TERMINATED",
+      "RUNNING"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "instance": {
+   "resource": "instance",
+   "category": "02-compute",
+   "label": "인스턴스",
+   "cmd": "oci compute instance launch",
+   "help": "Creates a new instance in the specified compartment and the specified availability domain.",
+   "options": [
+    {
+     "name": "--availability-domain",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain of the instance.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the compartment.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--agent-config",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--availability-config",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--capacity-reservation-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the compute capacity reservation this instance is launched under.",
+     "placeholder": "ocid1.capacityreservation.oc1..xxxx"
+    },
+    {
+     "name": "--cluster-placement-group-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the cluster placement group of the instance.",
+     "placeholder": "ocid1.clusterplacementgroup.oc1..xxxx"
+    },
+    {
+     "name": "--compute-cluster-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the [compute cluster] that the instance will be created in.",
+     "placeholder": "ocid1.computecluster.oc1..xxxx"
+    },
+    {
+     "name": "--create-vnic-details",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--dedicated-vm-host-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the dedicated virtual machine host to place the instance on.",
+     "placeholder": "ocid1.dedicatedvmhost.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--extended-metadata",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Additional metadata key/value pairs that you provide.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--fault-domain",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A fault domain is a grouping of hardware and infrastructure within an availability domain.",
+     "placeholder": ""
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--hostname-label",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Deprecated.",
+     "placeholder": ""
+    },
+    {
+     "name": "--image-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Deprecated.",
+     "placeholder": "ocid1.image.oc1..xxxx"
+    },
+    {
+     "name": "--instance-configuration-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the Instance Configuration containing instance launch details.",
+     "placeholder": "ocid1.instanceconfiguration.oc1..xxxx"
+    },
+    {
+     "name": "--instance-options",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--ipxe-script-file",
+     "required": false,
+     "type": "file",
+     "choices": null,
+     "help": "This is an advanced option.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-pv-encryption-in-transit-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether to enable in-transit encryption for the data volume's paravirtualized attachment.",
+     "placeholder": ""
+    },
+    {
+     "name": "--launch-options",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--launch-volume-attachments",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Volume attachments to create as part of the launch instance operation.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--licensing-configs",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "List of licensing configurations associated with target launch values.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--metadata",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Custom metadata key/value pairs that you provide, such as the SSH public key required to connect to the instance.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--platform-config",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--preemptible-instance-config",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--security-attributes",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Security Attributes for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--shape",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The shape of an instance.",
+     "placeholder": "VM.Standard.E4.Flex"
+    },
+    {
+     "name": "--shape-config",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--source-details",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--subnet-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Deprecated.",
+     "placeholder": "ocid1.subnet.oc1..xxxx"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "MOVING",
+      "PROVISIONING",
+      "RUNNING",
+      "STARTING",
+      "STOPPING",
+      "STOPPED",
+      "CREATING_IMAGE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "internet-gateway": {
+   "resource": "internet-gateway",
+   "category": "04-network",
+   "label": "인터넷 게이트웨이",
+   "cmd": "oci network internet-gateway create",
+   "help": "Creates a new internet gateway for the specified VCN.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the internet gateway.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--is-enabled",
+     "required": true,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether the gateway is enabled upon creation.",
+     "placeholder": ""
+    },
+    {
+     "name": "--vcn-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN the Internet Gateway is attached to.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--route-table-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the route table the Internet Gateway is using.",
+     "placeholder": "ocid1.routetable.oc1..xxxx"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "load-balancer": {
+   "resource": "load-balancer",
+   "category": "04-network",
+   "label": "로드밸런서",
+   "cmd": "oci lb load-balancer create",
+   "help": "Creates a new load balancer in the specified compartment.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment in which to create the load balancer.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--display-name",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--shape-name",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "A template that determines the total pre-provisioned bandwidth (ingress plus egress).",
+     "placeholder": "VM.Standard.E4.Flex"
+    },
+    {
+     "name": "--subnet-ids",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "An array of subnet [OCIDs].",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--backend-sets",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "This option is a JSON dictionary of type dict(str, BackendSetDetails).",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--certificates",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "This option is a JSON dictionary of type dict(str, CertificateDetails).",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--hostnames",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "This option is a JSON dictionary of type dict(str, HostnameDetails).",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--ip-mode",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "IPV4",
+      "IPV6"
+     ],
+     "help": "Whether the load balancer has an IPv4 or IPv6 IP address.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-delete-protection-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether or not the load balancer has delete protection enabled.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-private",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether the load balancer has a VCN-local (private) IP address.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-request-id-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether or not the load balancer has the Request Id feature enabled for HTTP listeners.",
+     "placeholder": ""
+    },
+    {
+     "name": "--listeners",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "This option is a JSON dictionary of type dict(str, ListenerDetails).",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the work request to reach the state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--network-security-group-ids",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "An array of NSG [OCIDs] associated with this load balancer.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--path-route-sets",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "This option is a JSON dictionary of type dict(str, PathRouteSetDetails).",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--request-id-header",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "If isRequestIdEnabled is true then this field contains the name of the header field that contains the unique request id that is attached to ",
+     "placeholder": ""
+    },
+    {
+     "name": "--reserved-ips",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "An array of reserved Ips.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--rule-sets",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "This option is a JSON dictionary of type dict(str, RuleSetDetails).",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--shape-details",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The configuration details to create load balancer using Flexible shape.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--ssl-cipher-suites",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "This option is a JSON dictionary of type dict(str, SSLCipherSuiteDetails).",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ACCEPTED",
+      "IN_PROGRESS",
+      "FAILED",
+      "SUCCEEDED"
+     ],
+     "help": "This operation asynchronously creates, modifies or deletes a resource and uses a work request to track the progress of the operation.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the work request has reached the state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--zpr-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Extended Defined tags for ZPR for this resource.",
+     "placeholder": "{ }"
+    }
+   ]
+  },
+  "local-peering-gateway": {
+   "resource": "local-peering-gateway",
+   "category": "04-network",
+   "label": "local-peering-gateway",
+   "cmd": "oci network local-peering-gateway create",
+   "help": "Creates a new local peering gateway (LPG) for the specified VCN.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment containing the local peering gateway (LPG).",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--vcn-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN the LPG belongs to.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--route-table-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the route table the LPG will use.",
+     "placeholder": "ocid1.routetable.oc1..xxxx"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "mount-target": {
+   "resource": "mount-target",
+   "category": "03-storage",
+   "label": "마운트 타깃",
+   "cmd": "oci fs mount-target create",
+   "help": "Creates a new mount target in the specified compartment and subnet.",
+   "options": [
+    {
+     "name": "--availability-domain",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain in which to create the mount target.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment in which to create the mount target.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--subnet-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the subnet in which to create the mount target.",
+     "placeholder": "ocid1.subnet.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--hostname-label",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The hostname for the mount target's IP address, used for DNS resolution.",
+     "placeholder": ""
+    },
+    {
+     "name": "--idmap-type",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The method used to map a Unix UID to secondary groups, if any.",
+     "placeholder": ""
+    },
+    {
+     "name": "--ip-address",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A private IP address of your choice.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-lock-override",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether to override locks (if any exist).",
+     "placeholder": ""
+    },
+    {
+     "name": "--kerberos",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--ldap-idmap",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--locks",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Locks associated with this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--nsg-ids",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "A list of Network Security Group [OCIDs] associated with this mount target.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--requested-throughput",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Throughput for mount target in Gbps.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "CREATING",
+      "ACTIVE",
+      "DELETING",
+      "DELETED",
+      "FAILED",
+      "UPDATING"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "mysql": {
+   "resource": "mysql",
+   "category": "05-database",
+   "label": "MySQL",
+   "cmd": "oci mysql db-system create",
+   "help": "Creates and launches a DB System.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the compartment.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--shape-name",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The name of the shape.",
+     "placeholder": "VM.Standard.E4.Flex"
+    },
+    {
+     "name": "--subnet-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the subnet the DB System is associated with.",
+     "placeholder": "ocid1.subnet.oc1..xxxx"
+    },
+    {
+     "name": "--admin-password",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The password for the administrative user.",
+     "placeholder": ""
+    },
+    {
+     "name": "--admin-username",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The username for the administrative user.",
+     "placeholder": ""
+    },
+    {
+     "name": "--availability-domain",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain on which to deploy the Read/Write endpoint.",
+     "placeholder": ""
+    },
+    {
+     "name": "--backup-policy",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--configuration-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the Configuration to be used for this DB System.",
+     "placeholder": "ocid1.configuration.oc1..xxxx"
+    },
+    {
+     "name": "--crash-recovery",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ENABLED",
+      "DISABLED"
+     ],
+     "help": "Whether to run the DB System with InnoDB Redo Logs and the Double Write Buffer enabled or disabled, and whether to enable or disable syncing",
+     "placeholder": ""
+    },
+    {
+     "name": "--customer-contacts",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of customer email addresses that receive information from Oracle about the specified OCI DB System resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--data-storage",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--data-storage-size-in-gbs",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Initial size of the data volume in GBs that will be created and attached.",
+     "placeholder": ""
+    },
+    {
+     "name": "--database-management",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ENABLED",
+      "DISABLED"
+     ],
+     "help": "Whether to enable monitoring via the Database Management service.",
+     "placeholder": ""
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Usage of predefined tag keys.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--deletion-policy",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--description",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "User-provided data about the DB System.",
+     "placeholder": ""
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The user-friendly name for the DB System.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--fault-domain",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The fault domain on which to deploy the Read/Write endpoint.",
+     "placeholder": ""
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Simple key-value pair applied without any predefined name, type or scope.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--hostname-label",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The hostname for the primary endpoint of the DB System.",
+     "placeholder": ""
+    },
+    {
+     "name": "--ip-address",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The IP address the DB System is configured to listen on.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-highly-available",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Specifies if the DB System is highly available.",
+     "placeholder": ""
+    },
+    {
+     "name": "--maintenance",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the work request to reach the state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--mysql-version",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The specific MySQL version identifier.",
+     "placeholder": ""
+    },
+    {
+     "name": "--port",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The port for primary endpoint of the DB System to listen on.",
+     "placeholder": ""
+    },
+    {
+     "name": "--port-x",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The TCP network port on which X Plugin listens for connections.",
+     "placeholder": ""
+    },
+    {
+     "name": "--secure-connections",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--source",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ACCEPTED",
+      "IN_PROGRESS",
+      "FAILED",
+      "SUCCEEDED",
+      "CANCELING",
+      "CANCELED"
+     ],
+     "help": "This operation asynchronously creates, modifies or deletes a resource and uses a work request to track the progress of the operation.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the work request has reached the state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "nat-gateway": {
+   "resource": "nat-gateway",
+   "category": "04-network",
+   "label": "NAT 게이트웨이",
+   "cmd": "oci network nat-gateway create",
+   "help": "Creates a new NAT gateway for the specified VCN.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the NAT gateway.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--vcn-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN the gateway belongs to.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--block-traffic",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether the NAT gateway blocks traffic through it.",
+     "placeholder": ""
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--public-ip-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the public IP address associated with the NAT gateway.",
+     "placeholder": "ocid1.publicip.oc1..xxxx"
+    },
+    {
+     "name": "--route-table-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the route table used by the NAT gateway.",
+     "placeholder": "ocid1.routetable.oc1..xxxx"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "network-load-balancer": {
+   "resource": "network-load-balancer",
+   "category": "04-network",
+   "label": "네트워크 로드밸런서(NLB)",
+   "cmd": "oci nlb network-load-balancer create",
+   "help": "Creates a network load balancer.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment containing the network load balancer.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--display-name",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "Network load balancer identifier, which can be renamed.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--subnet-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The subnet in which the network load balancer is spawned [OCIDs].",
+     "placeholder": "ocid1.subnet.oc1..xxxx"
+    },
+    {
+     "name": "--assigned-ipv6",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "IPv6 address to be assigned to the network load balancer being created.",
+     "placeholder": ""
+    },
+    {
+     "name": "--assigned-private-ipv4",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Private IP address to be assigned to the network load balancer being created.",
+     "placeholder": ""
+    },
+    {
+     "name": "--backend-sets",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Backend sets associated with the network load balancer.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Simple key-value pair that is applied without any predefined name, type, or scope.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--is-preserve-source-destination",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "This parameter can be enabled only if backends are compute OCIDs.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-private",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether the network load balancer has a virtual cloud network-local (private) IP address.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-symmetric-hash-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "This can only be enabled when NLB is working in transparent mode with source destination header preservation enabled.",
+     "placeholder": ""
+    },
+    {
+     "name": "--listeners",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Listeners associated with the network load balancer.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the work request to reach the state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--network-security-group-ids",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "An array of network security groups [OCIDs] associated with the network load balancer.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--nlb-ip-version",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "IPV4",
+      "IPV4_AND_IPV6",
+      "IPV6"
+     ],
+     "help": "IP version associated with the NLB.",
+     "placeholder": ""
+    },
+    {
+     "name": "--reserved-ips",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "An array of reserved Ips.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--security-attributes",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "ZPR tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--subnet-ipv6-cidr",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "IPv6 subnet prefix selection.",
+     "placeholder": "10.0.0.0/16"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "ACCEPTED",
+      "IN_PROGRESS",
+      "FAILED",
+      "SUCCEEDED",
+      "CANCELING",
+      "CANCELED"
+     ],
+     "help": "This operation asynchronously creates, modifies or deletes a resource and uses a work request to track the progress of the operation.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the work request has reached the state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "nsg": {
+   "resource": "nsg",
+   "category": "04-network",
+   "label": "NSG(네트워크 보안 그룹)",
+   "cmd": "oci network nsg create",
+   "help": "Creates a new network security group for the specified VCN.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the network security group.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--vcn-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN to create the network security group in.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "public-ip": {
+   "resource": "public-ip",
+   "category": "04-network",
+   "label": "공인 IP",
+   "cmd": "oci network public-ip create",
+   "help": "Creates a public IP.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the public IP.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--lifetime",
+     "required": true,
+     "type": "choice",
+     "choices": [
+      "EPHEMERAL",
+      "RESERVED"
+     ],
+     "help": "Defines when the public IP is deleted and released back to the Oracle Cloud Infrastructure public IP pool.",
+     "placeholder": ""
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--private-ip-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the private IP to assign the public IP to.",
+     "placeholder": "ocid1.privateip.oc1..xxxx"
+    },
+    {
+     "name": "--public-ip-pool-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the public IP pool.",
+     "placeholder": "ocid1.publicippool.oc1..xxxx"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "ASSIGNING",
+      "ASSIGNED",
+      "UNASSIGNING",
+      "UNASSIGNED",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "remote-peering-connection": {
+   "resource": "remote-peering-connection",
+   "category": "04-network",
+   "label": "remote-peering-connection",
+   "cmd": "oci network remote-peering-connection create",
+   "help": "Creates a new remote peering connection (RPC) for the specified DRG.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the RPC.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--drg-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the DRG the RPC belongs to.",
+     "placeholder": "ocid1.drg.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "AVAILABLE",
+      "PROVISIONING",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "route-table": {
+   "resource": "route-table",
+   "category": "04-network",
+   "label": "라우트 테이블",
+   "cmd": "oci network route-table create",
+   "help": "Creates a new route table for the specified VCN.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the route table.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--route-rules",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "The collection of rules used for routing destination IPs to network devices.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--vcn-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN the route table belongs to.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "security-list": {
+   "resource": "security-list",
+   "category": "04-network",
+   "label": "보안 목록",
+   "cmd": "oci network security-list create",
+   "help": "Creates a new security list for the specified VCN.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the security list.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--egress-security-rules",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "Rules for allowing egress IP packets.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--ingress-security-rules",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "Rules for allowing ingress IP packets.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--vcn-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN the security list belongs to.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "service-gateway": {
+   "resource": "service-gateway",
+   "category": "04-network",
+   "label": "서비스 게이트웨이",
+   "cmd": "oci network service-gateway create",
+   "help": "Creates a new service gateway in the specified compartment.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the service gateway.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--services",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "List of the OCIDs of the [Service] objects to enable for the service gateway.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--vcn-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--route-table-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the route table the service gateway will use.",
+     "placeholder": "ocid1.routetable.oc1..xxxx"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "subnet": {
+   "resource": "subnet",
+   "category": "04-network",
+   "label": "서브넷",
+   "cmd": "oci network subnet create",
+   "help": "Creates a new subnet in the specified VCN.",
+   "options": [
+    {
+     "name": "--cidr-block",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The CIDR IP address range of the subnet.",
+     "placeholder": "10.0.0.0/16"
+    },
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the subnet.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--vcn-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the VCN to contain the subnet.",
+     "placeholder": "ocid1.vcn.oc1..xxxx"
+    },
+    {
+     "name": "--availability-domain",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Controls whether the subnet is regional or specific to an availability domain.",
+     "placeholder": ""
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--dhcp-options-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the set of DHCP options the subnet will use.",
+     "placeholder": "ocid1.dhcpoptions.oc1..xxxx"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--dns-label",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A DNS label for the subnet, used in conjunction with the VNIC's hostname and VCN's DNS label to form a fully qualified domain name (FQDN) fo",
+     "placeholder": ""
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--ipv6-cidr-block",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Use this to enable IPv6 addressing for this subnet.",
+     "placeholder": "10.0.0.0/16"
+    },
+    {
+     "name": "--ipv6-cidr-blocks",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of all IPv6 prefixes (Oracle allocated IPv6 GUA, ULA or private IPv6 prefixes, BYOIPv6 prefixes) for the subnet that meets the foll",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--prohibit-internet-ingress",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether to disallow ingress internet traffic to VNICs within this subnet.",
+     "placeholder": ""
+    },
+    {
+     "name": "--prohibit-public-ip-on-vnic",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether VNICs within this subnet can have public IP addresses.",
+     "placeholder": ""
+    },
+    {
+     "name": "--route-table-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the route table the subnet will use.",
+     "placeholder": "ocid1.routetable.oc1..xxxx"
+    },
+    {
+     "name": "--security-list-ids",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The OCIDs of the security list or lists the subnet will use.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED",
+      "UPDATING"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "subscription": {
+   "resource": "subscription",
+   "category": "06-observability",
+   "label": "알림 구독",
+   "cmd": "oci ons subscription create",
+   "help": "Creates a subscription for the specified topic and sends a subscription confirmation URL to the endpoint.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment for the subscription.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--endpoint-parameterconflict",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "A locator that corresponds to the subscription protocol.",
+     "placeholder": ""
+    },
+    {
+     "name": "--protocol",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The protocol used for the subscription.",
+     "placeholder": ""
+    },
+    {
+     "name": "--topic-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the topic for the subscription.",
+     "placeholder": "ocid1.topic.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--metadata",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "Metadata for the subscription.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PENDING",
+      "ACTIVE",
+      "DELETED"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "topic": {
+   "resource": "topic",
+   "category": "06-observability",
+   "label": "알림 토픽",
+   "cmd": "oci ons topic create",
+   "help": "Creates a topic in the specified compartment.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to create the topic in.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--name",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The name of the topic being created.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--description",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The description of the topic being created.",
+     "placeholder": ""
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    }
+   ]
+  },
+  "vcn": {
+   "resource": "vcn",
+   "category": "04-network",
+   "label": "VCN",
+   "cmd": "oci network vcn create",
+   "help": "Creates a new virtual cloud network (VCN).",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The [OCID] of the compartment to contain the VCN.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--byoipv6-cidr-details",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of BYOIPv6 OCIDs and BYOIPv6 prefixes required to create a VCN that uses BYOIPv6 address ranges.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--cidr-block",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "**Deprecated.** Do *not* set this value.",
+     "placeholder": "10.0.0.0/16"
+    },
+    {
+     "name": "--cidr-blocks",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of one or more IPv4 CIDR blocks for the VCN that meet the following criteria: - The CIDR blocks must be valid.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--dns-label",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A DNS label for the VCN, used in conjunction with the VNIC's hostname and subnet's DNS label to form a fully qualified domain name (FQDN) fo",
+     "placeholder": ""
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--ipv6-private-cidr-blocks",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of one or more ULA or Private IPv6 prefixes for the VCN that meets the following criteria: - The CIDR blocks must be valid.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--is-ipv6-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Whether IPv6 is enabled for the VCN.",
+     "placeholder": ""
+    },
+    {
+     "name": "--is-oracle-gua-allocation-enabled",
+     "required": false,
+     "type": "bool",
+     "choices": [
+      "true",
+      "false"
+     ],
+     "help": "Specifies whether to skip Oracle allocated IPv6 GUA.",
+     "placeholder": ""
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--security-attributes",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Security Attributes for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED",
+      "UPDATING"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    }
+   ]
+  },
+  "volume-backup-policy": {
+   "resource": "volume-backup-policy",
+   "category": "03-storage",
+   "label": "volume-backup-policy",
+   "cmd": "oci bv volume-backup-policy create",
+   "help": "Creates a new user defined backup policy.",
+   "options": [
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the compartment.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--destination-region",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The paired destination region for copying scheduled backups to.",
+     "placeholder": ""
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--schedules",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The collection of schedules for the volume backup policy.",
+     "placeholder": "{ }"
+    }
+   ]
+  },
+  "volume-group": {
+   "resource": "volume-group",
+   "category": "03-storage",
+   "label": "volume-group",
+   "cmd": "oci bv volume-group create",
+   "help": "Creates a new volume group in the specified compartment.",
+   "options": [
+    {
+     "name": "--availability-domain",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The availability domain of the volume group.",
+     "placeholder": ""
+    },
+    {
+     "name": "--compartment-id",
+     "required": true,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the compartment that contains the volume group.",
+     "placeholder": "ocid1.compartment.oc1..xxxx"
+    },
+    {
+     "name": "--source-details",
+     "required": true,
+     "type": "json",
+     "choices": null,
+     "help": "",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--backup-policy-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "If provided, specifies the ID of the volume backup policy to assign to the newly created volume group.",
+     "placeholder": "ocid1.backuppolicy.oc1..xxxx"
+    },
+    {
+     "name": "--cluster-placement-group-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The clusterPlacementGroup Id of the volume group for volume group placement.",
+     "placeholder": "ocid1.clusterplacementgroup.oc1..xxxx"
+    },
+    {
+     "name": "--defined-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Defined tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--display-name",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "A user-friendly name.",
+     "placeholder": "이름 입력"
+    },
+    {
+     "name": "--freeform-tags",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "Free-form tags for this resource.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--max-wait-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "The maximum time to wait for the resource to reach the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--volume-group-replicas",
+     "required": false,
+     "type": "json",
+     "choices": null,
+     "help": "The list of volume group replicas that this volume group will be enabled to have in the specified destination availability domains.",
+     "placeholder": "{ }"
+    },
+    {
+     "name": "--wait-for-state",
+     "required": false,
+     "type": "choice",
+     "choices": [
+      "PROVISIONING",
+      "AVAILABLE",
+      "TERMINATING",
+      "TERMINATED",
+      "FAULTY",
+      "UPDATE_PENDING"
+     ],
+     "help": "This operation creates, modifies or deletes a resource that has a defined lifecycle state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--wait-interval-seconds",
+     "required": false,
+     "type": "int",
+     "choices": null,
+     "help": "Check every --wait-interval-seconds to see whether the resource has reached the lifecycle state defined by --wait-for-state.",
+     "placeholder": ""
+    },
+    {
+     "name": "--xrc-kms-key-id",
+     "required": false,
+     "type": "str",
+     "choices": null,
+     "help": "The OCID of the Vault service key which is the master encryption key for the volume's cross region backups, which will be used in the destin",
+     "placeholder": "ocid1.xrckmskey.oc1..xxxx"
+    }
+   ]
+  }
+ }
+}
