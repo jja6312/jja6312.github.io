@@ -11,47 +11,109 @@ interface CliOption {
   placeholder: string
 }
 interface CliCommand {
-  resource: string; category: string; label: string
+  resource: string; label: string
   cmd: string; help: string; options: CliOption[]
 }
 interface Catalog {
-  categories: { id: string; label: string; resources: string[] }[]
+  categories: { id: string; label: string; groups: { label: string; resources: string[] }[] }[]
   commands: Record<string, CliCommand>
 }
 const CAT = catalog as unknown as Catalog
 
-interface Favorite { id: string; name: string; resource: string; values: Record<string, string> }
+/* ── 동적 조회 지원 옵션 — 이름만 넣으면 $()/변수로 OCID를 찾아준다 ──
+   기본값 = 동적. 체크 해제 시 OCID 직접 입력. */
+const DYNAMIC: Record<string, { input: string; note: string }> = {
+  '--compartment-id': { input: 'compartment 이름 (예: prod)', note: '이름으로 OCID 자동 조회' },
+  '--availability-domain': { input: 'AD 번호 1~3 (기본 1)', note: '번호로 AD 이름 자동 조회' },
+  '--vcn-id': { input: 'VCN 이름', note: '이름으로 OCID 자동 조회 (compartment 기준)' },
+  '--subnet-id': { input: 'Subnet 이름', note: '이름으로 OCID 자동 조회 (compartment 기준)' },
+}
+
+interface Favorite { id: string; name: string; resource: string; values: Record<string, string>; dyn?: Record<string, boolean> }
 const FAV_KEY = 'hub-cli-favorites'
 const loadFavs = (): Favorite[] => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]') } catch { return [] } }
 const saveFavs = (f: Favorite[]) => localStorage.setItem(FAV_KEY, JSON.stringify(f))
 
-// 최종 oci cli 문자열 조립 — 값이 있는 옵션만, 여러 줄 백슬래시
-function buildCli(cmd: CliCommand, values: Record<string, string>): string {
-  const lines = [cmd.cmd]
+const isDynamic = (dyn: Record<string, boolean>, name: string) =>
+  name in DYNAMIC ? (dyn[name] ?? true) : false
+
+/* 최종 명령 조립 — 동적 옵션은 변수 선언(prelude) + 참조로 */
+function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>): string {
+  const prelude: string[] = []
+  const args: string[] = []
+
+  const compDynamic = cmd.options.some(o => o.name === '--compartment-id') && isDynamic(dyn, '--compartment-id')
+  const compStatic = (values['--compartment-id'] ?? '').trim()
+  // 다른 동적 조회가 참조할 compartment 표현
+  const compRef = compDynamic ? '"$COMP"' : (compStatic ? compStatic : '<compartment-ocid>')
+
+  if (compDynamic) {
+    const name = compStatic || '<compartment-name>'
+    prelude.push(
+      `COMP=$(oci iam compartment list --compartment-id-in-subtree true --all \\\n` +
+      `  --query "data[?name=='${name}'].id | [0]" --raw-output)`,
+    )
+  }
+
   for (const o of cmd.options) {
     const v = (values[o.name] ?? '').trim()
+    // 값 없는 선택 옵션은 동적 모드여도 생략 — 명령을 어지럽히지 않는다
+    if (!o.required && !v) continue
+    if (o.name === '--compartment-id') {
+      if (compDynamic) args.push(`  ${o.name} "$COMP"`)
+      else if (v) args.push(`  ${o.name} ${v}`)
+      continue
+    }
+    if (o.name === '--availability-domain' && isDynamic(dyn, o.name)) {
+      const n = Math.max(1, parseInt(v || '1', 10) || 1)
+      args.push(`  ${o.name} $(oci iam availability-domain list --compartment-id ${compRef} --query "data[${n - 1}].name" --raw-output)`)
+      continue
+    }
+    if (o.name === '--vcn-id' && isDynamic(dyn, o.name)) {
+      const name = v || '<vcn-name>'
+      prelude.push(
+        `VCN=$(oci network vcn list --compartment-id ${compRef} \\\n` +
+        `  --query "data[?\\"display-name\\"=='${name}'].id | [0]" --raw-output)`,
+      )
+      args.push(`  ${o.name} "$VCN"`)
+      continue
+    }
+    if (o.name === '--subnet-id' && isDynamic(dyn, o.name)) {
+      const name = v || '<subnet-name>'
+      prelude.push(
+        `SUBNET=$(oci network subnet list --compartment-id ${compRef} \\\n` +
+        `  --query "data[?\\"display-name\\"=='${name}'].id | [0]" --raw-output)`,
+      )
+      args.push(`  ${o.name} "$SUBNET"`)
+      continue
+    }
     if (!v) continue
     const quoted = /\s|[{}$]/.test(v) ? `'${v}'` : v
-    lines.push(`  ${o.name} ${quoted}`)
+    args.push(`  ${o.name} ${quoted}`)
   }
-  return lines.join(' \\\n')
+
+  const main = [cmd.cmd, ...args].join(' \\\n')
+  return prelude.length ? prelude.join('\n\n') + '\n\n' + main : main
 }
 
 export default function CliBuilderPage() {
   const { showToast } = useHub()
   const [active, setActive] = useState<string>('__custom')
   const [values, setValues] = useState<Record<string, string>>({})
+  const [dyn, setDyn] = useState<Record<string, boolean>>({})
   const [customText, setCustomText] = useState('oci ')
   const [favs, setFavs] = useState<Favorite[]>(loadFavs())
   const [showOptional, setShowOptional] = useState(false)
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({})  // 기본 전부 닫힘
 
   const cmd = active !== '__custom' ? CAT.commands[active] : null
-  const cli = useMemo(() => cmd ? buildCli(cmd, values) : customText, [cmd, values, customText])
+  const cli = useMemo(() => cmd ? buildCli(cmd, values, dyn) : customText, [cmd, values, dyn, customText])
 
   const selectResource = (res: string) => {
-    setActive(res); setValues({}); setShowOptional(false)
+    setActive(res); setValues({}); setDyn({}); setShowOptional(false)
   }
   const setVal = (name: string, v: string) => setValues(s => ({ ...s, [name]: v }))
+  const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
 
   const copy = async () => {
     try { await navigator.clipboard.writeText(cli); showToast('클립보드에 복사됨') }
@@ -62,41 +124,53 @@ export default function CliBuilderPage() {
     const name = prompt('즐겨찾기 이름', cmd ? `${cmd.label} ${values['--display-name'] || ''}`.trim() : 'custom')
     if (!name) return
     const fav: Favorite = {
-      id: `fav-${favs.length}-${name}`,
-      name, resource: active,
-      values: active === '__custom' ? { __custom: customText } : values,
+      id: `fav-${favs.length}-${name}`, name, resource: active,
+      values: active === '__custom' ? { __custom: customText } : values, dyn,
     }
     const next = [...favs, fav]; setFavs(next); saveFavs(next); showToast('즐겨찾기 저장됨')
   }
   const loadFav = (f: Favorite) => {
     if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci ') }
-    else { setActive(f.resource); setValues(f.values); setShowOptional(true) }
+    else { setActive(f.resource); setValues(f.values); setDyn(f.dyn ?? {}); setShowOptional(true) }
   }
   const delFav = (id: string) => { const n = favs.filter(f => f.id !== id); setFavs(n); saveFavs(n) }
 
   const requiredOpts = cmd?.options.filter(o => o.required) ?? []
   const optionalOpts = cmd?.options.filter(o => !o.required) ?? []
 
+  const field = (o: CliOption, optional?: boolean) => (
+    <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
+      dynamic={isDynamic(dyn, o.name)}
+      onToggleDynamic={o.name in DYNAMIC ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined} />
+  )
+
   return (
     <div className="cli-layout">
-      {/* 좌측 계층 네비 */}
+      {/* 좌측 계층 네비 — 대분류 아코디언 (기본 닫힘) */}
       <aside className="cli-nav">
         <button className={`cli-navitem custom${active === '__custom' ? ' on' : ''}`} onClick={() => setActive('__custom')}>
-          <span className="px">✎ Custom</span>
+          <span className="px">Custom</span>
         </button>
         {CAT.categories.map(c => (
           <div key={c.id} className="cli-cat">
-            <div className="cli-cat-label px">{c.label}</div>
-            {c.resources.map(r => (
-              <button key={r} className={`cli-navitem${active === r ? ' on' : ''}`} onClick={() => selectResource(r)}>
-                {CAT.commands[r].label}
-              </button>
+            <button className="cli-cat-toggle" onClick={() => toggleCat(c.id)}>
+              <span className={`caret${openCats[c.id] ? ' open' : ''}`}>▸</span> {c.label}
+            </button>
+            {openCats[c.id] && c.groups.map(g => (
+              <div key={g.label} className="cli-group">
+                <div className="cli-group-label px">{g.label}</div>
+                {g.resources.map(r => (
+                  <button key={r} className={`cli-navitem${active === r ? ' on' : ''}`} onClick={() => selectResource(r)}>
+                    {CAT.commands[r].label}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         ))}
         {favs.length > 0 && (
           <div className="cli-cat">
-            <div className="cli-cat-label px">★ 즐겨찾기</div>
+            <div className="cli-cat-label px">FAVORITES</div>
             {favs.map(f => (
               <div key={f.id} className="cli-fav">
                 <button className="cli-navitem fav" onClick={() => loadFav(f)}>{f.name}</button>
@@ -113,18 +187,17 @@ export default function CliBuilderPage() {
         <h1 className="sheet-h1">{cmd ? cmd.label : 'Custom 명령'}</h1>
         {cmd
           ? <p className="cli-help">{cmd.help}</p>
-          : <p className="cli-help">자유 입력 — 아래에 직접 작성하거나, 왼쪽에서 자원을 골라 폼으로 만드세요. 저장하면 즐겨찾기로 재사용됩니다.</p>}
+          : <p className="cli-help">자유 입력 — 직접 작성하거나, 왼쪽에서 자원을 골라 폼으로 만드세요. 저장하면 즐겨찾기로 재사용됩니다.</p>}
 
         {cmd ? (
           <div className="cli-form">
             <div className="cli-section-label px">필수 <span>{requiredOpts.length}</span></div>
-            {requiredOpts.map(o => <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} />)}
-
+            {requiredOpts.map(o => field(o))}
             {optionalOpts.length > 0 && <>
               <button className="cli-optional-toggle" onClick={() => setShowOptional(s => !s)}>
                 {showOptional ? '▾' : '▸'} 선택 옵션 {optionalOpts.length}개 {showOptional ? '접기' : '펼치기'}
               </button>
-              {showOptional && optionalOpts.map(o => <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional />)}
+              {showOptional && optionalOpts.map(o => field(o, true))}
             </>}
           </div>
         ) : (
@@ -132,12 +205,11 @@ export default function CliBuilderPage() {
             placeholder="oci compute instance launch --compartment-id ... " />
         )}
 
-        {/* 최종 결과 */}
         <div className="cli-result">
           <div className="cli-result-hd">
             <span className="px">최종 명령</span>
             <button className="submitbtn" onClick={copy}>복사</button>
-            <button className="donebtn" style={{ marginTop: 0 }} onClick={addFav}>★ 즐겨찾기 저장</button>
+            <button className="donebtn" style={{ marginTop: 0 }} onClick={addFav}>즐겨찾기 저장</button>
           </div>
           <pre className="cli-output">{cli}</pre>
         </div>
@@ -146,16 +218,25 @@ export default function CliBuilderPage() {
   )
 }
 
-// enum → dropdown / bool → dropdown / json → textarea / 그 외 → input
-function Field({ o, value, onChange, optional }: { o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean }) {
+function Field({ o, value, onChange, optional, dynamic, onToggleDynamic }: {
+  o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean
+  dynamic: boolean; onToggleDynamic?: (on: boolean) => void
+}) {
+  const dynMeta = DYNAMIC[o.name]
   const label = (
     <label className={`cli-field-label${optional ? ' optional' : ''}`}>
       <code>{o.name}</code>
       {o.required && <span className="req">*</span>}
-      {o.help && <span className="cli-field-help">{o.help}</span>}
+      {onToggleDynamic && (
+        <span className="cli-dyn-toggle" title={dynMeta.note}>
+          <input type="checkbox" checked={dynamic} onChange={e => onToggleDynamic(e.target.checked)} />
+          동적 조회
+        </span>
+      )}
+      <span className="cli-field-help">{dynamic && dynMeta ? dynMeta.note : o.help}</span>
     </label>
   )
-  if (o.choices && o.choices.length) {
+  if (!dynamic && o.choices && o.choices.length) {
     return (
       <div className="cli-field">
         {label}
@@ -166,7 +247,7 @@ function Field({ o, value, onChange, optional }: { o: CliOption; value: string; 
       </div>
     )
   }
-  if (o.type === 'json') {
+  if (!dynamic && o.type === 'json') {
     return (
       <div className="cli-field">
         {label}
@@ -177,7 +258,9 @@ function Field({ o, value, onChange, optional }: { o: CliOption; value: string; 
   return (
     <div className="cli-field">
       {label}
-      <input className="cli-input" value={value} placeholder={o.placeholder} onChange={e => onChange(e.target.value)} />
+      <input className="cli-input" value={value}
+        placeholder={dynamic && dynMeta ? dynMeta.input : o.placeholder}
+        onChange={e => onChange(e.target.value)} />
     </div>
   )
 }

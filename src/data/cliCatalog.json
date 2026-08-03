@@ -3,76 +3,155 @@
   {
    "id": "02-compute",
    "label": "Compute",
-   "resources": [
-    "capacity-reservation",
-    "compute-cluster",
-    "custom-image",
-    "dedicated-vm-host",
-    "instance-configuration",
-    "instance-pool",
-    "instance"
+   "groups": [
+    {
+     "label": "Instances",
+     "resources": [
+      "instance",
+      "instance-configuration",
+      "instance-pool"
+     ]
+    },
+    {
+     "label": "Dedicated Infrastructure",
+     "resources": [
+      "dedicated-vm-host",
+      "capacity-reservation",
+      "compute-cluster"
+     ]
+    },
+    {
+     "label": "Images",
+     "resources": [
+      "custom-image"
+     ]
+    }
    ]
   },
   {
    "id": "03-storage",
    "label": "Storage",
-   "resources": [
-    "export",
-    "volume-backup-policy",
-    "volume-group",
-    "mount-target",
-    "boot-volume",
-    "block-volume",
-    "bucket",
-    "file-system"
+   "groups": [
+    {
+     "label": "Block Storage",
+     "resources": [
+      "block-volume",
+      "boot-volume",
+      "volume-group",
+      "volume-backup-policy"
+     ]
+    },
+    {
+     "label": "File Storage",
+     "resources": [
+      "file-system",
+      "mount-target",
+      "export"
+     ]
+    },
+    {
+     "label": "Object Storage",
+     "resources": [
+      "bucket"
+     ]
+    }
    ]
   },
   {
    "id": "04-network",
-   "label": "Network",
-   "resources": [
-    "drg",
-    "nat-gateway",
-    "nsg",
-    "vcn",
-    "dhcp-options",
-    "drg-attachment",
-    "local-peering-gateway",
-    "remote-peering-connection",
-    "public-ip",
-    "network-load-balancer",
-    "route-table",
-    "load-balancer",
-    "security-list",
-    "subnet",
-    "service-gateway",
-    "internet-gateway"
+   "label": "Networking",
+   "groups": [
+    {
+     "label": "Virtual Cloud Networks",
+     "resources": [
+      "vcn",
+      "subnet",
+      "route-table",
+      "dhcp-options"
+     ]
+    },
+    {
+     "label": "Security",
+     "resources": [
+      "security-list",
+      "nsg"
+     ]
+    },
+    {
+     "label": "Gateways",
+     "resources": [
+      "internet-gateway",
+      "nat-gateway",
+      "service-gateway",
+      "drg",
+      "drg-attachment",
+      "local-peering-gateway",
+      "remote-peering-connection"
+     ]
+    },
+    {
+     "label": "IP Management",
+     "resources": [
+      "public-ip"
+     ]
+    },
+    {
+     "label": "Load Balancers",
+     "resources": [
+      "load-balancer",
+      "network-load-balancer"
+     ]
+    }
    ]
   },
   {
    "id": "05-database",
    "label": "Database",
-   "resources": [
-    "autonomous-database",
-    "base-db",
-    "mysql"
+   "groups": [
+    {
+     "label": "Autonomous Database",
+     "resources": [
+      "autonomous-database"
+     ]
+    },
+    {
+     "label": "Oracle Base Database",
+     "resources": [
+      "base-db"
+     ]
+    },
+    {
+     "label": "MySQL HeatWave",
+     "resources": [
+      "mysql"
+     ]
+    }
    ]
   },
   {
    "id": "06-observability",
    "label": "Observability",
-   "resources": [
-    "alarm",
-    "subscription",
-    "topic"
+   "groups": [
+    {
+     "label": "Monitoring",
+     "resources": [
+      "alarm"
+     ]
+    },
+    {
+     "label": "Notifications",
+     "resources": [
+      "topic",
+      "subscription"
+     ]
+    }
    ]
   }
  ],
  "commands": {
   "alarm": {
    "resource": "alarm",
-   "category": "06-observability",
-   "label": "알람",
+   "label": "Alarm",
    "cmd": "oci monitoring alarm create",
    "help": "Creates a new alarm in the specified compartment.",
    "options": [
@@ -98,7 +177,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name for the alarm.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--is-enabled",
@@ -321,7 +400,6 @@
   },
   "autonomous-database": {
    "resource": "autonomous-database",
-   "category": "05-database",
    "label": "Autonomous Database",
    "cmd": "oci db autonomous-database create",
    "help": "Creates a new Autonomous Database.",
@@ -506,7 +584,7 @@
      "type": "str",
      "choices": null,
      "help": "The user-friendly name for the Autonomous Database.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--encryption-key",
@@ -867,8 +945,7 @@
   },
   "base-db": {
    "resource": "base-db",
-   "category": "05-database",
-   "label": "Base Database",
+   "label": "Base Database System",
    "cmd": "oci db system launch",
    "help": "Creates a new DB system in the specified compartment and availability domain.",
    "options": [
@@ -990,7 +1067,7 @@
      "type": "str",
      "choices": null,
      "help": "The user-friendly name for the DB system.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--domain",
@@ -1154,8 +1231,7 @@
   },
   "block-volume": {
    "resource": "block-volume",
-   "category": "03-storage",
-   "label": "블록 볼륨",
+   "label": "Block Volume",
    "cmd": "oci bv volume create",
    "help": "Creates a new volume in the specified compartment.",
    "options": [
@@ -1221,7 +1297,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -1333,8 +1409,7 @@
   },
   "boot-volume": {
    "resource": "boot-volume",
-   "category": "03-storage",
-   "label": "부트 볼륨",
+   "label": "Boot Volume",
    "cmd": "oci bv boot-volume create",
    "help": "Creates a new boot volume in the specified compartment from an existing boot volume or a boot volume backup.",
    "options": [
@@ -1408,7 +1483,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -1496,8 +1571,7 @@
   },
   "bucket": {
    "resource": "bucket",
-   "category": "03-storage",
-   "label": "오브젝트 스토리지 버킷",
+   "label": "Bucket",
    "cmd": "oci os bucket create",
    "help": "Creates a bucket in the given namespace with a bucket name and optional user-defined metadata.",
    "options": [
@@ -1515,7 +1589,7 @@
      "type": "str",
      "choices": null,
      "help": "The name of the bucket.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--namespace-name",
@@ -1614,8 +1688,7 @@
   },
   "capacity-reservation": {
    "resource": "capacity-reservation",
-   "category": "02-compute",
-   "label": "capacity-reservation",
+   "label": "Capacity Reservation",
    "cmd": "oci compute capacity-reservation create",
    "help": "Creates a new compute capacity reservation in the specified compartment and availability domain.",
    "options": [
@@ -1649,7 +1722,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -1713,8 +1786,7 @@
   },
   "compute-cluster": {
    "resource": "compute-cluster",
-   "category": "02-compute",
-   "label": "compute-cluster",
+   "label": "Compute Cluster",
    "cmd": "oci compute compute-cluster create",
    "help": "Creates an empty [compute cluster].",
    "options": [
@@ -1748,7 +1820,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -1789,8 +1861,7 @@
   },
   "custom-image": {
    "resource": "custom-image",
-   "category": "02-compute",
-   "label": "custom-image",
+   "label": "Custom Image",
    "cmd": "oci compute image create",
    "help": "Creates a boot disk image for the specified instance or imports an exported image from the Oracle Cloud Infrastructure Object Storage service.",
    "options": [
@@ -1816,7 +1887,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name for the image.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -1890,8 +1961,7 @@
   },
   "dedicated-vm-host": {
    "resource": "dedicated-vm-host",
-   "category": "02-compute",
-   "label": "dedicated-vm-host",
+   "label": "Dedicated VM Host",
    "cmd": "oci compute dedicated-vm-host create",
    "help": "Creates a new dedicated virtual machine host in the specified compartment and the specified availability domain.",
    "options": [
@@ -1933,7 +2003,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--fault-domain",
@@ -1986,8 +2056,7 @@
   },
   "dhcp-options": {
    "resource": "dhcp-options",
-   "category": "04-network",
-   "label": "dhcp-options",
+   "label": "DHCP Options",
    "cmd": "oci network dhcp-options create",
    "help": "Creates a new set of DHCP options for the specified VCN.",
    "options": [
@@ -2029,7 +2098,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--domain-name-type",
@@ -2084,8 +2153,7 @@
   },
   "drg-attachment": {
    "resource": "drg-attachment",
-   "category": "04-network",
-   "label": "drg-attachment",
+   "label": "DRG Attachment",
    "cmd": "oci network drg-attachment create",
    "help": "Attaches the specified DRG to the specified network resource.",
    "options": [
@@ -2111,7 +2179,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--drg-route-table-id",
@@ -2186,7 +2254,6 @@
   },
   "drg": {
    "resource": "drg",
-   "category": "04-network",
    "label": "DRG",
    "cmd": "oci network drg create",
    "help": "Creates a new dynamic routing gateway (DRG) in the specified compartment.",
@@ -2213,7 +2280,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -2256,8 +2323,7 @@
   },
   "export": {
    "resource": "export",
-   "category": "03-storage",
-   "label": "export",
+   "label": "Export",
    "cmd": "oci fs export create",
    "help": "Creates a new export in the specified export set, path, and file system.",
    "options": [
@@ -2345,8 +2411,7 @@
   },
   "file-system": {
    "resource": "file-system",
-   "category": "03-storage",
-   "label": "파일 시스템(FSS)",
+   "label": "File System",
    "cmd": "oci fs file-system create",
    "help": "Creates a new file system in the specified compartment and availability domain.",
    "options": [
@@ -2391,7 +2456,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--filesystem-snapshot-policy-id",
@@ -2468,8 +2533,7 @@
   },
   "instance-configuration": {
    "resource": "instance-configuration",
-   "category": "02-compute",
-   "label": "instance-configuration",
+   "label": "Instance Configuration",
    "cmd": "oci compute-management instance-configuration create",
    "help": "Creates an instance configuration.",
    "options": [
@@ -2495,7 +2559,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -2520,8 +2584,7 @@
   },
   "instance-pool": {
    "resource": "instance-pool",
-   "category": "02-compute",
-   "label": "instance-pool",
+   "label": "Instance Pool",
    "cmd": "oci compute-management instance-pool create",
    "help": "Creates an instance pool.",
    "options": [
@@ -2571,7 +2634,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -2642,8 +2705,7 @@
   },
   "instance": {
    "resource": "instance",
-   "category": "02-compute",
-   "label": "인스턴스",
+   "label": "Instance",
    "cmd": "oci compute instance launch",
    "help": "Creates a new instance in the specified compartment and the specified availability domain.",
    "options": [
@@ -2733,7 +2795,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--extended-metadata",
@@ -2936,8 +2998,7 @@
   },
   "internet-gateway": {
    "resource": "internet-gateway",
-   "category": "04-network",
-   "label": "인터넷 게이트웨이",
+   "label": "Internet Gateway",
    "cmd": "oci network internet-gateway create",
    "help": "Creates a new internet gateway for the specified VCN.",
    "options": [
@@ -2982,7 +3043,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -3033,8 +3094,7 @@
   },
   "load-balancer": {
    "resource": "load-balancer",
-   "category": "04-network",
-   "label": "로드밸런서",
+   "label": "Load Balancer",
    "cmd": "oci lb load-balancer create",
    "help": "Creates a new load balancer in the specified compartment.",
    "options": [
@@ -3052,7 +3112,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--shape-name",
@@ -3259,8 +3319,7 @@
   },
   "local-peering-gateway": {
    "resource": "local-peering-gateway",
-   "category": "04-network",
-   "label": "local-peering-gateway",
+   "label": "Local Peering Gateway",
    "cmd": "oci network local-peering-gateway create",
    "help": "Creates a new local peering gateway (LPG) for the specified VCN.",
    "options": [
@@ -3294,7 +3353,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -3345,8 +3404,7 @@
   },
   "mount-target": {
    "resource": "mount-target",
-   "category": "03-storage",
-   "label": "마운트 타깃",
+   "label": "Mount Target",
    "cmd": "oci fs mount-target create",
    "help": "Creates a new mount target in the specified compartment and subnet.",
    "options": [
@@ -3388,7 +3446,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -3508,8 +3566,7 @@
   },
   "mysql": {
    "resource": "mysql",
-   "category": "05-database",
-   "label": "MySQL",
+   "label": "MySQL DB System",
    "cmd": "oci mysql db-system create",
    "help": "Creates and launches a DB System.",
    "options": [
@@ -3653,7 +3710,7 @@
      "type": "str",
      "choices": null,
      "help": "The user-friendly name for the DB System.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--fault-domain",
@@ -3781,8 +3838,7 @@
   },
   "nat-gateway": {
    "resource": "nat-gateway",
-   "category": "04-network",
-   "label": "NAT 게이트웨이",
+   "label": "NAT Gateway",
    "cmd": "oci network nat-gateway create",
    "help": "Creates a new NAT gateway for the specified VCN.",
    "options": [
@@ -3827,7 +3883,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -3886,8 +3942,7 @@
   },
   "network-load-balancer": {
    "resource": "network-load-balancer",
-   "category": "04-network",
-   "label": "네트워크 로드밸런서(NLB)",
+   "label": "Network Load Balancer",
    "cmd": "oci nlb network-load-balancer create",
    "help": "Creates a network load balancer.",
    "options": [
@@ -3905,7 +3960,7 @@
      "type": "str",
      "choices": null,
      "help": "Network load balancer identifier, which can be renamed.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--subnet-id",
@@ -4075,8 +4130,7 @@
   },
   "nsg": {
    "resource": "nsg",
-   "category": "04-network",
-   "label": "NSG(네트워크 보안 그룹)",
+   "label": "Network Security Group",
    "cmd": "oci network nsg create",
    "help": "Creates a new network security group for the specified VCN.",
    "options": [
@@ -4110,7 +4164,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -4153,8 +4207,7 @@
   },
   "public-ip": {
    "resource": "public-ip",
-   "category": "04-network",
-   "label": "공인 IP",
+   "label": "Public IP",
    "cmd": "oci network public-ip create",
    "help": "Creates a public IP.",
    "options": [
@@ -4191,7 +4244,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -4254,8 +4307,7 @@
   },
   "remote-peering-connection": {
    "resource": "remote-peering-connection",
-   "category": "04-network",
-   "label": "remote-peering-connection",
+   "label": "Remote Peering Connection",
    "cmd": "oci network remote-peering-connection create",
    "help": "Creates a new remote peering connection (RPC) for the specified DRG.",
    "options": [
@@ -4289,7 +4341,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -4332,8 +4384,7 @@
   },
   "route-table": {
    "resource": "route-table",
-   "category": "04-network",
-   "label": "라우트 테이블",
+   "label": "Route Table",
    "cmd": "oci network route-table create",
    "help": "Creates a new route table for the specified VCN.",
    "options": [
@@ -4375,7 +4426,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -4418,8 +4469,7 @@
   },
   "security-list": {
    "resource": "security-list",
-   "category": "04-network",
-   "label": "보안 목록",
+   "label": "Security List",
    "cmd": "oci network security-list create",
    "help": "Creates a new security list for the specified VCN.",
    "options": [
@@ -4469,7 +4519,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -4512,8 +4562,7 @@
   },
   "service-gateway": {
    "resource": "service-gateway",
-   "category": "04-network",
-   "label": "서비스 게이트웨이",
+   "label": "Service Gateway",
    "cmd": "oci network service-gateway create",
    "help": "Creates a new service gateway in the specified compartment.",
    "options": [
@@ -4555,7 +4604,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -4606,8 +4655,7 @@
   },
   "subnet": {
    "resource": "subnet",
-   "category": "04-network",
-   "label": "서브넷",
+   "label": "Subnet",
    "cmd": "oci network subnet create",
    "help": "Creates a new subnet in the specified VCN.",
    "options": [
@@ -4665,7 +4713,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--dns-label",
@@ -4771,8 +4819,7 @@
   },
   "subscription": {
    "resource": "subscription",
-   "category": "06-observability",
-   "label": "알림 구독",
+   "label": "Subscription",
    "cmd": "oci ons subscription create",
    "help": "Creates a subscription for the specified topic and sends a subscription confirmation URL to the endpoint.",
    "options": [
@@ -4864,8 +4911,7 @@
   },
   "topic": {
    "resource": "topic",
-   "category": "06-observability",
-   "label": "알림 토픽",
+   "label": "Topic",
    "cmd": "oci ons topic create",
    "help": "Creates a topic in the specified compartment.",
    "options": [
@@ -4883,7 +4929,7 @@
      "type": "str",
      "choices": null,
      "help": "The name of the topic being created.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--defined-tags",
@@ -4913,7 +4959,6 @@
   },
   "vcn": {
    "resource": "vcn",
-   "category": "04-network",
    "label": "VCN",
    "cmd": "oci network vcn create",
    "help": "Creates a new virtual cloud network (VCN).",
@@ -4964,7 +5009,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--dns-label",
@@ -5054,8 +5099,7 @@
   },
   "volume-backup-policy": {
    "resource": "volume-backup-policy",
-   "category": "03-storage",
-   "label": "volume-backup-policy",
+   "label": "Volume Backup Policy",
    "cmd": "oci bv volume-backup-policy create",
    "help": "Creates a new user defined backup policy.",
    "options": [
@@ -5089,7 +5133,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
@@ -5111,8 +5155,7 @@
   },
   "volume-group": {
    "resource": "volume-group",
-   "category": "03-storage",
-   "label": "volume-group",
+   "label": "Volume Group",
    "cmd": "oci bv volume-group create",
    "help": "Creates a new volume group in the specified compartment.",
    "options": [
@@ -5170,7 +5213,7 @@
      "type": "str",
      "choices": null,
      "help": "A user-friendly name.",
-     "placeholder": "이름 입력"
+     "placeholder": "my-resource"
     },
     {
      "name": "--freeform-tags",
