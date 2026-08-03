@@ -5,8 +5,8 @@ export const PROFILE = {
   name: '정지안',
   role: 'Oracle Cloud SA · 클라우드 MSP 엔지니어',
   company: '위즈베이스(Wizbase) OCI사업부',
-  since: '2025.02.17 입사 · OCI 1년+',
-  tagline: '클라우드를 가장 선명하게 바라보는 엔지니어 — OCI 깊이 위에 멀티클라우드·IaC·네트워크·쿠버네티스로 아키텍트를 향해',
+  hireDate: '2025-02-17',   // 근속 자동계산 기준 (표시 문구는 ProfilePage 에서 오늘 날짜로 계산)
+  tagline: 'OCI 깊이를 기반으로 멀티클라우드를 이해하는 엔지니어',
   github: 'https://github.com/jja6312',
 }
 
@@ -62,53 +62,6 @@ export const CERT_GROUPS: CertGroup[] = [
     domain: '수상 / 기여',
     certs: [
       { name: '2025 오픈소스 개발자대회 우수작 (한국오픈소스협회)', issued: '2025.12', id: 'fd7676a9-2dfe-4164-84b4-52878f4ef190' },
-    ],
-  },
-]
-
-// 취득 예정 / 학습 로드맵 — 이정표
-export interface Upcoming {
-  label: string
-  when: string
-  status: 'progress' | 'planned'
-}
-export const UPCOMING: Upcoming[] = [
-  { label: 'RHCSA → RHCE', when: '진행 중', status: 'progress' },
-  { label: 'CKA (Kubernetes)', when: '올해', status: 'planned' },
-  { label: 'AWS SAP (Solutions Architect Pro)', when: '올해', status: 'planned' },
-  { label: '빅데이터분석기사', when: '올해', status: 'planned' },
-  { label: '정보통신기술사', when: '2년 뒤~', status: 'planned' },
-]
-
-// 방향성 — 1/3/5년 이정표 (개조식)
-export interface Horizon {
-  span: string
-  points: string[]
-}
-export const ROADMAP: Horizon[] = [
-  {
-    span: '1년',
-    points: [
-      'OCI 깊이 위에 AWS·GCP·Azure 멀티클라우드 확장 (IaC 병행)',
-      'RHCSA → RHCE 취득으로 Linux 골격 다지기',
-      '개인서버 VPN 연결 실습 — 네트워크 흐름 체득',
-      '쿠버네티스 운영 수준까지',
-      '데이터 분석 직접 경험 — 인프라 커뮤니케이션 근육',
-      'HPC 실무 경험 개인 반복 심화',
-    ],
-  },
-  {
-    span: '3년',
-    points: [
-      'Azure·GCP 섭렵 (IaC 동반)',
-      '멀티클라우드 설계·구축·운영 전 영역 자립',
-    ],
-  },
-  {
-    span: '5년',
-    points: [
-      '정보통신기술사 취득',
-      'IT 전반 컨설팅·아키텍팅이 가능한 아키텍트 수준',
     ],
   },
 ]

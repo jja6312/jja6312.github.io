@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
 import catalog from '../data/cliCatalog.json'
 
@@ -96,15 +97,33 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
   return prelude.length ? prelude.join('\n\n') + '\n\n' + main : main
 }
 
+const catOfResource = (r: string) =>
+  CAT.categories.find(c => c.groups.some(g => g.resources.includes(r)))?.id
+
 export default function CliBuilderPage() {
   const { showToast } = useHub()
-  const [active, setActive] = useState<string>('__custom')
+  const [sp] = useSearchParams()
+  const rParam = sp.get('r')                                  // Ctrl+K 딥링크: ?r=<resource>
+  const initial = rParam && CAT.commands[rParam] ? rParam : '__custom'
+  const [active, setActive] = useState<string>(initial)
   const [values, setValues] = useState<Record<string, string>>({})
   const [dyn, setDyn] = useState<Record<string, boolean>>({})
   const [customText, setCustomText] = useState('oci ')
   const [favs, setFavs] = useState<Favorite[]>(loadFavs())
   const [showOptional, setShowOptional] = useState(false)
-  const [openCats, setOpenCats] = useState<Record<string, boolean>>({})  // 기본 전부 닫힘
+  // 딥링크로 들어온 자원의 카테고리는 펼쳐 둔다 (그 외는 닫힘)
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>(() => {
+    const cat = rParam && CAT.commands[rParam] ? catOfResource(rParam) : undefined
+    return cat ? { [cat]: true } : {}
+  })
+
+  // 팔레트에서 ?r 이 바뀌며 재진입하면 해당 자원 선택 + 카테고리 펼침
+  useEffect(() => {
+    if (!rParam || !CAT.commands[rParam]) return
+    setActive(rParam); setValues({}); setDyn({}); setShowOptional(false)
+    const cat = catOfResource(rParam)
+    if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
+  }, [rParam])
 
   const cmd = active !== '__custom' ? CAT.commands[active] : null
   const cli = useMemo(() => cmd ? buildCli(cmd, values, dyn) : customText, [cmd, values, dyn, customText])

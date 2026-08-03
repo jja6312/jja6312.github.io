@@ -624,3 +624,70 @@ select.cli-input { cursor: pointer; }
   .hub-nav { font-size: 12px; }
   .xpbar { display: none; }   /* 폴드 커버 화면: 레벨 뱃지만 */
 }
+
+/* ─────────── 일정관리 (월간일정 · TODO · 목표) ─────────── */
+.sched-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; max-width: 1040px; margin: 0 auto; padding: 30px 24px 100px; }
+@media (max-width: 860px) { .sched-layout { grid-template-columns: 1fr; } }
+.sched-nav { position: sticky; top: 66px; align-self: start; display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 860px) { .sched-nav { position: static; flex-direction: row; flex-wrap: wrap; } }
+.sched-nav-title { font-size: 10.5px; color: var(--text-faint); letter-spacing: 1px; padding: 4px 8px 6px; }
+.sched-navitem {
+  display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%;
+  background: none; border: none; border-left: 2px solid transparent; color: var(--text-dim);
+  padding: 10px 12px; border-radius: 9px; cursor: pointer; font-family: inherit; font-size: 14px; transition: background .13s, color .13s;
+}
+.sched-navitem:hover { background: var(--bg-inset); color: var(--text); }
+.sched-navitem.on { background: var(--accent-glow); color: var(--accent); border-left-color: var(--accent); }
+.sched-navitem-label { font-weight: 600; }
+.sched-navitem-desc { font-size: 10.5px; color: var(--text-faint); }
+.sched-navitem.on .sched-navitem-desc { color: var(--accent); opacity: .8; }
+.sched-main { min-width: 0; }
+.sched-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.sched-sync { font-size: 11px; margin-left: auto; color: var(--partial); }
+
+/* 목표 */
+.goal-add { display: flex; gap: 8px; margin: 8px 0 22px; flex-wrap: wrap; }
+.goal-list { display: flex; flex-direction: column; gap: 12px; }
+.goal-card { border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 14px 16px; background: var(--bg-card); }
+.goal-edit { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.goal-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.goal-title { font-size: 15px; }
+.goal-dday { font-family: var(--mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--bg-inset); color: var(--text-dim); }
+.goal-dday.near { color: var(--partial); }
+.goal-dday.over { color: var(--wrong); }
+.goal-deadline { font-size: 11px; color: var(--text-faint); }
+.goal-actions { margin-left: auto; display: flex; gap: 2px; }
+.goal-prog { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.goal-bar { flex: 1; height: 7px; background: var(--bg-inset); border-radius: 20px; overflow: hidden; }
+.goal-fill { height: 100%; background: var(--accent); border-radius: 20px; transition: width .3s; }
+.goal-pct { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.goal-expand { background: none; border: none; color: var(--text-faint); font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.goal-expand:hover { color: var(--accent); }
+.goal-links { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.goal-link { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.goal-link.done { opacity: .6; }
+.goal-link-kind { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--bg-inset); color: var(--text-dim); }
+.goal-link-date { font-size: 10.5px; color: var(--text-faint); }
+.goal-link-text { flex: 1; }
+.goal-link-check { color: var(--accent); }
+.goal-tag { display: inline-flex; align-items: center; font-size: 10.5px; padding: 1px 8px; border: 1px solid var(--accent); border-radius: 20px; background: transparent; cursor: pointer; font-family: inherit; }
+.goal-select { padding: 6px 10px; font-size: 13px; min-width: 120px; }
+
+/* TODO — 탭·툴바 */
+.todo-tabs { display: flex; gap: 6px; margin: 12px 0 16px; }
+.todo-tab { background: var(--bg-inset); border: 1px solid var(--border); color: var(--text-dim); padding: 7px 16px; border-radius: 20px; cursor: pointer; font-family: inherit; font-size: 13px; }
+.todo-tab.on { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
+.todo-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.todo-goalpick { display: flex; align-items: center; gap: 8px; }
+
+/* 일지 */
+.jr-editor { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--bg-card); }
+.jr-label { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+.jr-goals { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.jr-list { display: flex; flex-direction: column; gap: 10px; }
+.jr-item { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--bg-card); }
+.jr-item-hd { display: flex; align-items: center; margin-bottom: 6px; }
+.jr-item-hd .goal-actions { margin-left: auto; }
+.jr-row { display: flex; gap: 8px; font-size: 13.5px; margin: 3px 0; }
+.jr-tag { flex-shrink: 0; font-size: 10px; padding: 1px 7px; border-radius: 4px; background: var(--bg-inset); color: var(--text-dim); height: fit-content; }
+.jr-taglist { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }

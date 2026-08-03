@@ -8,7 +8,7 @@ import SheetPage from './pages/SheetPage'
 import ReviewPage from './pages/ReviewPage'
 import FeedbackPage from './pages/FeedbackPage'
 import KnowledgePage from './pages/KnowledgePage'
-import TodoPage from './pages/TodoPage'
+import SchedulePage from './pages/SchedulePage'
 import ProfilePage from './pages/ProfilePage'
 import { useHub } from './store'
 
@@ -43,7 +43,7 @@ function Hotkeys() {
         else if (e.key === 't') nav('/knowledge/terraform')
         else if (e.key === 'q') nav('/knowledge/quote')
         else if (e.key === 'm') nav('/knowledge/meetings')   // 회의록 = 지식모음 하위
-        else if (e.key === 'd') nav('/todo')          // t 는 Terraform 이 가져감 → Do
+        else if (e.key === 'd') nav('/schedule/todo')  // t 는 Terraform 이 가져감 → Do(일정관리)
         else if (e.key === 'p') nav('/profile')
         return
       }
@@ -86,7 +86,10 @@ function Shell() {
         <Route path="/troubleshooting" element={<Navigate to="/knowledge/troubleshooting" replace />} />
         <Route path="/announcements" element={<Navigate to="/knowledge/announcements" replace />} />
         <Route path="/meetings" element={<Navigate to="/knowledge/meetings" replace />} />
-        <Route path="/todo" element={<TodoPage />} />
+        <Route path="/schedule" element={<Navigate to="/schedule/calendar" replace />} />
+        <Route path="/schedule/:view" element={<SchedulePage />} />
+        {/* 구 경로 호환 */}
+        <Route path="/todo" element={<Navigate to="/schedule/todo" replace />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/learning" replace />} />
       </Routes>

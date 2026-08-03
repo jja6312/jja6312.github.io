@@ -7,7 +7,7 @@ const tabs = [
   { to: '/learning', label: '학습' },
   { to: '/review', label: '복습' },
   { to: '/knowledge', label: '지식모음' },
-  { to: '/todo', label: 'TODO', locked: true },
+  { to: '/schedule', label: '일정관리', locked: true },
   { to: '/profile', label: '프로필' },
 ]
 

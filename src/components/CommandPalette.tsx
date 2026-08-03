@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useHub } from '../store'
+import cliCatalog from '../data/cliCatalog.json'
 
 interface Cmd { id: string; label: string; kbd?: string; run: () => void }
+interface CliCmd { resource: string; label: string; cmd: string; help: string }
+const CLI_COMMANDS = Object.values((cliCatalog as { commands: Record<string, CliCmd> }).commands)
 
 export default function CommandPalette() {
   const { paletteOpen, setPaletteOpen, toggleTheme, setCmtOpen, setHelpOpen, cmtOpen } = useHub()
@@ -17,7 +20,9 @@ export default function CommandPalette() {
     { id: 'review', label: '복습 퀴즈 시작', kbd: 'g r', run: () => nav('/review') },
     { id: 'feedback', label: '피드백 남기기', kbd: 'g f', run: () => nav('/feedback') },
     { id: 'cloudguard', label: 'OCI 보안 — Cloud Guard 열기', run: () => nav('/learning/oci-security/cloud-guard') },
-    { id: 'todo', label: 'TODO로 이동', kbd: 'g d', run: () => nav('/todo') },
+    { id: 'sched-cal', label: '일정관리 — 월간일정', kbd: 'g d', run: () => nav('/schedule/calendar') },
+    { id: 'sched-todo', label: '일정관리 — TODO LIST', run: () => nav('/schedule/todo') },
+    { id: 'sched-goals', label: '일정관리 — 목표', run: () => nav('/schedule/goals') },
     { id: 'ts', label: '지식모음 — 트러블슈팅', kbd: 'g s', run: () => nav('/knowledge/troubleshooting') },
     { id: 'ann', label: '지식모음 — Announcement', kbd: 'g a', run: () => nav('/knowledge/announcements') },
     { id: 'cli', label: '지식모음 — OCI CLI 레시피', kbd: 'g c', run: () => nav('/knowledge/oci-cli') },
@@ -30,7 +35,18 @@ export default function CommandPalette() {
     { id: 'help', label: '단축키 가이드', kbd: '?', run: () => setHelpOpen(true) },
   ], [nav, toggleTheme, setCmtOpen, setHelpOpen, cmtOpen])
 
-  const filtered = cmds.filter(c => c.label.toLowerCase().includes(q.toLowerCase()))
+  // OCI CLI 자원 — 검색어가 있을 때만 노출 (37개가 기본 목록을 채우지 않도록).
+  // label(자원명) + cmd(oci compute …) 둘 다 검색 대상 → "oci compute" 로 찾힌다.
+  const cliCmds: Cmd[] = useMemo(() => CLI_COMMANDS.map(c => ({
+    id: `cli-${c.resource}`,
+    label: `OCI CLI · ${c.label} — ${c.cmd}`,
+    run: () => nav(`/knowledge/oci-cli?r=${c.resource}`),
+  })), [nav])
+
+  const ql = q.trim().toLowerCase()
+  const base = cmds.filter(c => c.label.toLowerCase().includes(ql))
+  const cli = ql ? cliCmds.filter(c => c.label.toLowerCase().includes(ql)) : []
+  const filtered = [...base, ...cli]
 
   useEffect(() => {
     if (paletteOpen) { setQ(''); setSel(0); setTimeout(() => inputRef.current?.focus(), 10) }
