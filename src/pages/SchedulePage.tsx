@@ -1,6 +1,8 @@
 import { useNavigate, useParams } from 'react-router-dom'
-import { getPat } from '../lib/githubDb'
-import PatNotice from '../components/PatNotice'
+import { useHub } from '../store'
+import { requiredLevel } from '../lib/auth'
+import Locks from '../components/Locks'
+import LockedNotice from '../components/LockedNotice'
 import CalendarView from './schedule/CalendarView'
 import TodoView from './schedule/TodoView'
 import GoalsView from './schedule/GoalsView'
@@ -14,31 +16,32 @@ const VIEWS = [
 export default function SchedulePage() {
   const { view } = useParams()
   const nav = useNavigate()
-  const pat = getPat()
+  const { authLevel, openAuth } = useHub()
   const active = VIEWS.find(v => v.id === view)?.id ?? 'calendar'
+  const activeLevel = requiredLevel(`/schedule/${active}`)
+  const locked = activeLevel > authLevel
 
   return (
     <div className="sched-layout">
       <aside className="sched-nav">
         <div className="sched-nav-title px">일정관리</div>
-        {VIEWS.map(v => (
-          <button key={v.id} className={`sched-navitem${active === v.id ? ' on' : ''}`} onClick={() => nav(`/schedule/${v.id}`)}>
-            <span className="sched-navitem-label">{v.label}</span>
-            <span className="sched-navitem-desc px">{v.desc}</span>
-          </button>
-        ))}
+        {VIEWS.map(v => {
+          const lv = requiredLevel(`/schedule/${v.id}`)
+          return (
+            <button key={v.id} className={`sched-navitem${active === v.id ? ' on' : ''}`}
+              onClick={() => { if (lv > authLevel) openAuth(lv); else nav(`/schedule/${v.id}`) }}>
+              <span className="sched-navitem-label">{v.label}<Locks level={lv} authLevel={authLevel} /></span>
+              <span className="sched-navitem-desc px">{v.desc}</span>
+            </button>
+          )
+        })}
       </aside>
       <main className="sched-main">
-        {!pat ? (
-          <div style={{ maxWidth: 760 }}>
-            <div className="crumb"><span className="px">일정관리</span></div>
-            <h1 className="sheet-h1">일정관리</h1>
-            <p className="prof-desc">월간일정·TODO·목표는 blog-db 에 동기화되어 기기 간 공유된다. 열람·수정·삭제에는 PAT 등록이 필요하다.</p>
-            <div style={{ height: 20 }} /><PatNotice />
-          </div>
-        ) : active === 'calendar' ? <CalendarView />
-          : active === 'todo' ? <TodoView />
-            : <GoalsView />}
+        {locked
+          ? <LockedNotice level={activeLevel} authLevel={authLevel} onLogin={() => openAuth(activeLevel)} />
+          : active === 'calendar' ? <CalendarView />
+            : active === 'todo' ? <TodoView />
+              : <GoalsView />}
       </main>
     </div>
   )

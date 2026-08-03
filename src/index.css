@@ -731,3 +731,27 @@ select.cli-input { cursor: pointer; }
 /* ─────────── 트러블슈팅 구조화 입력 ─────────── */
 .ts-flabel { display: block; font-size: 11.5px; color: var(--text-dim); margin-bottom: 5px; letter-spacing: .3px; }
 .ts-req { color: var(--wrong); margin-left: 3px; }
+
+/* ─────────── 로그인 / 단계별 권한(자물쇠) ─────────── */
+.lockmark { gap: 1px; margin-left: 4px; }
+.lockmark.unlocked { color: var(--accent); }          /* 열린 자물쇠 = 권한 있음 */
+.lockrow { display: inline-flex; align-items: center; gap: 1px; vertical-align: -2px; color: var(--partial); }
+.authbtn { display: inline-flex; align-items: center; gap: 5px; background: var(--bg-inset); border: 1px solid var(--border); color: var(--text-dim); border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; font-family: inherit; }
+.authbtn:hover { color: var(--text); border-color: var(--accent); }
+/* 로그인 모달 (.palette 오버레이 재사용) */
+.auth-box { align-self: flex-start; width: min(92vw, 380px); background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; box-shadow: var(--shadow); }
+.auth-hd { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.auth-hd b { font-size: 16px; }
+.auth-cur { font-size: 11px; color: var(--text-faint); display: inline-flex; align-items: center; gap: 4px; }
+.auth-want { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--partial); background: var(--bg-inset); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+.auth-desc { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; margin: 0 0 12px; }
+.auth-input { width: 100%; font-family: Pretendard; margin-bottom: 6px; }
+.auth-err { color: var(--wrong); font-size: 12px; margin-bottom: 6px; }
+.auth-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.auth-ghost { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-family: inherit; }
+/* 권한 부족 안내 카드 */
+.locked-card { max-width: 520px; margin: 0 auto; text-align: center; padding: 44px 28px; }
+.locked-locks { display: flex; justify-content: center; margin-bottom: 14px; }
+.locked-locks .lockmark { color: var(--partial); margin: 0; transform: scale(1.6); }
+.locked-title { font-size: 18px; margin: 0 0 8px; }
+.locked-desc { font-size: 14px; color: var(--text-dim); margin: 0 0 18px; line-height: 1.6; }

@@ -3,6 +3,8 @@ import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-d
 import Header from './components/Header'
 import { Toast, LevelFx, HelpOverlay } from './components/Overlays'
 import CommandPalette from './components/CommandPalette'
+import AuthModal from './components/AuthModal'
+import { currentLevel } from './lib/auth'
 import LearningHome from './pages/LearningHome'
 import SheetPage from './pages/SheetPage'
 import ReviewPage from './pages/ReviewPage'
@@ -71,9 +73,12 @@ function Hotkeys() {
 
 function Shell() {
   const cmtOpen = useHub(s => s.cmtOpen)
+  const setAuthLevel = useHub(s => s.setAuthLevel)
   useEffect(() => {
     document.body.classList.toggle('cmt-open', cmtOpen)
   }, [cmtOpen])
+  // 앱 로드 시 저장된 비번/PAT 로 현재 권한 레벨 계산
+  useEffect(() => { currentLevel().then(setAuthLevel) }, [setAuthLevel])
 
   return (
     <>
@@ -103,6 +108,7 @@ function Shell() {
       <LevelFx />
       <HelpOverlay />
       <CommandPalette />
+      <AuthModal />
     </>
   )
 }

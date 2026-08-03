@@ -24,6 +24,9 @@ interface HubState {
   helpOpen: boolean
   paletteOpen: boolean
   cmtTarget: string
+  authLevel: number          // 0~3 현재 권한 (PAT=3, 비번=1~2) — 파생값(비영속)
+  authModalOpen: boolean
+  authWant: number           // 로그인 모달이 안내할 요구 레벨 (0=일반 로그인)
 
   toggleTheme: () => void
   addXP: (n: number) => void
@@ -37,6 +40,9 @@ interface HubState {
   setPaletteOpen: (v: boolean) => void
   setCmtTarget: (v: string) => void
   toggleSidebar: () => void
+  setAuthLevel: (n: number) => void
+  openAuth: (want?: number) => void
+  closeAuth: () => void
 }
 
 export const useHub = create<HubState>()(
@@ -48,6 +54,7 @@ export const useHub = create<HubState>()(
       lastActivity: {},
       sidebarCollapsed: false,
       toast: null, levelFx: 0, cmtOpen: false, helpOpen: false, paletteOpen: false, cmtTarget: '전체',
+      authLevel: 0, authModalOpen: false, authWant: 0,
 
       toggleTheme: () => {
         const next = get().theme === 'dark' ? 'light' : 'dark'
@@ -110,6 +117,9 @@ export const useHub = create<HubState>()(
       setPaletteOpen: (v) => set({ paletteOpen: v }),
       setCmtTarget: (v) => set({ cmtTarget: v }),
       toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
+      setAuthLevel: (n) => set({ authLevel: n }),
+      openAuth: (want = 0) => set({ authModalOpen: true, authWant: want }),
+      closeAuth: () => set({ authModalOpen: false, authWant: 0 }),
     }),
     {
       name: 'hub-state-v1',
