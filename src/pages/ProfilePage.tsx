@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
-import PatNotice from '../components/PatNotice'
 import { PROFILE, CERT_GROUPS, UPCOMING, ROADMAP } from '../data/profile'
 
 /* ─────────── 달력 (blog-db profile/calendar.json 동기화) ───────────
@@ -24,10 +23,15 @@ const iso = (y: number, m: number, d: number) =>
   `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 const WEEK = ['일', '월', '화', '수', '목', '금', '토']
 
-type Sync = 'loading' | 'synced' | 'dirty' | 'saving' | 'error'
+type Sync = 'loading' | 'synced' | 'dirty' | 'saving' | 'error' | 'local'
 const syncLabel: Record<Sync, string> = {
-  loading: '불러오는 중…', synced: '✓ 저장됨', dirty: '● 변경됨 (3초 후 commit)',
-  saving: '↑ commit 중…', error: '⚠ 저장 실패',
+  loading: '불러오는 중…', synced: '✓ 동기화됨', dirty: '● 변경됨 (3초 후 commit)',
+  saving: '↑ commit 중…', error: '⚠ 저장 실패', local: '로컬 저장 (PAT 등록 시 기기 간 동기화)',
+}
+
+const LS_KEY = 'hub-calendar'
+const loadLocal = (): CalData => {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}') } catch { return {} }
 }
 
 function Calendar() {
@@ -35,8 +39,8 @@ function Calendar() {
   const { showToast } = useHub()
   const today = new Date()
   const [cursor, setCursor] = useState({ y: today.getFullYear(), m: today.getMonth() })
-  const [data, setData] = useState<CalData>({})
-  const [sync, setSync] = useState<Sync>('loading')
+  const [data, setData] = useState<CalData>(loadLocal)   // 로컬 우선 즉시 표시
+  const [sync, setSync] = useState<Sync>(pat ? 'loading' : 'local')
   const [sel, setSel] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [cat, setCat] = useState<Cat>('study')
@@ -45,12 +49,13 @@ function Calendar() {
   const dataRef = useRef(data)
   dataRef.current = data
 
+  // PAT 있으면 blog-db(정본)로 덮어쓰고 로컬 캐시 갱신 — 없으면 로컬만 사용
   useEffect(() => {
-    if (!pat) return
+    if (!pat) { setSync('local'); return }
     getFile(pat, 'profile/calendar.json').then(f => {
       if (f) {
         shaRef.current = f.sha
-        try { setData(JSON.parse(f.content)) } catch { setData({}) }
+        try { const d = JSON.parse(f.content); setData(d); localStorage.setItem(LS_KEY, f.content) } catch { /* keep local */ }
       }
       setSync('synced')
     }).catch(() => setSync('error'))
@@ -71,11 +76,15 @@ function Calendar() {
     }
   }, [pat, showToast])
 
+  // 로컬은 항상 즉시 저장, blog-db는 PAT 있을 때만 3초 debounce commit
   const markDirty = useCallback((next: CalData) => {
-    setData(next); setSync('dirty')
+    setData(next)
+    localStorage.setItem(LS_KEY, JSON.stringify(next, null, 2) + '\n')
+    if (!pat) { setSync('local'); return }
+    setSync('dirty')
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(save, 3000)
-  }, [save])
+  }, [pat, save])
 
   const addEvent = () => {
     if (!sel || !draft.trim()) return
@@ -106,13 +115,6 @@ function Calendar() {
     setSel(null)
   }
 
-  if (!pat) return (
-    <section className="prof-sec">
-      <h2 className="prof-h2">학습 달력</h2>
-      <PatNotice />
-    </section>
-  )
-
   const selEvents = sel ? (data[sel] ?? []) : []
 
   return (
@@ -124,8 +126,8 @@ function Calendar() {
         }}>{syncLabel[sync]}</span>
       </div>
       <p className="prof-desc">
-        날짜를 눌러 학습·자격증·일정을 붙이면 blog-db <code className="mono">profile/calendar.json</code> 에 동기화 —
-        기기 간 공유. 카테고리 색으로 방향을 한눈에.
+        날짜를 눌러 학습·자격증·일정·이정표를 붙인다. 로컬에 즉시 저장되고,
+        PAT 등록 시 blog-db <code className="mono">profile/calendar.json</code> 로 기기 간 동기화. 카테고리 색으로 방향을 한눈에.
       </p>
 
       <div className="cal-top">

@@ -420,6 +420,15 @@ kbd {
   .mobile-lab .mcount { flex-shrink: 0; font-size: 11px; padding: 4px 10px; color: var(--pixel); font-family: 'Galmuri11'; }
 }
 
+/* ─────────── Announcement severity 뱃지 ─────────── */
+.sev {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  font-size: 11px; font-family: 'Galmuri11'; letter-spacing: .3px;
+  padding: 2px 9px; border-radius: 99px; border: 1px solid; background: var(--bg-inset);
+}
+.sev i { width: 6px; height: 6px; border-radius: 99px; display: inline-block; }
+.ann-type { font-size: 10px; color: var(--text-faint); letter-spacing: .5px; }
+
 /* ─────────── 잠금 마크 (PAT 게이팅 표시) ─────────── */
 .lockmark { display: inline-flex; align-items: center; color: var(--partial); vertical-align: -1px; }
 .lock-ico { display: block; }
