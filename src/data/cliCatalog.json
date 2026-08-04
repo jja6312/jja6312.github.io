@@ -5988,19 +5988,19 @@
        "placeholder": "ocid1.tenancy.oc1..xxxx"
       },
       {
-       "name": "--source-group-name",
+       "name": "--target-group-name",
        "required": true,
        "type": "str",
        "choices": null,
-       "help": "원본 group 이름 — Endorse 문장에 사용 (원본 테넌시 기준)",
+       "help": "대상 group 이름 — 대상 테넌시 Endorse 문장에 사용",
        "placeholder": "VolumeCopiers"
       },
       {
-       "name": "--source-group-id",
+       "name": "--target-group-id",
        "required": true,
        "type": "str",
        "choices": null,
-       "help": "원본 group OCID — Admit 문장의 Define group 에 사용",
+       "help": "대상 group OCID — 원본 테넌시 Admit 문장의 Define group 에 사용",
        "placeholder": "ocid1.group.oc1..xxxx"
       },
       {
@@ -6094,19 +6094,19 @@
        "placeholder": "ocid1.tenancy.oc1..xxxx"
       },
       {
-       "name": "--source-group-name",
+       "name": "--target-group-name",
        "required": true,
        "type": "str",
        "choices": null,
-       "help": "원본 group 이름 — Endorse 문장에 사용 (원본 테넌시 기준)",
+       "help": "대상 group 이름 — 대상 테넌시 Endorse 문장에 사용",
        "placeholder": "VolumeCopiers"
       },
       {
-       "name": "--source-group-id",
+       "name": "--target-group-id",
        "required": true,
        "type": "str",
        "choices": null,
-       "help": "원본 group OCID — Admit 문장의 Define group 에 사용",
+       "help": "대상 group OCID — 원본 테넌시 Admit 문장의 Define group 에 사용",
        "placeholder": "ocid1.group.oc1..xxxx"
       },
       {

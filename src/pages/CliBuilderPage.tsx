@@ -110,8 +110,8 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
   const comp = v('--compartment-id', '<dest-compartment-ocid>')
   const srcProfile = v('--source-profile', '<source-profile>')
   const srcTenancy = v('--source-tenancy-id', '<source-tenancy-ocid>')
-  const srcGroupName = v('--source-group-name', '<source-group-name>')
-  const srcGroupId = v('--source-group-id', '<source-group-ocid>')
+  const targetGroupName = v('--target-group-name', '<target-group-name>')
+  const targetGroupId = v('--target-group-id', '<target-group-ocid>')
   const destTenancy = v('--dest-tenancy-id', '<dest-tenancy-ocid>')
   const pname = v('--policy-name', 'cross-tenancy-volume')
 
@@ -130,10 +130,10 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
     '#############################################',
     `SRC_PROFILE=${srcProfile}      # 원본(주는) 테넌시 프로파일`,
     `SRC_TENANCY=${srcTenancy}`,
-    `SRC_GROUP_NAME=${srcGroupName}`,
-    `SRC_GROUP_ID=${srcGroupId}`,
     `PROFILE=${profile}             # 대상(받는) 테넌시 프로파일`,
     `DEST_TENANCY=${destTenancy}`,
+    `TARGET_GROUP_NAME=${targetGroupName}`,
+    `TARGET_GROUP_ID=${targetGroupId}`,
     `REGION=${region}`,
     `COMPARTMENT=${comp}            # 대상 compartment`,
     '',
@@ -142,8 +142,8 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
     '#############################################',
     "cat > /tmp/endorse-stmts.json <<'EOF'",
     '[',
-    `  "Define tenancy DestTenancy as ${destTenancy}",`,
-    `  "Endorse group ${srcGroupName} to use volumes in tenancy DestTenancy where ANY { ${ops} }"`,
+    `  "Define tenancy SourceTenancy as ${srcTenancy}",`,
+    `  "Endorse group ${targetGroupName} to use volumes in tenancy SourceTenancy where ANY { ${ops} }"`,
     ']',
     'EOF',
     '',
@@ -159,9 +159,9 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
     '#############################################',
     "cat > /tmp/admit-stmts.json <<'EOF'",
     '[',
-    `  "Define tenancy SourceTenancy as ${srcTenancy}",`,
-    `  "Define group SourceGroup as ${srcGroupId}",`,
-    `  "Admit group SourceGroup of tenancy SourceTenancy to use volumes in tenancy where ANY { ${ops} }"`,
+    `  "Define tenancy TargetTenancy as ${destTenancy}",`,
+    `  "Define group TargetGroup as ${targetGroupId}",`,
+    `  "Admit group TargetGroup of tenancy TargetTenancy to use volumes in tenancy where ANY { ${ops} }"`,
     ']',
     'EOF',
     '',

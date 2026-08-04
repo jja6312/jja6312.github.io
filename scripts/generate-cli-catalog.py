@@ -305,8 +305,8 @@ def _cross(kind, src_opt, label, src_ph):
             {'label': 'IAM Policy 선행 (최초 1회 · Admit/Endorse)', 'options': [
                 _co('--source-profile', True, '원본 테넌시 CLI 프로파일 (Admit policy 생성용)', 'OLD'),
                 _co('--source-tenancy-id', True, '원본 테넌시 OCID', 'ocid1.tenancy.oc1..xxxx'),
-                _co('--source-group-name', True, '원본 group 이름 — Endorse 문장에 사용 (원본 테넌시 기준)', 'VolumeCopiers'),
-                _co('--source-group-id', True, '원본 group OCID — Admit 문장의 Define group 에 사용', 'ocid1.group.oc1..xxxx'),
+                _co('--target-group-name', True, '대상 group 이름 — 대상 테넌시 Endorse 문장에 사용', 'VolumeCopiers'),
+                _co('--target-group-id', True, '대상 group OCID — 원본 테넌시 Admit 문장의 Define group 에 사용', 'ocid1.group.oc1..xxxx'),
                 _co('--policy-name', False, 'policy 이름 접두 (미입력 시 cross-tenancy-volume)', 'cross-tenancy-volume'),
                 _co('--dest-tenancy-id', True, '대상 테넌시 OCID', 'ocid1.tenancy.oc1..xxxx'),
             ]},
