@@ -727,7 +727,7 @@ select.cli-input { cursor: pointer; }
   /* 모바일/태블릿: 데스크탑 네비 숨기고 햄버거 드로어로 */
   .hub-nav { display: none; }
   .hub-submenu { display: none !important; }
-  .hamburger { display: inline-flex; }
+  .hamburger { display: inline-flex !important; }
   .hide-mobile { display: none !important; }
 }
 
