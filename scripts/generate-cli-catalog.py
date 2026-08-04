@@ -281,6 +281,43 @@ for res, d in raw.items():
         'sections': sections, 'advanced': advanced,
     }
 
+# ── 커스텀 레시피 (backbone 없음) — cross-tenancy 볼륨 복사 ──
+# 여러 원본 OCID 일괄(for 루프) + 원본 display name 유지(get→create→update). CliBuilderPage 가 crossCopy 로 전용 조립.
+def _co(name, req, help, ph='', multi=False):
+    o = {'name': name, 'required': req, 'type': 'str', 'choices': None, 'help': help, 'placeholder': ph}
+    if multi:
+        o['multi'] = True
+    return o
+
+def _cross(kind, src_opt, label, src_ph):
+    res = 'boot-volume-cross-copy' if kind == 'boot-volume' else 'block-volume-cross-copy'
+    return {
+        'resource': res, 'label': '%s — Cross-Tenancy Copy' % label,
+        'cmd': 'oci bv %s create' % kind, 'crossCopy': kind,
+        'help': ('다른 테넌시의 %s을 이 테넌시로 복사 — 여러 OCID 일괄(for 루프) + 원본 display name 유지. '
+                 '선행: 대상 테넌시 Admit · 원본 테넌시 Endorse policy 필요.' % label),
+        'sections': [
+            {'label': '대상 테넌시 · 위치', 'options': [
+                _co('--profile', True, '대상(이관받을) 테넌시의 CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT'),
+                _co('--region', True, '원본 = 대상 리전 (동일 리전 복사)', 'ap-seoul-1'),
+                _co('--compartment-id', True, '대상 compartment OCID', 'ocid1.compartment.oc1..xxxx'),
+            ]},
+            {'label': '원본 %s OCID (여러 개: 줄바꿈/콤마)' % label, 'options': [
+                _co(src_opt, True, '원본 OCID — 여러 개 넣으면 for 루프로 순차 복사 후 원본 이름으로 rename', src_ph, multi=True),
+            ]},
+        ],
+        'advanced': [],
+    }
+
+EXTRA = {
+    'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
+    'block-volume-cross-copy': _cross('volume', '--source-volume-id', 'Block Volume', 'ocid1.volume.oc1.ap-seoul-1.xxxx'),
+}
+catalog['commands'].update(EXTRA)
+for _cat in catalog['categories']:
+    if _cat['id'] == '03-storage':
+        _cat['groups'].append({'label': 'Cross-Tenancy Copy', 'resources': list(EXTRA.keys())})
+
 json.dump(catalog, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 n_cur = sum(1 for r in catalog['commands'] if r in CURATION)
 print('cliCatalog v3 — 명령 %d (수동 큐레이션 %d · 휴리스틱 %d)'

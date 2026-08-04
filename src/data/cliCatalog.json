@@ -54,6 +54,13 @@
      "resources": [
       "bucket"
      ]
+    },
+    {
+     "label": "Cross-Tenancy Copy",
+     "resources": [
+      "boot-volume-cross-copy",
+      "block-volume-cross-copy"
+     ]
     }
    ]
   },
@@ -5931,6 +5938,112 @@
      "placeholder": ""
     }
    ]
+  },
+  "boot-volume-cross-copy": {
+   "resource": "boot-volume-cross-copy",
+   "label": "Boot Volume — Cross-Tenancy Copy",
+   "cmd": "oci bv boot-volume create",
+   "crossCopy": "boot-volume",
+   "help": "다른 테넌시의 Boot Volume을 이 테넌시로 복사 — 여러 OCID 일괄(for 루프) + 원본 display name 유지. 선행: 대상 테넌시 Admit · 원본 테넌시 Endorse policy 필요.",
+   "sections": [
+    {
+     "label": "대상 테넌시 · 위치",
+     "options": [
+      {
+       "name": "--profile",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "대상(이관받을) 테넌시의 CLI 프로파일 이름 (~/.oci/config)",
+       "placeholder": "DEFAULT"
+      },
+      {
+       "name": "--region",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 = 대상 리전 (동일 리전 복사)",
+       "placeholder": "ap-seoul-1"
+      },
+      {
+       "name": "--compartment-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "대상 compartment OCID",
+       "placeholder": "ocid1.compartment.oc1..xxxx"
+      }
+     ]
+    },
+    {
+     "label": "원본 Boot Volume OCID (여러 개: 줄바꿈/콤마)",
+     "options": [
+      {
+       "name": "--source-boot-volume-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 OCID — 여러 개 넣으면 for 루프로 순차 복사 후 원본 이름으로 rename",
+       "placeholder": "ocid1.bootvolume.oc1.ap-seoul-1.xxxx",
+       "multi": true
+      }
+     ]
+    }
+   ],
+   "advanced": []
+  },
+  "block-volume-cross-copy": {
+   "resource": "block-volume-cross-copy",
+   "label": "Block Volume — Cross-Tenancy Copy",
+   "cmd": "oci bv volume create",
+   "crossCopy": "volume",
+   "help": "다른 테넌시의 Block Volume을 이 테넌시로 복사 — 여러 OCID 일괄(for 루프) + 원본 display name 유지. 선행: 대상 테넌시 Admit · 원본 테넌시 Endorse policy 필요.",
+   "sections": [
+    {
+     "label": "대상 테넌시 · 위치",
+     "options": [
+      {
+       "name": "--profile",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "대상(이관받을) 테넌시의 CLI 프로파일 이름 (~/.oci/config)",
+       "placeholder": "DEFAULT"
+      },
+      {
+       "name": "--region",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 = 대상 리전 (동일 리전 복사)",
+       "placeholder": "ap-seoul-1"
+      },
+      {
+       "name": "--compartment-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "대상 compartment OCID",
+       "placeholder": "ocid1.compartment.oc1..xxxx"
+      }
+     ]
+    },
+    {
+     "label": "원본 Block Volume OCID (여러 개: 줄바꿈/콤마)",
+     "options": [
+      {
+       "name": "--source-volume-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 OCID — 여러 개 넣으면 for 루프로 순차 복사 후 원본 이름으로 rename",
+       "placeholder": "ocid1.volume.oc1.ap-seoul-1.xxxx",
+       "multi": true
+      }
+     ]
+    }
+   ],
+   "advanced": []
   }
  }
 }

@@ -8,6 +8,7 @@ interface CliOption {
   name: string
   required: boolean
   console?: boolean          // CLI 스키마상 optional 이지만 콘솔 기준 필수 (승격)
+  multi?: boolean            // 여러 값 입력(줄바꿈/콤마) → 전용 빌더에서 for 루프
   type: string
   choices: string[] | null
   help: string
@@ -17,6 +18,7 @@ interface CliSection { label: string; options: CliOption[] }
 interface CliCommand {
   resource: string; label: string
   cmd: string; help: string
+  crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
   sections: CliSection[]; advanced: CliOption[]
 }
 // 조립·검색용 평탄화 — 섹션 순서(콘솔 마법사 순서)를 그대로 유지
@@ -93,8 +95,46 @@ const saveFavs = (f: Favorite[]) => localStorage.setItem(FAV_KEY, JSON.stringify
 const isDynamic = (dyn: Record<string, boolean>, name: string) =>
   name in DYNAMIC ? (dyn[name] ?? true) : false
 
+/* cross-tenancy 볼륨 복사 — 여러 원본 OCID 를 for 루프로 복사하고 원본 display name 을 유지.
+   get(원본 이름) → create(대상 테넌시로 복사) → update(복사본 이름=원본). Admit/Endorse policy 전제. */
+function buildCrossCopy(kind: string, values: Record<string, string>): string {
+  const boot = kind === 'boot-volume'
+  const srcOpt = boot ? '--source-boot-volume-id' : '--source-volume-id'
+  const idOpt = boot ? '--boot-volume-id' : '--volume-id'
+  const resCmd = boot ? 'bv boot-volume' : 'bv volume'
+  const profile = (values['--profile'] || '').trim() || 'DEFAULT'
+  const region = (values['--region'] || '').trim() || '<region>'
+  const comp = (values['--compartment-id'] || '').trim() || '<dest-compartment-ocid>'
+  const srcs = (values[srcOpt] || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean)
+  const list = srcs.length ? srcs : ['<source-ocid-1>', '<source-ocid-2>']
+  return [
+    `PROFILE=${profile}       # 대상(이관받을) 테넌시 프로파일`,
+    `REGION=${region}`,
+    `COMPARTMENT=${comp}`,
+    `SOURCES=(`,
+    ...list.map(s => `  ${s}`),
+    `)`,
+    ``,
+    `for SRC in "\${SOURCES[@]}"; do`,
+    `  # 1) 원본 display name 조회 (Admit/Endorse 의 Get 권한 사용)`,
+    `  NAME=$(oci ${resCmd} get ${idOpt} "$SRC" --profile "$PROFILE" --region "$REGION" \\`,
+    `    --query 'data."display-name"' --raw-output)`,
+    `  # 2) 대상 테넌시로 복사`,
+    `  NEW=$(oci ${resCmd} create --profile "$PROFILE" --region "$REGION" \\`,
+    `    ${srcOpt} "$SRC" --compartment-id "$COMPARTMENT" \\`,
+    `    --wait-for-state AVAILABLE --query 'data.id' --raw-output)`,
+    `  # 3) 복사본 이름을 원본 display name 으로 rename`,
+    `  oci ${resCmd} update ${idOpt} "$NEW" --display-name "$NAME" \\`,
+    `    --profile "$PROFILE" --region "$REGION"`,
+    `  echo "copied $SRC -> $NEW ($NAME)"`,
+    `done`,
+  ].join('\n')
+}
+
 /* 최종 명령 조립 — 동적 옵션은 변수 선언(prelude) + 참조로 */
 function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>): string {
+  if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
+
   const prelude: string[] = []
   const args: string[] = []
 
@@ -299,6 +339,8 @@ export default function CliBuilderPage() {
           </label>
         )}
 
+        {cmd?.crossCopy && <CrossPolicyNotice />}
+
         {cmd ? (
           <div className="cli-form">
             {cmd.sections.map(sec => (
@@ -332,6 +374,33 @@ export default function CliBuilderPage() {
   )
 }
 
+// cross-tenancy 복사 선행 policy 안내 (Admit/Endorse 템플릿)
+function CrossPolicyNotice() {
+  const [open, setOpen] = useState(false)
+  const ops = "request.operation='CreateVolume', request.operation='GetVolume', request.operation='CreateBootVolume', request.operation='GetBootVolume'"
+  const admit = `# 대상(이관받을) 테넌시에 Admit policy
+Define tenancy SourceTenancy as <원본 테넌시 OCID>
+Define group  SourceGroup   as <원본 group OCID>
+Admit group SourceGroup of tenancy SourceTenancy to use volumes in tenancy where ANY { ${ops} }`
+  const endorse = `# 원본 테넌시에 Endorse policy
+Define tenancy DestTenancy as <대상 테넌시 OCID>
+Endorse group Administrators to use volumes in tenancy DestTenancy where ANY { ${ops} }`
+  return (
+    <div className="cross-policy">
+      <button className="cli-optional-toggle" onClick={() => setOpen(o => !o)}>
+        {open ? '▾' : '▸'} 선행 IAM Policy (Admit · Endorse) — cross-tenancy 권한 {open ? '접기' : '펼치기'}
+      </button>
+      {open && <>
+        <p className="cli-help" style={{ margin: '8px 0' }}>
+          복사 전 <b>양쪽 테넌시</b>에 아래 policy 가 있어야 한다 (Create·Get / Volume·BootVolume). 원본↔대상 group·tenancy OCID 를 채운다.
+        </p>
+        <pre className="cli-output">{admit}</pre>
+        <pre className="cli-output" style={{ marginTop: 8 }}>{endorse}</pre>
+      </>}
+    </div>
+  )
+}
+
 function Field({ o, value, onChange, optional, dynamic, onToggleDynamic, subVal, onSub }: {
   o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean
   dynamic: boolean; onToggleDynamic?: (on: boolean) => void
@@ -352,6 +421,16 @@ function Field({ o, value, onChange, optional, dynamic, onToggleDynamic, subVal,
       <span className="cli-field-help">{dynamic && dynMeta ? dynMeta.note : o.help}</span>
     </label>
   )
+  if (o.multi) {
+    return (
+      <div className="cli-field">
+        {label}
+        <textarea className="cli-input cli-json" value={value} rows={4}
+          placeholder={`${o.placeholder}\n… 여러 개는 줄바꿈 또는 콤마로 구분 (각각 for 루프로 복사)`}
+          onChange={e => onChange(e.target.value)} />
+      </div>
+    )
+  }
   if (!dynamic && o.choices && o.choices.length) {
     return (
       <div className="cli-field">
