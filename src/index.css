@@ -446,7 +446,8 @@ select.cli-input { cursor: pointer; }
 .cli-optional-toggle:hover { color: var(--text); border-color: var(--text-dim); }
 
 .cli-result { position: sticky; bottom: 0; background: var(--bg); padding-top: 6px; }
-.cli-result-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cli-result-hd { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cli-result-actions { grid-column: 3; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .cli-result-hd .px { font-size: 11px; color: var(--text-faint); letter-spacing: 1px; margin-right: auto; }
 .cli-output {
   background: var(--code-bg); border: 1px solid var(--accent-dim); border-radius: 12px;
@@ -800,6 +801,9 @@ select.cli-input { cursor: pointer; }
 /* OCI CLI 최종 명령 접기/펼치기 토글 */
 .cli-out-toggle { background: none; border: none; color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 2px 4px; }
 .cli-out-toggle:hover { color: var(--accent); }
+@media (max-width: 560px) {
+  .cli-result-actions { grid-column: 1 / -1; justify-content: center; }
+}
 
 /* cross-tenancy 복사 안내 배너 */
 .cross-note { background: var(--bg-inset); border: 1px solid var(--accent-dim); border-left: 3px solid var(--accent);

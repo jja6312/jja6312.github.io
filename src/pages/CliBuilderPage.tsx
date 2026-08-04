@@ -449,8 +449,10 @@ export default function CliBuilderPage() {
             <button className="cli-out-toggle" onClick={() => setOutOpen(o => !o)}>
               {outOpen ? '▾' : '▸'} 최종 명령
             </button>
-            <button className="submitbtn" onClick={copy}>복사</button>
-            <button className="donebtn" style={{ marginTop: 0 }} onClick={addFav}>즐겨찾기 저장</button>
+            <div className="cli-result-actions">
+              <button className="submitbtn" onClick={copy}>복사</button>
+              <button className="donebtn" style={{ marginTop: 0 }} onClick={addFav}>즐겨찾기 저장</button>
+            </div>
           </div>
           {outOpen && <pre className="cli-output">{cli}</pre>}
         </div>
