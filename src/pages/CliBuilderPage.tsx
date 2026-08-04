@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
@@ -281,6 +281,7 @@ export default function CliBuilderPage() {
   const [favs, setFavs] = useState<Favorite[]>(loadFavs())
   const [showOptional, setShowOptional] = useState(false)
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
+  const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
   // 딥링크로 들어온 자원의 카테고리는 펼쳐 둔다 (그 외는 닫힘)
   const [openCats, setOpenCats] = useState<Record<string, boolean>>(() => {
     const cat = rParam && CAT.commands[rParam] ? catOfResource(rParam) : undefined
@@ -326,10 +327,28 @@ export default function CliBuilderPage() {
   const setVal = (name: string, v: string) => setValues(s => ({ ...s, [name]: v }))
   const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
 
-  const copy = async () => {
+  const copy = useCallback(async () => {
     try { await navigator.clipboard.writeText(cli); showToast('클립보드에 복사됨') }
     catch { showToast('복사 실패 — 수동 선택') }
-  }
+  }, [cli, showToast])
+
+  const toggleOutput = useCallback(() => {
+    if (!outOpen) setOutUncapped(true)
+    setOutOpen(open => !open)
+  }, [outOpen])
+
+  useEffect(() => {
+    const onShortcut = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey) return
+      if (e.code === 'KeyO') {
+        e.preventDefault(); e.stopImmediatePropagation(); toggleOutput()
+      } else if (e.code === 'KeyC') {
+        e.preventDefault(); e.stopImmediatePropagation(); void copy()
+      }
+    }
+    window.addEventListener('keydown', onShortcut, true)
+    return () => window.removeEventListener('keydown', onShortcut, true)
+  }, [copy, toggleOutput])
 
   const addFav = () => {
     const name = prompt('즐겨찾기 이름', cmd ? `${cmd.label} ${values['--display-name'] || ''}`.trim() : 'custom')
@@ -446,16 +465,20 @@ export default function CliBuilderPage() {
 
         <div className="cli-result">
           <div className="cli-result-hd">
-            <button className="cli-out-toggle" aria-expanded={outOpen} onClick={() => setOutOpen(o => !o)}>
+            <button className="cli-out-toggle" aria-expanded={outOpen} aria-keyshortcuts="Alt+O"
+              title="최종 명령 접기/펼치기 (Alt+O)" onClick={toggleOutput}>
               <span className="cli-out-caret" aria-hidden="true">{outOpen ? '▾' : '▸'}</span>
               <span>최종 명령</span>
+              <kbd className="cli-shortcut">Alt+O</kbd>
             </button>
             <div className="cli-result-actions">
-              <button className="submitbtn" onClick={copy}>복사</button>
+              <button className="submitbtn cli-copybtn" aria-keyshortcuts="Alt+C" title="최종 명령 복사 (Alt+C)" onClick={copy}>
+                복사 <kbd className="cli-shortcut">Alt+C</kbd>
+              </button>
               <button className="donebtn" style={{ marginTop: 0 }} onClick={addFav}>즐겨찾기 저장</button>
             </div>
           </div>
-          {outOpen && <pre className="cli-output">{cli}</pre>}
+          {outOpen && <pre className={`cli-output${outUncapped ? '' : ' initial'}`}>{cli}</pre>}
         </div>
       </main>
     </div>

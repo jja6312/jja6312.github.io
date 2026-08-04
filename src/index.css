@@ -462,6 +462,10 @@ select.cli-input { cursor: pointer; }
   padding: 16px 18px; font-family: Consolas, monospace; font-size: 13px; line-height: 1.7;
   color: var(--accent); overflow-x: auto; white-space: pre; box-shadow: var(--shadow);
 }
+.cli-output.initial {
+  max-height: calc(50vh - 58px); max-height: calc(50dvh - 58px);
+  overflow-y: auto;
+}
 
 /* ─────────── 실습(실전 구축) 챕터 ─────────── */
 .labbrief { background: var(--bg-card); border: 1px solid var(--line-soft); border-left: 3px solid var(--pixel);
@@ -821,6 +825,12 @@ select.cli-input { cursor: pointer; }
   box-shadow: 0 7px 24px var(--accent-glow); transform: translateY(-1px);
 }
 .cli-out-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.cli-shortcut {
+  padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px;
+  background: var(--code-bg); color: var(--text-faint); font-size: 10px;
+  font-family: Consolas, monospace; font-weight: 500; line-height: 1.5;
+}
+.cli-copybtn { display: inline-flex; align-items: center; gap: 7px; }
 .cli-out-caret {
   display: inline-grid; place-items: center; width: 24px; height: 24px;
   border-radius: 50%; background: var(--accent-glow); color: var(--accent);
