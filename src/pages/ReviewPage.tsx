@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { findCurriculum, sheets } from '../data'
 import { useHub } from '../store'
 import type { Scenario, Verdict } from '../types'
@@ -199,8 +199,7 @@ export default function ReviewPage() {
           {available.length === 0 ? (
             <div className="card" style={{ padding: '30px 24px', textAlign: 'center', fontSize: 14.5, color: 'var(--text-dim)' }}>
               아직 복습할 학습지가 없습니다.<br />
-              <Link to="/learning/linux-basics/day01-boot-and-systemd" style={{ color: 'var(--accent)' }}>
-                Day 1 학습지</Link>에서 시나리오를 1개 이상 풀면 여기 나타납니다.
+              학습지에서 시나리오를 1개 이상 풀면 여기 나타납니다.
             </div>
           ) : (
             <>

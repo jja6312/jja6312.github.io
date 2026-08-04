@@ -16,7 +16,6 @@ export default function CommandPalette() {
 
   const cmds: Cmd[] = useMemo(() => [
     { id: 'learning', label: '학습으로 이동', kbd: 'g l', run: () => nav('/learning') },
-    { id: 'sheet', label: '리눅스 기본 Day 1 열기', run: () => nav('/learning/linux-basics/day01-boot-and-systemd') },
     { id: 'review', label: '학습 — 복습 퀴즈', kbd: 'g r', run: () => nav('/learning/review') },
     { id: 'feedback', label: '피드백 남기기', kbd: 'g f', run: () => nav('/feedback') },
     { id: 'cloudguard', label: 'OCI 보안 — Cloud Guard 열기', run: () => nav('/learning/oci-security/cloud-guard') },
