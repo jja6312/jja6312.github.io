@@ -180,6 +180,72 @@
      "level": 3
     }
    ]
+  },
+  {
+   "id": "rhcsa-week",
+   "title": "RHCSA EX200 7일 완주",
+   "description": "RHEL 10 기반 RHCSA 실기 목표를 7일로 압축. 매일 개념, 명령 실습, 장애 시나리오를 거쳐 마지막 날 재부팅 검증형 모의시험을 수행한다.",
+   "mode": "sprint",
+   "difficulty": 2,
+   "public": true,
+   "tags": [
+    "rhcsa",
+    "rhel10",
+    "linux",
+    "ex200"
+   ],
+   "created": "2026-08-04",
+   "days": [
+    {
+     "day": 1,
+     "sheet": "day01-essential-tools",
+     "title": "필수 도구와 파일 권한",
+     "goal": "셸, 리다이렉션, grep, 압축, 링크, 권한, 시스템 문서를 제한 시간 안에 사용한다",
+     "estimated_minutes": 90
+    },
+    {
+     "day": 2,
+     "sheet": "day02-users-ssh-sudo",
+     "title": "사용자·그룹·sudo·SSH",
+     "goal": "계정 수명주기와 그룹 권한을 구성하고 키 기반 SSH와 sudo를 안전하게 검증한다",
+     "estimated_minutes": 90
+    },
+    {
+     "day": 3,
+     "sheet": "day03-software-scripting-jobs",
+     "title": "소프트웨어·셸 스크립트·예약 작업",
+     "goal": "RPM·Flatpak 저장소를 관리하고 조건·반복·인자를 쓰는 스크립트와 예약 작업을 만든다",
+     "estimated_minutes": 100
+    },
+    {
+     "day": 4,
+     "sheet": "day04-running-systems",
+     "title": "부팅·systemd·프로세스·로그",
+     "goal": "부팅 목표, 서비스, 프로세스, tuned, journal, 시간 동기화와 복구 절차를 운영한다",
+     "estimated_minutes": 110
+    },
+    {
+     "day": 5,
+     "sheet": "day05-storage-filesystems",
+     "title": "파티션·LVM·파일 시스템",
+     "goal": "GPT, LVM, swap, ext4·XFS·VFAT, fstab, NFS·autofs를 무중단·영구 구성한다",
+     "estimated_minutes": 120
+    },
+    {
+     "day": 6,
+     "sheet": "day06-networking-security",
+     "title": "네트워크·firewalld·SELinux",
+     "goal": "NetworkManager로 IPv4·IPv6를 영구 설정하고 방화벽과 SELinux 문제를 올바른 계층에서 해결한다",
+     "estimated_minutes": 110
+    },
+    {
+     "day": 7,
+     "sheet": "day07-mock-exam",
+     "title": "재부팅 검증형 모의시험",
+     "goal": "외부 자료 없이 통합 요구사항을 구현하고 재부팅 후 자체 채점으로 누락을 찾아 수정한다",
+     "estimated_minutes": 180
+    }
+   ]
   }
  ],
  "sheets": {
@@ -2432,6 +2498,1084 @@
      "rubric": "① 클러스터가 Enhanced인지 (Basic이면 Workload Identity 미지원) ② 정책의 4개 조건이 실제 namespace/ServiceAccount/cluster OCID와 일치하는지 ③ Pod이 실제로 그 ServiceAccount를 쓰는지(spec.serviceAccountName) ④ SDK가 workload identity 지원 버전인지 ⑤ 경로·설정 문제(Service Gateway 라우팅, NSG, region 지정). 3개 이상 언급하고 ①~③ 중 둘 이상을 포함하면 O, 2개면 △.",
      "explanation": "NotAuthorizedOrNotFound는 권한 없음과 리소스 없음을 구분하지 않으므로 메시지로는 원인을 좁힐 수 없다. 정책 문법은 눈에 보이는 곳이라 이미 검토된 경우가 많고, 실제 원인은 클러스터 타입·SA 연결처럼 정책 바깥에 있는 경우가 많다.",
      "concept_anchor": "c6",
+     "xp": 10
+    }
+   ]
+  },
+  "day01-essential-tools": {
+   "curriculum": "rhcsa-week",
+   "day": 1,
+   "sheet": "day01-essential-tools",
+   "title": "필수 도구와 파일 권한",
+   "tags": [
+    "rhcsa",
+    "shell",
+    "permissions",
+    "grep"
+   ],
+   "difficulty": 1,
+   "estimated_minutes": 90,
+   "goal": "셸, 리다이렉션, grep, 압축, 링크, 권한, 시스템 문서를 제한 시간 안에 사용한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 셸의 데이터 흐름",
+     "diagram": "<svg viewBox=\"0 0 660 120\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d1a\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"12\"><rect x=\"20\" y=\"30\" width=\"130\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"85\" y=\"58\" fill=\"var(--text)\">stdin (0)</text><rect x=\"265\" y=\"30\" width=\"130\" height=\"46\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"330\" y=\"58\" fill=\"var(--accent)\" font-weight=\"700\">command</text><rect x=\"510\" y=\"10\" width=\"130\" height=\"38\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"575\" y=\"34\" fill=\"var(--text)\">stdout (1)</text><rect x=\"510\" y=\"66\" width=\"130\" height=\"38\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/><text x=\"575\" y=\"90\" fill=\"var(--wrong)\">stderr (2)</text></g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" marker-end=\"url(#d1a)\"><line x1=\"150\" y1=\"53\" x2=\"260\" y2=\"53\"/><line x1=\"395\" y1=\"48\" x2=\"505\" y2=\"29\"/><line x1=\"395\" y1=\"58\" x2=\"505\" y2=\"84\"/></g>\n</svg>",
+     "body": "<p>명령은 표준 입력(0)을 읽고 표준 출력(1)과 표준 오류(2)를 낸다. <code>&gt;</code>는 새로 쓰고, <code>&gt;&gt;</code>는 이어 쓰며, <code>2&gt;</code>는 오류만 보낸다. 파이프 <code>|</code>는 왼쪽 명령의 표준 출력을 오른쪽 명령의 표준 입력으로 연결한다.</p>\n<p>자주 쓰는 조합:</p>\n<pre><code class=\"language-bash\">grep -Ei &#39;error|failed&#39; /var/log/messages | sort | uniq -c\nfind /var/log -type f -size +10M 2&gt;/tmp/find.err\ntar -czf /root/etc-backup.tgz /etc\ntar -cjf /root/etc-backup.tar.bz2 /etc\n</code></pre>\n<p>정규식에서 <code>^</code>는 줄 시작, <code>$</code>는 줄 끝, <code>.</code>은 임의 한 글자, <code>*</code>는 앞 요소 0회 이상이다. 확장 정규식의 <code>+</code>, <code>|</code>, <code>()</code>는 <code>grep -E</code>로 쓴다.</p>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 파일·링크·권한",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"12\"><rect x=\"20\" y=\"20\" width=\"180\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/><text x=\"110\" y=\"40\" fill=\"var(--accent)\" font-weight=\"700\">user: rwx = 7</text><text x=\"110\" y=\"57\" fill=\"var(--text-dim)\">소유자</text><rect x=\"240\" y=\"20\" width=\"180\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"330\" y=\"40\" fill=\"var(--text)\">group: r-x = 5</text><text x=\"330\" y=\"57\" fill=\"var(--text-dim)\">소유 그룹</text><rect x=\"460\" y=\"20\" width=\"180\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"550\" y=\"40\" fill=\"var(--text)\">other: --- = 0</text><text x=\"550\" y=\"57\" fill=\"var(--text-dim)\">그 외</text></g>\n  <text x=\"330\" y=\"104\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"14\" font-weight=\"700\">chmod 750 file</text><text x=\"330\" y=\"122\" text-anchor=\"middle\" fill=\"var(--text-faint)\" font-size=\"10.5\">심볼릭 표기: chmod u=rwx,g=rx,o= file</text>\n</svg>",
+     "body": "<p>권한은 소유자(user), 그룹(group), 기타(other)에 대해 읽기 4, 쓰기 2, 실행 1을 더해 표현한다. 디렉터리의 실행 권한은 내부 이름을 따라갈 수 있는 권한이다.</p>\n<p>하드 링크는 같은 inode를 가리켜 원본 이름이 사라져도 데이터가 남는다. 심볼릭 링크는 경로 문자열을 가리키므로 대상이 사라지면 끊어진다.</p>\n<pre><code class=\"language-bash\">ln report.txt report.hard\nln -s /srv/report.txt /tmp/report.link\nchown analyst:ops report.txt\nchmod 640 report.txt\n</code></pre>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 검색과 로컬 문서",
+     "diagram": "<svg viewBox=\"0 0 660 120\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d1b\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"18\" y=\"34\" width=\"135\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"85\" y=\"59\" fill=\"var(--text)\">man -k keyword</text><rect x=\"190\" y=\"34\" width=\"120\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"250\" y=\"59\" fill=\"var(--text)\">man command</text><rect x=\"347\" y=\"34\" width=\"140\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"417\" y=\"59\" fill=\"var(--text)\">rpm -qd package</text><rect x=\"524\" y=\"34\" width=\"120\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"584\" y=\"59\" fill=\"var(--accent)\">검증 실행</text></g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#d1b)\"><line x1=\"153\" y1=\"55\" x2=\"186\" y2=\"55\"/><line x1=\"310\" y1=\"55\" x2=\"343\" y2=\"55\"/><line x1=\"487\" y1=\"55\" x2=\"520\" y2=\"55\"/></g>\n</svg>",
+     "body": "<p>시험에서는 인터넷 대신 시스템에 설치된 문서를 사용한다. 무엇을 찾을지 모르면 <code>man -k</code>, 명령 옵션은 <code>man</code>, 패키지 예시는 <code>/usr/share/doc</code>, 파일의 제공 패키지는 <code>rpm -qf</code>로 찾는다.</p>\n<p><code>find</code>는 현재 파일 상태를 검색하고 <code>locate</code>는 갱신된 데이터베이스를 검색한다. 시험 작업은 결과를 즉시 확인할 수 있는 <code>find</code>가 안전하다.</p>\n"
+    }
+   ],
+   "lab": {
+    "situation": "운영 서버에서 최근 로그인 실패와 큰 로그 파일을 조사해 <code>/root/case01</code>에 증적을 모아야 한다. 결과는 다른 관리자에게 전달할 하나의 압축 파일이어야 한다.",
+    "request": "명령 오류는 별도 파일에 남기고, 증적 디렉터리는 root만 수정하며 ops 그룹은 읽을 수 있게 구성해 주세요.",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "작업 경로와 그룹 확인",
+      "body": "<pre><code class=\"language-bash\">getent group ops || groupadd ops\ninstall -d -o root -g ops -m 0750 /root/case01\nstat -c &#39;%U %G %a %n&#39; /root/case01\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "로그인 실패 추출",
+      "body": "<pre><code class=\"language-bash\">grep -Ei &#39;failed|failure&#39; /var/log/secure &gt; /root/case01/auth-failures.txt 2&gt;/root/case01/errors.txt\nwc -l /root/case01/auth-failures.txt\n</code></pre>\n"
+     },
+     {
+      "id": "l3",
+      "title": "큰 로그 파일 목록화",
+      "body": "<pre><code class=\"language-bash\">find /var/log -type f -size +10M -printf &#39;%s %p\\n&#39; 2&gt;&gt;/root/case01/errors.txt | sort -nr &gt; /root/case01/large-files.txt\nhead /root/case01/large-files.txt\n</code></pre>\n"
+     },
+     {
+      "id": "l4",
+      "title": "권한과 링크 구성",
+      "body": "<pre><code class=\"language-bash\">chown root:ops /root/case01/*.txt\nchmod 0640 /root/case01/*.txt\nln -s /root/case01/auth-failures.txt /root/case01/latest-auth\nnamei -l /root/case01/latest-auth\n</code></pre>\n"
+     },
+     {
+      "id": "l5",
+      "title": "압축과 무결성 확인",
+      "body": "<pre><code class=\"language-bash\">tar -czf /root/case01.tgz -C /root case01\ntar -tzf /root/case01.tgz\nsha256sum /root/case01.tgz &gt; /root/case01.tgz.sha256\n</code></pre>\n"
+     },
+     {
+      "id": "l6",
+      "title": "최종 검증",
+      "body": "<pre><code class=\"language-bash\">find /root/case01 -maxdepth 1 -printf &#39;%M %u %g %f\\n&#39;\nsha256sum -c /root/case01.tgz.sha256\n</code></pre>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "RHCSA EX200 공식 시험 목표",
+     "url": "https://www.redhat.com/en/services/training/ex200-red-hat-certified-system-administrator-rhcsa-exam"
+    },
+    {
+     "label": "RHEL 10 명령줄 도구",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_the_command-line_tools/index"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "관리자가 command > result.txt 2>&1을 실행해 표준 출력과 표준 오류를 한 파일에 모았다.",
+     "question": "이 리다이렉션은 두 스트림을 모두 result.txt에 기록한다. (O/X)",
+     "answers": [
+      "O"
+     ],
+     "explanation": ">가 stdout을 파일로 보낸 뒤 2>&1이 stderr를 현재 stdout 목적지로 보낸다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "공유 디렉터리를 소유자는 모두 사용하고 그룹은 조회와 진입만 하며 기타 사용자는 접근하지 못하게 해야 한다.",
+     "question": "올바른 숫자 권한은?",
+     "choices": [
+      "chmod 700 dir",
+      "chmod 740 dir",
+      "chmod 750 dir",
+      "chmod 755 dir"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "소유자 rwx=7, 그룹 r-x=5, 기타 ---=0이므로 750이다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "/etc 아래에서 7일 이내 변경된 일반 파일을 찾으려 한다.",
+     "question": "조건을 만족하는 find 명령을 입력하라.",
+     "answers": [
+      "find /etc -type f -mtime -7",
+      "find /etc -mtime -7 -type f"
+     ],
+     "match": "normalize-flags",
+     "explanation": "-type f는 일반 파일, -mtime -7은 7일보다 최근 변경을 뜻한다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "/srv/data 내용을 보존하면서 gzip 압축된 /root/data.tgz를 만들어야 한다.",
+     "question": "절대 경로 경고 없이 압축 파일을 만드는 명령을 입력하라.",
+     "answers": [
+      "tar -czf /root/data.tgz -C /srv data",
+      "tar czf /root/data.tgz -C /srv data"
+     ],
+     "match": "normalize-flags",
+     "explanation": "-C /srv로 기준 경로를 바꾸고 data 디렉터리를 아카이브한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "심볼릭 링크와 하드 링크 중 어떤 것을 백업 파일의 별도 이름으로 사용할지 결정해야 한다.",
+     "question": "원본 이름을 삭제해도 데이터가 남아야 할 때 선택과 이유를 서술하라.",
+     "answers": [],
+     "rubric": "하드 링크를 선택하고 같은 파일 시스템의 동일 inode를 참조하므로 원본 디렉터리 엔트리가 삭제돼도 링크 수가 남아 있는 한 데이터가 유지된다고 설명하면 O. 선택만 맞으면 부분점수.",
+     "explanation": "심볼릭 링크는 경로를 참조해 대상 이름이 사라지면 끊어진다. 하드 링크는 같은 inode에 대한 또 하나의 이름이다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    }
+   ]
+  },
+  "day02-users-ssh-sudo": {
+   "curriculum": "rhcsa-week",
+   "day": 2,
+   "sheet": "day02-users-ssh-sudo",
+   "title": "사용자·그룹·sudo·SSH",
+   "tags": [
+    "rhcsa",
+    "users",
+    "sudo",
+    "ssh"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 90,
+   "goal": "계정 수명주기와 그룹 권한을 구성하고 키 기반 SSH와 sudo를 안전하게 검증한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 계정과 그룹의 상태 파일",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d2a\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"18\" y=\"25\" width=\"145\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"90\" y=\"45\" fill=\"var(--text)\">/etc/passwd</text><text x=\"90\" y=\"61\" fill=\"var(--text-dim)\">UID·GID·shell</text><rect x=\"190\" y=\"25\" width=\"145\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"262\" y=\"45\" fill=\"var(--text)\">/etc/shadow</text><text x=\"262\" y=\"61\" fill=\"var(--text-dim)\">hash·aging</text><rect x=\"362\" y=\"25\" width=\"145\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"434\" y=\"45\" fill=\"var(--text)\">/etc/group</text><text x=\"434\" y=\"61\" fill=\"var(--text-dim)\">보조 그룹</text><rect x=\"534\" y=\"25\" width=\"108\" height=\"46\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"588\" y=\"53\" fill=\"var(--accent)\">id user</text></g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" marker-end=\"url(#d2a)\"><line x1=\"163\" y1=\"48\" x2=\"186\" y2=\"48\"/><line x1=\"335\" y1=\"48\" x2=\"358\" y2=\"48\"/><line x1=\"507\" y1=\"48\" x2=\"530\" y2=\"48\"/></g><text x=\"330\" y=\"108\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">항상 getent·id로 최종 상태를 검증한다</text>\n</svg>",
+     "body": "<p>사용자 정보는 <code>/etc/passwd</code>, 비밀번호 해시와 만료는 <code>/etc/shadow</code>, 그룹은 <code>/etc/group</code>에 저장된다. 기본 그룹은 passwd의 GID, 보조 그룹은 group의 멤버 목록으로 결정된다.</p>\n<pre><code class=\"language-bash\">groupadd -g 4200 appops\nuseradd -u 4201 -g appops -G wheel -s /bin/bash analyst\npasswd analyst\nchage -M 90 -W 7 analyst\nusermod -aG appops trainee\nid analyst &amp;&amp; chage -l analyst\n</code></pre>\n<p><code>usermod -G</code>만 쓰면 기존 보조 그룹이 교체된다. 추가는 반드시 <code>-aG</code>를 쓴다.</p>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. sudo와 기본 권한",
+     "diagram": "<svg viewBox=\"0 0 660 135\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"12\"><rect x=\"30\" y=\"24\" width=\"150\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"105\" y=\"52\" fill=\"var(--text)\">%appops</text><rect x=\"255\" y=\"24\" width=\"150\" height=\"46\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"330\" y=\"45\" fill=\"var(--accent)\" font-weight=\"700\">sudoers rule</text><text x=\"330\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">명령 범위 최소화</text><rect x=\"480\" y=\"24\" width=\"150\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"555\" y=\"52\" fill=\"var(--text)\">root command</text></g>\n  <path d=\"M180 47 H250 M405 47 H475\" stroke=\"var(--text-faint)\" stroke-width=\"1.6\"/><text x=\"330\" y=\"108\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11.5\">visudo -cf /etc/sudoers.d/appops → sudo -l -U analyst</text>\n</svg>",
+     "body": "<p>sudo 정책은 <code>/etc/sudoers</code>를 직접 편집하지 말고 <code>visudo</code> 또는 <code>/etc/sudoers.d/</code> 파일로 관리한다. 구문 오류는 관리자 접근을 막을 수 있으므로 <code>visudo -cf</code>로 검증한다.</p>\n<pre><code class=\"language-bash\">echo &#39;%appops ALL=(root) /usr/bin/systemctl restart httpd&#39; &gt; /etc/sudoers.d/appops\nchmod 0440 /etc/sudoers.d/appops\nvisudo -cf /etc/sudoers.d/appops\n</code></pre>\n<p>기본 권한은 <code>umask</code>가 제거한다. 일반 파일은 666, 디렉터리는 777에서 마스크를 뺀다. 협업 디렉터리는 setgid(<code>chmod 2770</code>)로 새 파일의 그룹 상속을 유지하고, 필요하면 기본 ACL을 쓴다.</p>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. SSH 키 인증 경로",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d2b\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"25\" y=\"24\" width=\"170\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"110\" y=\"45\" fill=\"var(--text)\">client private key</text><text x=\"110\" y=\"62\" fill=\"var(--wrong)\" font-size=\"10\">chmod 600 · 전송 금지</text><rect x=\"245\" y=\"24\" width=\"170\" height=\"50\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"330\" y=\"45\" fill=\"var(--accent)\">SSH challenge</text><text x=\"330\" y=\"62\" fill=\"var(--text-dim)\" font-size=\"10\">서명 검증</text><rect x=\"465\" y=\"24\" width=\"170\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"550\" y=\"45\" fill=\"var(--text)\">authorized_keys</text><text x=\"550\" y=\"62\" fill=\"var(--text-dim)\" font-size=\"10\">공개 키</text></g><g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#d2b)\"><line x1=\"195\" y1=\"49\" x2=\"240\" y2=\"49\"/><line x1=\"415\" y1=\"49\" x2=\"460\" y2=\"49\"/></g><text x=\"330\" y=\"108\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">sshd -t → systemctl reload sshd → ssh -i key user@host</text>\n</svg>",
+     "body": "<p>클라이언트 개인 키는 노출하지 않는다. 서버에는 공개 키만 <code>~/.ssh/authorized_keys</code>에 저장하며 홈·<code>.ssh</code>·파일 권한이 지나치게 열려 있으면 sshd가 키를 거부할 수 있다.</p>\n<pre><code class=\"language-bash\">ssh-keygen -t ed25519\nssh-copy-id analyst@server\nchmod 700 ~/.ssh &amp;&amp; chmod 600 ~/.ssh/authorized_keys\nsshd -t &amp;&amp; systemctl reload sshd\nscp -i ~/.ssh/id_ed25519 report.tgz analyst@server:/tmp/\n</code></pre>\n<p><code>scp</code>와 <code>sftp</code>는 SSH 암호화 채널로 파일을 전송한다. 전송 뒤 원격 파일의 크기나 checksum까지 확인한다.</p>\n"
+    }
+   ],
+   "lab": {
+    "situation": "신규 운영자 <code>analyst</code>가 웹 서비스를 재시작하고 <code>/srv/team</code>에서 파일을 공동 관리해야 한다. 원격 접속은 공개 키만 허용하고 계정 비밀번호는 90일마다 변경한다.",
+    "request": "기존 wheel 권한은 주지 말고 필요한 서비스 재시작 권한만 부여해 주세요.",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "그룹과 계정 생성",
+      "body": "<pre><code class=\"language-bash\">groupadd appops\nuseradd -m -G appops analyst\npasswd analyst\nchage -M 90 -W 7 analyst\nid analyst &amp;&amp; chage -l analyst\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "협업 디렉터리 구성",
+      "body": "<pre><code class=\"language-bash\">install -d -o root -g appops -m 2770 /srv/team\nsetfacl -d -m g::rwx,o::--- /srv/team\ngetfacl /srv/team\n</code></pre>\n"
+     },
+     {
+      "id": "l3",
+      "title": "공개 키 설치",
+      "body": "<pre><code class=\"language-bash\">install -d -o analyst -g analyst -m 0700 /home/analyst/.ssh\ninstall -o analyst -g analyst -m 0600 /tmp/analyst.pub /home/analyst/.ssh/authorized_keys\nrestorecon -Rv /home/analyst/.ssh\n</code></pre>\n"
+     },
+     {
+      "id": "l4",
+      "title": "최소 sudo 정책 작성",
+      "body": "<pre><code class=\"language-bash\">echo &#39;%appops ALL=(root) /usr/bin/systemctl restart httpd, /usr/bin/systemctl status httpd&#39; &gt; /etc/sudoers.d/appops\nchmod 0440 /etc/sudoers.d/appops\nvisudo -cf /etc/sudoers.d/appops\n</code></pre>\n"
+     },
+     {
+      "id": "l5",
+      "title": "SSH와 sudo 검증",
+      "body": "<pre><code class=\"language-bash\">sshd -t &amp;&amp; systemctl reload sshd\nsudo -l -U analyst\nsu - analyst -c &#39;touch /srv/team/probe &amp;&amp; stat -c &quot;%U %G %a&quot; /srv/team/probe&#39;\n</code></pre>\n"
+     },
+     {
+      "id": "l6",
+      "title": "실패 시 진단",
+      "body": "<pre><code class=\"language-bash\">journalctl -u sshd --since &#39;-10 min&#39;\nnamei -l /home/analyst/.ssh/authorized_keys\nls -lZ /home/analyst/.ssh/authorized_keys\n</code></pre>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "RHEL 10 인증과 권한 부여",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/configuring_authentication_and_authorization_in_rhel/index"
+    },
+    {
+     "label": "OpenSSH 보안 통신",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/securing_networks/assembly_using-secure-communications-between-two-systems-with-openssh_securing-networks"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "관리자가 analyst를 appops 그룹에 추가하려고 usermod -G appops analyst를 실행했다.",
+     "question": "이 명령은 analyst의 기존 보조 그룹을 유지한다. (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "-G만 사용하면 보조 그룹 목록이 교체된다. 기존 그룹을 유지하며 추가하려면 -aG를 사용한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "새 파일은 소유자 rw, 그룹 r, 기타 권한 없음이어야 한다.",
+     "question": "기본 파일 모드 666에 적용할 적절한 umask는?",
+     "choices": [
+      "0022",
+      "0027",
+      "0077",
+      "0277"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "666에서 027을 제거하면 640이 된다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "기존 보조 그룹을 유지하면서 analyst를 appops 그룹에 추가해야 한다.",
+     "question": "명령을 입력하라.",
+     "answers": [
+      "usermod -aG appops analyst",
+      "usermod -G appops -a analyst"
+     ],
+     "match": "normalize-flags",
+     "explanation": "-a는 append, -G는 보조 그룹 목록이다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "/etc/sudoers.d/appops 파일의 문법만 검사해야 한다.",
+     "question": "검사 명령을 입력하라.",
+     "answers": [
+      "visudo -cf /etc/sudoers.d/appops",
+      "visudo --check --file /etc/sudoers.d/appops"
+     ],
+     "match": "normalize-flags",
+     "explanation": "visudo -c는 검사, -f는 대상 파일 지정이다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "공개 키 내용은 맞지만 SSH 키 로그인이 거부되고 journal에 Authentication refused: bad ownership or modes가 보인다.",
+     "question": "확인할 경로와 권한을 서술하라.",
+     "answers": [],
+     "rubric": "사용자 홈의 소유권, ~/.ssh가 사용자 소유 0700, authorized_keys가 사용자 소유 0600인지 확인한다고 쓰면 O. SELinux 컨텍스트와 restorecon까지 언급하면 완전 정답.",
+     "explanation": "sshd는 키 파일뿐 아니라 상위 경로의 소유권과 쓰기 권한도 검사한다. RHEL에서는 SELinux 컨텍스트도 함께 확인한다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
+  "day03-software-scripting-jobs": {
+   "curriculum": "rhcsa-week",
+   "day": 3,
+   "sheet": "day03-software-scripting-jobs",
+   "title": "소프트웨어·셸 스크립트·예약 작업",
+   "tags": [
+    "rhcsa",
+    "dnf",
+    "rpm",
+    "flatpak",
+    "bash",
+    "cron"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 100,
+   "goal": "RPM·Flatpak 저장소를 관리하고 조건·반복·인자를 쓰는 스크립트와 예약 작업을 만든다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. RPM·DNF·Flatpak의 역할",
+     "diagram": "<svg viewBox=\"0 0 660 130\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"12\"><rect x=\"20\" y=\"24\" width=\"180\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"110\" y=\"44\" fill=\"var(--text)\">repository</text><text x=\"110\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">repodata + RPM</text><rect x=\"240\" y=\"24\" width=\"180\" height=\"48\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"330\" y=\"44\" fill=\"var(--accent)\" font-weight=\"700\">dnf</text><text x=\"330\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">의존성 해결</text><rect x=\"460\" y=\"24\" width=\"180\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"550\" y=\"44\" fill=\"var(--text)\">RPM database</text><text x=\"550\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">설치 상태</text></g><path d=\"M200 48 H235 M420 48 H455\" stroke=\"var(--text-faint)\" stroke-width=\"1.6\"/><text x=\"330\" y=\"106\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">dnf repolist → dnf install → rpm -q → rpm -V</text>\n</svg>",
+     "body": "<p>RPM은 패키지 파일과 설치 데이터베이스를 다루고, DNF는 저장소·의존성까지 해결한다. Flatpak은 별도의 remote에서 데스크톱 애플리케이션과 런타임을 관리한다.</p>\n<pre><code class=\"language-bash\">dnf repolist --all\ndnf config-manager addrepo --from-repofile=https://repo.example/rhel.repo\ndnf install -y httpd\ndnf update -y httpd\nrpm -qf /usr/sbin/httpd\nrpm -ql httpd\nrpm -V httpd\nflatpak remote-list\nflatpak install -y flathub org.gnome.Calculator\nflatpak uninstall -y org.gnome.Calculator\n</code></pre>\n<p>저장소 파일은 <code>/etc/yum.repos.d/*.repo</code>에 두며 <code>baseurl</code>, <code>enabled</code>, <code>gpgcheck</code>, <code>gpgkey</code>를 검증한다.</p>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 채점 가능한 셸 스크립트",
+     "diagram": "<svg viewBox=\"0 0 660 135\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d3a\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"20\" y=\"35\" width=\"120\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"80\" y=\"60\" fill=\"var(--text)\">$1 입력</text><rect x=\"185\" y=\"35\" width=\"120\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"245\" y=\"60\" fill=\"var(--text)\">test / if</text><rect x=\"350\" y=\"35\" width=\"120\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"410\" y=\"60\" fill=\"var(--text)\">for 처리</text><rect x=\"515\" y=\"35\" width=\"125\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"577\" y=\"60\" fill=\"var(--accent)\">exit status</text></g><g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#d3a)\"><line x1=\"140\" y1=\"56\" x2=\"180\" y2=\"56\"/><line x1=\"305\" y1=\"56\" x2=\"345\" y2=\"56\"/><line x1=\"470\" y1=\"56\" x2=\"510\" y2=\"56\"/></g><text x=\"330\" y=\"111\" text-anchor=\"middle\" fill=\"var(--text-faint)\" font-size=\"10.5\">shellcheck가 없어도 bash -n script.sh로 문법을 검사한다</text>\n</svg>",
+     "body": "<p>RHCSA 스크립트 목표는 조건문, 반복문, 위치 인자, 명령 치환이다. 입력 검증과 종료 코드를 넣으면 자동 실행에서 실패가 숨지 않는다.</p>\n<pre><code class=\"language-bash\">#!/bin/bash\ndir=${1:-}\nif [[ -z $dir || ! -d $dir ]]; then\n  echo &quot;usage: $0 DIRECTORY&quot; &gt;&amp;2\n  exit 2\nfi\nfor file in &quot;$dir&quot;/*.log; do\n  [[ -e $file ]] || continue\n  size=$(stat -c %s &quot;$file&quot;)\n  printf &#39;%s %s\\n&#39; &quot;$size&quot; &quot;$file&quot;\ndone\n</code></pre>\n<p>변수는 기본적으로 <code>&quot;$var&quot;</code>처럼 인용한다. <code>$(command)</code>는 출력 결과를 변수나 인자로 사용한다.</p>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 일회성·반복·정밀 예약",
+     "diagram": "<svg viewBox=\"0 0 660 135\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"20\" y=\"20\" width=\"180\" height=\"56\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"110\" y=\"43\" fill=\"var(--text)\" font-weight=\"700\">at</text><text x=\"110\" y=\"61\" fill=\"var(--text-dim)\">한 번 실행</text><rect x=\"240\" y=\"20\" width=\"180\" height=\"56\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"330\" y=\"43\" fill=\"var(--text)\" font-weight=\"700\">cron</text><text x=\"330\" y=\"61\" fill=\"var(--text-dim)\">주기 반복</text><rect x=\"460\" y=\"20\" width=\"180\" height=\"56\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"550\" y=\"43\" fill=\"var(--accent)\" font-weight=\"700\">systemd timer</text><text x=\"550\" y=\"61\" fill=\"var(--text-dim)\">의존성·journal·지연 실행</text></g><text x=\"330\" y=\"110\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">systemctl enable --now report.timer → systemctl list-timers</text>\n</svg>",
+     "body": "<p><code>at</code>은 한 번, cron은 간단한 반복, systemd timer는 유닛 의존성과 로그·지연 실행까지 필요한 작업에 적합하다.</p>\n<pre><code class=\"language-bash\">echo &#39;/usr/local/sbin/report.sh&#39; | at 23:00\necho &#39;15 2 * * * root /usr/local/sbin/report.sh&#39; &gt; /etc/cron.d/report\nsystemctl enable --now report.timer\nsystemctl list-timers report.timer\n</code></pre>\n<p>timer와 service는 이름을 맞추고 service는 기본 <code>Type=oneshot</code>으로 실행한다. <code>Persistent=true</code>는 꺼져 있던 동안 놓친 달력 작업을 부팅 후 실행한다.</p>\n"
+    }
+   ],
+   "lab": {
+    "situation": "<code>/var/log/app/*.log</code> 크기를 매일 02:15에 <code>/var/reports/app-size.txt</code>로 기록해야 한다. 서버가 그 시각에 꺼져 있었으면 다음 부팅 때 한 번 실행해야 한다.",
+    "request": "인자로 로그 디렉터리를 받는 재사용 가능한 스크립트와 systemd timer를 구성해 주세요.",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "필요한 패키지 확인",
+      "body": "<pre><code class=\"language-bash\">dnf provides &#39;*/stat&#39;\nrpm -q coreutils\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "스크립트 작성",
+      "body": "<pre><code class=\"language-bash\">install -d -m 0755 /var/reports\nvi /usr/local/sbin/app-report.sh\nchmod 0755 /usr/local/sbin/app-report.sh\nbash -n /usr/local/sbin/app-report.sh\n</code></pre>\n<p>스크립트에는 인자 검사, <code>for file in &quot;$1&quot;/*.log</code>, <code>stat -c</code>, 오류 시 2 종료를 넣는다.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "서비스 유닛 작성",
+      "body": "<pre><code class=\"language-ini\">[Unit]\nDescription=Application log size report\n\n[Service]\nType=oneshot\nExecStart=/usr/local/sbin/app-report.sh /var/log/app\n</code></pre>\n<p><code>/etc/systemd/system/app-report.service</code>로 저장한다.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "타이머 작성",
+      "body": "<pre><code class=\"language-ini\">[Unit]\nDescription=Run application report daily\n\n[Timer]\nOnCalendar=*-*-* 02:15:00\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n</code></pre>\n<p><code>/etc/systemd/system/app-report.timer</code>로 저장한다.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "활성화와 즉시 시험",
+      "body": "<pre><code class=\"language-bash\">systemctl daemon-reload\nsystemctl enable --now app-report.timer\nsystemctl start app-report.service\n</code></pre>\n"
+     },
+     {
+      "id": "l6",
+      "title": "결과 검증",
+      "body": "<pre><code class=\"language-bash\">systemctl list-timers app-report.timer\nsystemctl status app-report.service\njournalctl -u app-report.service --since today\ncat /var/reports/app-size.txt\n</code></pre>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "RHEL 10 DNF 소프트웨어 관리",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/managing_software_with_the_dnf_tool/index"
+    },
+    {
+     "label": "systemd 유닛 사용자 정의",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_systemd_unit_files_to_customize_and_optimize_your_system/index"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "서버가 예약 시각에 꺼져 있었던 작업도 다음 부팅 후 실행해야 한다.",
+     "question": "systemd timer에서 Persistent=true가 이 요구를 만족한다. (O/X)",
+     "answers": [
+      "O"
+     ],
+     "explanation": "Persistent=true는 마지막 실행 시각을 추적해 놓친 달력 기반 실행을 보충한다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "/usr/bin/tree 파일을 어느 설치 패키지가 제공하는지 확인해야 한다.",
+     "question": "이미 설치된 파일의 소유 패키지를 찾는 명령은?",
+     "choices": [
+      "rpm -q tree",
+      "rpm -qf /usr/bin/tree",
+      "dnf repolist tree",
+      "dnf remove tree"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "rpm -qf는 지정한 파일을 소유한 설치 패키지를 조회한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "httpd 패키지가 설치돼 있는지 정확히 조회해야 한다.",
+     "question": "RPM 조회 명령을 입력하라.",
+     "answers": [
+      "rpm -q httpd",
+      "rpm --query httpd"
+     ],
+     "match": "normalize-flags",
+     "explanation": "rpm -q 패키지명은 설치 여부와 버전을 반환한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "/usr/local/sbin/check.sh의 Bash 문법만 실행 없이 검사해야 한다.",
+     "question": "명령을 입력하라.",
+     "answers": [
+      "bash -n /usr/local/sbin/check.sh"
+     ],
+     "match": "exact-trim",
+     "explanation": "bash -n은 명령을 실행하지 않고 구문을 읽어 오류를 검사한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "매일 작업을 cron 대신 systemd timer로 구현할지 검토 중이다.",
+     "question": "systemd timer를 선택할 실무상 장점 두 가지를 서술하라.",
+     "answers": [],
+     "rubric": "놓친 작업의 Persistent 보충, 서비스 의존성/샌드박싱, journal 통합, systemctl 상태 확인 중 두 가지를 설명하면 O. 한 가지만 설명하면 부분점수.",
+     "explanation": "timer는 실행 로직을 service 유닛으로 분리해 상태·로그·의존성을 systemd로 통합할 수 있다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
+  "day04-running-systems": {
+   "curriculum": "rhcsa-week",
+   "day": 4,
+   "sheet": "day04-running-systems",
+   "title": "부팅·systemd·프로세스·로그",
+   "tags": [
+    "rhcsa",
+    "systemd",
+    "boot",
+    "journal",
+    "processes"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 110,
+   "goal": "부팅 목표, 서비스, 프로세스, tuned, journal, 시간 동기화와 복구 절차를 운영한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 부팅 목표와 서비스 상태",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d4a\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"18\" y=\"30\" width=\"125\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"80\" y=\"58\" fill=\"var(--text)\">firmware</text><rect x=\"183\" y=\"30\" width=\"125\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"245\" y=\"58\" fill=\"var(--text)\">GRUB2</text><rect x=\"348\" y=\"30\" width=\"125\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"410\" y=\"58\" fill=\"var(--text)\">kernel</text><rect x=\"513\" y=\"30\" width=\"130\" height=\"46\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"578\" y=\"50\" fill=\"var(--accent)\" font-weight=\"700\">systemd</text><text x=\"578\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">default.target</text></g><g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#d4a)\"><line x1=\"143\" y1=\"53\" x2=\"178\" y2=\"53\"/><line x1=\"308\" y1=\"53\" x2=\"343\" y2=\"53\"/><line x1=\"473\" y1=\"53\" x2=\"508\" y2=\"53\"/></g><text x=\"330\" y=\"115\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">systemctl enable --now service = 지금 시작 + 부팅 자동 시작</text>\n</svg>",
+     "body": "<p>systemd target은 부팅 시 도달할 유닛 집합이다. <code>set-default</code>는 다음 부팅의 기본 목표를 바꾸고, <code>isolate</code>는 현재 세션의 목표를 즉시 전환한다. 서비스의 지금 상태와 다음 부팅 상태는 각각 <code>start</code>와 <code>enable</code>로 구분한다.</p>\n<pre><code class=\"language-bash\">systemctl get-default\nsystemctl set-default multi-user.target\nsystemctl isolate rescue.target\nsystemctl enable --now chronyd\nsystemctl list-dependencies multi-user.target\nsystemctl --failed\n</code></pre>\n<p>부팅 접근을 잃었을 때 GRUB 커널 행 끝에 <code>rd.break</code>를 추가하고, initramfs 셸에서 <code>/sysroot</code>를 쓰기 가능하게 다시 마운트한 뒤 chroot한다. SELinux enforcing 시스템에서 비밀번호를 바꿨다면 재레이블을 예약한다.</p>\n<pre><code class=\"language-bash\">mount -o remount,rw /sysroot\nchroot /sysroot\npasswd root\ntouch /.autorelabel\nexit\nexit\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 프로세스와 튜닝",
+     "diagram": "<svg viewBox=\"0 0 660 135\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d4b\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"15\" y=\"32\" width=\"125\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"77\" y=\"57\" fill=\"var(--text)\">ps / top</text><rect x=\"180\" y=\"32\" width=\"125\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"242\" y=\"57\" fill=\"var(--text)\">PID 확인</text><rect x=\"345\" y=\"32\" width=\"125\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/><text x=\"407\" y=\"57\" fill=\"var(--accent)\">SIGTERM</text><rect x=\"510\" y=\"32\" width=\"135\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/><text x=\"577\" y=\"57\" fill=\"var(--wrong)\">SIGKILL 최후</text></g><g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" marker-end=\"url(#d4b)\"><line x1=\"140\" y1=\"53\" x2=\"175\" y2=\"53\"/><line x1=\"305\" y1=\"53\" x2=\"340\" y2=\"53\"/><line x1=\"470\" y1=\"53\" x2=\"505\" y2=\"53\"/></g><text x=\"330\" y=\"110\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">tuned-adm recommend → tuned-adm profile PROFILE → tuned-adm verify</text>\n</svg>",
+     "body": "<p>프로세스 장애는 식별 → 자원 확인 → 정상 종료 요청 → 강제 종료 순으로 처리한다. nice 값은 -20이 높은 우선순위, 19가 낮은 우선순위다.</p>\n<pre><code class=\"language-bash\">ps -eo pid,ppid,ni,%cpu,%mem,cmd --sort=-%cpu | head\nkill -TERM PID\nrenice 10 -p PID\ntuned-adm recommend\ntuned-adm active\ntuned-adm verify\n</code></pre>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. journal·시간·영구 설정",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"22\" y=\"20\" width=\"180\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"112\" y=\"42\" fill=\"var(--text)\">service events</text><text x=\"112\" y=\"59\" fill=\"var(--text-dim)\" font-size=\"10\">stdout·stderr</text><rect x=\"240\" y=\"20\" width=\"180\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"330\" y=\"42\" fill=\"var(--accent)\" font-weight=\"700\">systemd-journald</text><text x=\"330\" y=\"59\" fill=\"var(--text-dim)\" font-size=\"10\">구조화·필터</text><rect x=\"458\" y=\"20\" width=\"180\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"548\" y=\"42\" fill=\"var(--text)\">/var/log/journal</text><text x=\"548\" y=\"59\" fill=\"var(--text-dim)\" font-size=\"10\">재부팅 후 보존</text></g><path d=\"M202 46 H235 M420 46 H453\" stroke=\"var(--text-faint)\" stroke-width=\"1.5\"/><text x=\"330\" y=\"109\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">chronyc sources -v → chronyc tracking → timedatectl</text>\n</svg>",
+     "body": "<p><code>journalctl -b</code>는 현재 부팅, <code>-b -1</code>은 이전 부팅, <code>-u</code>는 유닛, <code>-p</code>는 우선순위로 필터링한다. <code>/var/log/journal</code>이 있거나 journald 설정이 persistent면 재부팅 뒤에도 이전 로그를 조회할 수 있다.</p>\n<pre><code class=\"language-bash\">mkdir -p /var/log/journal\nsystemctl restart systemd-journald\njournalctl -b -1 -p warning\njournalctl -u sshd --since &#39;30 minutes ago&#39;\nsystemctl enable --now chronyd\nchronyc sources -v\ntimedatectl\n</code></pre>\n<p>커널 인자는 <code>grubby --update-kernel=ALL --args=&#39;key=value&#39;</code>로 영구 수정하고 <code>grubby --info=ALL</code>로 확인한다. 설정 후 재부팅 검증이 시험 채점의 핵심이다.</p>\n"
+    }
+   ],
+   "lab": {
+    "situation": "<code>report.service</code>는 수동 시작하면 동작하지만 재부팅 후 꺼지고, 전날 장애 로그도 조회되지 않는다. 서버 시간도 수 분 어긋난다.",
+    "request": "서비스 자동 시작, journal 영구 보존, 시간 동기화를 구성하고 재부팅 전후로 검증해 주세요.",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "현재 상태 수집",
+      "body": "<pre><code class=\"language-bash\">systemctl status report.service\nsystemctl is-enabled report.service\nsystemctl get-default\njournalctl -u report.service -b\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "유닛 문법과 의존성 확인",
+      "body": "<pre><code class=\"language-bash\">systemd-analyze verify /etc/systemd/system/report.service\nsystemctl cat report.service\nsystemctl list-dependencies report.service\n</code></pre>\n"
+     },
+     {
+      "id": "l3",
+      "title": "서비스 영구 활성화",
+      "body": "<pre><code class=\"language-bash\">systemctl daemon-reload\nsystemctl enable --now report.service\nsystemctl is-enabled report.service\nsystemctl is-active report.service\n</code></pre>\n"
+     },
+     {
+      "id": "l4",
+      "title": "journal 보존 구성",
+      "body": "<pre><code class=\"language-bash\">mkdir -p /var/log/journal\nsystemctl restart systemd-journald\njournalctl --flush\ntest -d /var/log/journal\n</code></pre>\n"
+     },
+     {
+      "id": "l5",
+      "title": "시간 동기화",
+      "body": "<pre><code class=\"language-bash\">systemctl enable --now chronyd\nchronyc sources -v\nchronyc tracking\ntimedatectl\n</code></pre>\n"
+     },
+     {
+      "id": "l6",
+      "title": "재부팅 검증",
+      "body": "<pre><code class=\"language-bash\">reboot\nsystemctl is-active report.service\nsystemctl is-enabled report.service\njournalctl -b -1 -u report.service\nchronyc tracking\n</code></pre>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "RHEL 10 systemd 유닛",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_systemd_unit_files_to_customize_and_optimize_your_system/index"
+    },
+    {
+     "label": "RHEL 10 기본 시스템 설정",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/configuring_basic_system_settings/index"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "httpd를 지금 시작했지만 다음 부팅 자동 시작은 설정하지 않았다.",
+     "question": "systemctl start httpd만으로 재부팅 후 자동 시작된다. (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "start는 현재 런타임만 바꾼다. 부팅 자동 시작은 enable이 필요하다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "CPU를 독점하는 프로세스에 정상 종료 기회를 먼저 주려 한다.",
+     "question": "처음 보낼 신호는?",
+     "choices": [
+      "SIGSTOP",
+      "SIGKILL",
+      "SIGTERM",
+      "SIGHUP"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "SIGTERM은 프로세스가 정리 후 종료할 기회를 준다. SIGKILL은 처리할 수 없는 최후 수단이다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "sshd를 지금 시작하면서 부팅 자동 시작도 설정해야 한다.",
+     "question": "한 줄 명령을 입력하라.",
+     "answers": [
+      "systemctl enable --now sshd",
+      "systemctl --now enable sshd"
+     ],
+     "match": "normalize-flags",
+     "explanation": "enable --now는 enable과 start를 함께 수행한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "바로 이전 부팅의 warning 이상 journal을 조회해야 한다.",
+     "question": "명령을 입력하라.",
+     "answers": [
+      "journalctl -b -1 -p warning",
+      "journalctl --boot=-1 --priority=warning"
+     ],
+     "match": "normalize-flags",
+     "explanation": "-b -1은 이전 부팅, -p warning은 warning 이상 우선순위다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "root 비밀번호 복구를 위해 GRUB에서 rd.break로 진입했다.",
+     "question": "비밀번호 변경부터 SELinux 재레이블 예약까지 핵심 순서를 서술하라.",
+     "answers": [],
+     "rubric": "/sysroot rw 재마운트, chroot /sysroot, passwd root, touch /.autorelabel, 두 번 exit 순서를 쓰면 O. 재레이블 누락은 부분점수.",
+     "explanation": "initramfs의 루트와 실제 시스템 루트가 다르므로 remount와 chroot가 필요하며, shadow 변경 뒤 SELinux 레이블 정합성을 복구해야 한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    }
+   ]
+  },
+  "day05-storage-filesystems": {
+   "curriculum": "rhcsa-week",
+   "day": 5,
+   "sheet": "day05-storage-filesystems",
+   "title": "파티션·LVM·파일 시스템",
+   "tags": [
+    "rhcsa",
+    "storage",
+    "lvm",
+    "xfs",
+    "nfs",
+    "autofs"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 120,
+   "goal": "GPT, LVM, swap, ext4·XFS·VFAT, fstab, NFS·autofs를 무중단·영구 구성한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 디스크에서 LVM까지",
+     "diagram": "<svg viewBox=\"0 0 660 135\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d5a\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"12\" y=\"30\" width=\"105\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"64\" y=\"56\" fill=\"var(--text)\">disk</text><rect x=\"145\" y=\"30\" width=\"105\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"197\" y=\"56\" fill=\"var(--text)\">GPT part</text><rect x=\"278\" y=\"30\" width=\"105\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"330\" y=\"56\" fill=\"var(--text)\">PV</text><rect x=\"411\" y=\"30\" width=\"105\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"463\" y=\"56\" fill=\"var(--text)\">VG</text><rect x=\"544\" y=\"30\" width=\"105\" height=\"44\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"596\" y=\"56\" fill=\"var(--accent)\" font-weight=\"700\">LV</text></g><g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#d5a)\"><line x1=\"117\" y1=\"52\" x2=\"140\" y2=\"52\"/><line x1=\"250\" y1=\"52\" x2=\"273\" y2=\"52\"/><line x1=\"383\" y1=\"52\" x2=\"406\" y2=\"52\"/><line x1=\"516\" y1=\"52\" x2=\"539\" y2=\"52\"/></g><text x=\"330\" y=\"108\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">lsblk → parted → pvcreate → vgcreate → lvcreate</text>\n</svg>",
+     "body": "<p>작업 순서는 장치 식별 → GPT 파티션 → PV → VG → LV다. 장치 이름은 환경마다 달라질 수 있으므로 <code>lsblk</code>, <code>blkid</code>, <code>pvs</code>로 단계마다 확인한다.</p>\n<pre><code class=\"language-bash\">lsblk -f\nparted -s /dev/vdb mklabel gpt mkpart primary 1MiB 100%\npartprobe /dev/vdb\npvcreate /dev/vdb1\nvgcreate vgdata /dev/vdb1\nlvcreate -n lvapp -L 4G vgdata\npvs &amp;&amp; vgs &amp;&amp; lvs\n</code></pre>\n<p>삭제는 마운트·사용 여부를 확인한 뒤 역순으로 수행한다. <code>lvremove</code>, <code>vgremove</code>, <code>pvremove</code>, <code>parted DEVICE rm NUMBER</code> 순서이며 대상 식별을 다시 확인한다.</p>\n<p>기존 데이터가 있는 장치를 초기화하면 복구가 어렵다. 시험에서도 대상 장치 식별 결과를 먼저 기록한다.</p>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 파일 시스템과 영구 마운트",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"18\" y=\"22\" width=\"145\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"90\" y=\"43\" fill=\"var(--text)\">LV device</text><text x=\"90\" y=\"60\" fill=\"var(--text-dim)\" font-size=\"10\">/dev/vg/lv</text><rect x=\"190\" y=\"22\" width=\"145\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"262\" y=\"43\" fill=\"var(--text)\">mkfs</text><text x=\"262\" y=\"60\" fill=\"var(--text-dim)\" font-size=\"10\">xfs·ext4·vfat</text><rect x=\"362\" y=\"22\" width=\"145\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"434\" y=\"43\" fill=\"var(--text)\">UUID / LABEL</text><text x=\"434\" y=\"60\" fill=\"var(--text-dim)\" font-size=\"10\">안정 식별자</text><rect x=\"534\" y=\"22\" width=\"108\" height=\"50\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"588\" y=\"43\" fill=\"var(--accent)\">fstab</text><text x=\"588\" y=\"60\" fill=\"var(--text-dim)\" font-size=\"10\">부팅 영구화</text></g><path d=\"M163 47 H185 M335 47 H357 M507 47 H529\" stroke=\"var(--text-faint)\" stroke-width=\"1.5\"/><text x=\"330\" y=\"108\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">findmnt --verify → mount -a → findmnt /mountpoint</text>\n</svg>",
+     "body": "<p>파일 시스템을 만든 뒤 UUID 또는 LABEL을 <code>/etc/fstab</code>에 기록해야 재부팅 후에도 마운트된다. <code>mount -a</code>는 재부팅 전에 fstab 오류를 찾는 필수 검증이다.</p>\n<pre><code class=\"language-bash\">mkfs.xfs -L APPDATA /dev/vgdata/lvapp\ninstall -d /srv/app\necho &#39;LABEL=APPDATA /srv/app xfs defaults 0 0&#39; &gt;&gt; /etc/fstab\nfindmnt --verify\nmount -a\nfindmnt /srv/app\n</code></pre>\n<p>swap은 <code>mkswap</code>, <code>swapon</code> 후 fstab에 <code>UUID=... none swap defaults 0 0</code>으로 영구화한다. XFS는 확장은 가능하지만 축소는 지원하지 않는다. <code>lvextend -r</code>는 LV와 파일 시스템을 함께 확장한다.</p>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. NFS와 autofs",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d5b\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"24\" y=\"30\" width=\"160\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"104\" y=\"50\" fill=\"var(--text)\">/etc/auto.master.d</text><text x=\"104\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">/shares map 지정</text><rect x=\"250\" y=\"30\" width=\"160\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"330\" y=\"50\" fill=\"var(--text)\">/etc/auto.shares</text><text x=\"330\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">data -rw server:/export</text><rect x=\"476\" y=\"30\" width=\"160\" height=\"46\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"556\" y=\"50\" fill=\"var(--accent)\">/shares/data</text><text x=\"556\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">접근 시 마운트</text></g><g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#d5b)\"><line x1=\"184\" y1=\"53\" x2=\"245\" y2=\"53\"/><line x1=\"410\" y1=\"53\" x2=\"471\" y2=\"53\"/></g><text x=\"330\" y=\"112\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">systemctl enable --now autofs → ls /shares/data → findmnt</text>\n</svg>",
+     "body": "<p>고정 NFS는 fstab, 사용 시점에만 마운트하고 유휴 시 해제하려면 autofs를 쓴다. autofs는 master map이 하위 map을 연결한다.</p>\n<pre><code class=\"language-bash\">echo &#39;/shares /etc/auto.shares&#39; &gt; /etc/auto.master.d/shares.autofs\necho &#39;data -rw,sync nfs.example:/exports/data&#39; &gt; /etc/auto.shares\nsystemctl enable --now autofs\nls /shares/data\nfindmnt /shares/data\n</code></pre>\n"
+    }
+   ],
+   "lab": {
+    "situation": "빈 디스크 <code>/dev/vdb</code>에 4GiB 애플리케이션 볼륨과 1GiB swap을 만들고, 데이터 볼륨을 <code>/srv/app</code>에 영구 마운트해야 한다. 이후 데이터 볼륨을 1GiB 확장한다.",
+    "request": "재부팅 후에도 마운트와 swap이 유지되며 기존 데이터를 손상하지 않게 구성해 주세요.",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "장치 식별",
+      "body": "<pre><code class=\"language-bash\">lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS\nwipefs -n /dev/vdb\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "GPT 파티션 생성",
+      "body": "<pre><code class=\"language-bash\">parted -s /dev/vdb mklabel gpt\nparted -s /dev/vdb mkpart primary 1MiB 90%\nparted -s /dev/vdb mkpart primary linux-swap 90% 100%\npartprobe /dev/vdb\nlsblk /dev/vdb\n</code></pre>\n"
+     },
+     {
+      "id": "l3",
+      "title": "LVM 생성",
+      "body": "<pre><code class=\"language-bash\">pvcreate /dev/vdb1\nvgcreate vgdata /dev/vdb1\nlvcreate -n lvapp -L 4G vgdata\nlvs -o lv_name,vg_name,lv_size\n</code></pre>\n"
+     },
+     {
+      "id": "l4",
+      "title": "XFS와 영구 마운트",
+      "body": "<pre><code class=\"language-bash\">mkfs.xfs -L APPDATA /dev/vgdata/lvapp\ninstall -d /srv/app\necho &#39;LABEL=APPDATA /srv/app xfs defaults 0 0&#39; &gt;&gt; /etc/fstab\nfindmnt --verify &amp;&amp; mount -a\n</code></pre>\n"
+     },
+     {
+      "id": "l5",
+      "title": "swap 영구화",
+      "body": "<pre><code class=\"language-bash\">mkswap -L APPSWAP /dev/vdb2\necho &#39;LABEL=APPSWAP none swap defaults 0 0&#39; &gt;&gt; /etc/fstab\nswapon -a\nswapon --show\n</code></pre>\n"
+     },
+     {
+      "id": "l6",
+      "title": "온라인 확장과 최종 검증",
+      "body": "<pre><code class=\"language-bash\">lvextend -r -L +1G /dev/vgdata/lvapp\nlvs /dev/vgdata/lvapp\ndf -hT /srv/app\nfindmnt --verify\n</code></pre>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "RHEL 10 스토리지 장치 관리",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/managing_storage_devices/index"
+    },
+    {
+     "label": "RHEL 10 파일 시스템 관리",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/managing_file_systems/index"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "XFS 파일 시스템이 너무 커서 lvreduce로 LV만 먼저 줄이려 한다.",
+     "question": "이 작업은 XFS 데이터를 안전하게 보존한다. (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "XFS는 축소를 지원하지 않으며 파일 시스템보다 LV를 먼저 줄이면 데이터가 손상된다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "재부팅해도 장치 이름 변경에 영향받지 않게 파일 시스템을 마운트해야 한다.",
+     "question": "fstab에서 가장 안정적인 식별자는?",
+     "choices": [
+      "/dev/vdb1",
+      "/dev/disk",
+      "UUID 또는 LABEL",
+      "현재 mount 출력"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "UUID와 LABEL은 커널 장치 이름 순서가 바뀌어도 파일 시스템 자체를 식별한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "/dev/vdb1을 PV로 초기화해야 한다.",
+     "question": "명령을 입력하라.",
+     "answers": [
+      "pvcreate /dev/vdb1"
+     ],
+     "match": "exact-trim",
+     "explanation": "pvcreate는 파티션이나 디스크를 LVM physical volume으로 초기화한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "/dev/vgdata/lvapp을 1GiB 늘리면서 파일 시스템도 함께 확장해야 한다.",
+     "question": "한 줄 명령을 입력하라.",
+     "answers": [
+      "lvextend -r -L +1G /dev/vgdata/lvapp",
+      "lvextend --resizefs --size +1G /dev/vgdata/lvapp"
+     ],
+     "match": "normalize-flags",
+     "explanation": "-r은 LV 확장 뒤 적절한 파일 시스템 확장 도구를 함께 실행한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "fstab을 수정한 뒤 운영 서버를 바로 재부팅하려 한다.",
+     "question": "재부팅 전에 수행할 검증 두 가지와 이유를 서술하라.",
+     "answers": [],
+     "rubric": "findmnt --verify로 구문/참조 오류 검사, mount -a로 실제 마운트 시도, findmnt 또는 df로 결과 확인 중 두 가지와 부팅 실패 예방 이유를 쓰면 O.",
+     "explanation": "잘못된 fstab은 부팅을 emergency mode로 떨어뜨릴 수 있으므로 현재 세션에서 먼저 파싱과 마운트를 검증한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    }
+   ]
+  },
+  "day06-networking-security": {
+   "curriculum": "rhcsa-week",
+   "day": 6,
+   "sheet": "day06-networking-security",
+   "title": "네트워크·firewalld·SELinux",
+   "tags": [
+    "rhcsa",
+    "nmcli",
+    "firewalld",
+    "selinux",
+    "ssh"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 110,
+   "goal": "NetworkManager로 IPv4·IPv6를 영구 설정하고 방화벽과 SELinux 문제를 올바른 계층에서 해결한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. NetworkManager 영구 설정",
+     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d6a\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"18\" y=\"25\" width=\"145\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"90\" y=\"46\" fill=\"var(--text)\">nmcli profile</text><text x=\"90\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">영구 설정</text><rect x=\"190\" y=\"25\" width=\"145\" height=\"50\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"262\" y=\"46\" fill=\"var(--accent)\">NetworkManager</text><text x=\"262\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">적용</text><rect x=\"362\" y=\"25\" width=\"145\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"434\" y=\"46\" fill=\"var(--text)\">device</text><text x=\"434\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">IPv4·IPv6</text><rect x=\"534\" y=\"25\" width=\"108\" height=\"50\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"588\" y=\"46\" fill=\"var(--text)\">route·DNS</text><text x=\"588\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">통신</text></g><g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#d6a)\"><line x1=\"163\" y1=\"50\" x2=\"185\" y2=\"50\"/><line x1=\"335\" y1=\"50\" x2=\"357\" y2=\"50\"/><line x1=\"507\" y1=\"50\" x2=\"529\" y2=\"50\"/></g><text x=\"330\" y=\"112\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">주소 → 경로 → DNS 순으로 검증한다</text>\n</svg>",
+     "body": "<p><code>ip</code> 명령은 런타임 상태를 보고 바꾸지만, RHCSA의 영구 네트워크 구성은 NetworkManager 연결 프로필에 기록한다. 인터페이스와 연결 이름이 다를 수 있으므로 먼저 <code>nmcli device status</code>와 <code>nmcli connection show</code>를 확인한다.</p>\n<pre><code class=\"language-bash\">nmcli con mod &#39;System eth0&#39; ipv4.method manual \\\n  ipv4.addresses 192.0.2.20/24 ipv4.gateway 192.0.2.1 \\\n  ipv4.dns &#39;192.0.2.53 192.0.2.54&#39; connection.autoconnect yes\nnmcli con mod &#39;System eth0&#39; ipv6.method manual ipv6.addresses 2001:db8::20/64 ipv6.gateway 2001:db8::1\nnmcli con up &#39;System eth0&#39;\nip -br addr &amp;&amp; ip route &amp;&amp; ip -6 route\ngetent hosts server.example.com\nhostnamectl set-hostname node1.example.com\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. firewalld의 runtime과 permanent",
+     "diagram": "<svg viewBox=\"0 0 660 135\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"28\" y=\"20\" width=\"175\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"115\" y=\"43\" fill=\"var(--text)\">permanent config</text><text x=\"115\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">재부팅 후 유지</text><rect x=\"242\" y=\"20\" width=\"175\" height=\"54\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"329\" y=\"43\" fill=\"var(--accent)\">firewall-cmd --reload</text><text x=\"329\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">동기화</text><rect x=\"456\" y=\"20\" width=\"175\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"543\" y=\"43\" fill=\"var(--text)\">runtime rules</text><text x=\"543\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">현재 패킷 처리</text></g><path d=\"M203 47 H237 M417 47 H451\" stroke=\"var(--text-faint)\" stroke-width=\"1.5\"/><text x=\"330\" y=\"110\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">firewall-cmd --get-active-zones → --list-all → ss -lntup</text>\n</svg>",
+     "body": "<p>runtime 규칙은 즉시 적용되지만 재시작하면 사라지고, permanent 규칙은 설정에 저장되지만 reload 전까지 런타임에 반영되지 않는다. 시험에서는 <code>--permanent</code> 추가 후 <code>--reload</code>, 그리고 runtime 조회까지 수행한다.</p>\n<pre><code class=\"language-bash\">firewall-cmd --get-active-zones\nfirewall-cmd --permanent --zone=public --add-service=http\nfirewall-cmd --permanent --zone=public --add-port=8088/tcp\nfirewall-cmd --reload\nfirewall-cmd --zone=public --list-all\n</code></pre>\n<p>포트를 열어도 서비스가 해당 주소와 포트에 listen하지 않으면 연결되지 않는다. <code>ss -lntup</code>로 애플리케이션 계층을 함께 확인한다.</p>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. SELinux는 라벨 기반 허용 목록",
+     "diagram": "<svg viewBox=\"0 0 660 145\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"20\" y=\"20\" width=\"180\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"110\" y=\"43\" fill=\"var(--text)\">process domain</text><text x=\"110\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">httpd_t</text><rect x=\"240\" y=\"20\" width=\"180\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"330\" y=\"43\" fill=\"var(--text)\">file / port type</text><text x=\"330\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">httpd_sys_content_t</text><rect x=\"460\" y=\"20\" width=\"180\" height=\"54\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"550\" y=\"43\" fill=\"var(--accent)\">policy decision</text><text x=\"550\" y=\"61\" fill=\"var(--text-dim)\" font-size=\"10\">allow 또는 AVC deny</text></g><path d=\"M200 47 H235 M420 47 H455\" stroke=\"var(--text-faint)\" stroke-width=\"1.5\"/><text x=\"330\" y=\"104\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">semanage로 영구 규칙 → restorecon으로 적용</text><text x=\"330\" y=\"124\" text-anchor=\"middle\" fill=\"var(--text-faint)\" font-size=\"10.5\">getenforce · ps -eZ · ls -Z · semanage port -l · getsebool</text>\n</svg>",
+     "body": "<p>SELinux 문제를 <code>setenforce 0</code>으로 끝내면 요구사항을 충족하지 못한다. 프로세스 도메인, 파일 type, 포트 type, boolean을 확인해 최소 변경으로 허용하고 enforcing 상태로 검증한다.</p>\n<pre><code class=\"language-bash\">getenforce\nsemanage fcontext -a -t httpd_sys_content_t &#39;/srv/web(/.*)?&#39;\nrestorecon -Rv /srv/web\nsemanage port -a -t http_port_t -p tcp 8088\nsetsebool -P httpd_can_network_connect on\nausearch -m AVC -ts recent\n</code></pre>\n<p><code>chcon</code>은 임시 라벨 변경이라 전체 재레이블이나 <code>restorecon</code> 때 사라질 수 있다. 영구 규칙은 <code>semanage fcontext</code>로 등록한다.</p>\n"
+    }
+   ],
+   "lab": {
+    "situation": "<code>node1.example.com</code>의 <code>/srv/web</code> 콘텐츠를 httpd가 8088/tcp로 제공해야 한다. 서비스는 로컬에서조차 접속되지 않고 재부팅 후 네트워크 설정도 사라진다.",
+    "request": "NetworkManager, httpd, firewalld, SELinux 네 계층을 모두 영구 구성해 주세요.",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "네트워크 프로필 영구화",
+      "body": "<pre><code class=\"language-bash\">nmcli dev status\nnmcli con show\nnmcli con mod &#39;System eth0&#39; ipv4.method manual ipv4.addresses 192.0.2.20/24 ipv4.gateway 192.0.2.1 ipv4.dns 192.0.2.53 connection.autoconnect yes\nnmcli con up &#39;System eth0&#39;\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "이름과 경로 검증",
+      "body": "<pre><code class=\"language-bash\">hostnamectl set-hostname node1.example.com\nip -br addr\nip route\ngetent hosts repo.example.com\n</code></pre>\n"
+     },
+     {
+      "id": "l3",
+      "title": "httpd 포트와 콘텐츠 구성",
+      "body": "<pre><code class=\"language-bash\">install -d -m 0755 /srv/web\necho RHCSA &gt; /srv/web/index.html\necho &#39;Listen 8088&#39; &gt; /etc/httpd/conf.d/listen-8088.conf\necho &#39;&lt;VirtualHost *:8088&gt;\nDocumentRoot /srv/web\n&lt;/VirtualHost&gt;&#39; &gt; /etc/httpd/conf.d/web.conf\napachectl configtest\n</code></pre>\n"
+     },
+     {
+      "id": "l4",
+      "title": "SELinux 영구 허용",
+      "body": "<pre><code class=\"language-bash\">semanage fcontext -a -t httpd_sys_content_t &#39;/srv/web(/.*)?&#39;\nrestorecon -Rv /srv/web\nsemanage port -a -t http_port_t -p tcp 8088\nls -lZ /srv/web\n</code></pre>\n<p>이미 포트 정의가 있으면 <code>semanage port -m</code>을 사용한다.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "방화벽과 서비스 활성화",
+      "body": "<pre><code class=\"language-bash\">firewall-cmd --permanent --add-port=8088/tcp\nfirewall-cmd --reload\nsystemctl enable --now httpd\n</code></pre>\n"
+     },
+     {
+      "id": "l6",
+      "title": "계층별 최종 검증",
+      "body": "<pre><code class=\"language-bash\">ss -lntp | grep 8088\nfirewall-cmd --query-port=8088/tcp\ncurl http://127.0.0.1:8088/\nausearch -m AVC -ts recent\n</code></pre>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "RHEL 10 네트워크 구성",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/configuring_and_managing_networking/index"
+    },
+    {
+     "label": "RHEL 10 SELinux 사용",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_selinux/index"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "관리자가 ip addr add로 주소를 추가하고 네트워크 영구 설정을 완료했다고 보고했다.",
+     "question": "이 주소는 일반적으로 재부팅 후에도 유지된다. (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "ip 명령은 런타임 상태를 바꾼다. 영구 구성은 NetworkManager 연결 프로필에 기록해야 한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "firewall-cmd --permanent --add-service=http를 실행했지만 현재 접속은 계속 차단된다.",
+     "question": "다음 조치는?",
+     "choices": [
+      "서버 재설치",
+      "firewall-cmd --reload",
+      "setenforce 0",
+      "ip link down"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "permanent 설정을 runtime에 반영하려면 reload가 필요하다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "public zone에 8088/tcp를 영구 허용해야 한다.",
+     "question": "규칙 추가 명령을 입력하라.",
+     "answers": [
+      "firewall-cmd --permanent --zone=public --add-port=8088/tcp",
+      "firewall-cmd --zone=public --add-port=8088/tcp --permanent"
+     ],
+     "match": "normalize-flags",
+     "explanation": "--permanent로 저장 설정에 추가하고 이후 reload해야 한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "/srv/web와 하위 파일에 기본 httpd 읽기 type을 영구 등록해야 한다.",
+     "question": "semanage 명령을 입력하라.",
+     "answers": [
+      "semanage fcontext -a -t httpd_sys_content_t '/srv/web(/.*)?'",
+      "semanage fcontext --add --type httpd_sys_content_t '/srv/web(/.*)?'"
+     ],
+     "match": "normalize-flags",
+     "explanation": "fcontext 규칙을 추가한 뒤 restorecon -Rv /srv/web로 실제 라벨을 적용한다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "웹 포트 접속이 안 되어 담당자가 SELinux를 permissive로 바꾸자고 한다.",
+     "question": "SELinux를 끄지 않고 확인할 진단 순서를 서술하라.",
+     "answers": [],
+     "rubric": "ss로 listen, firewall runtime 규칙, curl 로컬 접속, getenforce와 ausearch AVC, 파일/프로세스/포트 컨텍스트를 순서 있게 확인하고 semanage/restorecon으로 영구 수정한다고 쓰면 O. 계층 세 개 이상이면 부분점수.",
+     "explanation": "네트워크 장애는 서비스, 방화벽, SELinux 계층을 분리해 확인해야 하며 SELinux 비활성화는 원인과 영구 해결을 숨긴다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
+  "day07-mock-exam": {
+   "curriculum": "rhcsa-week",
+   "day": 7,
+   "sheet": "day07-mock-exam",
+   "title": "재부팅 검증형 모의시험",
+   "tags": [
+    "rhcsa",
+    "ex200",
+    "mock-exam",
+    "persistence"
+   ],
+   "difficulty": 3,
+   "estimated_minutes": 180,
+   "goal": "외부 자료 없이 통합 요구사항을 구현하고 재부팅 후 자체 채점으로 누락을 찾아 수정한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 작업 순서가 점수를 지킨다",
+     "diagram": "<svg viewBox=\"0 0 660 145\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"d7a\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"15\" y=\"30\" width=\"115\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"72\" y=\"56\" fill=\"var(--text)\">요구 분해</text><rect x=\"170\" y=\"30\" width=\"115\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"227\" y=\"56\" fill=\"var(--text)\">현황 조사</text><rect x=\"325\" y=\"30\" width=\"115\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"382\" y=\"56\" fill=\"var(--text)\">구현</text><rect x=\"480\" y=\"30\" width=\"165\" height=\"44\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"562\" y=\"49\" fill=\"var(--accent)\" font-weight=\"700\">즉시 검증</text><text x=\"562\" y=\"65\" fill=\"var(--text-dim)\" font-size=\"10\">실패하면 바로 복구</text></g><g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#d7a)\"><line x1=\"130\" y1=\"52\" x2=\"165\" y2=\"52\"/><line x1=\"285\" y1=\"52\" x2=\"320\" y2=\"52\"/><line x1=\"440\" y1=\"52\" x2=\"475\" y2=\"52\"/></g><text x=\"330\" y=\"112\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">마지막 30분은 재부팅·재검증·수정에 예약한다</text>\n</svg>",
+     "body": "<p>EX200은 지식 서술이 아니라 실제 시스템 작업을 채점한다. 먼저 장치·연결·현재 설정을 조사하고, 독립적인 짧은 작업을 확보한 뒤 스토리지와 부팅처럼 위험한 변경을 수행한다. 모든 설정은 재부팅 후 유지되어야 한다.</p>\n<p>권장 메모 형식:</p>\n<pre><code class=\"language-text\">[ ] 계정/그룹   구현: ____  검증: id, sudo -l\n[ ] 네트워크    구현: ____  검증: nmcli, ip, getent\n[ ] 스토리지    구현: ____  검증: findmnt --verify, mount -a\n[ ] 서비스/보안 구현: ____  검증: systemctl, ss, firewall, AVC\n</code></pre>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 영구 설정과 런타임 설정의 짝",
+     "diagram": "<svg viewBox=\"0 0 660 170\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\"><rect x=\"20\" y=\"18\" width=\"290\" height=\"130\" rx=\"12\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"36\" y=\"40\" fill=\"var(--accent)\" font-weight=\"700\">영구 설정</text><text x=\"36\" y=\"62\" fill=\"var(--text)\">nmcli connection profile</text><text x=\"36\" y=\"82\" fill=\"var(--text)\">systemctl enable</text><text x=\"36\" y=\"102\" fill=\"var(--text)\">/etc/fstab</text><text x=\"36\" y=\"122\" fill=\"var(--text)\">firewall --permanent · semanage</text><rect x=\"350\" y=\"18\" width=\"290\" height=\"130\" rx=\"12\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"366\" y=\"40\" fill=\"var(--pixel)\" font-weight=\"700\">현재 적용·검증</text><text x=\"366\" y=\"62\" fill=\"var(--text)\">nmcli con up · ip route</text><text x=\"366\" y=\"82\" fill=\"var(--text)\">systemctl is-active</text><text x=\"366\" y=\"102\" fill=\"var(--text)\">mount -a · findmnt</text><text x=\"366\" y=\"122\" fill=\"var(--text)\">--reload · restorecon · curl</text></g><path d=\"M310 82 H345\" stroke=\"var(--accent)\" stroke-width=\"1.8\"/><text x=\"330\" y=\"164\" text-anchor=\"middle\" fill=\"var(--text-faint)\" font-size=\"10.5\">한쪽만 맞으면 재부팅 전 또는 후에 실패한다</text>\n</svg>",
+     "body": "<p>시험에서 가장 흔한 실패는 지금만 동작하는 설정이다. 각 영역은 영구 설정과 현재 적용을 한 쌍으로 확인한다.</p>\n<p>재부팅 전에는 <code>findmnt --verify</code>, <code>sshd -t</code>, <code>apachectl configtest</code>, <code>visudo -c</code>, <code>systemd-analyze verify</code>처럼 파서와 전용 검사기를 먼저 쓴다.</p>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 자체 채점은 관찰 가능한 증거로",
+     "diagram": "<svg viewBox=\"0 0 660 145\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11.5\"><rect x=\"18\" y=\"24\" width=\"135\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"85\" y=\"46\" fill=\"var(--text)\">configuration</text><text x=\"85\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">파일·프로필</text><rect x=\"187\" y=\"24\" width=\"135\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"254\" y=\"46\" fill=\"var(--text)\">state</text><text x=\"254\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">active·mounted</text><rect x=\"356\" y=\"24\" width=\"135\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"423\" y=\"46\" fill=\"var(--text)\">behavior</text><text x=\"423\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">curl·ssh·read/write</text><rect x=\"525\" y=\"24\" width=\"117\" height=\"54\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"583\" y=\"46\" fill=\"var(--accent)\">reboot</text><text x=\"583\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">다시 확인</text></g><path d=\"M153 51 H182 M322 51 H351 M491 51 H520\" stroke=\"var(--text-faint)\" stroke-width=\"1.5\"/><text x=\"330\" y=\"112\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">설정 → 상태 → 동작 → 재부팅의 네 증거가 완성 조건</text>\n</svg>",
+     "body": "<p>설정 파일이 존재한다는 사실보다 요구 결과를 직접 확인한다. 서비스는 active/enabled/listen, 스토리지는 장치·파일 시스템·마운트, 보안은 방화벽과 SELinux enforcing 상태에서 실제 요청으로 검증한다.</p>\n<pre><code class=\"language-bash\">systemctl --failed\nfindmnt --verify\nlsblk -f &amp;&amp; swapon --show\nnmcli con show --active &amp;&amp; ip -br addr &amp;&amp; ip route\nfirewall-cmd --list-all &amp;&amp; getenforce\njournalctl -b -p err\n</code></pre>\n"
+    }
+   ],
+   "lab": {
+    "situation": "새 RHEL 10 서버를 애플리케이션 노드로 인수한다. 빈 디스크 <code>/dev/vdb</code>, 네트워크 프로필 <code>System eth0</code>, 저장소 URL과 공개 키 파일이 제공됐다.",
+    "request": "아래 요구를 외부 인터넷 없이 구현하고 마지막에 재부팅해 모두 다시 검증하세요. 시작 전 VM 스냅샷을 만들고 실제 장치명은 반드시 확인하세요.",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "기본 시스템과 네트워크",
+      "body": "<p>요구사항:</p>\n<ul>\n<li>hostname을 <code>rhcsa1.example.com</code>으로 설정한다.</li>\n<li><code>192.0.2.50/24</code>, gateway <code>192.0.2.1</code>, DNS <code>192.0.2.53</code>을 영구 구성한다.</li>\n<li>기본 부팅 목표를 <code>multi-user.target</code>으로 설정한다.</li>\n</ul>\n<p>검증:</p>\n<pre><code class=\"language-bash\">hostnamectl\nnmcli con show &#39;System eth0&#39;\nip -br addr &amp;&amp; ip route &amp;&amp; getent hosts repo.example.com\nsystemctl get-default\n</code></pre>\n"
+     },
+     {
+      "id": "l2",
+      "title": "저장소와 패키지",
+      "body": "<p>제공된 repo 파일을 <code>/etc/yum.repos.d/training.repo</code>에 설치하고 <code>httpd</code>, <code>policycoreutils-python-utils</code>, <code>lvm2</code>, <code>autofs</code>를 설치한다.</p>\n<pre><code class=\"language-bash\">dnf repolist\nrpm -q httpd policycoreutils-python-utils lvm2 autofs\n</code></pre>\n"
+     },
+     {
+      "id": "l3",
+      "title": "계정과 권한",
+      "body": "<ul>\n<li><code>webops</code> 그룹과 <code>operator</code> 사용자를 만든다.</li>\n<li>operator를 webops 보조 그룹에 넣고 비밀번호 최대 사용일을 60일로 설정한다.</li>\n<li>webops는 비밀번호 없이 <code>systemctl restart httpd</code>만 실행할 수 있다.</li>\n<li>제공 공개 키로 operator의 SSH 로그인을 구성한다.</li>\n</ul>\n<pre><code class=\"language-bash\">id operator\nchage -l operator\nvisudo -cf /etc/sudoers.d/webops\nsudo -l -U operator\nnamei -l /home/operator/.ssh/authorized_keys\n</code></pre>\n"
+     },
+     {
+      "id": "l4",
+      "title": "LVM과 파일 시스템",
+      "body": "<ul>\n<li><code>/dev/vdb</code>에 GPT 파티션을 만들고 <code>vgweb</code> VG와 3GiB <code>lvcontent</code> LV를 만든다.</li>\n<li>XFS LABEL을 <code>WEBCONTENT</code>로 지정하고 <code>/srv/web</code>에 영구 마운트한다.</li>\n<li>512MiB swap을 추가하고 영구화한다.</li>\n</ul>\n<pre><code class=\"language-bash\">pvs &amp;&amp; vgs &amp;&amp; lvs\nlsblk -f\nfindmnt --verify &amp;&amp; mount -a\nfindmnt /srv/web &amp;&amp; swapon --show\n</code></pre>\n"
+     },
+     {
+      "id": "l5",
+      "title": "웹 서비스·방화벽·SELinux",
+      "body": "<ul>\n<li><code>/srv/web/index.html</code>에 <code>RHCSA MOCK</code>을 기록한다.</li>\n<li>httpd가 8088/tcp에서 이 경로를 제공하고 부팅 시 자동 시작한다.</li>\n<li>firewalld와 SELinux를 영구 구성하며 enforcing을 유지한다.</li>\n</ul>\n<pre><code class=\"language-bash\">apachectl configtest\nsystemctl is-enabled httpd &amp;&amp; systemctl is-active httpd\nss -lntp | grep 8088\nfirewall-cmd --query-port=8088/tcp\nls -lZ /srv/web &amp;&amp; semanage port -l | grep http_port_t\ncurl http://127.0.0.1:8088/\n</code></pre>\n"
+     },
+     {
+      "id": "l6",
+      "title": "스크립트와 타이머",
+      "body": "<p><code>/usr/local/sbin/disk-report.sh MOUNTPOINT</code>를 만든다. 인자가 없거나 마운트되지 않았으면 2로 종료하고, 정상이면 <code>df -h</code> 결과를 <code>/var/log/disk-report.log</code>에 추가한다. 매시간 실행되는 persistent systemd timer를 구성한다.</p>\n<pre><code class=\"language-bash\">bash -n /usr/local/sbin/disk-report.sh\nsystemd-analyze verify /etc/systemd/system/disk-report.service /etc/systemd/system/disk-report.timer\nsystemctl enable --now disk-report.timer\nsystemctl start disk-report.service\nsystemctl list-timers disk-report.timer\n</code></pre>\n"
+     },
+     {
+      "id": "l7",
+      "title": "위험 설정 사전 검사",
+      "body": "<pre><code class=\"language-bash\">findmnt --verify\nsshd -t\nvisudo -c\napachectl configtest\nsystemctl --failed\njournalctl -b -p err\n</code></pre>\n<p>오류가 하나라도 있으면 재부팅 전에 수정한다.</p>\n"
+     },
+     {
+      "id": "l8",
+      "title": "재부팅 후 최종 채점",
+      "body": "<pre><code class=\"language-bash\">reboot\nhostnamectl --static\nnmcli con show --active\nfindmnt /srv/web &amp;&amp; swapon --show\nsystemctl is-enabled httpd disk-report.timer\nsystemctl is-active httpd disk-report.timer\ncurl http://127.0.0.1:8088/\ngetenforce\njournalctl -b -p err\n</code></pre>\n<p>각 요구를 명령 출력으로 확인해 100점 만점으로 자체 채점한다. 실패 항목은 원인과 수정 명령을 한 줄씩 기록한다.</p>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "RHCSA EX200 공식 시험 목표",
+     "url": "https://www.redhat.com/en/services/training/ex200-red-hat-certified-system-administrator-rhcsa-exam"
+    },
+    {
+     "label": "RHEL 10 제품 문서",
+     "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "모의시험에서 모든 curl과 mount 검증이 통과해 재부팅 검증은 생략했다.",
+     "question": "현재 동작이 확인됐으므로 RHCSA 영구 구성 요구도 충족했다고 볼 수 있다. (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "runtime 설정만 맞을 수 있다. 공식 목표는 구성의 재부팅 후 지속을 요구하므로 재부팅 검증이 필요하다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "재부팅 직전 10분밖에 남지 않았다.",
+     "question": "가장 먼저 확인할 위험 항목은?",
+     "choices": [
+      "bash history 줄 수",
+      "fstab 검증과 서비스 실패",
+      "터미널 색상",
+      "man 페이지 언어"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "fstab 오류는 부팅 실패를 만들고 failed service는 핵심 요구 누락을 뜻할 수 있어 우선 확인한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "현재 부팅에서 error 이상 journal을 빠르게 확인해야 한다.",
+     "question": "명령을 입력하라.",
+     "answers": [
+      "journalctl -b -p err",
+      "journalctl --boot --priority=err"
+     ],
+     "match": "normalize-flags",
+     "explanation": "-b는 현재 부팅, -p err는 error 이상 메시지를 필터링한다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "현재 실패한 systemd 유닛을 한 번에 조회해야 한다.",
+     "question": "명령을 입력하라.",
+     "answers": [
+      "systemctl --failed",
+      "systemctl list-units --failed"
+     ],
+     "match": "normalize-flags",
+     "explanation": "systemctl --failed는 failed 상태 유닛을 요약한다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "웹 서비스 요구를 완료했다고 자체 채점해야 한다.",
+     "question": "설정·상태·동작·영속성 네 범주의 검증 증거를 하나씩 서술하라.",
+     "answers": [],
+     "rubric": "설정(apachectl/유닛·firewall·SELinux 설정), 상태(systemctl/ss), 동작(curl), 영속성(enable/permanent/fstab 확인 및 재부팅 후 재검증)을 각각 제시하면 O. 세 범주는 부분점수.",
+     "explanation": "파일 존재만 확인하지 말고 현재 상태와 실제 요청, 재부팅 후 결과까지 관찰해야 채점 가능한 완료 상태가 된다.",
+     "concept_anchor": "c3",
      "xp": 10
     }
    ]
