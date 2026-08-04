@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useHub, xpNeeded } from '../store'
 import { requiredLevel } from '../lib/auth'
@@ -39,18 +40,23 @@ const tabs: Tab[] = [
 export default function Header() {
   const { xp, level, streak, toggleTheme, setHelpOpen, authLevel, openAuth, adjustUiScale } = useHub()
   const req = xpNeeded(level)
+  const [menuOpen, setMenuOpen] = useState(false)
 
+  // 네비 + 게이트 + (모바일)드로어 닫기 를 한 번에
+  const gate = (e: React.MouseEvent, lv: number) => { if (lv > authLevel) { e.preventDefault(); openAuth(lv) } }
+  const gateMobile = (e: React.MouseEvent, lv: number) => { gate(e, lv); setMenuOpen(false) }
 
   return (
     <header className="hub-header">
-      <Link to="/" className="logo"><span className="dot" /><span className="px">정지안의 업무허브</span></Link>
+      <Link to="/" className="logo" onClick={() => setMenuOpen(false)}><span className="dot" /><span className="px">정지안의 업무허브</span></Link>
+
+      {/* 데스크탑 네비 (hover 서브메뉴) */}
       <nav className="hub-nav">
         {tabs.map(t => {
           const tlv = requiredLevel(t.to)
           return (
             <div key={t.to} className="hub-navitem">
-              <NavLink to={t.to} className={({ isActive }) => (isActive ? 'on' : '')}
-                onClick={e => { if (tlv > authLevel) { e.preventDefault(); openAuth(tlv) } }}>
+              <NavLink to={t.to} className={({ isActive }) => (isActive ? 'on' : '')} onClick={e => gate(e, tlv)}>
                 {t.label}<Locks level={tlv} authLevel={authLevel} />
               </NavLink>
               {t.children && (
@@ -58,8 +64,7 @@ export default function Header() {
                   {t.children.map(c => {
                     const lv = requiredLevel(c.to)
                     return (
-                      <NavLink key={c.to} to={c.to} className={({ isActive }) => `hub-subitem${isActive ? ' on' : ''}`}
-                        onClick={e => { if (lv > authLevel) { e.preventDefault(); openAuth(lv) } }}>
+                      <NavLink key={c.to} to={c.to} className={({ isActive }) => `hub-subitem${isActive ? ' on' : ''}`} onClick={e => gate(e, lv)}>
                         <span>{c.label}</span><Locks level={lv} authLevel={authLevel} />
                       </NavLink>
                     )
@@ -70,9 +75,10 @@ export default function Header() {
           )
         })}
       </nav>
+
       <div className="hdr-right">
-        <span className="streak px">{streak}일차</span>
-        <div className="flex items-center gap-[10px]">
+        <span className="streak px hide-mobile">{streak}일차</span>
+        <div className="flex items-center gap-[10px] hide-mobile">
           <span className="lvbadge px">Lv.{level}</span>
           <div className="xpbar"><div className="fill" style={{ width: `${Math.min(100, (xp / req) * 100)}%` }} /></div>
           <span className="xptext px">{xp} / {req} XP</span>
@@ -81,11 +87,50 @@ export default function Header() {
           <LockIcon open={authLevel > 0} size={13} />
           {authLevel >= 3 ? 'PAT' : authLevel > 0 ? `Lv${authLevel}` : '로그인'}
         </button>
-        <button className="iconbtn" onClick={() => adjustUiScale(-1)} title="화면 축소">A−</button>
-        <button className="iconbtn" onClick={() => adjustUiScale(1)} title="화면 확대">A+</button>
-        <button className="iconbtn" onClick={toggleTheme} title="다크모드 토글 (d)">◐</button>
-        <button className="iconbtn px" onClick={() => setHelpOpen(true)} title="단축키 (?)">?</button>
+        <button className="iconbtn hide-mobile" onClick={() => adjustUiScale(-1)} title="화면 축소">A−</button>
+        <button className="iconbtn hide-mobile" onClick={() => adjustUiScale(1)} title="화면 확대">A+</button>
+        <button className="iconbtn hide-mobile" onClick={toggleTheme} title="다크모드 토글 (d)">◐</button>
+        <button className="iconbtn px hide-mobile" onClick={() => setHelpOpen(true)} title="단축키 (?)">?</button>
+        {/* 모바일 햄버거 */}
+        <button className="hamburger" onClick={() => setMenuOpen(o => !o)} aria-label="메뉴" aria-expanded={menuOpen}>
+          {menuOpen ? '✕' : '☰'}
+        </button>
       </div>
+
+      {/* 모바일 드로어 — 전체 메뉴(탭+서브+자물쇠) */}
+      {menuOpen && (
+        <div className="mdrawer-scrim" onClick={() => setMenuOpen(false)}>
+          <nav className="mdrawer" onClick={e => e.stopPropagation()}>
+            {tabs.map(t => {
+              const tlv = requiredLevel(t.to)
+              return (
+                <div key={t.to} className="mdrawer-group">
+                  <NavLink to={t.to} className={({ isActive }) => `mdrawer-tab${isActive ? ' on' : ''}`} onClick={e => gateMobile(e, tlv)}>
+                    {t.label}<Locks level={tlv} authLevel={authLevel} />
+                  </NavLink>
+                  {t.children?.map(c => {
+                    const lv = requiredLevel(c.to)
+                    return (
+                      <NavLink key={c.to} to={c.to} className={({ isActive }) => `mdrawer-sub${isActive ? ' on' : ''}`} onClick={e => gateMobile(e, lv)}>
+                        <span>{c.label}</span><Locks level={lv} authLevel={authLevel} />
+                      </NavLink>
+                    )
+                  })}
+                </div>
+              )
+            })}
+            <div className="mdrawer-actions">
+              <button className="authbtn px" onClick={() => { setMenuOpen(false); openAuth() }}>
+                <LockIcon open={authLevel > 0} size={13} />{authLevel >= 3 ? 'PAT' : authLevel > 0 ? `Lv${authLevel}` : '로그인'}
+              </button>
+              <button className="iconbtn" onClick={toggleTheme} title="다크모드">◐</button>
+              <button className="iconbtn" onClick={() => adjustUiScale(-1)} title="축소">A−</button>
+              <button className="iconbtn" onClick={() => adjustUiScale(1)} title="확대">A+</button>
+              <button className="iconbtn px" onClick={() => { setMenuOpen(false); setHelpOpen(true) }} title="단축키">?</button>
+            </div>
+          </nav>
+        </div>
+      )}
     </header>
   )
 }

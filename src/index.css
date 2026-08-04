@@ -724,8 +724,11 @@ select.cli-input { cursor: pointer; }
 .hub-nav .hub-subitem:hover { background: var(--bg-inset); color: var(--text); }
 .hub-nav .hub-subitem.on { color: var(--accent); background: transparent; }
 @media (max-width: 860px) {
-  /* 모바일: hover 불가 → 하위메뉴는 각 페이지의 서브탭(ksec)으로 접근, 헤더 드롭다운 숨김 */
+  /* 모바일/태블릿: 데스크탑 네비 숨기고 햄버거 드로어로 */
+  .hub-nav { display: none; }
   .hub-submenu { display: none !important; }
+  .hamburger { display: inline-flex; }
+  .hide-mobile { display: none !important; }
 }
 
 /* ─────────── 학습 ALL 아코디언 ─────────── */
@@ -771,3 +774,17 @@ select.cli-input { cursor: pointer; }
 .locked-locks .lockmark { color: var(--partial); margin: 0; transform: scale(1.6); }
 .locked-title { font-size: 18px; margin: 0 0 8px; }
 .locked-desc { font-size: 14px; color: var(--text-dim); margin: 0 0 18px; line-height: 1.6; }
+
+/* ─────────── 모바일 헤더 (햄버거 드로어) ─────────── */
+.hamburger { display: none; align-items: center; justify-content: center; width: 34px; height: 32px; font-size: 18px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; font-family: inherit; }
+.mdrawer-scrim { position: fixed; inset: 0; top: 0; background: rgba(0, 0, 0, .45); z-index: 90; }
+.mdrawer { position: absolute; top: 54px; right: 8px; left: 8px; max-height: calc(100vh - 66px); overflow-y: auto;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 10px; }
+.mdrawer-group { padding: 4px 0; border-bottom: 1px solid var(--line-soft); }
+.mdrawer-group:last-of-type { border-bottom: 0; }
+.mdrawer-tab { display: flex; align-items: center; gap: 6px; padding: 11px 12px; font-size: 15.5px; font-weight: 600; color: var(--text); text-decoration: none; border-radius: 8px; }
+.mdrawer-tab.on { color: var(--accent); }
+.mdrawer-sub { display: flex; align-items: center; gap: 6px; padding: 9px 12px 9px 24px; font-size: 14px; color: var(--text-dim); text-decoration: none; border-radius: 8px; }
+.mdrawer-sub:hover, .mdrawer-tab:hover { background: var(--bg-inset); }
+.mdrawer-sub.on { color: var(--accent); background: var(--accent-glow); }
+.mdrawer-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 8px 4px; margin-top: 6px; border-top: 1px solid var(--line-soft); }
