@@ -807,8 +807,32 @@ select.cli-input { cursor: pointer; }
 .kind-chip { display: inline-block; font-size: 9.5px; font-weight: 700; color: #111; border-radius: 4px; padding: 1px 6px; margin-right: 6px; vertical-align: 1px; }
 
 /* OCI CLI 최종 명령 접기/펼치기 토글 */
-.cli-out-toggle { background: none; border: none; color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 2px 4px; }
-.cli-out-toggle:hover { color: var(--accent); }
+.cli-out-toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-height: 42px; padding: 8px 18px;
+  background: linear-gradient(180deg, var(--bg-card), var(--bg-inset));
+  border: 1px solid var(--accent-dim); border-radius: 999px;
+  color: var(--text); font-size: 15px; font-weight: 750; cursor: pointer; font-family: inherit;
+  box-shadow: 0 5px 18px var(--accent-glow);
+  transition: color .15s, border-color .15s, box-shadow .15s, transform .15s;
+}
+.cli-out-toggle:hover {
+  color: var(--accent); border-color: var(--accent);
+  box-shadow: 0 7px 24px var(--accent-glow); transform: translateY(-1px);
+}
+.cli-out-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.cli-out-caret {
+  display: inline-grid; place-items: center; width: 24px; height: 24px;
+  border-radius: 50%; background: var(--accent-glow); color: var(--accent);
+  font-size: 20px; line-height: 1; animation: cli-caret-float 1.45s ease-in-out infinite;
+}
+@keyframes cli-caret-float {
+  0%, 100% { transform: translateY(-2px) rotate(-4deg); }
+  50% { transform: translateY(3px) rotate(4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cli-out-caret { animation: none; }
+}
 @media (max-width: 560px) {
   .cli-result-actions { grid-column: 1 / -1; justify-content: center; }
 }

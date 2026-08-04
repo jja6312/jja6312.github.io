@@ -446,8 +446,9 @@ export default function CliBuilderPage() {
 
         <div className="cli-result">
           <div className="cli-result-hd">
-            <button className="cli-out-toggle" onClick={() => setOutOpen(o => !o)}>
-              {outOpen ? '▾' : '▸'} 최종 명령
+            <button className="cli-out-toggle" aria-expanded={outOpen} onClick={() => setOutOpen(o => !o)}>
+              <span className="cli-out-caret" aria-hidden="true">{outOpen ? '▾' : '▸'}</span>
+              <span>최종 명령</span>
             </button>
             <div className="cli-result-actions">
               <button className="submitbtn" onClick={copy}>복사</button>
