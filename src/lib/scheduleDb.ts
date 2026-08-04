@@ -74,8 +74,14 @@ export const CATS: { id: Cat; label: string; color: string }[] = [
   { id: 'plan', label: '일정', color: 'var(--text-dim)' },
 ]
 
-/* ── 칸반 (기존 todo/board.json 유지, card 에 goalId 태그 추가) ── */
-export interface Card { id: string; text: string; created: string; goalId?: string }
+/* ── 칸반 (todo/board.json). card 에 goalId 태그 + kind(Task/Education) ── */
+export type CardKind = 'task' | 'edu'
+export const CARD_KINDS: { id: CardKind; label: string; color: string }[] = [
+  { id: 'task', label: 'Task', color: '#e0a458' },      // 실제로 해야 할 일
+  { id: 'edu', label: 'Education', color: '#5ac8fa' },   // 학습해야 할 사항
+]
+export const kindColor = (k?: CardKind) => CARD_KINDS.find(c => c.id === k)?.color
+export interface Card { id: string; text: string; created: string; goalId?: string; kind?: CardKind }
 export interface Column { id: string; title: string; cards: Card[] }
 export interface Board { columns: Column[] }
 export const EMPTY_BOARD: Board = {
