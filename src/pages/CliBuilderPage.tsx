@@ -279,10 +279,12 @@ export default function CliBuilderPage() {
 
 
 
+  // cross-tenancy 복사 화면에선 동적 조회 비활성 — compartment 등은 OCID 직접 입력
+  const noDyn = !!cmd?.crossCopy
   const field = (o: CliOption, optional?: boolean) => (
     <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
-      dynamic={isDynamic(dyn, o.name)}
-      onToggleDynamic={o.name in DYNAMIC ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
+      dynamic={!noDyn && isDynamic(dyn, o.name)}
+      onToggleDynamic={!noDyn && o.name in DYNAMIC ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
       subVal={k => values[subKey(o.name, k)] || ''}
       onSub={(k, v) => setVal(subKey(o.name, k), v)} />
   )
