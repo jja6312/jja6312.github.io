@@ -138,7 +138,7 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
     `COMPARTMENT=${comp}            # 대상 compartment`,
     '',
     '#############################################',
-    '# 1) 원본 테넌시 — Endorse policy (최초 1회)',
+    '# 1) 대상 테넌시 — Endorse policy (최초 1회)',
     '#############################################',
     "cat > /tmp/endorse-stmts.json <<'EOF'",
     '[',
@@ -148,14 +148,14 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
     'EOF',
     '',
     'oci iam policy create' + CONT,
-    '  --compartment-id "$SRC_TENANCY"' + CONT,
+    '  --compartment-id "$DEST_TENANCY"' + CONT,
     `  --name ${pname}-endorse` + CONT,
     '  --description "cross-tenancy volume copy - endorse"' + CONT,
     '  --statements file:///tmp/endorse-stmts.json' + CONT,
-    '  --profile "$SRC_PROFILE"',
+    '  --profile "$PROFILE"',
     '',
     '#############################################',
-    '# 2) 대상 테넌시 — Admit policy (최초 1회)',
+    '# 2) 원본 테넌시 — Admit policy (최초 1회)',
     '#############################################',
     "cat > /tmp/admit-stmts.json <<'EOF'",
     '[',
@@ -166,11 +166,11 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
     'EOF',
     '',
     'oci iam policy create' + CONT,
-    '  --compartment-id "$DEST_TENANCY"' + CONT,
+    '  --compartment-id "$SRC_TENANCY"' + CONT,
     `  --name ${pname}-admit` + CONT,
     '  --description "cross-tenancy volume copy - admit"' + CONT,
     '  --statements file:///tmp/admit-stmts.json' + CONT,
-    '  --profile "$PROFILE"',
+    '  --profile "$SRC_PROFILE"',
     '',
     '# policy 전파에 수 분 걸릴 수 있다 — 3) 에서 NotAuthorized 면 잠시 후 재시도',
     '',
@@ -419,7 +419,7 @@ export default function CliBuilderPage() {
 
         {cmd?.crossCopy && (
           <div className="cross-note">
-            최종 명령에 <b>원본 테넌시 Endorse policy</b> → <b>대상 테넌시 Admit policy</b> → 복사 루프가 모두 포함됩니다.
+            최종 명령에 <b>대상 테넌시 Endorse policy</b> → <b>원본 테넌시 Admit policy</b> → 복사 루프가 모두 포함됩니다.
             policy 는 최초 1회만 실행하면 되고, 전파에 수 분 걸릴 수 있습니다.
           </div>
         )}

@@ -295,7 +295,7 @@ def _cross(kind, src_opt, label, src_ph):
         'resource': res, 'label': '%s — Cross-Tenancy Copy' % label,
         'cmd': 'oci bv %s create' % kind, 'crossCopy': kind,
         'help': ('다른 테넌시의 %s을 이 테넌시로 복사 — 여러 OCID 일괄(for 루프) + 원본 display name 유지. '
-                 '선행: 대상 테넌시 Admit · 원본 테넌시 Endorse policy 필요.' % label),
+                 '선행: 원본 테넌시 Admit · 대상 테넌시 Endorse policy 필요.' % label),
         'sections': [
             {'label': '대상 테넌시 · 위치', 'options': [
                 _co('--profile', True, '대상(이관받을) 테넌시의 CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT'),
@@ -303,7 +303,7 @@ def _cross(kind, src_opt, label, src_ph):
                 _co('--compartment-id', True, '대상 compartment OCID', 'ocid1.compartment.oc1..xxxx'),
             ]},
             {'label': 'IAM Policy 선행 (최초 1회 · Admit/Endorse)', 'options': [
-                _co('--source-profile', True, '원본 테넌시 CLI 프로파일 (Endorse policy 생성용)', 'OLD'),
+                _co('--source-profile', True, '원본 테넌시 CLI 프로파일 (Admit policy 생성용)', 'OLD'),
                 _co('--source-tenancy-id', True, '원본 테넌시 OCID', 'ocid1.tenancy.oc1..xxxx'),
                 _co('--source-group-name', True, '원본 group 이름 — Endorse 문장에 사용 (원본 테넌시 기준)', 'VolumeCopiers'),
                 _co('--source-group-id', True, '원본 group OCID — Admit 문장의 Define group 에 사용', 'ocid1.group.oc1..xxxx'),

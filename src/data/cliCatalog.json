@@ -5937,7 +5937,7 @@
    "label": "Boot Volume — Cross-Tenancy Copy",
    "cmd": "oci bv boot-volume create",
    "crossCopy": "boot-volume",
-   "help": "다른 테넌시의 Boot Volume을 이 테넌시로 복사 — 여러 OCID 일괄(for 루프) + 원본 display name 유지. 선행: 대상 테넌시 Admit · 원본 테넌시 Endorse policy 필요.",
+   "help": "다른 테넌시의 Boot Volume을 이 테넌시로 복사 — 여러 OCID 일괄(for 루프) + 원본 display name 유지. 선행: 원본 테넌시 Admit · 대상 테넌시 Endorse policy 필요.",
    "sections": [
     {
      "label": "대상 테넌시 · 위치",
@@ -5976,7 +5976,7 @@
        "required": true,
        "type": "str",
        "choices": null,
-       "help": "원본 테넌시 CLI 프로파일 (Endorse policy 생성용)",
+       "help": "원본 테넌시 CLI 프로파일 (Admit policy 생성용)",
        "placeholder": "OLD"
       },
       {
@@ -6043,7 +6043,7 @@
    "label": "Block Volume — Cross-Tenancy Copy",
    "cmd": "oci bv volume create",
    "crossCopy": "volume",
-   "help": "다른 테넌시의 Block Volume을 이 테넌시로 복사 — 여러 OCID 일괄(for 루프) + 원본 display name 유지. 선행: 대상 테넌시 Admit · 원본 테넌시 Endorse policy 필요.",
+   "help": "다른 테넌시의 Block Volume을 이 테넌시로 복사 — 여러 OCID 일괄(for 루프) + 원본 display name 유지. 선행: 원본 테넌시 Admit · 대상 테넌시 Endorse policy 필요.",
    "sections": [
     {
      "label": "대상 테넌시 · 위치",
@@ -6082,7 +6082,7 @@
        "required": true,
        "type": "str",
        "choices": null,
-       "help": "원본 테넌시 CLI 프로파일 (Endorse policy 생성용)",
+       "help": "원본 테넌시 CLI 프로파일 (Admit policy 생성용)",
        "placeholder": "OLD"
       },
       {
