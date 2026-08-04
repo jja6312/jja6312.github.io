@@ -102,32 +102,98 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
   const srcOpt = boot ? '--source-boot-volume-id' : '--source-volume-id'
   const idOpt = boot ? '--boot-volume-id' : '--volume-id'
   const resCmd = boot ? 'bv boot-volume' : 'bv volume'
-  const profile = (values['--profile'] || '').trim() || 'DEFAULT'
-  const region = (values['--region'] || '').trim() || '<region>'
-  const comp = (values['--compartment-id'] || '').trim() || '<dest-compartment-ocid>'
+  const v = (k: string, dflt: string) => (values[k] || '').trim() || dflt
+  const CONT = ' \\'                                  // 줄 끝 백슬래시(명령 이어짐)
+
+  const profile = v('--profile', 'DEFAULT')
+  const region = v('--region', '<region>')
+  const comp = v('--compartment-id', '<dest-compartment-ocid>')
+  const srcProfile = v('--source-profile', '<source-profile>')
+  const srcTenancy = v('--source-tenancy-id', '<source-tenancy-ocid>')
+  const srcGroupName = v('--source-group-name', '<source-group-name>')
+  const srcGroupId = v('--source-group-id', '<source-group-ocid>')
+  const destTenancy = v('--dest-tenancy-id', '<dest-tenancy-ocid>')
+  const pname = v('--policy-name', 'cross-tenancy-volume')
+
   const srcs = (values[srcOpt] || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean)
   const list = srcs.length ? srcs : ['<source-ocid-1>', '<source-ocid-2>']
+
+  // 원본 조회(Get) + 대상 생성(Create) 을 볼륨·부트볼륨 양쪽에 허용
+  const ops = [
+    "request.operation='GetVolume'", "request.operation='CreateVolume'",
+    "request.operation='GetBootVolume'", "request.operation='CreateBootVolume'",
+  ].join(', ')
+
   return [
-    `PROFILE=${profile}       # 대상(이관받을) 테넌시 프로파일`,
+    '#############################################',
+    '# 0) 공통 변수',
+    '#############################################',
+    `SRC_PROFILE=${srcProfile}      # 원본(주는) 테넌시 프로파일`,
+    `SRC_TENANCY=${srcTenancy}`,
+    `SRC_GROUP_NAME=${srcGroupName}`,
+    `SRC_GROUP_ID=${srcGroupId}`,
+    `PROFILE=${profile}             # 대상(받는) 테넌시 프로파일`,
+    `DEST_TENANCY=${destTenancy}`,
     `REGION=${region}`,
-    `COMPARTMENT=${comp}`,
-    `SOURCES=(`,
+    `COMPARTMENT=${comp}            # 대상 compartment`,
+    '',
+    '#############################################',
+    '# 1) 원본 테넌시 — Endorse policy (최초 1회)',
+    '#############################################',
+    "cat > /tmp/endorse-stmts.json <<'EOF'",
+    '[',
+    `  "Define tenancy DestTenancy as ${destTenancy}",`,
+    `  "Endorse group ${srcGroupName} to use volumes in tenancy DestTenancy where ANY { ${ops} }"`,
+    ']',
+    'EOF',
+    '',
+    'oci iam policy create' + CONT,
+    '  --compartment-id "$SRC_TENANCY"' + CONT,
+    `  --name ${pname}-endorse` + CONT,
+    '  --description "cross-tenancy volume copy - endorse"' + CONT,
+    '  --statements file:///tmp/endorse-stmts.json' + CONT,
+    '  --profile "$SRC_PROFILE"',
+    '',
+    '#############################################',
+    '# 2) 대상 테넌시 — Admit policy (최초 1회)',
+    '#############################################',
+    "cat > /tmp/admit-stmts.json <<'EOF'",
+    '[',
+    `  "Define tenancy SourceTenancy as ${srcTenancy}",`,
+    `  "Define group SourceGroup as ${srcGroupId}",`,
+    `  "Admit group SourceGroup of tenancy SourceTenancy to use volumes in tenancy where ANY { ${ops} }"`,
+    ']',
+    'EOF',
+    '',
+    'oci iam policy create' + CONT,
+    '  --compartment-id "$DEST_TENANCY"' + CONT,
+    `  --name ${pname}-admit` + CONT,
+    '  --description "cross-tenancy volume copy - admit"' + CONT,
+    '  --statements file:///tmp/admit-stmts.json' + CONT,
+    '  --profile "$PROFILE"',
+    '',
+    '# policy 전파에 수 분 걸릴 수 있다 — 3) 에서 NotAuthorized 면 잠시 후 재시도',
+    '',
+    '#############################################',
+    `# 3) ${boot ? 'Boot Volume' : 'Block Volume'} 복사 (원본 이름 유지)`,
+    '#############################################',
+    'SOURCES=(',
     ...list.map(s => `  ${s}`),
-    `)`,
-    ``,
-    `for SRC in "\${SOURCES[@]}"; do`,
-    `  # 1) 원본 display name 조회 (Admit/Endorse 의 Get 권한 사용)`,
-    `  NAME=$(oci ${resCmd} get ${idOpt} "$SRC" --profile "$PROFILE" --region "$REGION" \\`,
+    ')',
+    '',
+    'for SRC in "${SOURCES[@]}"; do',
+    '  # 3-1) 원본 display name 조회 (Endorse/Admit 의 Get 권한 사용)',
+    `  NAME=$(oci ${resCmd} get ${idOpt} "$SRC" --profile "$PROFILE" --region "$REGION"` + CONT,
     `    --query 'data."display-name"' --raw-output)`,
-    `  # 2) 대상 테넌시로 복사`,
-    `  NEW=$(oci ${resCmd} create --profile "$PROFILE" --region "$REGION" \\`,
-    `    ${srcOpt} "$SRC" --compartment-id "$COMPARTMENT" \\`,
+    '  # 3-2) 대상 테넌시로 복사',
+    `  NEW=$(oci ${resCmd} create --profile "$PROFILE" --region "$REGION"` + CONT,
+    `    ${srcOpt} "$SRC" --compartment-id "$COMPARTMENT"` + CONT,
     `    --wait-for-state AVAILABLE --query 'data.id' --raw-output)`,
-    `  # 3) 복사본 이름을 원본 display name 으로 rename`,
-    `  oci ${resCmd} update ${idOpt} "$NEW" --display-name "$NAME" \\`,
-    `    --profile "$PROFILE" --region "$REGION"`,
-    `  echo "copied $SRC -> $NEW ($NAME)"`,
-    `done`,
+    '  # 3-3) 복사본 이름을 원본과 동일하게',
+    `  oci ${resCmd} update ${idOpt} "$NEW" --display-name "$NAME"` + CONT,
+    '    --profile "$PROFILE" --region "$REGION"',
+    '  echo "copied $SRC -> $NEW ($NAME)"',
+    'done',
   ].join('\n')
 }
 
@@ -351,7 +417,12 @@ export default function CliBuilderPage() {
           </label>
         )}
 
-        {cmd?.crossCopy && <CrossPolicyNotice />}
+        {cmd?.crossCopy && (
+          <div className="cross-note">
+            최종 명령에 <b>원본 테넌시 Endorse policy</b> → <b>대상 테넌시 Admit policy</b> → 복사 루프가 모두 포함됩니다.
+            policy 는 최초 1회만 실행하면 되고, 전파에 수 분 걸릴 수 있습니다.
+          </div>
+        )}
 
         {cmd ? (
           <div className="cli-form">
@@ -384,33 +455,6 @@ export default function CliBuilderPage() {
           {outOpen && <pre className="cli-output">{cli}</pre>}
         </div>
       </main>
-    </div>
-  )
-}
-
-// cross-tenancy 복사 선행 policy 안내 (Admit/Endorse 템플릿)
-function CrossPolicyNotice() {
-  const [open, setOpen] = useState(false)
-  const ops = "request.operation='CreateVolume', request.operation='GetVolume', request.operation='CreateBootVolume', request.operation='GetBootVolume'"
-  const admit = `# 대상(이관받을) 테넌시에 Admit policy
-Define tenancy SourceTenancy as <원본 테넌시 OCID>
-Define group  SourceGroup   as <원본 group OCID>
-Admit group SourceGroup of tenancy SourceTenancy to use volumes in tenancy where ANY { ${ops} }`
-  const endorse = `# 원본 테넌시에 Endorse policy
-Define tenancy DestTenancy as <대상 테넌시 OCID>
-Endorse group Administrators to use volumes in tenancy DestTenancy where ANY { ${ops} }`
-  return (
-    <div className="cross-policy">
-      <button className="cli-optional-toggle" onClick={() => setOpen(o => !o)}>
-        {open ? '▾' : '▸'} 선행 IAM Policy (Admit · Endorse) — cross-tenancy 권한 {open ? '접기' : '펼치기'}
-      </button>
-      {open && <>
-        <p className="cli-help" style={{ margin: '8px 0' }}>
-          복사 전 <b>양쪽 테넌시</b>에 아래 policy 가 있어야 한다 (Create·Get / Volume·BootVolume). 원본↔대상 group·tenancy OCID 를 채운다.
-        </p>
-        <pre className="cli-output">{admit}</pre>
-        <pre className="cli-output" style={{ marginTop: 8 }}>{endorse}</pre>
-      </>}
     </div>
   )
 }

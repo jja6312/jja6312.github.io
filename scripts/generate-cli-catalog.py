@@ -302,6 +302,14 @@ def _cross(kind, src_opt, label, src_ph):
                 _co('--region', True, '원본 = 대상 리전 (동일 리전 복사)', 'ap-seoul-1'),
                 _co('--compartment-id', True, '대상 compartment OCID', 'ocid1.compartment.oc1..xxxx'),
             ]},
+            {'label': 'IAM Policy 선행 (최초 1회 · Admit/Endorse)', 'options': [
+                _co('--source-profile', True, '원본 테넌시 CLI 프로파일 (Endorse policy 생성용)', 'OLD'),
+                _co('--source-tenancy-id', True, '원본 테넌시 OCID', 'ocid1.tenancy.oc1..xxxx'),
+                _co('--source-group-name', True, '원본 group 이름 — Endorse 문장에 사용 (원본 테넌시 기준)', 'VolumeCopiers'),
+                _co('--source-group-id', True, '원본 group OCID — Admit 문장의 Define group 에 사용', 'ocid1.group.oc1..xxxx'),
+                _co('--policy-name', False, 'policy 이름 접두 (미입력 시 cross-tenancy-volume)', 'cross-tenancy-volume'),
+                _co('--dest-tenancy-id', True, '대상 테넌시 OCID', 'ocid1.tenancy.oc1..xxxx'),
+            ]},
             {'label': '원본 %s OCID (여러 개: 줄바꿈/콤마)' % label, 'options': [
                 _co(src_opt, True, '원본 OCID — 여러 개 넣으면 for 루프로 순차 복사 후 원본 이름으로 rename', src_ph, multi=True),
             ]},

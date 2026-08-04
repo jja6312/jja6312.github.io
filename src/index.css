@@ -800,3 +800,8 @@ select.cli-input { cursor: pointer; }
 /* OCI CLI 최종 명령 접기/펼치기 토글 */
 .cli-out-toggle { background: none; border: none; color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 2px 4px; }
 .cli-out-toggle:hover { color: var(--accent); }
+
+/* cross-tenancy 복사 안내 배너 */
+.cross-note { background: var(--bg-inset); border: 1px solid var(--accent-dim); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 11px 14px; margin: 0 0 18px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+.cross-note b { color: var(--accent); }

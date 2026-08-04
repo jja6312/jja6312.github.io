@@ -5969,6 +5969,59 @@
      ]
     },
     {
+     "label": "IAM Policy 선행 (최초 1회 · Admit/Endorse)",
+     "options": [
+      {
+       "name": "--source-profile",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 테넌시 CLI 프로파일 (Endorse policy 생성용)",
+       "placeholder": "OLD"
+      },
+      {
+       "name": "--source-tenancy-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 테넌시 OCID",
+       "placeholder": "ocid1.tenancy.oc1..xxxx"
+      },
+      {
+       "name": "--source-group-name",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 group 이름 — Endorse 문장에 사용 (원본 테넌시 기준)",
+       "placeholder": "VolumeCopiers"
+      },
+      {
+       "name": "--source-group-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 group OCID — Admit 문장의 Define group 에 사용",
+       "placeholder": "ocid1.group.oc1..xxxx"
+      },
+      {
+       "name": "--policy-name",
+       "required": false,
+       "type": "str",
+       "choices": null,
+       "help": "policy 이름 접두 (미입력 시 cross-tenancy-volume)",
+       "placeholder": "cross-tenancy-volume"
+      },
+      {
+       "name": "--dest-tenancy-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "대상 테넌시 OCID",
+       "placeholder": "ocid1.tenancy.oc1..xxxx"
+      }
+     ]
+    },
+    {
      "label": "원본 Boot Volume OCID (여러 개: 줄바꿈/콤마)",
      "options": [
       {
@@ -6018,6 +6071,59 @@
        "choices": null,
        "help": "대상 compartment OCID",
        "placeholder": "ocid1.compartment.oc1..xxxx"
+      }
+     ]
+    },
+    {
+     "label": "IAM Policy 선행 (최초 1회 · Admit/Endorse)",
+     "options": [
+      {
+       "name": "--source-profile",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 테넌시 CLI 프로파일 (Endorse policy 생성용)",
+       "placeholder": "OLD"
+      },
+      {
+       "name": "--source-tenancy-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 테넌시 OCID",
+       "placeholder": "ocid1.tenancy.oc1..xxxx"
+      },
+      {
+       "name": "--source-group-name",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 group 이름 — Endorse 문장에 사용 (원본 테넌시 기준)",
+       "placeholder": "VolumeCopiers"
+      },
+      {
+       "name": "--source-group-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "원본 group OCID — Admit 문장의 Define group 에 사용",
+       "placeholder": "ocid1.group.oc1..xxxx"
+      },
+      {
+       "name": "--policy-name",
+       "required": false,
+       "type": "str",
+       "choices": null,
+       "help": "policy 이름 접두 (미입력 시 cross-tenancy-volume)",
+       "placeholder": "cross-tenancy-volume"
+      },
+      {
+       "name": "--dest-tenancy-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "대상 테넌시 OCID",
+       "placeholder": "ocid1.tenancy.oc1..xxxx"
       }
      ]
     },
