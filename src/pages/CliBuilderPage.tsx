@@ -200,6 +200,8 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
 
 const catOfResource = (r: string) =>
   CAT.categories.find(c => c.groups.some(g => g.resources.includes(r)))?.id
+// cross-tenancy 복사 — 카테고리 밖, Custom 과 같은 최상위 레벨
+const CROSS_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy)
 
 export default function CliBuilderPage() {
   const { showToast } = useHub()
@@ -212,6 +214,7 @@ export default function CliBuilderPage() {
   const [customText, setCustomText] = useState('oci ')
   const [favs, setFavs] = useState<Favorite[]>(loadFavs())
   const [showOptional, setShowOptional] = useState(false)
+  const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   // 딥링크로 들어온 자원의 카테고리는 펼쳐 둔다 (그 외는 닫힘)
   const [openCats, setOpenCats] = useState<Record<string, boolean>>(() => {
     const cat = rParam && CAT.commands[rParam] ? catOfResource(rParam) : undefined
@@ -296,6 +299,13 @@ export default function CliBuilderPage() {
         <button className={`cli-navitem custom${active === '__custom' ? ' on' : ''}`} onClick={() => setActive('__custom')}>
           <span className="px">Custom</span>
         </button>
+        {CROSS_COMMANDS.map(c => (
+          <button key={c.resource} className={`cli-navitem custom${active === c.resource ? ' on' : ''}${isVerified(c.resource) ? ' verified' : ''}`}
+            onClick={() => selectResource(c.resource)}>
+            <span className="px">{c.label}</span>
+            {isVerified(c.resource) && <span className="cli-vmark" title="검증됨">✓</span>}
+          </button>
+        ))}
         {CAT.categories.map(c => (
           <div key={c.id} className="cli-cat">
             <button className="cli-cat-toggle" onClick={() => toggleCat(c.id)}>
@@ -365,11 +375,13 @@ export default function CliBuilderPage() {
 
         <div className="cli-result">
           <div className="cli-result-hd">
-            <span className="px">최종 명령</span>
+            <button className="cli-out-toggle" onClick={() => setOutOpen(o => !o)}>
+              {outOpen ? '▾' : '▸'} 최종 명령
+            </button>
             <button className="submitbtn" onClick={copy}>복사</button>
             <button className="donebtn" style={{ marginTop: 0 }} onClick={addFav}>즐겨찾기 저장</button>
           </div>
-          <pre className="cli-output">{cli}</pre>
+          {outOpen && <pre className="cli-output">{cli}</pre>}
         </div>
       </main>
     </div>

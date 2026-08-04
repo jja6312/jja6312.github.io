@@ -313,10 +313,8 @@ EXTRA = {
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
     'block-volume-cross-copy': _cross('volume', '--source-volume-id', 'Block Volume', 'ocid1.volume.oc1.ap-seoul-1.xxxx'),
 }
+# cross-copy 는 카테고리에 넣지 않는다 — CliBuilderPage 가 Custom 과 같은 최상위 레벨에 렌더
 catalog['commands'].update(EXTRA)
-for _cat in catalog['categories']:
-    if _cat['id'] == '03-storage':
-        _cat['groups'].append({'label': 'Cross-Tenancy Copy', 'resources': list(EXTRA.keys())})
 
 json.dump(catalog, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 n_cur = sum(1 for r in catalog['commands'] if r in CURATION)

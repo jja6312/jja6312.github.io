@@ -54,13 +54,6 @@
      "resources": [
       "bucket"
      ]
-    },
-    {
-     "label": "Cross-Tenancy Copy",
-     "resources": [
-      "boot-volume-cross-copy",
-      "block-volume-cross-copy"
-     ]
     }
    ]
   },
