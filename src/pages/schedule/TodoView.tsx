@@ -1,14 +1,13 @@
 import { useRef, useState } from 'react'
 import {
   useSyncedJson, SYNC_LABEL, EMPTY_BOARD, EMPTY_JOURNAL, EMPTY_GOALS,
-  CARD_KINDS, kindColor,
+  CARD_KINDS, kindColor, cardDoneDate,
   type Board, type Card, type CardKind, type Journal, type GoalsFile,
 } from '../../lib/scheduleDb'
 
-const todayIso = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+const isoOf = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const todayIso = () => isoOf(new Date())
 
 export default function TodoView() {
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
@@ -19,6 +18,8 @@ export default function TodoView() {
   const [inputs, setInputs] = useState<Record<string, string>>({})
   const [kind, setKind] = useState<CardKind>('task')
   const [activeGoal, setActiveGoal] = useState('')
+  const [editId, setEditId] = useState<string | null>(null)   // 수정 중인 카드
+  const [editText, setEditText] = useState('')
   const dragRef = useRef<{ colId: string; cardId: string } | null>(null)
 
   const goalOf = (id?: string) => goals.find(g => g.id === id)
@@ -26,26 +27,45 @@ export default function TodoView() {
   const setEntry = (patch: Partial<typeof entry>) =>
     journal.update({ ...journal.data, [date]: { goal: entry.goal, learned: entry.learned, goalIds: entry.goalIds, ...patch } })
 
+  const shiftDate = (delta: number) => {
+    const d = new Date(date + 'T00:00:00'); d.setDate(d.getDate() + delta); setDate(isoOf(d))
+  }
+
   // ── 칸반 ──
   const addCard = (colId: string) => {
     const text = (inputs[colId] || '').trim()
     if (!text) return
-    const card: Card = { id: `card-${Date.now()}`, text, created: new Date().toISOString(), kind, ...(activeGoal ? { goalId: activeGoal } : {}) }
+    const card: Card = {
+      id: `card-${Date.now()}`, text, created: new Date().toISOString(), kind,
+      ...(activeGoal ? { goalId: activeGoal } : {}),
+      ...(colId === 'done' ? { doneAt: date } : {}),
+    }
     board.update({ columns: board.data.columns.map(c => c.id === colId ? { ...c, cards: [...c.cards, card] } : c) })
     setInputs({ ...inputs, [colId]: '' })
   }
   const removeCard = (colId: string, cardId: string) =>
     board.update({ columns: board.data.columns.map(c => c.id === colId ? { ...c, cards: c.cards.filter(x => x.id !== cardId) } : c) })
+  const patchCard = (cardId: string, patch: Partial<Card>) =>
+    board.update({ columns: board.data.columns.map(c => ({ ...c, cards: c.cards.map(x => x.id === cardId ? { ...x, ...patch } : x) })) })
+  const saveEdit = () => {
+    const t = editText.trim()
+    if (editId && t) patchCard(editId, { text: t })
+    setEditId(null); setEditText('')
+  }
   const moveCard = (toCol: string, beforeCardId?: string) => {
     const src = dragRef.current
     if (!src) return
     dragRef.current = null
-    const card = board.data.columns.find(c => c.id === src.colId)?.cards.find(x => x.id === src.cardId)
-    if (!card || (src.colId === toCol && src.cardId === beforeCardId)) return
+    const found = board.data.columns.find(c => c.id === src.colId)?.cards.find(x => x.id === src.cardId)
+    if (!found || (src.colId === toCol && src.cardId === beforeCardId)) return
+    // 완료로 들어오면 그날짜 스탬프, 완료에서 나가면 해제
+    const moved: Card = { ...found }
+    if (toCol === 'done') moved.doneAt = date
+    else delete moved.doneAt
     const cols = board.data.columns.map(c => ({ ...c, cards: c.cards.filter(x => x.id !== src.cardId) }))
     const target = cols.find(c => c.id === toCol)!
     const idx = beforeCardId ? target.cards.findIndex(x => x.id === beforeCardId) : -1
-    if (idx >= 0) target.cards.splice(idx, 0, card); else target.cards.push(card)
+    if (idx >= 0) target.cards.splice(idx, 0, moved); else target.cards.push(moved)
     board.update({ columns: cols })
   }
 
@@ -53,10 +73,12 @@ export default function TodoView() {
     <div>
       <div className="sched-head">
         <h1 className="sheet-h1">TODO LIST</h1>
-        <label className="todo-goalpick" style={{ marginLeft: 'auto' }}>
-          <span className="px">날짜</span>
-          <input className="cli-input" type="date" value={date} onChange={e => setDate(e.target.value)} style={{ width: 150 }} />
-        </label>
+        <div className="todo-datenav" style={{ marginLeft: 'auto' }}>
+          <button className="iconbtn" onClick={() => shiftDate(-1)} title="이전 날">‹</button>
+          <input className="cli-input todo-dateinput" type="date" value={date} onChange={e => setDate(e.target.value)} />
+          <button className="iconbtn" onClick={() => shiftDate(1)} title="다음 날">›</button>
+          <button className="cal-today" onClick={() => setDate(todayIso())}>오늘</button>
+        </div>
         <span className="px sched-sync">{SYNC_LABEL[journal.sync]}</span>
       </div>
 
@@ -89,41 +111,58 @@ export default function TodoView() {
       </div>
 
       <div className="kanban">
-        {board.data.columns.map(col => (
-          <div key={col.id} className="kcol"
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => { e.preventDefault(); moveCard(col.id) }}>
-            <div className="kcol-hd">
-              <b>{col.title}</b>
-              <span className="px" style={{ fontSize: 11, color: 'var(--text-faint)' }}>{col.cards.length}</span>
-            </div>
-            {col.cards.map(card => {
-              const g = goalOf(card.goalId)
-              const kc = kindColor(card.kind)
-              return (
-                <div key={card.id} className="kcard" draggable
-                  style={kc ? { borderLeft: `3px solid ${kc}` } : undefined}
-                  onDragStart={() => { dragRef.current = { colId: col.id, cardId: card.id } }}
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={e => { e.preventDefault(); e.stopPropagation(); moveCard(col.id, card.id) }}>
-                  <div style={{ flex: 1 }}>
-                    {card.kind && <span className="kind-chip" style={{ background: kc }}>{CARD_KINDS.find(k => k.id === card.kind)?.label}</span>}
-                    <span>{card.text}</span>
-                    {g && <span className="goal-tag px" style={{ borderColor: g.color, color: g.color, marginLeft: 6 }}>{g.title}</span>}
+        {board.data.columns.map(col => {
+          // 완료 칼럼은 선택 날짜의 완료분만 — 할일/진행중은 항상 유지
+          const cards = col.id === 'done' ? col.cards.filter(c => cardDoneDate(c) === date) : col.cards
+          return (
+            <div key={col.id} className="kcol"
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); moveCard(col.id) }}>
+              <div className="kcol-hd">
+                <b>{col.title}</b>
+                <span className="px" style={{ fontSize: 11, color: 'var(--text-faint)' }}>{cards.length}</span>
+              </div>
+              {cards.map(card => {
+                const g = goalOf(card.goalId)
+                const kc = kindColor(card.kind)
+                const editing = editId === card.id
+                return (
+                  <div key={card.id} className="kcard" draggable={!editing}
+                    style={kc ? { borderLeft: `3px solid ${kc}` } : undefined}
+                    onDragStart={() => { dragRef.current = { colId: col.id, cardId: card.id } }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={e => { e.preventDefault(); e.stopPropagation(); moveCard(col.id, card.id) }}>
+                    {editing ? (
+                      <input className="cli-input kcard-edit" autoFocus value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') { setEditId(null); setEditText('') } }}
+                        onBlur={saveEdit} />
+                    ) : (
+                      <div style={{ flex: 1 }} onDoubleClick={() => { setEditId(card.id); setEditText(card.text) }} title="더블클릭하여 수정">
+                        {card.kind && <span className="kind-chip" style={{ background: kc }}>{CARD_KINDS.find(k => k.id === card.kind)?.label}</span>}
+                        <span>{card.text}</span>
+                        {g && <span className="goal-tag px" style={{ borderColor: g.color, color: g.color, marginLeft: 6 }}>{g.title}</span>}
+                      </div>
+                    )}
+                    {!editing && (
+                      <div className="kcard-btns">
+                        <button className="kedit" onClick={() => { setEditId(card.id); setEditText(card.text) }} title="수정">✎</button>
+                        <button className="kdel" onClick={() => removeCard(col.id, card.id)} title="삭제">✕</button>
+                      </div>
+                    )}
                   </div>
-                  <button className="kdel" onClick={() => removeCard(col.id, card.id)} title="삭제">✕</button>
-                </div>
-              )
-            })}
-            <div className="kadd">
-              <input className="cmdinput" style={{ fontFamily: 'Pretendard', fontSize: 14, padding: '8px 12px' }}
-                placeholder={`+ ${CARD_KINDS.find(k => k.id === kind)?.label} 추가`}
-                value={inputs[col.id] || ''}
-                onChange={e => setInputs({ ...inputs, [col.id]: e.target.value })}
-                onKeyDown={e => { if (e.key === 'Enter') addCard(col.id) }} />
+                )
+              })}
+              <div className="kadd">
+                <input className="cmdinput" style={{ fontFamily: 'Pretendard', fontSize: 14, padding: '8px 12px' }}
+                  placeholder={col.id === 'done' ? `+ 완료 (${date.slice(5).replace('-', '.')})` : `+ ${CARD_KINDS.find(k => k.id === kind)?.label} 추가`}
+                  value={inputs[col.id] || ''}
+                  onChange={e => setInputs({ ...inputs, [col.id]: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addCard(col.id) }} />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* ── 배운 점 (하단, 길게) ── */}

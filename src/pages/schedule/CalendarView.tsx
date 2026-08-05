@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
-  useSyncedJson, SYNC_LABEL, CATS, EMPTY_GOALS,
-  type CalData, type CalEvent, type Cat, type GoalsFile,
+  useSyncedJson, SYNC_LABEL, CATS, EMPTY_GOALS, EMPTY_BOARD, deriveMarks,
+  type CalData, type CalEvent, type Cat, type GoalsFile, type Board, type DerivedMark,
 } from '../../lib/scheduleDb'
 
 const catColor = (c: Cat) => CATS.find(x => x.id === c)?.color ?? 'var(--text-dim)'
@@ -12,6 +12,7 @@ const WEEK = ['일', '월', '화', '수', '목', '금', '토']
 export default function CalendarView() {
   const { data, update, sync } = useSyncedJson<CalData>('profile/calendar.json', {} as CalData, 'profile: 달력 갱신')
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
+  const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, '').data
   const goalOf = (id?: string) => goals.find(g => g.id === id)
   const evColor = (e: CalEvent) => goalOf(e.goalId)?.color ?? catColor(e.cat)
 
@@ -21,6 +22,15 @@ export default function CalendarView() {
   const [draft, setDraft] = useState('')
   const [cat, setCat] = useState<Cat>('study')
   const [goalId, setGoalId] = useState('')
+
+  const todayIso = iso(today.getFullYear(), today.getMonth(), today.getDate())
+
+  // 칸반·목표를 달력에 읽기전용 오버레이 (완료=완료일 · 할일/진행=오늘 · 목표=마감일)
+  const marksByDate = useMemo(() => {
+    const map: Record<string, DerivedMark[]> = {}
+    for (const m of deriveMarks(board, goals, todayIso)) (map[m.date] ??= []).push(m)
+    return map
+  }, [board, goals, todayIso])
 
   const addEvent = () => {
     if (!sel || !draft.trim()) return
@@ -50,13 +60,13 @@ export default function CalendarView() {
     return arr
   }, [cursor])
 
-  const todayIso = iso(today.getFullYear(), today.getMonth(), today.getDate())
   const move = (delta: number) => {
     const m = cursor.m + delta
     setCursor({ y: cursor.y + Math.floor(m / 12), m: ((m % 12) + 12) % 12 })
     setSel(null)
   }
   const selEvents = sel ? (data[sel] ?? []) : []
+  const selMarks = sel ? (marksByDate[sel] ?? []) : []
 
   return (
     <div>
@@ -65,7 +75,7 @@ export default function CalendarView() {
         <span className="px sched-sync">{SYNC_LABEL[sync]}</span>
       </div>
       <p className="prof-desc">
-        날짜를 눌러 학습·자격증·일정을 붙인다. 목표를 태그하면 목표색으로 표시되고 해당 목표 진척에 집계된다.
+        날짜를 눌러 학습·자격증·일정을 붙인다. TODO(할일·진행중·완료)와 목표 마감일은 자동으로 이 달력에 표시된다.
       </p>
 
       <div className="cal-top">
@@ -77,6 +87,8 @@ export default function CalendarView() {
         </div>
         <div className="cal-legend">
           {CATS.map(c => (<span key={c.id} className="cal-lg"><i style={{ background: c.color }} />{c.label}</span>))}
+          <span className="cal-lg"><i style={{ background: '#6ee7a0' }} />완료</span>
+          <span className="cal-lg"><i style={{ background: '#8a94a6' }} />할일/진행</span>
         </div>
       </div>
 
@@ -86,13 +98,14 @@ export default function CalendarView() {
           if (d === null) return <div key={`e${i}`} className="cal-cell empty" />
           const date = iso(cursor.y, cursor.m, d)
           const evs = data[date] ?? []
+          const dots = [...evs.map(evColor), ...(marksByDate[date] ?? []).map(m => m.color)]
           return (
             <div key={date}
               className={`cal-cell${date === todayIso ? ' today' : ''}${date === sel ? ' sel' : ''}`}
               onClick={() => setSel(date === sel ? null : date)}>
               <span className="cal-d">{d}</span>
               <div className="cal-dots">
-                {evs.slice(0, 4).map(e => <i key={e.id} style={{ background: evColor(e) }} />)}
+                {dots.slice(0, 5).map((c, k) => <i key={k} style={{ background: c }} />)}
               </div>
             </div>
           )
@@ -105,7 +118,25 @@ export default function CalendarView() {
             <b className="px">{sel.replace(/-/g, '.')}</b>
             <button className="iconbtn" onClick={() => setSel(null)} title="닫기">✕</button>
           </div>
-          {selEvents.length === 0 && <div className="cmt-empty" style={{ padding: '10px 0', fontSize: 13 }}>등록된 일정 없음</div>}
+
+          {/* TODO·목표 자동 표시 (읽기전용) */}
+          {selMarks.length > 0 && (
+            <div className="cal-marks">
+              {selMarks.map((m, i) => {
+                const g = goalOf(m.goalId)
+                return (
+                  <div key={i} className="cal-ev derived">
+                    <i style={{ background: m.color }} />
+                    <span className="cal-mark-src px" style={{ borderColor: m.color, color: m.color }}>{m.source}</span>
+                    <span style={{ flex: 1 }}>{m.text}</span>
+                    {g && m.source !== '목표' && <span className="goal-tag px" style={{ borderColor: g.color, color: g.color }}>{g.title}</span>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {selEvents.length === 0 && selMarks.length === 0 && <div className="cmt-empty" style={{ padding: '10px 0', fontSize: 13 }}>등록된 일정 없음</div>}
           {selEvents.map(e => {
             const g = goalOf(e.goalId)
             return (

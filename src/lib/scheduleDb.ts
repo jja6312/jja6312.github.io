@@ -81,7 +81,10 @@ export const CARD_KINDS: { id: CardKind; label: string; color: string }[] = [
   { id: 'edu', label: 'Education', color: '#5ac8fa' },   // 학습해야 할 사항
 ]
 export const kindColor = (k?: CardKind) => CARD_KINDS.find(c => c.id === k)?.color
-export interface Card { id: string; text: string; created: string; goalId?: string; kind?: CardKind }
+// doneAt: '완료' 칼럼으로 옮긴 날짜(YYYY-MM-DD). 완료는 일자별로 보존 — 어제 완료분은 오늘 TODO 에 안 보임.
+export interface Card { id: string; text: string; created: string; goalId?: string; kind?: CardKind; doneAt?: string }
+// 완료 날짜 — doneAt 없으면(구 데이터) 생성일로 대체해 사라지지 않게
+export const cardDoneDate = (c: Card) => c.doneAt ?? c.created.slice(0, 10)
 export interface Column { id: string; title: string; cards: Card[] }
 export interface Board { columns: Column[] }
 export const EMPTY_BOARD: Board = {
@@ -96,6 +99,32 @@ export const EMPTY_BOARD: Board = {
 export interface JournalEntry { goal: string; learned: string; goalIds?: string[] }
 export type Journal = Record<string, JournalEntry>   // 'YYYY-MM-DD' → entry
 export const EMPTY_JOURNAL: Journal = {}
+
+/* ── 월간일정 오버레이 마커 ─────────────────────────────
+   칸반·목표를 달력에 읽기전용으로 투영. 완료=완료일, 할일/진행중=오늘(진행 중이므로), 목표=마감일. */
+export interface DerivedMark {
+  date: string; text: string
+  source: '완료' | '진행' | '할일' | '목표'
+  color: string; goalId?: string
+}
+export function deriveMarks(board: Board, goals: Goal[], todayIso: string): DerivedMark[] {
+  const marks: DerivedMark[] = []
+  const gColor = (id?: string) => goals.find(g => g.id === id)?.color
+  for (const col of board.columns) {
+    for (const c of col.cards) {
+      if (col.id === 'done') {
+        marks.push({ date: cardDoneDate(c), text: c.text, source: '완료', color: gColor(c.goalId) ?? '#6ee7a0', goalId: c.goalId })
+      } else {
+        marks.push({
+          date: todayIso, text: c.text, source: col.id === 'doing' ? '진행' : '할일',
+          color: gColor(c.goalId) ?? kindColor(c.kind) ?? '#8a94a6', goalId: c.goalId,
+        })
+      }
+    }
+  }
+  for (const g of goals) if (g.deadline) marks.push({ date: g.deadline, text: g.title, source: '목표', color: g.color, goalId: g.id })
+  return marks
+}
 
 /* ── 연동 집계 ──────────────────────────────────────────
    목표별로 달력·칸반·일지에서 goalId 로 연결된 항목을 모아 진척(칸반 done 기준)과 역추적 리스트를 낸다. */

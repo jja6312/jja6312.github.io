@@ -16,19 +16,20 @@ export default function GoalsView() {
 
   const [title, setTitle] = useState('')
   const [deadline, setDeadline] = useState('')
+  const [undated, setUndated] = useState(false)      // 연월일 미정
   const [editId, setEditId] = useState<string | null>(null)
   const [expandId, setExpandId] = useState<string | null>(null)
 
   const goals = data.goals
 
   const add = () => {
-    if (!title.trim() || !deadline) return
+    if (!title.trim() || (!undated && !deadline)) return
     const g: Goal = {
-      id: `goal-${Date.now()}`, title: title.trim(), deadline,
+      id: `goal-${Date.now()}`, title: title.trim(), deadline: undated ? '' : deadline,
       color: GOAL_COLORS[goals.length % GOAL_COLORS.length], createdAt: new Date().toISOString(),
     }
     update({ goals: [...goals, g] })
-    setTitle(''); setDeadline('')
+    setTitle(''); setDeadline(''); setUndated(false)
   }
   const saveEdit = (id: string, patch: Partial<Goal>) =>
     update({ goals: goals.map(g => g.id === id ? { ...g, ...patch } : g) })
@@ -49,7 +50,9 @@ export default function GoalsView() {
         <input className="cli-input" style={{ flex: 1 }} placeholder="목표 (예: RHCE 취득)"
           value={title} onChange={e => setTitle(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') add() }} />
-        <input className="cli-input" type="date" style={{ width: 160 }} value={deadline} onChange={e => setDeadline(e.target.value)} />
+        <input className="cli-input" type="date" style={{ width: 160 }} value={undated ? '' : deadline} disabled={undated}
+          onChange={e => setDeadline(e.target.value)} />
+        <label className="goal-undated px"><input type="checkbox" checked={undated} onChange={e => setUndated(e.target.checked)} /> 미정</label>
         <button className="submitbtn" onClick={add}>추가</button>
       </div>
 
@@ -59,7 +62,7 @@ export default function GoalsView() {
         {goals.map(g => {
           const r = rollupGoal(g.id, cal, board, journal)
           const pct = r.total ? Math.round((r.done / r.total) * 100) : 0
-          const d = dday(g.deadline)
+          const d = g.deadline ? dday(g.deadline) : 0
           const editing = editId === g.id
           const open = expandId === g.id
           return (
@@ -67,11 +70,11 @@ export default function GoalsView() {
               {editing ? (
                 <div className="goal-edit">
                   <input className="cli-input" defaultValue={g.title} id={`gt-${g.id}`} style={{ flex: 1 }} />
-                  <input className="cli-input" type="date" defaultValue={g.deadline} id={`gd-${g.id}`} style={{ width: 150 }} />
+                  <input className="cli-input" type="date" defaultValue={g.deadline} id={`gd-${g.id}`} style={{ width: 150 }} title="비우면 미정" />
                   <button className="submitbtn" onClick={() => {
                     const t = (document.getElementById(`gt-${g.id}`) as HTMLInputElement).value.trim()
                     const dl = (document.getElementById(`gd-${g.id}`) as HTMLInputElement).value
-                    if (t && dl) saveEdit(g.id, { title: t, deadline: dl })
+                    if (t) saveEdit(g.id, { title: t, deadline: dl })
                     setEditId(null)
                   }}>저장</button>
                   <button className="iconbtn" onClick={() => setEditId(null)}>✕</button>
@@ -80,8 +83,12 @@ export default function GoalsView() {
                 <>
                   <div className="goal-top">
                     <b className="goal-title">{g.title}</b>
-                    <span className={`goal-dday${d < 0 ? ' over' : d <= 30 ? ' near' : ''}`}>{ddayLabel(d)}</span>
-                    <span className="px goal-deadline">{g.deadline.replace(/-/g, '.')}</span>
+                    {g.deadline ? (<>
+                      <span className={`goal-dday${d < 0 ? ' over' : d <= 30 ? ' near' : ''}`}>{ddayLabel(d)}</span>
+                      <span className="px goal-deadline">{g.deadline.replace(/-/g, '.')}</span>
+                    </>) : (
+                      <span className="goal-dday undated">미정</span>
+                    )}
                     <div className="goal-actions">
                       <button className="iconbtn" title="수정" onClick={() => setEditId(g.id)}>✎</button>
                       <button className="iconbtn" title="삭제" onClick={() => remove(g.id)}>🗑</button>
