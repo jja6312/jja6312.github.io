@@ -1,6 +1,31 @@
 {
  "curricula": [
   {
+   "id": "adw-cloud-shell-sprint",
+   "title": "ADW–Cloud Shell 사설 연결 스프린트",
+   "description": "고정 공인 IP가 없는 OCI Cloud Shell을 VCN Private Network에 연결하고, Service Gateway와 ADW ACL을 사용해 인터넷을 우회하는 접속 경로를 직접 구성한다.",
+   "mode": "sprint",
+   "difficulty": 2,
+   "public": true,
+   "tags": [
+    "oci",
+    "adw",
+    "autonomous-database",
+    "cloud-shell",
+    "networking"
+   ],
+   "created": "2026-08-05",
+   "days": [
+    {
+     "day": 1,
+     "sheet": "day01-private-access",
+     "title": "Cloud Shell에서 ADW까지 사설 경로 열기",
+     "goal": "Cloud Shell을 VCN에 연결하고 Service Gateway·라우팅·Egress·ADW ACL을 구성한 뒤 SQLcl 접속으로 전체 경로를 검증한다",
+     "estimated_minutes": 60
+    }
+   ]
+  },
+  {
    "id": "oci-database",
    "title": "OCI 데이터베이스",
    "description": "OCI 데이터베이스 서비스를 카테고리 단위로 학습. 매니지드 DB의 접속·과금·운영을 레벨별로.",
@@ -283,6 +308,178 @@
   }
  ],
  "sheets": {
+  "day01-private-access": {
+   "curriculum": "adw-cloud-shell-sprint",
+   "day": 1,
+   "sheet": "day01-private-access",
+   "title": "Cloud Shell에서 ADW까지 사설 경로 열기",
+   "tags": [
+    "oci",
+    "adw",
+    "autonomous-database",
+    "cloud-shell",
+    "service-gateway",
+    "acl"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 60,
+   "goal": "Cloud Shell을 VCN에 연결하고 Service Gateway·라우팅·Egress·ADW ACL을 구성한 뒤 SQLcl 접속으로 전체 경로를 검증한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. Cloud Shell 공인 IP를 ACL에 넣으면 안 되는 이유",
+     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"cs1-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\">\n    <rect x=\"18\" y=\"45\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"88\" y=\"68\" fill=\"var(--text)\">Cloud Shell</text><text x=\"88\" y=\"85\" fill=\"var(--text-faint)\" font-size=\"10\">임시 관리 VM</text>\n    <rect x=\"248\" y=\"18\" width=\"164\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/><text x=\"330\" y=\"39\" fill=\"var(--wrong)\" font-weight=\"700\">Public Egress IP</text><text x=\"330\" y=\"55\" fill=\"var(--text-faint)\" font-size=\"10\">고정값으로 보장되지 않음</text>\n    <rect x=\"248\" y=\"86\" width=\"164\" height=\"48\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"330\" y=\"107\" fill=\"var(--accent)\" font-weight=\"700\">VCN Private Network</text><text x=\"330\" y=\"123\" fill=\"var(--text-dim)\" font-size=\"10\">관리 가능한 사설 경로</text>\n    <rect x=\"502\" y=\"45\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"572\" y=\"68\" fill=\"var(--pixel)\" font-weight=\"700\">ADW ACL</text><text x=\"572\" y=\"85\" fill=\"var(--text-faint)\" font-size=\"10\">VCN 신원 허용</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#cs1-ar)\"><path d=\"M158 62 L244 43\"/><path d=\"M158 82 L244 105\"/><path d=\"M412 110 C455 110 460 80 498 75\"/></g>\n  <path d=\"M412 42 C455 42 460 58 498 65\" stroke=\"var(--wrong)\" stroke-width=\"1.5\" stroke-dasharray=\"5 4\" fill=\"none\"/>\n</svg>",
+     "body": "<p>Cloud Shell 세션에는 외부에서 접속할 수 있는 고정 공인 IP가 제공되지 않는다. Public Network를 통해 인터넷으로 나갈 수는 있지만 그 Egress 주소를 장기 ACL 값으로 보장할 수 없다. 따라서 현재 보이는 공인 IP 한 개를 ADW ACL에 넣는 방식은 세션이나 서비스 측 주소가 바뀌면 다시 실패할 수 있다.</p>\n<p>핵심은 IP 한 개를 찾아 등록하는 것이 아니라 Cloud Shell을 우리 VCN의 사설 인스턴스처럼 붙이고, ADW가 그 VCN을 신뢰하도록 만드는 것이다.</p>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. Service Gateway와 Route Table의 역할",
+     "diagram": "<svg viewBox=\"0 0 660 135\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"cs2-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\">\n    <rect x=\"18\" y=\"35\" width=\"145\" height=\"58\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"90\" y=\"59\" fill=\"var(--text)\">Cloud Shell VNIC</text><text x=\"90\" y=\"78\" fill=\"var(--text-faint)\" font-size=\"10\">사설 서브넷 IP</text>\n    <rect x=\"205\" y=\"35\" width=\"145\" height=\"58\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"277\" y=\"59\" fill=\"var(--accent)\" font-weight=\"700\">Route Table</text><text x=\"277\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"10\">OSN → Service GW</text>\n    <rect x=\"392\" y=\"35\" width=\"120\" height=\"58\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"452\" y=\"59\" fill=\"var(--accent)\" font-weight=\"700\">Service GW</text><text x=\"452\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"10\">인터넷 우회</text>\n    <rect x=\"554\" y=\"35\" width=\"88\" height=\"58\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"598\" y=\"59\" fill=\"var(--pixel)\" font-weight=\"700\">ADW</text><text x=\"598\" y=\"78\" fill=\"var(--text-faint)\" font-size=\"10\">OSN</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.7\" marker-end=\"url(#cs2-ar)\"><line x1=\"163\" y1=\"64\" x2=\"201\" y2=\"64\"/><line x1=\"350\" y1=\"64\" x2=\"388\" y2=\"64\"/><line x1=\"512\" y1=\"64\" x2=\"550\" y2=\"64\"/></g>\n  <text x=\"330\" y=\"118\" text-anchor=\"middle\" fill=\"var(--text-faint)\" font-size=\"10.5\">Destination: All &lt;region&gt; Services in Oracle Services Network</text>\n</svg>",
+     "body": "<p>ADW Public Endpoint는 공인 주소를 사용하지만 Oracle Services Network(OSN)에 속한다. Service Gateway는 VCN에서 지원되는 Oracle 서비스로 가는 트래픽을 인터넷에 노출하지 않고 전달한다. 단, Gateway를 생성하는 것만으로는 부족하고 Cloud Shell 서브넷의 Route Table이 OSN 목적지를 그 Gateway로 보내야 한다.</p>\n<p>Service Gateway와 Route Rule은 세트다. 보안 목록 또는 NSG의 Egress 규칙도 통신 포트를 허용해야 한다.</p>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. ADW ACL의 VCN 규칙은 언제 일치하는가",
+     "diagram": "<svg viewBox=\"0 0 660 155\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11\">\n    <rect x=\"18\" y=\"14\" width=\"150\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"93\" y=\"35\" fill=\"var(--text)\">VCN 서브넷</text><text x=\"93\" y=\"51\" fill=\"var(--text-faint)\" font-size=\"10\">10.0.10.0/24</text>\n    <rect x=\"245\" y=\"14\" width=\"150\" height=\"48\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"320\" y=\"35\" fill=\"var(--accent)\" font-weight=\"700\">Service Gateway</text><text x=\"320\" y=\"51\" fill=\"var(--text-dim)\" font-size=\"10\">VCN 규칙과 일치</text>\n    <rect x=\"492\" y=\"14\" width=\"150\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"567\" y=\"35\" fill=\"var(--pixel)\">ADW ACL</text><text x=\"567\" y=\"51\" fill=\"var(--text-faint)\" font-size=\"10\">허용 VCN</text>\n    <rect x=\"245\" y=\"94\" width=\"150\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/><text x=\"320\" y=\"115\" fill=\"var(--wrong)\" font-weight=\"700\">NAT Gateway</text><text x=\"320\" y=\"131\" fill=\"var(--text-faint)\" font-size=\"10\">공인 IP로 변환</text>\n    <text x=\"567\" y=\"119\" fill=\"var(--wrong)\" font-size=\"10.5\">VCN ACL 불일치</text>\n  </g>\n  <g fill=\"none\" stroke-width=\"1.6\"><path d=\"M168 34 L241 34\" stroke=\"var(--accent)\"/><path d=\"M395 34 L488 34\" stroke=\"var(--accent)\"/><path d=\"M168 48 C195 90 210 115 241 117\" stroke=\"var(--wrong)\"/><path d=\"M395 117 L488 117\" stroke=\"var(--wrong)\" stroke-dasharray=\"5 4\"/></g>\n</svg>",
+     "body": "<p>ADW ACL의 <code>Virtual cloud network</code> 규칙은 클라이언트가 해당 VCN에서 <strong>Service Gateway를 통과해</strong> 접속할 때 사용한다. NAT Gateway를 통해 나가면 ADW에는 VCN 신원이 아니라 NAT의 공인 IP가 보이므로 NAT 공인 IP를 ACL에 등록해야 하는 전혀 다른 구성이 된다.</p>\n<p>ACL에 VCN만 지정하면 VCN 전체가 허용된다. 더 좁게 제한하려면 같은 규칙의 <code>IP addresses or CIDRs</code>에 Cloud Shell 서브넷 CIDR을 추가한다.</p>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. Wallet과 네트워크는 서로 다른 관문이다",
+     "diagram": "<svg viewBox=\"0 0 660 125\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11.5\">\n    <rect x=\"16\" y=\"28\" width=\"130\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"81\" y=\"51\" fill=\"var(--text)\">① 경로</text><text x=\"81\" y=\"69\" fill=\"var(--text-faint)\" font-size=\"10\">Route + SGW</text>\n    <rect x=\"181\" y=\"28\" width=\"130\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"246\" y=\"51\" fill=\"var(--text)\">② 방화벽</text><text x=\"246\" y=\"69\" fill=\"var(--text-faint)\" font-size=\"10\">Egress / NSG</text>\n    <rect x=\"346\" y=\"28\" width=\"130\" height=\"54\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"411\" y=\"51\" fill=\"var(--accent)\" font-weight=\"700\">③ ADW ACL</text><text x=\"411\" y=\"69\" fill=\"var(--text-dim)\" font-size=\"10\">VCN 허용</text>\n    <rect x=\"511\" y=\"28\" width=\"133\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"577\" y=\"51\" fill=\"var(--pixel)\">④ 인증</text><text x=\"577\" y=\"69\" fill=\"var(--text-faint)\" font-size=\"10\">Wallet + DB 계정</text>\n  </g>\n  <text x=\"330\" y=\"108\" text-anchor=\"middle\" fill=\"var(--text-faint)\" font-size=\"10.5\">하나라도 실패하면 접속 실패 — 각 관문을 따로 검증한다</text>\n</svg>",
+     "body": "<p>Wallet은 mTLS 인증서와 접속 문자열을 제공한다. 그러나 Wallet이 올바르더라도 Route나 ACL이 막히면 접속할 수 없다. 반대로 네트워크가 열려도 DB 사용자 비밀번호나 Wallet이 틀리면 인증에 실패한다. 장애 분석은 <code>경로 → ACL → Wallet/DB 인증</code> 순으로 나누면 빠르다.</p>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객 ADW는 Public Endpoint를 유지하되 <code>Secure access from allowed IPs and VCNs only</code>로 제한되어 있다. 운영자는 고정 공인 IP가 없는 OCI Cloud Shell에서 안전하게 SQL 점검을 해야 한다.",
+    "request": "Cloud Shell의 임시 공인 IP를 등록하지 말고, Private Network와 Service Gateway를 사용해 ADW에 접속한 뒤 SQL 결과로 성공을 증명해 주세요.",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "전제조건과 리전 확인",
+      "body": "<p>ADW 상세 화면에서 <code>Lifecycle state: Available</code>, <code>Access type: Secure access from allowed IPs and VCNs only</code>, 리전을 확인한다. Cloud Shell Private Network는 테넌시 홈 리전의 VCN·서브넷만 직접 선택할 수 있으므로 대상 VCN도 홈 리전에 준비한다. 다른 리전이면 홈 리전 VCN과 대상 리전 VCN 사이의 Remote Peering이 별도로 필요하다.</p>\n<p>Cloud Shell에서 현재 CLI 리전을 확인한다.</p>\n<pre><code class=\"language-bash\">oci iam region-subscription list \\\n  --query &quot;data[?\\&quot;is-home-region\\&quot;==\\`true\\`].\\&quot;region-name\\&quot; | [0]&quot; \\\n  --raw-output\noci setup config get --query region\n</code></pre>\n<p>확인: 홈 리전과 사용할 VCN 리전을 기록하고, ADW가 다른 리전이면 이번 단일 리전 실습을 중단한다.</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "Cloud Shell용 사설 서브넷 준비",
+      "body": "<p>콘솔: <code>Networking → Virtual Cloud Networks → &lt;VCN&gt; → Subnets → Create Subnet</code></p>\n<pre><code class=\"language-text\">Name                 : cloudshell-private-subnet\nSubnet Type          : Regional\nIPv4 CIDR Block      : 10.0.10.0/24    # 기존 CIDR과 겹치지 않게 변경\nPublic IPv4 Address  : Prohibit\n</code></pre>\n<p>확인: 서브넷 상태가 <code>Available</code>이고 사용 가능한 사설 IP가 1개 이상 남아 있어야 한다. Cloud Shell Private Network가 이 서브넷에 임시 VNIC를 만들기 때문이다.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "Service Gateway 생성",
+      "body": "<p>콘솔: <code>VCN 상세 → Service Gateways → Create Service Gateway</code></p>\n<pre><code class=\"language-text\">Name      : sgw-adw\nServices  : All &lt;현재 리전&gt; Services in Oracle Services Network\n</code></pre>\n<p>확인: Service Gateway 상태가 <code>Available</code>, 트래픽 상태가 <code>Allowed</code>인지 확인한다. VCN당 Service Gateway는 하나면 충분하므로 기존 Gateway가 있으면 새로 만들지 말고 서비스 CIDR Label을 확인한다.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "Route와 Egress 규칙 추가",
+      "body": "<p>Cloud Shell 서브넷이 사용하는 Route Table에 추가한다.</p>\n<pre><code class=\"language-text\">Target Type          : Service Gateway\nDestination Service  : All &lt;현재 리전&gt; Services in Oracle Services Network\nTarget               : sgw-adw\n</code></pre>\n<p>서브넷 Security List 또는 연결할 NSG의 Stateful Egress에 추가한다.</p>\n<pre><code class=\"language-text\">Destination Type     : Service\nDestination Service  : All &lt;현재 리전&gt; Services in Oracle Services Network\nIP Protocol          : TCP\nDestination Port     : 1521-1522\n</code></pre>\n<p>Wallet 기반 mTLS 접속은 일반적으로 TCP 1522를 사용한다. TLS 접속까지 고려해 1521–1522를 허용했다. 기존 <code>0.0.0.0/0, All protocols</code> Egress 규칙이 있으면 기능상 중복이므로 추가하지 않는다.</p>\n<p>확인: 서브넷 상세 화면에서 실제 연결된 Route Table과 Security List를 다시 열어 규칙이 들어간 대상을 검증한다.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "ADW ACL에 VCN 추가",
+      "body": "<p>콘솔: <code>Oracle Database → Autonomous Database → &lt;ADW&gt; → Network → Edit</code></p>\n<pre><code class=\"language-text\">Access Type       : Secure access from allowed IPs and VCNs only\nIP Notation Type  : Virtual cloud network\nVCN               : 실습 VCN\nIP/CIDRs           : 10.0.10.0/24   # 선택 사항, Cloud Shell 서브넷만 제한\n</code></pre>\n<p>기존 회사·관리자 IP 규칙은 삭제하지 않고 VCN 규칙을 추가한다. 빈 ACL을 저장하면 모든 DB 접속이 차단될 수 있다.</p>\n<p>확인: ADW가 업데이트 후 다시 <code>Available</code>이고 Network의 Access Control List에 VCN이 표시된다.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "Cloud Shell을 Private Network에 연결",
+      "body": "<p>Cloud Shell 상단에서 <code>Network → Private Network Definition List → Create Private Network Definition</code>을 선택한다.</p>\n<pre><code class=\"language-text\">Name                  : adw-private-access\nVCN                   : 실습 VCN\nSubnet                : cloudshell-private-subnet\nUse as active network : On\n</code></pre>\n<p>권한 오류가 나면 관리자에게 다음 IAM 정책을 요청한다.</p>\n<pre><code class=\"language-text\">allow group &lt;group&gt; to use subnets in compartment &lt;compartment&gt;\nallow group &lt;group&gt; to use vnics in compartment &lt;compartment&gt;\nallow group &lt;group&gt; to use network-security-groups in compartment &lt;compartment&gt;\nallow group &lt;group&gt; to inspect vcns in compartment &lt;compartment&gt;\n</code></pre>\n<p>확인: Cloud Shell 상단 Network가 <code>adw-private-access</code>로 표시되고 Details에 선택한 VCN·서브넷이 보인다.</p>\n"
+     },
+     {
+      "id": "l7",
+      "title": "Wallet 발급과 SQLcl 접속 검증",
+      "body": "<p>ADW OCID를 환경변수에 넣고 Wallet 암호는 화면에 노출하지 않고 입력받는다.</p>\n<pre><code class=\"language-bash\">export ADW_OCID=&#39;ocid1.autonomousdatabase.oc1...&#39;\nread -s WALLET_PASSWORD\noci db autonomous-database generate-wallet \\\n  --autonomous-database-id &quot;$ADW_OCID&quot; \\\n  --file Wallet_ADW.zip \\\n  --password &quot;$WALLET_PASSWORD&quot;\nunset WALLET_PASSWORD\n\nunzip -o Wallet_ADW.zip -d &quot;$HOME/wallet_adw&quot;\ngrep &#39;^[[:alnum:]_-]*[[:space:]]*=&#39; &quot;$HOME/wallet_adw/tnsnames.ora&quot;\n</code></pre>\n<p>출력에서 <code>_low</code> 서비스명을 확인해 접속한다. 예시 서비스명은 실제 값으로 바꾼다.</p>\n<pre><code class=\"language-bash\">sql -cloudconfig Wallet_ADW.zip ADMIN@myadw_low\n</code></pre>\n<p>SQLcl에서 최종 검증한다.</p>\n<pre><code class=\"language-sql\">SELECT SYS_CONTEXT(&#39;USERENV&#39;, &#39;DB_NAME&#39;) AS db_name,\n       SYS_CONTEXT(&#39;USERENV&#39;, &#39;SESSION_USER&#39;) AS session_user\nFROM dual;\n</code></pre>\n<p>결과에 DB 이름과 <code>ADMIN</code>이 나오면 <code>Cloud Shell → VCN → Service Gateway → ADW ACL → Wallet 인증</code> 전체 경로가 성공한 것이다. Wallet ZIP과 압축 해제 파일은 Git 저장소에 넣지 않는다.</p>\n<p>접속이 실패하면 <code>Cloud Shell 활성 Network → 서브넷 Route → Egress/NSG → ADW VCN ACL → Wallet 서비스명</code> 순서로 확인한다.</p>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "Cloud Shell Networking",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/API/Concepts/cloudshellintro_topic-Cloud_Shell_Networking.htm"
+    },
+    {
+     "label": "Autonomous Database ACL 구성",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/access-control-rules-autonomous.html"
+    },
+    {
+     "label": "Service Gateway와 Route Rule",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/servicegateway.htm"
+    },
+    {
+     "label": "OCI CLI Wallet 생성",
+     "url": "https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/autonomous-database/generate-wallet.html"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "운영자가 Cloud Shell Public Network에서 확인한 현재 Egress IP 한 개를 ADW ACL에 등록하면 장기 운영에도 충분하다고 주장한다.",
+     "question": "이 방법은 Cloud Shell의 고정 공인 IP를 사용하는 안정적인 구성이다. (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Cloud Shell에는 ACL용으로 보장되는 고정 공인 IP가 제공되지 않는다. 안정적인 구성은 Cloud Shell Private Network를 VCN에 붙이고 Service Gateway 경로와 ADW VCN ACL을 사용하는 것이다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "Cloud Shell을 VCN 사설 서브넷에 연결했고 ADW ACL에는 해당 VCN을 허용했다. 그러나 서브넷에서 ADW Public Endpoint로 가는 경로가 없다.",
+     "question": "ADW VCN ACL과 일치하는 권장 경로를 만드는 조합은 무엇인가?",
+     "choices": [
+      "Internet Gateway + 0.0.0.0/0",
+      "NAT Gateway + NAT 공인 IP",
+      "Service Gateway + All <region> Services in Oracle Services Network Route Rule",
+      "Local Peering Gateway + 같은 VCN"
+     ],
+     "answers": [
+      "3"
+     ],
+     "explanation": "ADW ACL의 Virtual cloud network 유형은 해당 VCN의 클라이언트가 Service Gateway를 통해 접속할 때 사용하는 규칙이다. Gateway와 Route Rule을 함께 구성해야 한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "ADW OCID가 $ADW_OCID에 있고 Cloud Shell에서 Wallet_ADW.zip을 발급해야 한다. Wallet 암호는 $WALLET_PASSWORD에 들어 있다.",
+     "question": "OCI CLI로 단일 ADW Wallet 파일을 생성하는 명령을 입력하라.",
+     "answers": [
+      "oci db autonomous-database generate-wallet --autonomous-database-id $ADW_OCID --file Wallet_ADW.zip --password $WALLET_PASSWORD",
+      "oci db autonomous-database generate-wallet --autonomous-database-id \"$ADW_OCID\" --file Wallet_ADW.zip --password \"$WALLET_PASSWORD\""
+     ],
+     "match": "normalize-flags",
+     "explanation": "generate-wallet은 ADW OCID, 출력 파일, Wallet 키 암호를 필수로 받는다. 실제 사용 후 암호 환경변수는 unset하고 Wallet은 Git에 커밋하지 않는다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "Wallet으로 SQLcl 접속에 성공했다. 현재 접속한 DB 이름과 DB 세션 사용자를 한 번에 증적으로 남겨야 한다.",
+     "question": "dual에서 DB_NAME과 SESSION_USER를 조회하는 SQL 한 줄을 입력하라.",
+     "answers": [
+      "SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS db_name, SYS_CONTEXT('USERENV', 'SESSION_USER') AS session_user FROM dual;"
+     ],
+     "match": "exact-trim",
+     "explanation": "네트워크 포트 확인만으로는 DB 로그인을 증명할 수 없다. 실제 SQL 결과가 반환되어야 네트워크·ACL·Wallet·DB 인증 전체 성공을 확인할 수 있다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "같은 VCN의 사설 서브넷에서 NAT Gateway를 통해 ADW에 접속하도록 구성했는데, ADW ACL에는 Virtual cloud network 규칙만 등록되어 있어 연결이 거부된다.",
+     "question": "거부 원인을 설명하고 VCN 기반 허용을 유지하는 수정 방법을 제시하라.",
+     "answers": [],
+     "rubric": "원인: NAT Gateway를 통과하면 출발지가 NAT 공인 IP로 변환되어 ADW의 VCN 규칙과 일치하지 않는다고 설명하면 1점. 수정: 서브넷 Route Table의 OSN 목적지를 Service Gateway로 보내고 ADW ACL의 VCN 규칙을 유지한다고 제시하면 1점. 대안으로 NAT 공인 IP를 IP ACL에 등록할 수 있지만 VCN 기반 사설 경로라는 목표와 다르다고 구분하면 가점.",
+     "explanation": "ADW ACL 규칙은 단순히 리소스가 어느 VCN에 생성됐는지가 아니라 실제 접속 경로와 출발지 표현에 따라 일치한다. VCN 규칙을 쓰려면 Service Gateway 경로를 사용한다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
   "autonomous-db": {
    "curriculum": "oci-database",
    "topic": "autonomous-db",
