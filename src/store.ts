@@ -4,6 +4,9 @@ import type { Comment, Verdict } from './types'
 
 export const xpNeeded = (level: number) => Math.round(100 * Math.pow(level, 1.5))
 
+const UI_SCALE_MIN = 0.85
+const UI_SCALE_MAX = 1.6
+
 interface HubState {
   theme: 'dark' | 'light'
   xp: number
@@ -122,7 +125,7 @@ export const useHub = create<HubState>()(
       toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
       setAuthLevel: (n) => set({ authLevel: n }),
       openAuth: (want = 0) => set({ authModalOpen: true, authWant: want }),
-      adjustUiScale: (dir) => set({ uiScale: Math.round(Math.min(1.3, Math.max(0.85, get().uiScale + dir * 0.05)) * 100) / 100 }),
+      adjustUiScale: (dir) => set({ uiScale: Math.round(Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, get().uiScale + dir * 0.05)) * 100) / 100 }),
       closeAuth: () => set({ authModalOpen: false, authWant: 0 }),
     }),
     {
