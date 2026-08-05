@@ -478,7 +478,7 @@ select.cli-input { cursor: pointer; }
 .labnum { font-size: 12px; color: var(--pixel); }
 
 /* ─────────── TODO 칸반 ─────────── */
-.kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+.kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: stretch; }
 @media (max-width: 760px) { .kanban { grid-template-columns: 1fr; } }
 .kcol { background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 14px; padding: 12px; box-shadow: var(--shadow); min-height: 180px; }
 .kcol-hd { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 6px 10px; font-size: 15px; }
