@@ -41,6 +41,40 @@
    ]
   },
   {
+   "id": "oci-devops",
+   "title": "OCI DevOps",
+   "description": "OCI DevOps의 코드 저장소·빌드·아티팩트·배포 파이프라인을 구축하고, 운영 배포 전략과 롤백을 레벨별로 학습한다.",
+   "mode": "category",
+   "difficulty": 2,
+   "public": true,
+   "tags": [
+    "oci",
+    "devops",
+    "cicd",
+    "build",
+    "deployment"
+   ],
+   "created": "2026-08-05",
+   "topics": [
+    {
+     "topic": "devops-service",
+     "sheet": "devops-service",
+     "title": "OCI DevOps",
+     "goal": "DevOps 프로젝트에서 코드 저장소·Managed Build·Artifact Registry·배포 파이프라인을 연결하고 OKE 배포를 끝까지 실행한다",
+     "estimated_minutes": 85,
+     "level": 1
+    },
+    {
+     "topic": "devops-service-l2",
+     "sheet": "devops-service-l2",
+     "title": "OCI DevOps",
+     "goal": "IAM 최소 권한과 트리거·승인·Canary 검증·자동 및 수동 롤백을 결합해 운영 배포 통제선을 구축한다",
+     "estimated_minutes": 90,
+     "level": 2
+    }
+   ]
+  },
+  {
    "id": "oci-security",
    "title": "OCI 보안",
    "description": "OCI 보안 서비스를 카테고리 단위로 학습. 기간 없이 주제별로 골라 진행한다.",
@@ -769,6 +803,379 @@
      "rubric": "① 문제: 전환 안 해본 DR은 DR이 아니다 — 실제 페일오버 때 앱 재접속·DNS·권한·RTO가 검증 안 된 상태 ② 절차: 야간 창에 계획 Switchover → 신규 Primary로 앱 트랜잭션 확인 → RTO 실측·목표 대조 → 원복, 분기 주기화. 문제 인식과 절차(실측 포함) 모두 언급 시 O, 하나만 △.",
      "explanation": "L2 백업 교훈의 반복 — 존재가 아니라 전환 증명이 DR의 완료 기준이다. 실측 RTO가 목표에 미달이면 지금이 아키텍처 재검토 시점이다.",
      "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
+  "devops-service": {
+   "curriculum": "oci-devops",
+   "topic": "devops-service",
+   "level": 1,
+   "sheet": "devops-service",
+   "title": "OCI DevOps — CI/CD 전체 흐름",
+   "tags": [
+    "oci",
+    "devops",
+    "repository",
+    "build-pipeline",
+    "artifact",
+    "deployment-pipeline",
+    "oke"
+   ],
+   "difficulty": 1,
+   "estimated_minutes": 85,
+   "goal": "DevOps 프로젝트에서 코드 저장소·Managed Build·Artifact Registry·배포 파이프라인을 연결하고 OKE 배포를 끝까지 실행한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. 리소스 지도 — 코드에서 실행 환경까지",
+     "diagram": "<svg viewBox=\"0 0 700 165\" font-family=\"Pretendard,sans-serif\">\r\n  <defs><marker id=\"dv1a\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\r\n  <g text-anchor=\"middle\" font-size=\"11\">\r\n    <rect x=\"12\" y=\"35\" width=\"105\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"64\" y=\"57\" fill=\"var(--text)\">Code Repository</text><text x=\"64\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"9.5\">source·build_spec</text>\r\n    <rect x=\"145\" y=\"35\" width=\"105\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"197\" y=\"57\" fill=\"var(--accent)\">Build Pipeline</text><text x=\"197\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"9.5\">test·package</text>\r\n    <rect x=\"278\" y=\"35\" width=\"105\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"330\" y=\"57\" fill=\"var(--pixel)\">Artifact</text><text x=\"330\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"9.5\">image·package</text>\r\n    <rect x=\"411\" y=\"35\" width=\"115\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"468\" y=\"57\" fill=\"var(--accent)\">Deploy Pipeline</text><text x=\"468\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"9.5\">stage graph</text>\r\n    <rect x=\"554\" y=\"35\" width=\"132\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"620\" y=\"57\" fill=\"var(--text)\">Environment</text><text x=\"620\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"9.5\">OKE·Compute·Functions</text>\r\n  </g>\r\n  <g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#dv1a)\"><line x1=\"117\" y1=\"61\" x2=\"140\" y2=\"61\"/><line x1=\"250\" y1=\"61\" x2=\"273\" y2=\"61\"/><line x1=\"383\" y1=\"61\" x2=\"406\" y2=\"61\"/><line x1=\"526\" y1=\"61\" x2=\"549\" y2=\"61\"/></g>\r\n  <text x=\"350\" y=\"120\" text-anchor=\"middle\" fill=\"var(--text-dim)\" font-size=\"10.5\">Project = 저장소·파이프라인·환경·연결·아티팩트 참조의 관리 경계</text>\r\n  <text x=\"350\" y=\"142\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"10.5\">완료 기준: 소스 커밋과 운영 환경의 실행 버전을 같은 run ID로 추적 가능</text>\r\n</svg>",
+     "body": "<pre><code>OCI DevOps Project\n├── Repository / External Connection ─ 소스 입력\n├── Build Pipeline ─────────────────── 컴파일·시험·패키징\n├── Deploy Artifact ────────────────── 버전이 지정된 배포 입력\n├── Deploy Pipeline ────────────────── 배포 단계와 통제\n└── Environment ────────────────────── OKE·Compute Instance Group·Functions\n</code></pre>\n<ul>\n<li>Project만 생성해도 빌드·배포 없음. 각 리소스 연결과 IAM 권한이 모두 필요한 구조</li>\n<li>Pipeline은 정의, Build Run·Deployment는 실행 이력. 장애 분석 시 정의와 실행을 분리</li>\n</ul>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 빌드 파이프라인 — 세 단계의 책임",
+     "diagram": "<svg viewBox=\"0 0 700 165\" font-family=\"Pretendard,sans-serif\">\r\n  <defs><marker id=\"dv1b\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\r\n  <g text-anchor=\"middle\" font-size=\"11\">\r\n    <rect x=\"22\" y=\"28\" width=\"190\" height=\"78\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/><text x=\"117\" y=\"50\" fill=\"var(--accent)\" font-weight=\"700\">Managed Build</text><text x=\"117\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">build_spec.yml 실행</text><text x=\"117\" y=\"88\" fill=\"var(--text-faint)\" font-size=\"10\">compile·test·package</text>\r\n    <rect x=\"255\" y=\"28\" width=\"190\" height=\"78\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"350\" y=\"50\" fill=\"var(--pixel)\" font-weight=\"700\">Deliver Artifacts</text><text x=\"350\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">outputArtifacts 매핑</text><text x=\"350\" y=\"88\" fill=\"var(--text-faint)\" font-size=\"10\">Artifact Registry·OCIR</text>\r\n    <rect x=\"488\" y=\"28\" width=\"190\" height=\"78\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"583\" y=\"50\" fill=\"var(--accent)\" font-weight=\"700\">Trigger Deployment</text><text x=\"583\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">배포 파이프라인 호출</text><text x=\"583\" y=\"88\" fill=\"var(--text-faint)\" font-size=\"10\">버전 인수 전달</text>\r\n  </g>\r\n  <g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#dv1b)\"><line x1=\"212\" y1=\"67\" x2=\"250\" y2=\"67\"/><line x1=\"445\" y1=\"67\" x2=\"483\" y2=\"67\"/></g>\r\n  <text x=\"350\" y=\"136\" text-anchor=\"middle\" fill=\"var(--wrong)\" font-size=\"10.5\">함정: Managed Build 성공만으로 배포 가능한 아티팩트가 생긴 것은 아님</text>\r\n</svg>",
+     "body": "<p><code>build_spec.yml</code> 핵심 구조:</p>\n<pre><code class=\"language-yaml\">version: 0.1\ncomponent: build\ntimeoutInSeconds: 1200\nshell: bash\nsteps:\n  - type: Command\n    name: Test\n    command: npm ci &amp;&amp; npm test\n  - type: Command\n    name: Package\n    command: tar -czf app.tgz dist/\noutputArtifacts:\n  - name: app_bundle\n    type: BINARY\n    location: app.tgz\n</code></pre>\n<ul>\n<li><code>steps</code> 실패 시 Build Run 실패. 뒤 단계로 전달 차단</li>\n<li><code>outputArtifacts.name</code>과 Deliver Artifacts 단계의 빌드 출력 이름 일치 필수</li>\n<li>Logging 활성화가 실행 전제. Build Run의 DAG와 단계별 로그가 첫 진단 위치</li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 아티팩트 — 배포 버전의 단일 기준",
+     "diagram": "<svg viewBox=\"0 0 700 155\" font-family=\"Pretendard,sans-serif\">\r\n  <g text-anchor=\"middle\" font-size=\"11\">\r\n    <rect x=\"18\" y=\"25\" width=\"190\" height=\"78\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"113\" y=\"48\" fill=\"var(--text)\" font-weight=\"700\">Build Output</text><text x=\"113\" y=\"69\" fill=\"var(--text-dim)\" font-size=\"10\">app_bundle</text><text x=\"113\" y=\"87\" fill=\"var(--text-faint)\" font-size=\"10\">run마다 새 결과</text>\r\n    <rect x=\"255\" y=\"25\" width=\"190\" height=\"78\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"350\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">Immutable Version</text><text x=\"350\" y=\"69\" fill=\"var(--text-dim)\" font-size=\"10\">1.4.7 또는 commit SHA</text><text x=\"350\" y=\"87\" fill=\"var(--text-faint)\" font-size=\"10\">같은 버전 덮어쓰기 금지</text>\r\n    <rect x=\"492\" y=\"25\" width=\"190\" height=\"78\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"587\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">Deploy Artifact</text><text x=\"587\" y=\"69\" fill=\"var(--text-dim)\" font-size=\"10\">경로 + 버전 참조</text><text x=\"587\" y=\"87\" fill=\"var(--text-faint)\" font-size=\"10\">pipeline parameter 가능</text>\r\n  </g>\r\n  <path d=\"M208 64 H250 M445 64 H487\" stroke=\"var(--accent)\" stroke-width=\"1.6\"/>\r\n  <text x=\"350\" y=\"132\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"10.5\">buildRunId + commit SHA + artifact version = 재현 가능한 배포 증거</text>\r\n</svg>",
+     "body": "<ul>\n<li>DevOps artifact는 실제 바이너리를 복사하는 리소스가 아니라 OCIR·Artifact Registry·inline 콘텐츠에 대한 버전 참조</li>\n<li><code>latest</code> 같은 이동 태그만 사용 시 실행 당시 바이너리 재현 불가. commit SHA 또는 증가 버전 권장</li>\n<li>Kubernetes manifest·Helm chart·container image·generic artifact 지원</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 배포와 IAM — 실행 주체는 파이프라인",
+     "diagram": "<svg viewBox=\"0 0 700 170\" font-family=\"Pretendard,sans-serif\">\r\n  <g text-anchor=\"middle\" font-size=\"11\">\r\n    <rect x=\"22\" y=\"25\" width=\"180\" height=\"64\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"112\" y=\"49\" fill=\"var(--text)\" font-weight=\"700\">User Group</text><text x=\"112\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">파이프라인 생성·실행</text>\r\n    <rect x=\"260\" y=\"25\" width=\"180\" height=\"64\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"350\" y=\"49\" fill=\"var(--accent)\" font-weight=\"700\">Dynamic Group</text><text x=\"350\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">build·deploy 리소스 principal</text>\r\n    <rect x=\"498\" y=\"25\" width=\"180\" height=\"64\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"588\" y=\"49\" fill=\"var(--pixel)\" font-weight=\"700\">Target Resources</text><text x=\"588\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">Artifact·OCIR·OKE</text>\r\n  </g>\r\n  <path d=\"M202 57 H255 M440 57 H493\" stroke=\"var(--accent)\" stroke-width=\"1.6\"/>\r\n  <text x=\"350\" y=\"117\" text-anchor=\"middle\" fill=\"var(--text-dim)\" font-size=\"10.5\">사람 권한만 부여하면 파이프라인 실행은 401/403 실패</text>\r\n  <text x=\"350\" y=\"140\" text-anchor=\"middle\" fill=\"var(--wrong)\" font-size=\"10.5\">Identity Domain 사용 시 정책의 dynamic-group 이름 앞에 domain-name/ 필요</text>\r\n</svg>",
+     "body": "<pre><code class=\"language-text\">ALL {resource.type = &#39;devopsbuildpipeline&#39;, resource.compartment.id = &#39;&lt;compartment-ocid&gt;&#39;}\nALL {resource.type = &#39;devopsdeploypipeline&#39;, resource.compartment.id = &#39;&lt;compartment-ocid&gt;&#39;}\n</code></pre>\n<pre><code class=\"language-text\">Allow group DevOpsAdmins to manage devops-family in compartment App\nAllow dynamic-group DevOpsPipelines to manage devops-family in compartment App\nAllow dynamic-group DevOpsPipelines to manage generic-artifacts in compartment App\nAllow dynamic-group DevOpsPipelines to manage repos in compartment App\nAllow dynamic-group DevOpsPipelines to manage cluster in compartment App\n</code></pre>\n<ul>\n<li>L1은 흐름 구축을 위한 넓은 예시. L2에서 build/deploy principal 분리와 대상별 최소 권한으로 축소</li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "고객사 쇼핑 API가 개발자 PC에서 수동 빌드되고, 담당자가 직접 OKE에 이미지를 반영 중이다. 배포 버전과 작업자가 기록되지 않아 장애 시 이전 버전 식별도 불가능하다.",
+    "request": "&quot;OCI 저장소의 커밋을 시험·패키징하고, 버전이 고정된 아티팩트를 OKE에 배포해 주세요. 소스부터 실행 버전까지 한 실행 이력으로 확인 가능해야 합니다.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "완료 조건과 사전 자원",
+      "body": "<pre><code>소스       : OCI Code Repository main\n빌드       : npm test 성공 시에만 이미지 생성\n아티팩트   : OCIR image tag = commit SHA\n대상       : 기존 OKE dev namespace\n검증       : /version 응답 = 배포한 commit SHA\n증거       : Build Run ID + Deployment ID + image digest\n</code></pre>\n<p>사전 자원: ONS Topic, Logging, OCIR repository, OKE cluster와 namespace.</p>\n<p>확인: 배포 성공 여부가 아니라 소스 SHA와 <code>/version</code> 응답 일치가 완료 기준.</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "IAM과 Dynamic Group",
+      "body": "<p>개념 4의 matching rule과 정책 생성. Identity Domain 사용 시 <code>domain-name/DevOpsPipelines</code> 형식 적용.</p>\n<p>확인: DevOpsAdmins 사용자가 Project를 만들 수 있고, 파이프라인 principal이 OCIR·OKE에 접근 가능.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "Project와 Code Repository 생성",
+      "body": "<p>콘솔: <code>Developer Services → DevOps → Projects → Create DevOps project</code></p>\n<pre><code class=\"language-bash\">oci devops project create \\\n  --compartment-id &quot;$COMPARTMENT_ID&quot; \\\n  --name shop-devops \\\n  --notification-config &#39;{&quot;topicId&quot;:&quot;&lt;ons-topic-ocid&gt;&quot;}&#39;\n\noci devops repository create \\\n  --project-id &quot;$PROJECT_ID&quot; \\\n  --name shop-api \\\n  --repository-type HOSTED \\\n  --default-branch main\n</code></pre>\n<p>소스와 <code>build_spec.yml</code> push. 확인: Repository의 main branch에서 두 파일 확인.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "Build Pipeline 연결",
+      "body": "<p>콘솔: <code>Project → Build Pipelines → Create build pipeline</code></p>\n<pre><code class=\"language-bash\">oci devops build-pipeline create \\\n  --project-id &quot;$PROJECT_ID&quot; \\\n  --display-name shop-api-build\n</code></pre>\n<p>단계 순서:</p>\n<ol>\n<li><code>Managed Build</code> — primary source <code>shop-api</code>, build spec path <code>build_spec.yml</code></li>\n<li><code>Deliver Artifacts</code> — output <code>app_image</code>, OCIR image tag <code>${OCI_BUILD_RUN_ID}</code> 또는 commit SHA</li>\n<li><code>Trigger Deployment</code> — 단계 6의 배포 파이프라인 연결</li>\n</ol>\n<p>확인: Managed Build output 이름과 Deliver Artifacts 입력 이름 일치.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "Deploy Artifact와 OKE Environment",
+      "body": "<p>콘솔 경로:</p>\n<pre><code>Project → Artifacts → Add artifact\n  Type       : Kubernetes manifest + Container image\n  Version    : parameter로 주입되는 commit SHA\n\nProject → Environments → Create environment\n  Type       : Oracle Kubernetes Engine\n  Cluster    : dev OKE\n  Namespace  : shop-dev\n</code></pre>\n<p>manifest의 image 값은 Deploy Artifact parameter로 치환. 확인: 고정 tag 또는 digest 사용, <code>latest</code> 미사용.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "Deployment Pipeline 구성",
+      "body": "<pre><code class=\"language-bash\">oci devops deploy-pipeline create \\\n  --project-id &quot;$PROJECT_ID&quot; \\\n  --display-name shop-api-deploy\n</code></pre>\n<p>콘솔: <code>Deployment Pipeline → Add Stage → Apply Manifest to your Kubernetes cluster</code>.</p>\n<p>아티팩트와 OKE environment 연결 후 Build Pipeline의 Trigger Deployment 단계에 이 pipeline 지정.</p>\n<p>확인: stage graph가 <code>Build → Deliver → Trigger → OKE Apply</code> 순서.</p>\n"
+     },
+     {
+      "id": "l7",
+      "title": "전체 실행과 양방향 검증",
+      "body": "<pre><code class=\"language-bash\">oci devops build-run create --build-pipeline-id &quot;$BUILD_PIPELINE_ID&quot;\n\noci devops deployment create-pipeline-deployment \\\n  --pipeline-id &quot;$DEPLOY_PIPELINE_ID&quot; \\\n  --display-name shop-api-manual-check\n</code></pre>\n<pre><code class=\"language-bash\">kubectl -n shop-dev rollout status deployment/shop-api\ncurl -fsS https://dev.example.com/version\n</code></pre>\n<p>확인: Build Run 성공, Deployment 성공, <code>/version</code>의 SHA와 Build Run 소스 SHA 일치.</p>\n"
+     },
+     {
+      "id": "l8",
+      "title": "실패 주입과 인수인계",
+      "body": "<p><code>build_spec.yml</code>의 테스트 하나를 의도적으로 실패시킨 커밋 실행.</p>\n<p>확인: Managed Build에서 중단, Deliver Artifacts와 Trigger Deployment 미실행, 기존 OKE 버전 유지.</p>\n<p>인수인계 항목: Project OCID, pipeline OCID, dynamic group과 정책, 저장소 branch, 아티팩트 버전 규칙, 로그 위치, 정상·실패 run ID.</p>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "OCI DevOps 시작하기",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/getting_started.htm"
+    },
+    {
+     "label": "Build Pipeline 관리",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/managing_build_pipelines.htm"
+    },
+    {
+     "label": "DevOps Artifact 관리",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/artifacts.htm"
+    },
+    {
+     "label": "Deployment Pipeline 관리",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/deployment_pipelines.htm"
+    },
+    {
+     "label": "DevOps IAM 정책",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/devops_iampolicies.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "운영자가 OCI DevOps Project와 Code Repository를 만들었으므로 CI/CD 구성이 끝났다고 보고했다.",
+     "question": "Project와 Repository만 있으면 커밋이 자동으로 빌드·배포된다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Project는 관리 경계, Repository는 소스 입력일 뿐이다. Build Pipeline 단계, artifact 전달, Deployment Pipeline, environment, trigger와 IAM 연결이 모두 필요하다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "Managed Build는 성공했지만 OCIR에 새 이미지가 없고 배포도 시작되지 않았다.",
+     "question": "가장 먼저 확인할 단계 연결은?",
+     "choices": [
+      "Wait → Approval",
+      "Deliver Artifacts → Trigger Deployment",
+      "Traffic Shift → Manual Rollback",
+      "Repository → Pull Request"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "Managed Build는 시험·패키징까지만 담당한다. outputArtifacts를 OCIR/Artifact Registry에 매핑하는 Deliver Artifacts와 배포 파이프라인을 호출하는 Trigger Deployment가 뒤따라야 한다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "OCID가 환경변수 BUILD_PIPELINE_ID에 저장된 빌드 파이프라인을 수동 실행해야 한다.",
+     "question": "Build Run 생성 명령 한 줄은?",
+     "answers": [
+      "oci devops build-run create --build-pipeline-id $BUILD_PIPELINE_ID",
+      "oci devops build-run create --build-pipeline-id \"$BUILD_PIPELINE_ID\""
+     ],
+     "match": "normalize-flags",
+     "explanation": "build-run create는 정의된 Build Pipeline의 새 실행을 생성한다. 이후 get 명령과 단계별 로그에서 결과 확인이 필요하다.",
+     "concept_anchor": "c2",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "환경변수 DEPLOY_PIPELINE_ID의 배포 파이프라인을 shop-api-manual 이름으로 실행해야 한다.",
+     "question": "Pipeline Deployment 생성 명령 한 줄은?",
+     "answers": [
+      "oci devops deployment create-pipeline-deployment --pipeline-id $DEPLOY_PIPELINE_ID --display-name shop-api-manual",
+      "oci devops deployment create-pipeline-deployment --pipeline-id \"$DEPLOY_PIPELINE_ID\" --display-name shop-api-manual"
+     ],
+     "match": "normalize-flags",
+     "explanation": "deployment create-pipeline-deployment가 배포 파이프라인의 실행 이력을 만든다. 성공 상태만 보지 말고 배포 artifact version과 대상 응답 버전을 대조해야 한다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "Build Run과 Deployment는 모두 성공했지만 OKE의 /version 응답이 이전 commit SHA다.",
+     "question": "가능한 원인과 확인 순서를 아티팩트 관점에서 서술하라.",
+     "answers": [],
+     "rubric": "① Build output 이름과 Deliver Artifacts 매핑 확인 ② OCIR/Artifact Registry에 생성된 tag·digest와 Build Run source SHA 대조 ③ Deploy Artifact의 경로·버전 또는 pipeline parameter 확인 ④ manifest image가 latest가 아닌 전달된 버전인지 확인 ⑤ Deployment snapshot과 실제 pod imageID 대조. 버전 흐름 전체와 실제 대상 검증까지 제시하면 O, 중간 한 구간만 제시하면 △.",
+     "explanation": "성공 상태는 각 단계가 오류 없이 끝났다는 뜻일 뿐 같은 바이너리가 끝까지 전달됐다는 증거가 아니다. source SHA, artifact version/digest, deployment snapshot, pod imageID를 한 줄로 연결해야 한다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    }
+   ]
+  },
+  "devops-service-l2": {
+   "curriculum": "oci-devops",
+   "topic": "devops-service-l2",
+   "level": 2,
+   "sheet": "devops-service-l2",
+   "title": "OCI DevOps — 운영 배포와 롤백",
+   "tags": [
+    "oci",
+    "devops",
+    "iam",
+    "trigger",
+    "approval",
+    "canary",
+    "rollback",
+    "observability"
+   ],
+   "difficulty": 2,
+   "estimated_minutes": 90,
+   "goal": "IAM 최소 권한과 트리거·승인·Canary 검증·자동 및 수동 롤백을 결합해 운영 배포 통제선을 구축한다",
+   "concepts": [
+    {
+     "id": "c1",
+     "title": "개념 1. IAM 최소 권한 — 사람과 실행 주체 분리",
+     "diagram": "<svg viewBox=\"0 0 700 175\" font-family=\"Pretendard,sans-serif\">\r\n  <g text-anchor=\"middle\" font-size=\"11\">\r\n    <rect x=\"18\" y=\"22\" width=\"202\" height=\"82\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"119\" y=\"45\" fill=\"var(--text)\" font-weight=\"700\">DevOps Operators</text><text x=\"119\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">pipeline read·run</text><text x=\"119\" y=\"84\" fill=\"var(--text-faint)\" font-size=\"10\">대상 리소스 직접 변경 불필요</text>\r\n    <rect x=\"249\" y=\"22\" width=\"202\" height=\"82\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"350\" y=\"45\" fill=\"var(--accent)\" font-weight=\"700\">Build Principal</text><text x=\"350\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">source read·artifact push</text><text x=\"350\" y=\"84\" fill=\"var(--text-faint)\" font-size=\"10\">deploy target 권한 없음</text>\r\n    <rect x=\"480\" y=\"22\" width=\"202\" height=\"82\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"581\" y=\"45\" fill=\"var(--pixel)\" font-weight=\"700\">Deploy Principal</text><text x=\"581\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">artifact read·OKE deploy</text><text x=\"581\" y=\"84\" fill=\"var(--text-faint)\" font-size=\"10\">artifact push 권한 없음</text>\r\n  </g>\r\n  <path d=\"M220 63 H244 M451 63 H475\" stroke=\"var(--accent)\" stroke-width=\"1.5\"/>\r\n  <text x=\"350\" y=\"132\" text-anchor=\"middle\" fill=\"var(--text-dim)\" font-size=\"10.5\">resource.type 또는 pipeline OCID 조건으로 dynamic group 범위 축소</text>\r\n  <text x=\"350\" y=\"154\" text-anchor=\"middle\" fill=\"var(--wrong)\" font-size=\"10.5\">하나의 dynamic group에 manage all-resources 부여 금지</text>\r\n</svg>",
+     "body": "<pre><code>권한 분리\n├── 사람 ───── pipeline 정의 조회·실행·승인\n├── Build ─── repository read + artifact/OCIR push + deploy trigger\n└── Deploy ── artifact read + 대상 환경 변경 + 검증 작업\n</code></pre>\n<ul>\n<li>L1의 단일 <code>DevOpsPipelines</code> dynamic group은 흐름 확인용. 운영에서는 build/deploy principal 별도 구성</li>\n<li>private Managed Build 사용 시 subnet·VNIC·NSG <code>use</code> 권한 추가. 필요 없는 network-family manage 권한 제외</li>\n<li>외부 GitHub 연결의 PAT는 Vault Secret에 저장하고 build principal에 <code>read secret-family</code>만 부여</li>\n</ul>\n"
+    },
+    {
+     "id": "c2",
+     "title": "개념 2. 배포 통제 단계 — 자동화 안의 정지점",
+     "diagram": "<svg viewBox=\"0 0 700 165\" font-family=\"Pretendard,sans-serif\">\r\n  <defs><marker id=\"dv2a\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\r\n  <g text-anchor=\"middle\" font-size=\"11\">\r\n    <rect x=\"15\" y=\"34\" width=\"112\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"71\" y=\"56\" fill=\"var(--text)\">Trigger</text><text x=\"71\" y=\"73\" fill=\"var(--text-dim)\" font-size=\"9.5\">branch·event</text>\r\n    <rect x=\"156\" y=\"34\" width=\"112\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"212\" y=\"56\" fill=\"var(--accent)\">Deploy Canary</text><text x=\"212\" y=\"73\" fill=\"var(--text-dim)\" font-size=\"9.5\">소량 반영</text>\r\n    <rect x=\"297\" y=\"34\" width=\"112\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"353\" y=\"56\" fill=\"var(--pixel)\">Validation</text><text x=\"353\" y=\"73\" fill=\"var(--text-dim)\" font-size=\"9.5\">health·metric</text>\r\n    <rect x=\"438\" y=\"34\" width=\"112\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"494\" y=\"56\" fill=\"var(--text)\">Approval</text><text x=\"494\" y=\"73\" fill=\"var(--text-dim)\" font-size=\"9.5\">사람 판단</text>\r\n    <rect x=\"579\" y=\"34\" width=\"106\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"632\" y=\"56\" fill=\"var(--accent)\">Traffic Shift</text><text x=\"632\" y=\"73\" fill=\"var(--text-dim)\" font-size=\"9.5\">100%</text>\r\n  </g>\r\n  <g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#dv2a)\"><line x1=\"127\" y1=\"60\" x2=\"151\" y2=\"60\"/><line x1=\"268\" y1=\"60\" x2=\"292\" y2=\"60\"/><line x1=\"409\" y1=\"60\" x2=\"433\" y2=\"60\"/><line x1=\"550\" y1=\"60\" x2=\"574\" y2=\"60\"/></g>\r\n  <text x=\"350\" y=\"120\" text-anchor=\"middle\" fill=\"var(--text-dim)\" font-size=\"10.5\">Approval은 시험을 대신하지 않음. Validation 증거를 보고 위험을 승인하는 단계</text>\r\n  <text x=\"350\" y=\"142\" text-anchor=\"middle\" fill=\"var(--wrong)\" font-size=\"10.5\">Trigger의 branch 조건 누락 시 feature branch가 운영 배포로 연결될 수 있음</text>\r\n</svg>",
+     "body": "<ul>\n<li>Trigger: OCI repository commit·pull request 이벤트 또는 외부 연결 이벤트로 Build Run 생성</li>\n<li>Pipeline parameter: 같은 정의에 환경·namespace·artifact version 입력. 민감값은 parameter 평문 대신 Vault Secret</li>\n<li>Approval·Wait·Function Invoke·Shell 단계로 자동 흐름 안에 검증과 의사결정 삽입</li>\n<li>단계는 순차 또는 병렬 구성 가능. 병렬 stage 실패 시 다른 진행 stage는 계속될 수 있어 롤백 영향 확인 필수</li>\n</ul>\n"
+    },
+    {
+     "id": "c3",
+     "title": "개념 3. 배포 전략 — 변경 폭과 복구 단위",
+     "diagram": "<svg viewBox=\"0 0 700 175\" font-family=\"Pretendard,sans-serif\">\r\n  <g text-anchor=\"middle\" font-size=\"11\">\r\n    <rect x=\"15\" y=\"22\" width=\"210\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"120\" y=\"45\" fill=\"var(--text)\" font-weight=\"700\">Rolling</text><text x=\"120\" y=\"67\" fill=\"var(--text-dim)\" font-size=\"10\">일부 host/pod씩 교체</text><text x=\"120\" y=\"86\" fill=\"var(--text-faint)\" font-size=\"10\">추가 환경 비용 낮음</text><text x=\"120\" y=\"105\" fill=\"var(--text-faint)\" font-size=\"10\">구·신 버전 동시 존재</text>\r\n    <rect x=\"245\" y=\"22\" width=\"210\" height=\"104\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"350\" y=\"45\" fill=\"var(--accent)\" font-weight=\"700\">Blue-Green</text><text x=\"350\" y=\"67\" fill=\"var(--text-dim)\" font-size=\"10\">동일 환경 2개</text><text x=\"350\" y=\"86\" fill=\"var(--text-faint)\" font-size=\"10\">검증 후 전체 traffic shift</text><text x=\"350\" y=\"105\" fill=\"var(--text-faint)\" font-size=\"10\">되돌림 빠름·비용 높음</text>\r\n    <rect x=\"475\" y=\"22\" width=\"210\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"580\" y=\"45\" fill=\"var(--pixel)\" font-weight=\"700\">Canary</text><text x=\"580\" y=\"67\" fill=\"var(--text-dim)\" font-size=\"10\">소량 트래픽 선반영</text><text x=\"580\" y=\"86\" fill=\"var(--text-faint)\" font-size=\"10\">지표 기반 단계 확대</text><text x=\"580\" y=\"105\" fill=\"var(--text-faint)\" font-size=\"10\">routing·관측 전제</text>\r\n  </g>\r\n  <text x=\"350\" y=\"151\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"10.5\">OKE Canary는 ingress controller 전제. OKE 기본 구성에 ingress controller 자동 포함 아님</text>\r\n</svg>",
+     "body": "<table>\n<thead>\n<tr>\n<th>전략</th>\n<th>적합 조건</th>\n<th>주의점</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Rolling</td>\n<td>무중단 기본 배포, 버전 혼재 허용</td>\n<td>DB/API 하위 호환 필요</td>\n</tr>\n<tr>\n<td>Blue-Green</td>\n<td>즉시 전체 전환·즉시 되돌림</td>\n<td>환경 2세트 비용·상태 데이터 동기화</td>\n</tr>\n<tr>\n<td>Canary</td>\n<td>실트래픽 지표로 위험 제한</td>\n<td>ingress/LB traffic shift와 관측 지표 필수</td>\n</tr>\n</tbody></table>\n<ul>\n<li>OKE Canary는 NGINX ingress controller와 staging/production environment, artifact 준비가 선행 조건</li>\n<li>전략 선택 전에 데이터베이스 변경의 역호환성 검토. 앱 rollback만으로 schema rollback 불가 가능성</li>\n</ul>\n"
+    },
+    {
+     "id": "c4",
+     "title": "개념 4. 관측과 롤백 — 성공 상태보다 증거",
+     "diagram": "<svg viewBox=\"0 0 700 170\" font-family=\"Pretendard,sans-serif\">\r\n  <defs><marker id=\"dv2b\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\r\n  <g text-anchor=\"middle\" font-size=\"11\">\r\n    <rect x=\"18\" y=\"32\" width=\"135\" height=\"60\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"85\" y=\"55\" fill=\"var(--text)\">Deployment Log</text><text x=\"85\" y=\"75\" fill=\"var(--text-dim)\" font-size=\"9.5\">stage·artifact snapshot</text>\r\n    <rect x=\"190\" y=\"32\" width=\"135\" height=\"60\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"257\" y=\"55\" fill=\"var(--pixel)\">Validation</text><text x=\"257\" y=\"75\" fill=\"var(--text-dim)\" font-size=\"9.5\">error·latency·health</text>\r\n    <rect x=\"362\" y=\"32\" width=\"135\" height=\"60\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"429\" y=\"55\" fill=\"var(--accent)\">Decision</text><text x=\"429\" y=\"75\" fill=\"var(--text-dim)\" font-size=\"9.5\">continue·rollback</text>\r\n    <rect x=\"534\" y=\"32\" width=\"148\" height=\"60\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"608\" y=\"55\" fill=\"var(--text)\">Last Good Version</text><text x=\"608\" y=\"75\" fill=\"var(--text-dim)\" font-size=\"9.5\">redeploy·traffic revert</text>\r\n  </g>\r\n  <g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#dv2b)\"><line x1=\"153\" y1=\"62\" x2=\"185\" y2=\"62\"/><line x1=\"325\" y1=\"62\" x2=\"357\" y2=\"62\"/><line x1=\"497\" y1=\"62\" x2=\"529\" y2=\"62\"/></g>\r\n  <text x=\"350\" y=\"125\" text-anchor=\"middle\" fill=\"var(--text-dim)\" font-size=\"10.5\">자동 롤백: validation/stage 실패 시 마지막 성공 release 재배포</text>\r\n  <text x=\"350\" y=\"147\" text-anchor=\"middle\" fill=\"var(--wrong)\" font-size=\"10.5\">롤백도 새 deployment. 완료 후 실제 traffic·version 재검증 필수</text>\r\n</svg>",
+     "body": "<ul>\n<li>자동 롤백: cluster 또는 instance group pipeline에서 validation/stage 실패 시 마지막 성공 release 배포</li>\n<li>수동 롤백: 완료된 deployment의 특정 stage를 이전 성공 deployment 기준으로 재실행</li>\n<li>Blue-Green instance group은 traffic shift stage에서 <code>Revert traffic shift</code> 사용</li>\n<li>Logging·ONS 알림·deployment snapshot을 장애 타임라인의 공통 증거로 보존</li>\n</ul>\n"
+    }
+   ],
+   "lab": {
+    "situation": "L1의 shop-api pipeline이 운영 OKE에도 연결됐다. 최근 main 오배포가 전체 pod에 즉시 반영돼 12분 장애가 발생했고, 운영자는 어떤 버전으로 돌려야 할지 수동으로 확인했다.",
+    "request": "&quot;main에서만 운영 배포하고, 새 버전은 일부 트래픽으로 먼저 검증해 주세요. 오류율이 기준을 넘으면 자동으로 되돌리고, 수동 복구 절차도 증명해 주세요.&quot;",
+    "steps": [
+     {
+      "id": "l1",
+      "title": "배포 계약과 복구 기준",
+      "body": "<pre><code>trigger       : main push만\nartifact      : commit SHA 고정\ncanary        : 10% → 검증 → 승인 → 50% → 검증 → 100%\nvalidation    : 5xx &lt; 1%, p95 &lt; 500ms, readiness success\nrollback      : 기준 초과 시 자동, 목표 RTO 5분\nevidence      : deployment ID·artifact digest·validation output·rollback ID\n</code></pre>\n<p>확인: 승인자의 감각이 아니라 수치 기준으로 계속/중단 결정 가능.</p>\n"
+     },
+     {
+      "id": "l2",
+      "title": "IAM principal 분리",
+      "body": "<p>Dynamic Group을 <code>DevOpsBuildPipelines</code>, <code>DevOpsDeployPipelines</code>로 분리.</p>\n<pre><code class=\"language-text\">Allow dynamic-group DevOpsBuildPipelines to read devops-repository in compartment App\nAllow dynamic-group DevOpsBuildPipelines to use repos in compartment App\nAllow dynamic-group DevOpsBuildPipelines to manage devops-family in compartment App\n\nAllow dynamic-group DevOpsDeployPipelines to read all-artifacts in compartment App\nAllow dynamic-group DevOpsDeployPipelines to manage cluster in compartment App\nAllow dynamic-group DevOpsDeployPipelines to use ons-topics in compartment App\n</code></pre>\n<p>실제 대상 compartment와 resource type에 맞춰 추가 축소. 확인: build principal로 OKE 변경 시 거부, deploy principal로 artifact push 시 거부.</p>\n"
+     },
+     {
+      "id": "l3",
+      "title": "불변 아티팩트와 Pipeline Parameter",
+      "body": "<p>Build Run에서 <code>${OCI_BUILD_RUN_ID}</code>와 commit SHA를 image tag·manifest parameter로 전달.</p>\n<pre><code>IMAGE_VERSION=&lt;commit-sha&gt;\nTARGET_NAMESPACE=shop-prod\n</code></pre>\n<p>확인: 이전 tag 덮어쓰기 금지, Deploy Artifact snapshot에서 digest 확인 가능.</p>\n"
+     },
+     {
+      "id": "l4",
+      "title": "main 전용 Trigger",
+      "body": "<p>콘솔: <code>Project → Triggers → Create trigger</code>.</p>\n<pre><code>Source connection : shop-api repository\nAction            : Start build pipeline\nEvent             : Push\nBranch filter     : main\n</code></pre>\n<p>feature branch push와 main push를 각각 실행. 확인: feature는 run 없음, main만 Build Run 생성.</p>\n"
+     },
+     {
+      "id": "l5",
+      "title": "OKE Canary Pipeline",
+      "body": "<p>사전 확인: NGINX ingress controller 정상, staging/production OKE environment, manifest와 image artifact 존재.</p>\n<p>콘솔: <code>Deployment Pipeline → Add Stage → Canary strategy for OKE</code>.</p>\n<pre><code>Deploy Canary(10%)\n→ Function/Shell Validation(error rate·p95·health)\n→ Manual Approval\n→ Traffic Shift(50%)\n→ Validation\n→ Traffic Shift(100%)\n</code></pre>\n<p>확인: 10% 구간의 canary pod·Ingress traffic split과 production pod를 동시에 관찰.</p>\n"
+     },
+     {
+      "id": "l6",
+      "title": "자동 롤백 실패 주입",
+      "body": "<p>Canary artifact의 <code>/health</code>가 500을 반환하도록 테스트 버전 배포. stage의 Automatic Rollback 활성화.</p>\n<p>확인 항목:</p>\n<ol>\n<li>Validation 실패와 이후 Traffic Shift 차단</li>\n<li>마지막 성공 release 자동 재배포</li>\n<li><code>/version</code>이 이전 SHA로 복원</li>\n<li>오류율 정상화와 실제 RTO 기록</li>\n</ol>\n"
+     },
+     {
+      "id": "l7",
+      "title": "수동 재배포와 조회",
+      "body": "<pre><code class=\"language-bash\">oci devops deployment get --deployment-id &quot;$DEPLOYMENT_ID&quot;\n\noci devops deployment create-single-stage-redeployment \\\n  --pipeline-id &quot;$DEPLOY_PIPELINE_ID&quot; \\\n  --stage-id &quot;$STAGE_ID&quot; \\\n  --previous-deployment-id &quot;$PREVIOUS_DEPLOYMENT_ID&quot;\n</code></pre>\n<p>확인: 새 deployment ID 생성, 선택 stage snapshot의 artifact version이 이전 성공 버전과 일치.</p>\n"
+     },
+     {
+      "id": "l8",
+      "title": "운영 인수인계",
+      "body": "<ul>\n<li>branch trigger 조건과 변경 승인자</li>\n<li>validation query·임계치·관측 창</li>\n<li>자동 롤백 대상 stage와 마지막 성공 release 결정 방식</li>\n<li>수동 재배포 명령, 필요한 OCID 조회 위치</li>\n<li>Build Run → artifact digest → Deployment → OKE imageID 증거 묶음</li>\n</ul>\n<p>확인: 다른 운영자가 장애 티켓만 보고 5분 안에 이전 성공 버전 식별과 rollback 시작 가능.</p>\n"
+     }
+    ]
+   },
+   "sources": [
+    {
+     "label": "DevOps IAM 정책",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/devops_iampolicies.htm"
+    },
+    {
+     "label": "Build 실행",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/run_build.htm"
+    },
+    {
+     "label": "Deployment 실행",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/run_pipeline.htm"
+    },
+    {
+     "label": "Deployment Pipeline과 배포 전략",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/deployment_pipelines.htm"
+    },
+    {
+     "label": "OKE Canary 배포",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/canaryoke_deploy.htm"
+    },
+    {
+     "label": "Deployment 롤백",
+     "url": "https://docs.oracle.com/en-us/iaas/Content/devops/using/deployment_rollback.htm"
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "s1",
+     "type": "ox",
+     "situation": "운영팀이 하나의 dynamic group에 모든 build·deploy pipeline을 넣고 manage all-resources in tenancy를 부여했다.",
+     "question": "파이프라인 자동화를 위해 필요한 권장 구성이다 (O/X)",
+     "answers": [
+      "X"
+     ],
+     "explanation": "Build와 Deploy principal을 분리하고 각각 source read·artifact push, artifact read·target deploy처럼 필요한 권한만 부여해야 한다. tenancy 전체 all-resources는 침해 시 영향 범위를 과도하게 키운다.",
+     "concept_anchor": "c1",
+     "xp": 10
+    },
+    {
+     "id": "s2",
+     "type": "choice",
+     "situation": "신규 API를 운영 트래픽 일부에 먼저 노출하고 오류율·지연을 확인한 뒤 점진 확대해야 한다.",
+     "question": "가장 적합한 배포 전략은?",
+     "choices": [
+      "Rolling",
+      "Canary",
+      "전체 동시 교체",
+      "수동 파일 복사"
+     ],
+     "answers": [
+      "2"
+     ],
+     "explanation": "Canary는 새 버전을 일부 트래픽에 먼저 노출하고 지표 검증 후 비율을 확대한다. OKE에서는 ingress controller와 traffic shift·관측 구성이 전제다.",
+     "concept_anchor": "c3",
+     "xp": 10
+    },
+    {
+     "id": "s3",
+     "type": "command",
+     "situation": "장애 분석을 위해 환경변수 DEPLOYMENT_ID에 저장된 deployment의 stage·artifact snapshot을 조회해야 한다.",
+     "question": "Deployment 조회 명령 한 줄은?",
+     "answers": [
+      "oci devops deployment get --deployment-id $DEPLOYMENT_ID",
+      "oci devops deployment get --deployment-id \"$DEPLOYMENT_ID\""
+     ],
+     "match": "normalize-flags",
+     "explanation": "deployment get 결과에서 lifecycle state와 stage snapshot, artifact override 정보를 확인한 뒤 실제 대상의 version·imageID와 대조한다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s4",
+     "type": "command",
+     "situation": "이전 성공 deployment의 특정 stage만 새 deployment로 재실행해야 한다. OCID는 PIPELINE_ID, STAGE_ID, PREVIOUS_DEPLOYMENT_ID 환경변수에 있다.",
+     "question": "단일 stage 재배포 명령 한 줄은?",
+     "answers": [
+      "oci devops deployment create-single-stage-redeployment --pipeline-id $PIPELINE_ID --stage-id $STAGE_ID --previous-deployment-id $PREVIOUS_DEPLOYMENT_ID",
+      "oci devops deployment create-single-stage-redeployment --pipeline-id \"$PIPELINE_ID\" --stage-id \"$STAGE_ID\" --previous-deployment-id \"$PREVIOUS_DEPLOYMENT_ID\""
+     ],
+     "match": "normalize-flags",
+     "explanation": "수동 롤백도 새 deployment 실행이다. 이전 성공 deployment와 stage를 명시하고 완료 후 artifact version, traffic, health를 다시 검증해야 한다.",
+     "concept_anchor": "c4",
+     "xp": 10
+    },
+    {
+     "id": "s5",
+     "type": "essay",
+     "situation": "Canary validation이 실패해 자동 롤백 상태가 성공으로 표시됐지만 고객 오류 신고가 계속된다.",
+     "question": "운영자가 확인할 증거와 대응 순서를 서술하라.",
+     "answers": [],
+     "rubric": "① 실패 deployment 로그와 validation 지표·임계치 확인 ② rollback deployment ID와 마지막 성공 artifact digest 확인 ③ 진행 중이던 병렬 stage 영향 확인 ④ Ingress/LB traffic이 이전 환경으로 복원됐는지 확인 ⑤ OKE pod imageID·readiness·/version·실제 오류율 검증 ⑥ DB schema 등 앱 외 변경의 역호환성 확인. 자동 롤백 상태 외에 실제 traffic과 버전까지 검증하고 잔여 변경 대응을 제시하면 O, deployment 상태만 확인하면 △.",
+     "explanation": "자동 롤백 성공은 OCI stage 실행 결과다. 실제 고객 경로의 traffic, pod imageID, health와 데이터 변경이 함께 복원됐는지는 별도 증거가 필요하다.",
+     "concept_anchor": "c4",
      "xp": 10
     }
    ]
