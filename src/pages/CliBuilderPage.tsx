@@ -31,12 +31,13 @@ interface Catalog {
 const EMPTY_CATALOG: Catalog = { categories: [], commands: {} }
 
 const MAINTENANCE_REBOOT_OPERATIONS = [
-  { verb: 'GET', icon: '↓', available: true, detail: '최대 연장 가능 시각 조회' },
-  { verb: 'LIST', icon: '≡', available: false, detail: '등록된 명령 없음' },
-  { verb: 'CREATE', icon: '+', available: false, detail: '등록된 명령 없음' },
-  { verb: 'UPDATE', icon: '↻', available: true, detail: '재부팅 예정 시각 변경' },
-  { verb: 'DELETE', icon: '×', available: false, detail: '등록된 명령 없음' },
+  { verb: 'get', icon: '↓', available: true, detail: '최대 연장 가능 시각 조회' },
+  { verb: 'list', icon: '≡', available: false, detail: '등록된 명령 없음' },
+  { verb: 'create', icon: '+', available: false, detail: '등록된 명령 없음' },
+  { verb: 'update', icon: '↻', available: true, detail: '재부팅 예정 시각 변경' },
+  { verb: 'delete', icon: '×', available: false, detail: '등록된 명령 없음' },
 ] as const
+type MaintenanceRebootOperation = 'get' | 'update'
 
 /* ── 동적 조회 지원 옵션 — 이름만 넣으면 $()/변수로 OCID를 찾아준다 ──
    기본값 = 동적. 체크 해제 시 OCID 직접 입력. */
@@ -206,8 +207,8 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
   ].join('\n')
 }
 
-/* 인스턴스 유지보수 재부팅 예정 시각 — 조회와 변경 명령을 한 번에 생성 */
-function buildMaintenanceReboot(values: Record<string, string>): string {
+/* 인스턴스 유지보수 재부팅 예정 시각 — 선택한 GET 또는 UPDATE 명령 생성 */
+function buildMaintenanceReboot(values: Record<string, string>, operation: MaintenanceRebootOperation): string {
   const v = (key: string, fallback: string) => (values[key] || '').trim() || fallback
   const instanceId = v('--instance-id', '<instanceid>')
   const profile = v('--profile', '<profile>')
@@ -215,15 +216,19 @@ function buildMaintenanceReboot(values: Record<string, string>): string {
   const rebootDue = v('--time-maintenance-reboot-due', '<YYYY-MM-DDTHH:mm:ssZ>')
   const CONT = ' \\'
 
+  if (operation === 'get') {
+    return [
+      '# 유지보수 재부팅을 연장할 수 있는 최대 시각 조회',
+      'oci compute instance-maintenance-reboot get' + CONT,
+      `  --instance-id "${instanceId}"` + CONT,
+      `  --profile "${profile}"` + CONT,
+      `  --region "${region}"` + CONT,
+      `  --query 'data."time-maintenance-reboot-due-max"'` + CONT,
+      '  --raw-output',
+    ].join('\n')
+  }
+
   return [
-    '# 유지보수 재부팅을 연장할 수 있는 최대 시각 조회',
-    'oci compute instance-maintenance-reboot get' + CONT,
-    `  --instance-id "${instanceId}"` + CONT,
-    `  --profile "${profile}"` + CONT,
-    `  --region "${region}"` + CONT,
-    `  --query 'data."time-maintenance-reboot-due-max"'` + CONT,
-    '  --raw-output',
-    '',
     '# 인스턴스 유지보수 재부팅 달력 업데이트',
     'oci compute instance update' + CONT,
     `  --instance-id "${instanceId}"` + CONT,
@@ -235,9 +240,9 @@ function buildMaintenanceReboot(values: Record<string, string>): string {
 }
 
 /* 최종 명령 조립 — 동적 옵션은 변수 선언(prelude) + 참조로 */
-function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>): string {
+function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>, maintenanceOperation: MaintenanceRebootOperation): string {
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
-  if (cmd.maintenanceReboot) return buildMaintenanceReboot(values)
+  if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, maintenanceOperation)
 
   const prelude: string[] = []
   const args: string[] = []
@@ -317,6 +322,7 @@ export default function CliBuilderPage() {
   const [customText, setCustomText] = useState('oci ')
   const [favs, setFavs] = useState<Favorite[]>(loadFavs())
   const [showOptional, setShowOptional] = useState(false)
+  const [maintenanceOperation, setMaintenanceOperation] = useState<MaintenanceRebootOperation>('get')
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
   // 딥링크로 들어온 자원의 카테고리는 펼쳐 둔다 (그 외는 닫힘)
@@ -325,7 +331,7 @@ export default function CliBuilderPage() {
   // 팔레트에서 ?r 이 바뀌며 재진입하면 해당 자원 선택 + 카테고리 펼침
   useEffect(() => {
     if (!rParam || !CAT.commands[rParam]) return
-    setActive(rParam); setValues({}); setDyn({}); setShowOptional(false)
+    setActive(rParam); setValues({}); setDyn({}); setShowOptional(false); setMaintenanceOperation('get')
     const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
   }, [rParam, CAT])
@@ -356,10 +362,13 @@ export default function CliBuilderPage() {
   }
 
   const cmd = active !== '__custom' ? CAT.commands[active] : null
-  const cli = useMemo(() => cmd ? buildCli(cmd, values, dyn) : customText, [cmd, values, dyn, customText])
+  const cli = useMemo(
+    () => cmd ? buildCli(cmd, values, dyn, maintenanceOperation) : customText,
+    [cmd, values, dyn, maintenanceOperation, customText],
+  )
 
   const selectResource = (res: string) => {
-    setActive(res); setValues({}); setDyn({}); setShowOptional(false)
+    setActive(res); setValues({}); setDyn({}); setShowOptional(false); setMaintenanceOperation('get')
   }
   const setVal = (name: string, v: string) => setValues(s => ({ ...s, [name]: v }))
   const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
@@ -473,13 +482,14 @@ export default function CliBuilderPage() {
         {cmd?.maintenanceReboot && (
           <div className="cli-crud-strip" aria-label="Instance Maintenance Reboot 명령 지원 현황">
             {MAINTENANCE_REBOOT_OPERATIONS.map(operation => (
-              <div key={operation.verb}
-                className={`cli-crud-op ${operation.available ? 'available' : 'unavailable'}`}
-                aria-disabled={!operation.available} title={`${operation.verb} — ${operation.detail}`}>
+              <button type="button" key={operation.verb} disabled={!operation.available}
+                className={`cli-crud-op verb-${operation.verb}${maintenanceOperation === operation.verb ? ' selected' : ''}`}
+                aria-pressed={operation.available ? maintenanceOperation === operation.verb : undefined}
+                title={`${operation.verb.toUpperCase()} — ${operation.detail}`}
+                onClick={() => operation.available && setMaintenanceOperation(operation.verb)}>
                 <span className="cli-crud-icon" aria-hidden="true">{operation.icon}</span>
-                <span className="cli-crud-verb">{operation.verb}</span>
-                <span className="cli-crud-state">{operation.available ? '지원됨' : '미지원'}</span>
-              </div>
+                <span className="cli-crud-verb">{operation.verb.toUpperCase()}</span>
+              </button>
             ))}
           </div>
         )}
@@ -502,7 +512,7 @@ export default function CliBuilderPage() {
 
         {cmd ? (
           <div className="cli-form">
-            {cmd.sections.map(sec => (
+            {cmd.sections.filter((_, index) => !cmd.maintenanceReboot || maintenanceOperation === 'update' || index === 0).map(sec => (
               <div key={sec.label} className="cli-sec">
                 <div className="cli-section-label px">{sec.label}</div>
                 {sec.options.map(o => field(o, !o.required))}

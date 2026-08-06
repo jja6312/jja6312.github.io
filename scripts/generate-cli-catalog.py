@@ -324,8 +324,8 @@ def _maintenance_reboot():
         'label': 'Instance Maintenance Reboot',
         'cmd': 'oci compute instance-maintenance-reboot get',
         'maintenanceReboot': True,
-        'help': ('유지보수 재부팅을 연장할 수 있는 최대 시각을 조회하고 실제 재부팅 달력을 변경. '
-                 '최종 명령에 최대 시각 조회와 달력 업데이트 명령이 함께 생성됩니다.'),
+        'help': ('GET 탭에서는 유지보수 재부팅을 연장할 수 있는 최대 시각을 조회하고, '
+                 'UPDATE 탭에서는 실제 재부팅 달력을 변경합니다.'),
         'sections': [
             {'label': '인스턴스 · 실행 환경', 'options': [
                 _co('--instance-id', True, '대상 Compute 인스턴스 OCID', 'ocid1.instance.oc1.ap-seoul-1.xxxx'),
