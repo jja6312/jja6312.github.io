@@ -68,8 +68,8 @@ export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
 
 /* ── 목표 ────────────────────────────────────────────── */
 export interface Goal { id: string; title: string; deadline: string; color: string; createdAt: string }
-export interface GoalsFile { goals: Goal[] }
-export const EMPTY_GOALS: GoalsFile = { goals: [] }
+export interface GoalsFile { goals: Goal[]; longTermGoal?: string }
+export const EMPTY_GOALS: GoalsFile = { goals: [], longTermGoal: '' }
 // 목표별 색 팔레트 (순환 배정)
 export const GOAL_COLORS = ['#5ac8fa', '#c07ce8', '#e0a458', '#6ee7a0', '#ff7a90', '#f4d35e', '#8f8cff', '#4fd1c5']
 

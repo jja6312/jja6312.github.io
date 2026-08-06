@@ -717,11 +717,22 @@ select.cli-input { cursor: pointer; }
 .sched-sync { font-size: 11px; margin-left: auto; color: var(--partial); }
 
 /* 목표 */
+.goal-long-term { margin: 12px 0 18px; padding: 16px; border: 1px solid var(--accent-dim); border-radius: 13px; background: color-mix(in srgb, var(--accent) 6%, var(--bg-card)); }
+.goal-long-term-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+.goal-long-term-head .px { display: block; color: var(--accent); font-size: 9.5px; letter-spacing: .1em; margin-bottom: 3px; }
+.goal-long-term-head h2 { margin: 0; color: var(--text); font-size: 16px; }
+.goal-long-term-hint { color: var(--text-faint); font-size: 11px; text-align: right; }
+.goal-long-term-area { min-height: 112px; line-height: 1.7; resize: vertical; font-family: Pretendard, sans-serif; }
 .goal-add { display: flex; gap: 8px; margin: 8px 0 22px; flex-wrap: wrap; }
 .goal-list { display: flex; flex-direction: column; gap: 12px; }
-.goal-card { border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 14px 16px; background: var(--bg-card); }
+.goal-card { border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 14px 16px; background: var(--bg-card); transition: opacity .15s, transform .15s, border-color .15s; }
+.goal-card[draggable='true'] { cursor: grab; }
+.goal-card[draggable='true']:active { cursor: grabbing; }
+.goal-card.dragging { opacity: .4; transform: scale(.985); border-color: var(--accent); }
 .goal-edit { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .goal-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.goal-drag-handle { display: inline-grid; place-items: center; width: 22px; height: 22px; color: var(--text-faint); font-size: 17px; cursor: grab; user-select: none; }
+.goal-card:hover .goal-drag-handle { color: var(--accent); }
 .goal-title { font-size: 15px; }
 .goal-dday { font-family: var(--mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--bg-inset); color: var(--text-dim); }
 .goal-dday.near { color: var(--partial); }
@@ -743,6 +754,10 @@ select.cli-input { cursor: pointer; }
 .goal-link-check { color: var(--accent); }
 .goal-tag { display: inline-flex; align-items: center; font-size: 10.5px; padding: 1px 8px; border: 1px solid var(--accent); border-radius: 20px; background: transparent; cursor: pointer; font-family: inherit; }
 .goal-select { padding: 6px 10px; font-size: 13px; min-width: 120px; }
+@media (max-width: 560px) {
+  .goal-long-term-head { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .goal-long-term-hint { text-align: left; }
+}
 
 /* TODO — 탭·툴바 */
 .todo-tabs { display: flex; gap: 6px; margin: 12px 0 16px; }

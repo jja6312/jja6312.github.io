@@ -56,6 +56,7 @@ for (const level of [1, 2, 3]) {
   if (queryOption?.defaultValue !== 'data."time-maintenance-reboot-due"') throw new Error(`L${level} Instance GET query 기본값 오류`)
   if (!rawOption?.flag || rawOption.defaultValue !== 'true') throw new Error(`L${level} Instance GET raw-output 플래그 오류`)
   if ((level >= 2) !== !!bundle.schedule) throw new Error(`L${level} schedule 범위 오류`)
+  if (level >= 2 && !Object.hasOwn(bundle.schedule.goals, 'longTermGoal')) throw new Error(`L${level} 장기 목표 필드 누락`)
   if ((level >= 3) !== !!bundle.meetings) throw new Error(`L${level} meetings 범위 오류`)
   if ((level >= 3) !== !!bundle.provisioning) throw new Error(`L${level} provisioning 범위 오류`)
   console.log(`L${level} 복호화 OK · payload ${Object.keys(keys).length}개`)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   useSyncedJson, SYNC_LABEL, GOAL_COLORS, rollupGoal, dday,
   EMPTY_GOALS, EMPTY_BOARD, EMPTY_JOURNAL, type GoalsFile, type Goal,
@@ -19,6 +19,8 @@ export default function GoalsView() {
   const [undated, setUndated] = useState(false)      // 연월일 미정
   const [editId, setEditId] = useState<string | null>(null)
   const [expandId, setExpandId] = useState<string | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const dragRef = useRef<string | null>(null)
 
   const goals = data.goals
 
@@ -28,12 +30,24 @@ export default function GoalsView() {
       id: `goal-${Date.now()}`, title: title.trim(), deadline: undated ? '' : deadline,
       color: GOAL_COLORS[goals.length % GOAL_COLORS.length], createdAt: new Date().toISOString(),
     }
-    update({ goals: [...goals, g] })
+    update({ ...data, goals: [...goals, g] })
     setTitle(''); setDeadline(''); setUndated(false)
   }
   const saveEdit = (id: string, patch: Partial<Goal>) =>
-    update({ goals: goals.map(g => g.id === id ? { ...g, ...patch } : g) })
-  const remove = (id: string) => { if (confirm('이 목표를 삭제할까요?')) update({ goals: goals.filter(g => g.id !== id) }) }
+    update({ ...data, goals: goals.map(g => g.id === id ? { ...g, ...patch } : g) })
+  const remove = (id: string) => { if (confirm('이 목표를 삭제할까요?')) update({ ...data, goals: goals.filter(g => g.id !== id) }) }
+  const moveGoal = (beforeId?: string) => {
+    const id = dragRef.current
+    dragRef.current = null; setDragId(null)
+    if (!id || id === beforeId) return
+    const moved = goals.find(goal => goal.id === id)
+    if (!moved) return
+    const reordered = goals.filter(goal => goal.id !== id)
+    const index = beforeId ? reordered.findIndex(goal => goal.id === beforeId) : -1
+    if (index >= 0) reordered.splice(index, 0, moved)
+    else reordered.push(moved)
+    update({ ...data, goals: reordered })
+  }
 
   return (
     <div>
@@ -44,6 +58,19 @@ export default function GoalsView() {
       <p className="prof-desc">
         2026년 목표와 마감기한. 월간일정·TODO 항목을 이 목표에 태그하면 진척이 자동 집계되고, 무슨 작업을 했는지 역추적된다.
       </p>
+
+      <section className="goal-long-term">
+        <div className="goal-long-term-head">
+          <div>
+            <span className="px">LONG-TERM DIRECTION</span>
+            <h2>장기 목표</h2>
+          </div>
+          <span className="goal-long-term-hint">몇 년 뒤 도달할 방향과 기준을 자유롭게 기록</span>
+        </div>
+        <textarea className="cli-input goal-long-term-area" rows={5} value={data.longTermGoal ?? ''} readOnly={!writable}
+          placeholder="예: 클라우드 아키텍트 역량을 완성하고 기술 리더로 성장하기\n핵심 자격증 · 전문 분야 · 커리어 방향을 함께 적어두세요."
+          onChange={event => update({ ...data, longTermGoal: event.target.value })} />
+      </section>
 
       {/* 목표 추가 */}
       {writable && <div className="goal-add">
@@ -58,7 +85,8 @@ export default function GoalsView() {
 
       {goals.length === 0 && <div className="cmt-empty" style={{ padding: '28px 0' }}>등록된 목표 없음 — 위에서 2026년 목표를 추가하세요.</div>}
 
-      <div className="goal-list">
+      <div className="goal-list" onDragOver={event => event.preventDefault()}
+        onDrop={event => { event.preventDefault(); moveGoal() }}>
         {goals.map(g => {
           const r = rollupGoal(g.id, cal, board, journal)
           const pct = r.total ? Math.round((r.done / r.total) * 100) : 0
@@ -66,7 +94,15 @@ export default function GoalsView() {
           const editing = editId === g.id
           const open = expandId === g.id
           return (
-            <div key={g.id} className="goal-card" style={{ borderLeftColor: g.color }}>
+            <div key={g.id} className={`goal-card${dragId === g.id ? ' dragging' : ''}`}
+              style={{ borderLeftColor: g.color }} draggable={!editing && writable}
+              onDragStart={event => {
+                dragRef.current = g.id; setDragId(g.id)
+                event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', g.id)
+              }}
+              onDragEnd={() => { dragRef.current = null; setDragId(null) }}
+              onDragOver={event => event.preventDefault()}
+              onDrop={event => { event.preventDefault(); event.stopPropagation(); moveGoal(g.id) }}>
               {editing && writable ? (
                 <div className="goal-edit">
                   <input className="cli-input" defaultValue={g.title} id={`gt-${g.id}`} style={{ flex: 1 }} />
@@ -82,6 +118,7 @@ export default function GoalsView() {
               ) : (
                 <>
                   <div className="goal-top">
+                    {writable && <span className="goal-drag-handle" title="드래그하여 순서 변경">⠿</span>}
                     <b className="goal-title">{g.title}</b>
                     {g.deadline ? (<>
                       <span className={`goal-dday${d < 0 ? ' over' : d <= 30 ? ' near' : ''}`}>{ddayLabel(d)}</span>
