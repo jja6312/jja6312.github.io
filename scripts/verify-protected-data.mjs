@@ -43,6 +43,15 @@ for (const level of [1, 2, 3]) {
   if (bundle.cliCatalog.commands['instance-maintenance-reboot']?.cmd !== 'oci compute instance-maintenance-reboot get') {
     throw new Error(`L${level} maintenance reboot 조회 명령 오류`)
   }
+  const cleanup = bundle.cliCatalog.commands['compartment-resource-cleansing']
+  if (!cleanup?.compartmentCleanup) throw new Error(`L${level} compartment cleansing 메뉴 누락`)
+  const cleanupOptions = cleanup.sections.flatMap(section => section.options)
+  if (cleanupOptions.find(option => option.name === '--mode')?.defaultValue !== 'PREVIEW') {
+    throw new Error(`L${level} compartment cleansing PREVIEW 기본값 오류`)
+  }
+  if (!cleanupOptions.find(option => option.name === '--cleanup-log-analytics')?.defaultValue) {
+    throw new Error(`L${level} compartment cleansing Log Analytics 옵션 누락`)
+  }
   const crudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations)
   if (crudCommands.length !== 37) throw new Error(`L${level} CRUD 자원 수 오류: ${crudCommands.length}`)
   for (const command of crudCommands) {
@@ -64,3 +73,5 @@ for (const level of [1, 2, 3]) {
 
 if (!cliBuilder.includes(`--query 'data."time-maintenance-reboot-due-max"'`)) throw new Error('최대 연장 시각 query 누락')
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')
+if (!cliBuilder.includes('confirm compartment OCID')) throw new Error('컴파트먼트 정리 이중 확인 가드 누락')
+if (!cliBuilder.includes('oci log-analytics storage purge-storage-data')) throw new Error('Log Analytics compartment purge 누락')

@@ -924,6 +924,8 @@ select.cli-input { cursor: pointer; }
 .cross-note { background: var(--bg-inset); border: 1px solid var(--accent-dim); border-left: 3px solid var(--accent);
   border-radius: 10px; padding: 11px 14px; margin: 0 0 18px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
 .cross-note b { color: var(--accent); }
+.cross-note.cleanup-note { border-color: color-mix(in srgb, var(--wrong) 45%, var(--line)); border-left-color: var(--wrong); }
+.cross-note.cleanup-note b { color: var(--wrong); }
 
 /* ─────────── 클라우드 계약 프로비저닝 관리 ─────────── */
 .provisioning-page { max-width: 1440px; margin: 0 auto; padding: 36px 24px 120px; }

@@ -29,6 +29,7 @@ interface CliCommand {
   cmd: string; help: string
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
   maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
+  compartmentCleanup?: boolean // scoped resource cleanup PREVIEW/DELETE script
   operations?: Partial<Record<CrudVerb, CliOperation>>
   sections: CliSection[]; advanced: CliOption[]
 }
@@ -57,8 +58,7 @@ const supportsOperation = (command: CliCommand | null | undefined, operation: Cr
   ? operation === 'get' || operation === 'update'
   : !!command?.operations?.[operation]
 const operationDefaults = (command: CliCommand, operation: CrudVerb): Record<string, string> => {
-  const selected = command.operations?.[operation]
-  if (!selected) return {}
+  const selected = command.operations?.[operation] ?? command
   return Object.fromEntries(allOptions(selected)
     .filter(option => option.defaultValue !== undefined)
     .map(option => [option.name, option.defaultValue as string]))
@@ -268,9 +268,182 @@ function buildMaintenanceReboot(values: Record<string, string>, operation: 'get'
 }
 
 /* 최종 명령 조립 — 동적 옵션은 변수 선언(prelude) + 참조로 */
+/* Build a safety-gated Bash cleanup script for one exact compartment. */
+function buildCompartmentCleanup(values: Record<string, string>): string {
+  const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
+  const enabled = (key: string) => values[key] === 'true' ? 'true' : 'false'
+  const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
+
+  return [
+    '#!/usr/bin/env bash',
+    '# OCI Compartment Resource Cleansing',
+    '# 기본값은 PREVIEW입니다. DELETE는 동일한 compartment OCID를 한 번 더 확인합니다.',
+    'set -uo pipefail',
+    '',
+    `PROFILE=${q(v('--profile', 'DEFAULT'))}`,
+    `REGION=${q(v('--region', 'ap-seoul-1'))}`,
+    `COMPARTMENT=${q(v('--compartment-id', '<compartment-ocid>'))}`,
+    `MODE=${q(v('--mode', 'PREVIEW').toUpperCase())}`,
+    `CONFIRM_COMPARTMENT=${q(v('--confirm-compartment-id'))}`,
+    `LA_NAMESPACE=${q(v('--log-analytics-namespace'))}`,
+    `CLEAN_COMPUTE=${enabled('--cleanup-compute')}`,
+    `CLEAN_LOAD_BALANCERS=${enabled('--cleanup-load-balancers')}`,
+    `CLEAN_DATABASES=${enabled('--cleanup-databases')}`,
+    `CLEAN_STORAGE=${enabled('--cleanup-storage')}`,
+    `CLEAN_STORAGE_BACKUPS=${enabled('--cleanup-storage-backups')}`,
+    `CLEAN_DB_BACKUPS=${enabled('--cleanup-db-backups')}`,
+    `CLEAN_LOGGING=${enabled('--cleanup-logging')}`,
+    `CLEAN_LOG_ANALYTICS=${enabled('--cleanup-log-analytics')}`,
+    `CLEAN_NETWORK=${enabled('--cleanup-network')}`,
+    'CTX=(--profile "$PROFILE" --region "$REGION")',
+    '',
+    'if [[ ! "$COMPARTMENT" =~ ^ocid1\\.compartment\\. ]]; then',
+    '  echo "[ABORT] --compartment-id에는 컴파트먼트 OCID만 허용됩니다. 테넌시 OCID는 사용할 수 없습니다." >&2',
+    '  exit 2',
+    'fi',
+    'if [[ "$MODE" != "PREVIEW" && "$MODE" != "DELETE" ]]; then',
+    '  echo "[ABORT] MODE는 PREVIEW 또는 DELETE여야 합니다." >&2',
+    '  exit 2',
+    'fi',
+    'if [[ "$MODE" == "DELETE" && "$CONFIRM_COMPARTMENT" != "$COMPARTMENT" ]]; then',
+    '  echo "[ABORT] 실제 삭제에는 confirm compartment OCID가 대상과 완전히 같아야 합니다." >&2',
+    '  exit 2',
+    'fi',
+    '',
+    'print_command() { printf "[PREVIEW]"; printf " %q" "$@"; printf "\\n"; }',
+    'run_delete() {',
+    '  if [[ "$MODE" == "DELETE" ]]; then',
+    '    echo "[DELETE] $*"',
+    '    "$@" || echo "[WARN] 삭제 실패/진행 중: $*" >&2',
+    '  else',
+    '    print_command "$@"',
+    '  fi',
+    '}',
+    'list_ids() {',
+    '  "$@" --all --query \'data[].id\' --raw-output 2>/dev/null |',
+    '    tr -d \'[],"\' | tr \' \' \'\\n\' | sed \'/^$/d\' || true',
+    '}',
+    'list_item_ids() {',
+    '  "$@" --all --query \'data.items[].id\' --raw-output 2>/dev/null |',
+    '    tr -d \'[],"\' | tr \' \' \'\\n\' | sed \'/^$/d\' || true',
+    '}',
+    'cleanup_ids() {',
+    '  local label="$1" id_flag="$2"; shift 2',
+    '  local -a list_cmd=() delete_cmd=()',
+    '  while [[ "$1" != "::" ]]; do list_cmd+=("$1"); shift; done; shift',
+    '  delete_cmd=("$@")',
+    '  local id',
+    '  while IFS= read -r id; do',
+    '    [[ -z "$id" || "$id" == "null" ]] && continue',
+    '    echo "[FOUND] $label $id"',
+    '    run_delete "${delete_cmd[@]}" "$id_flag" "$id" "${CTX[@]}"',
+    '  done < <(list_ids "${list_cmd[@]}" "${CTX[@]}")',
+    '}',
+    '',
+    'echo "=== OCI compartment cleansing: $MODE / $COMPARTMENT / $REGION ==="',
+    'echo "=== Search inventory (explicit cleanup 목록 밖의 자원도 확인) ==="',
+    'oci search resource structured-search --query-text "query all resources where compartmentId = \'$COMPARTMENT\'" --query \'data.items[].{type:"resource-type",name:"display-name",id:identifier}\' --output table "${CTX[@]}" || echo "[WARN] Search inventory 조회 실패" >&2',
+    '',
+    'if $CLEAN_LOAD_BALANCERS; then',
+    '  cleanup_ids "Load Balancer" --load-balancer-id oci lb load-balancer list --compartment-id "$COMPARTMENT" :: oci lb load-balancer delete --force',
+    '  cleanup_ids "Network Load Balancer" --network-load-balancer-id oci nlb network-load-balancer list --compartment-id "$COMPARTMENT" :: oci nlb network-load-balancer delete --force',
+    'fi',
+    '',
+    'if $CLEAN_DATABASES; then',
+    '  cleanup_ids "Autonomous Database" --autonomous-database-id oci db autonomous-database list --compartment-id "$COMPARTMENT" :: oci db autonomous-database delete --force',
+    '  cleanup_ids "Base DB System" --db-system-id oci db system list --compartment-id "$COMPARTMENT" :: oci db system terminate --force',
+    '  cleanup_ids "MySQL DB System" --db-system-id oci mysql db-system list --compartment-id "$COMPARTMENT" :: oci mysql db-system delete --force',
+    'fi',
+    '',
+    'if $CLEAN_COMPUTE; then',
+    '  cleanup_ids "Instance Pool" --instance-pool-id oci compute-management instance-pool list --compartment-id "$COMPARTMENT" :: oci compute-management instance-pool terminate --force',
+    '  cleanup_ids "Compute Instance" --instance-id oci compute instance list --compartment-id "$COMPARTMENT" :: oci compute instance terminate --preserve-boot-volume false --force',
+    '  cleanup_ids "Instance Configuration" --instance-configuration-id oci compute-management instance-configuration list --compartment-id "$COMPARTMENT" :: oci compute-management instance-configuration delete',
+    '  cleanup_ids "Custom Image" --image-id oci compute image list --compartment-id "$COMPARTMENT" :: oci compute image delete --force',
+    'fi',
+    '',
+    'if $CLEAN_LOGGING; then',
+    '  while IFS= read -r group_id; do',
+    '    [[ -z "$group_id" || "$group_id" == "null" ]] && continue',
+    '    while IFS= read -r log_id; do',
+    '      [[ -z "$log_id" || "$log_id" == "null" ]] && continue',
+    '      echo "[FOUND] Log $log_id"',
+    '      run_delete oci logging log delete --log-group-id "$group_id" --log-id "$log_id" --force "${CTX[@]}"',
+    '    done < <(list_ids oci logging log list --log-group-id "$group_id" "${CTX[@]}")',
+    '    echo "[FOUND] Log Group $group_id"',
+    '    run_delete oci logging log-group delete --log-group-id "$group_id" --force "${CTX[@]}"',
+    '  done < <(list_ids oci logging log-group list --compartment-id "$COMPARTMENT" "${CTX[@]}")',
+    'fi',
+    '',
+    'if $CLEAN_LOG_ANALYTICS; then',
+    '  if [[ -z "$LA_NAMESPACE" ]]; then',
+    '    echo "[SKIP] Log Analytics: namespace가 비어 있습니다. 테넌시 전체 offboard는 수행하지 않습니다."',
+    '  else',
+    '    while IFS= read -r entity_id; do',
+    '      [[ -z "$entity_id" || "$entity_id" == "null" ]] && continue',
+    '      echo "[FOUND] Log Analytics Entity $entity_id"',
+    '      run_delete oci log-analytics entity delete --namespace-name "$LA_NAMESPACE" --entity-id "$entity_id" --force "${CTX[@]}"',
+    '    done < <(list_item_ids oci log-analytics entity list --namespace-name "$LA_NAMESPACE" --compartment-id "$COMPARTMENT" "${CTX[@]}")',
+    '    PURGE_UNTIL=$(date -u +%Y-%m-%dT%H:%M:%SZ)',
+    '    run_delete oci log-analytics storage purge-storage-data --namespace-name "$LA_NAMESPACE" --compartment-id "$COMPARTMENT" --compartment-id-in-subtree false --time-data-ended "$PURGE_UNTIL" "${CTX[@]}"',
+    '  fi',
+    'fi',
+    '',
+    'if $CLEAN_STORAGE; then',
+    '  OS_NAMESPACE=$(oci os ns get "${CTX[@]}" --query data --raw-output 2>/dev/null || true)',
+    '  if [[ -n "$OS_NAMESPACE" && "$OS_NAMESPACE" != "null" ]]; then',
+    '    while IFS= read -r bucket; do',
+    '      [[ -z "$bucket" || "$bucket" == "null" ]] && continue',
+    '      echo "[FOUND] Object Storage Bucket $bucket"',
+    '      run_delete oci os object bulk-delete --namespace-name "$OS_NAMESPACE" --bucket-name "$bucket" --force "${CTX[@]}"',
+    '      run_delete oci os bucket delete --namespace-name "$OS_NAMESPACE" --bucket-name "$bucket" --force "${CTX[@]}"',
+    '    done < <(oci os bucket list --namespace-name "$OS_NAMESPACE" --compartment-id "$COMPARTMENT" --all --query \'data[].name\' --raw-output "${CTX[@]}" 2>/dev/null | tr -d \'[],"\' | tr \' \' \'\\n\' | sed \'/^$/d\' || true)',
+    '  fi',
+    '  cleanup_ids "File Storage Export" --export-id oci fs export list --compartment-id "$COMPARTMENT" :: oci fs export delete --force',
+    '  cleanup_ids "File Storage Mount Target" --mount-target-id oci fs mount-target list --compartment-id "$COMPARTMENT" :: oci fs mount-target delete --force',
+    '  cleanup_ids "File System" --file-system-id oci fs file-system list --compartment-id "$COMPARTMENT" :: oci fs file-system delete --force',
+    'fi',
+    '',
+    'if $CLEAN_STORAGE_BACKUPS; then',
+    '  cleanup_ids "Boot Volume Backup" --boot-volume-backup-id oci bv boot-volume-backup list --compartment-id "$COMPARTMENT" :: oci bv boot-volume-backup delete --force',
+    '  cleanup_ids "Block Volume Backup" --volume-backup-id oci bv backup list --compartment-id "$COMPARTMENT" :: oci bv backup delete --force',
+    '  cleanup_ids "Volume Group Backup" --volume-group-backup-id oci bv volume-group-backup list --compartment-id "$COMPARTMENT" :: oci bv volume-group-backup delete --force',
+    'fi',
+    '',
+    'if $CLEAN_DB_BACKUPS; then',
+    '  cleanup_ids "Base DB Backup" --backup-id oci db backup list --compartment-id "$COMPARTMENT" :: oci db backup delete --force',
+    '  cleanup_ids "MySQL Backup" --backup-id oci mysql backup list --compartment-id "$COMPARTMENT" :: oci mysql backup delete --force',
+    '  cleanup_ids "Autonomous DB Backup" --autonomous-database-backup-id oci db autonomous-database-backup list --compartment-id "$COMPARTMENT" :: oci db autonomous-database-backup delete --force',
+    'fi',
+    '',
+    'if $CLEAN_STORAGE; then',
+    '  cleanup_ids "Volume Group" --volume-group-id oci bv volume-group list --compartment-id "$COMPARTMENT" :: oci bv volume-group delete --force',
+    '  cleanup_ids "Block Volume" --volume-id oci bv volume list --compartment-id "$COMPARTMENT" :: oci bv volume delete --force',
+    '  cleanup_ids "Boot Volume" --boot-volume-id oci bv boot-volume list --compartment-id "$COMPARTMENT" :: oci bv boot-volume delete --force',
+    'fi',
+    '',
+    'if $CLEAN_NETWORK; then',
+    '  cleanup_ids "DRG Attachment" --drg-attachment-id oci network drg-attachment list --compartment-id "$COMPARTMENT" :: oci network drg-attachment delete --force',
+    '  cleanup_ids "Remote Peering Connection" --remote-peering-connection-id oci network remote-peering-connection list --compartment-id "$COMPARTMENT" :: oci network remote-peering-connection delete --force',
+    '  cleanup_ids "Local Peering Gateway" --local-peering-gateway-id oci network local-peering-gateway list --compartment-id "$COMPARTMENT" :: oci network local-peering-gateway delete --force',
+    '  cleanup_ids "NAT Gateway" --nat-gateway-id oci network nat-gateway list --compartment-id "$COMPARTMENT" :: oci network nat-gateway delete --force',
+    '  cleanup_ids "Service Gateway" --service-gateway-id oci network service-gateway list --compartment-id "$COMPARTMENT" :: oci network service-gateway delete --force',
+    '  cleanup_ids "Internet Gateway" --ig-id oci network internet-gateway list --compartment-id "$COMPARTMENT" :: oci network internet-gateway delete --force',
+    '  cleanup_ids "Subnet" --subnet-id oci network subnet list --compartment-id "$COMPARTMENT" :: oci network subnet delete --force',
+    '  cleanup_ids "Network Security Group" --nsg-id oci network nsg list --compartment-id "$COMPARTMENT" :: oci network nsg delete --force',
+    '  cleanup_ids "Reserved Public IP" --public-ip-id oci network public-ip list --scope REGION --compartment-id "$COMPARTMENT" :: oci network public-ip delete --force',
+    '  cleanup_ids "Dynamic Routing Gateway" --drg-id oci network drg list --compartment-id "$COMPARTMENT" :: oci network drg delete --force',
+    '  cleanup_ids "Virtual Cloud Network" --vcn-id oci network vcn list --compartment-id "$COMPARTMENT" :: oci network vcn delete --force',
+    'fi',
+    '',
+    'echo "=== 완료: 비동기 삭제 또는 의존성 충돌이 남으면 같은 스크립트를 다시 실행하세요. ==="',
+  ].join('\n')
+}
+
 function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>, operation: CrudVerb): string {
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
   if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get')
+  if (cmd.compartmentCleanup) return buildCompartmentCleanup(values)
 
   const selected = cmd.operations?.[operation] ?? cmd
 
@@ -403,7 +576,7 @@ export default function CliBuilderPage() {
     ? cmd.sections.filter((_, index) => crudOperation === 'update' || index === 0)
     : selectedOperation?.sections ?? cmd?.sections ?? []
   const formAdvanced = selectedOperation?.advanced ?? cmd?.advanced ?? []
-  const hasCrud = !!cmd && !cmd.crossCopy && (!!cmd.maintenanceReboot || !!cmd.operations)
+  const hasCrud = !!cmd && !cmd.crossCopy && !cmd.compartmentCleanup && (!!cmd.maintenanceReboot || !!cmd.operations)
   const isOperationAvailable = (operation: CrudVerb) => supportsOperation(cmd, operation)
   const operationHelp = cmd?.maintenanceReboot
     ? crudOperation === 'update'
@@ -475,8 +648,8 @@ export default function CliBuilderPage() {
 
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
-  const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot)
-  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy)
+  const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup)
+  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup)
   const field = (o: CliOption, optional?: boolean) => (
     <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
       dynamic={!noDyn && isDynamic(dyn, o.name)}
@@ -571,6 +744,13 @@ export default function CliBuilderPage() {
           <div className="cross-note">
             최종 명령에 <b>대상 테넌시 Endorse policy</b> → <b>원본 테넌시 Admit policy</b> → 복사 루프가 모두 포함됩니다.
             policy 는 최초 1회만 실행하면 되고, 전파에 수 분 걸릴 수 있습니다.
+          </div>
+        )}
+
+        {cmd?.compartmentCleanup && (
+          <div className="cross-note cleanup-note">
+            기본은 <b>PREVIEW</b>이며 조회만 실행하고 삭제 예정 명령을 보여줍니다. 실제 삭제는 <b>DELETE</b> 선택과
+            동일한 컴파트먼트 OCID 재입력이 모두 맞아야 시작됩니다. Log Analytics는 테넌시 전체 offboard를 하지 않습니다.
           </div>
         )}
 

@@ -374,11 +374,50 @@ for res, d in raw.items():
 
 # ── 커스텀 레시피 (backbone 없음) ──
 # 여러 명령을 묶거나 별도 조립이 필요한 작업은 CliBuilderPage 의 전용 빌더가 최종 명령을 만든다.
-def _co(name, req, help, ph='', multi=False):
+def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=False):
     o = {'name': name, 'required': req, 'type': 'str', 'choices': None, 'help': help, 'placeholder': ph}
     if multi:
         o['multi'] = True
+    if default is not None:
+        o['defaultValue'] = default
+    if choices is not None:
+        o['choices'] = choices
+    if flag:
+        o['flag'] = True
     return o
+
+def _compartment_cleanup():
+    enabled = lambda name, help: _co(name, False, help, default='true', flag=True)
+    return {
+        'resource': 'compartment-resource-cleansing',
+        'label': 'Compartment Resource Cleansing',
+        'cmd': 'oci search resource structured-search',
+        'compartmentCleanup': True,
+        'help': ('특정 컴파트먼트에 속한 OCI 자원을 서비스 의존성 순서로 조회하고 정리하는 Bash 스크립트입니다. '
+                 '기본 PREVIEW 모드는 삭제 명령만 보여주며, DELETE 모드는 같은 컴파트먼트 OCID를 확인란에 다시 입력해야 실행됩니다.'),
+        'sections': [
+            {'label': '대상 · 실행 안전장치', 'options': [
+                _co('--compartment-id', True, '정리할 단일 컴파트먼트 OCID (테넌시 OCID는 거부)', 'ocid1.compartment.oc1..xxxx'),
+                _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT'),
+                _co('--region', True, '정리할 리전', 'ap-seoul-1', default='ap-seoul-1'),
+                _co('--mode', True, 'PREVIEW는 조회/삭제 명령 출력만, DELETE는 실제 삭제', choices=['PREVIEW', 'DELETE'], default='PREVIEW'),
+                _co('--confirm-compartment-id', False, 'DELETE 시 --compartment-id와 완전히 같은 OCID를 다시 입력', 'ocid1.compartment.oc1..xxxx'),
+                _co('--log-analytics-namespace', False, 'Log Analytics namespace. 비워두면 Log Analytics 정리는 건너뜀', 'example_namespace'),
+            ]},
+            {'label': '정리 대상 서비스', 'options': [
+                enabled('--cleanup-compute', '인스턴스 풀, 인스턴스 구성, 인스턴스, 커스텀 이미지'),
+                enabled('--cleanup-load-balancers', 'Load Balancer와 Network Load Balancer'),
+                enabled('--cleanup-databases', 'Autonomous DB, Base DB System, MySQL DB System'),
+                enabled('--cleanup-storage', 'Object Storage, File Storage, Block/Boot Volume과 Volume Group'),
+                enabled('--cleanup-storage-backups', 'Boot/Block/Volume Group 백업'),
+                enabled('--cleanup-db-backups', 'Base DB, MySQL, Autonomous DB 백업'),
+                enabled('--cleanup-logging', 'Logging의 Log와 Log Group'),
+                enabled('--cleanup-log-analytics', 'Log Analytics entity와 해당 컴파트먼트 범위 저장 데이터'),
+                enabled('--cleanup-network', 'DRG 연결, LPG/RPC, Gateway, Subnet, NSG, DRG, VCN'),
+            ]},
+        ],
+        'advanced': [],
+    }
 
 def _cross(kind, src_opt, label, src_ph):
     res = 'boot-volume-cross-copy' if kind == 'boot-volume' else 'block-volume-cross-copy'
@@ -431,6 +470,7 @@ def _maintenance_reboot():
     }
 
 EXTRA = {
+    'compartment-resource-cleansing': _compartment_cleanup(),
     'instance-maintenance-reboot': _maintenance_reboot(),
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
     'block-volume-cross-copy': _cross('volume', '--source-volume-id', 'Block Volume', 'ocid1.volume.oc1.ap-seoul-1.xxxx'),
