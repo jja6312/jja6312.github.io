@@ -208,15 +208,15 @@ function buildMaintenanceReboot(values: Record<string, string>): string {
   const CONT = ' \\'
 
   return [
-    '# 현재 유지보수 재부팅 예정 시각 조회',
-    'oci compute instance get' + CONT,
+    '# 유지보수 재부팅을 연장할 수 있는 최대 시각 조회',
+    'oci compute instance-maintenance-reboot get' + CONT,
     `  --instance-id "${instanceId}"` + CONT,
     `  --profile "${profile}"` + CONT,
     `  --region "${region}"` + CONT,
-    `  --query 'data."time-maintenance-reboot-due"'` + CONT,
+    `  --query 'data."time-maintenance-reboot-due-max"'` + CONT,
     '  --raw-output',
     '',
-    '# 유지보수 재부팅 예정 시각 변경',
+    '# 인스턴스 유지보수 재부팅 달력 업데이트',
     'oci compute instance update' + CONT,
     `  --instance-id "${instanceId}"` + CONT,
     `  --time-maintenance-reboot-due "${rebootDue}"` + CONT,
@@ -398,7 +398,7 @@ export default function CliBuilderPage() {
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
   const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot)
-  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.maintenanceReboot)
+  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy)
   const field = (o: CliOption, optional?: boolean) => (
     <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
       dynamic={!noDyn && isDynamic(dyn, o.name)}

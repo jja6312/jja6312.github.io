@@ -18,7 +18,7 @@ OUT = os.path.join(SITE, '.protected-cache', 'cliCatalog.json')
 
 STRUCTURE = [
   ('02-compute', 'Compute', [
-    ('Instances', ['instance', 'instance-configuration', 'instance-pool']),
+    ('Instances', ['instance', 'instance-maintenance-reboot', 'instance-configuration', 'instance-pool']),
     ('Dedicated Infrastructure', ['dedicated-vm-host', 'capacity-reservation', 'compute-cluster']),
     ('Images', ['custom-image']),
   ]),
@@ -223,11 +223,12 @@ def build_option(o):
     }
 
 catalog = {'categories': [], 'commands': {}}
+MANUAL_CATEGORY_RESOURCES = {'instance-maintenance-reboot'}
 placed = set()
 for cat_id, cat_label, groups in STRUCTURE:
     cat = {'id': cat_id, 'label': cat_label, 'groups': []}
     for glabel, resources in groups:
-        rs = [r for r in resources if r in raw]
+        rs = [r for r in resources if r in raw or r in MANUAL_CATEGORY_RESOURCES]
         if rs:
             cat['groups'].append({'label': glabel, 'resources': rs})
             placed.update(rs)
@@ -320,18 +321,18 @@ def _cross(kind, src_opt, label, src_ph):
 def _maintenance_reboot():
     return {
         'resource': 'instance-maintenance-reboot',
-        'label': 'Instance — Maintenance Reboot',
-        'cmd': 'oci compute instance get',
+        'label': 'Instance Maintenance Reboot',
+        'cmd': 'oci compute instance-maintenance-reboot get',
         'maintenanceReboot': True,
-        'help': ('Compute 인스턴스의 유지보수 재부팅 예정 시각을 조회하고 새 시각으로 변경. '
-                 '최종 명령에 조회(get)와 변경(update) 명령이 함께 생성됩니다.'),
+        'help': ('유지보수 재부팅을 연장할 수 있는 최대 시각을 조회하고 실제 재부팅 달력을 변경. '
+                 '최종 명령에 최대 시각 조회와 달력 업데이트 명령이 함께 생성됩니다.'),
         'sections': [
             {'label': '인스턴스 · 실행 환경', 'options': [
                 _co('--instance-id', True, '대상 Compute 인스턴스 OCID', 'ocid1.instance.oc1.ap-seoul-1.xxxx'),
                 _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT'),
                 _co('--region', True, '대상 인스턴스 리전', 'ap-seoul-1'),
             ]},
-            {'label': '새 유지보수 재부팅 시각', 'options': [
+            {'label': '재부팅 달력 업데이트', 'options': [
                 _co('--time-maintenance-reboot-due', True,
                     '변경할 UTC 시각 (RFC 3339 / ISO 8601 형식)', '2026-08-30T23:18:00Z'),
             ]},
@@ -344,7 +345,7 @@ EXTRA = {
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
     'block-volume-cross-copy': _cross('volume', '--source-volume-id', 'Block Volume', 'ocid1.volume.oc1.ap-seoul-1.xxxx'),
 }
-# 커스텀 레시피는 카테고리에 넣지 않는다 — CliBuilderPage 가 Custom 과 같은 최상위 레벨에 렌더
+# cross-copy는 최상위 레벨, maintenance reboot는 Compute > Instances에 렌더
 catalog['commands'].update(EXTRA)
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
