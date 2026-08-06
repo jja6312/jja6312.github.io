@@ -44,6 +44,7 @@ function Hotkeys() {
         else if (e.key === 'c') nav('/knowledge/oci-cli')
         else if (e.key === 't') nav('/knowledge/terraform')
         else if (e.key === 'q') nav('/knowledge/quote')
+        else if (e.key === 'v') nav('/knowledge/provisioning')
         else if (e.key === 'm') nav('/knowledge/meetings')   // 회의록 = 지식모음 하위
         else if (e.key === 'd') nav('/schedule/todo')  // t 는 Terraform 이 가져감 → Do(일정관리)
         else if (e.key === 'p') nav('/profile')

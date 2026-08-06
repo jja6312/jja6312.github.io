@@ -27,6 +27,7 @@ export default function CommandPalette() {
     { id: 'cli', label: '지식모음 — OCI CLI 레시피', kbd: 'g c', run: () => nav('/knowledge/oci-cli') },
     { id: 'tf', label: '지식모음 — Terraform', kbd: 'g t', run: () => nav('/knowledge/terraform') },
     { id: 'quote', label: '지식모음 — 견적', kbd: 'g q', run: () => nav('/knowledge/quote') },
+    { id: 'provisioning', label: '지식모음 — 프로비저닝 관리', kbd: 'g v', run: () => nav('/knowledge/provisioning') },
     { id: 'meetings', label: '지식모음 — 회의록', kbd: 'g m', run: () => nav('/knowledge/meetings') },
     { id: 'profile', label: '프로필로 이동', kbd: 'g p', run: () => nav('/profile') },
     { id: 'theme', label: '다크/라이트 토글', kbd: 'd', run: toggleTheme },

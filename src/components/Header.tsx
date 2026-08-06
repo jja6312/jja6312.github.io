@@ -23,6 +23,7 @@ const tabs: Tab[] = [
       { to: '/knowledge/terraform', label: 'Terraform' },
       { to: '/knowledge/troubleshooting', label: '트러블슈팅' },
       { to: '/knowledge/quote', label: '견적' },
+      { to: '/knowledge/provisioning', label: '프로비저닝 관리' },
       { to: '/knowledge/meetings', label: '회의록' },
       { to: '/knowledge/announcements', label: 'Announcement' },
     ],
@@ -85,7 +86,7 @@ export default function Header() {
         </div>
         <button className="authbtn px" onClick={() => openAuth()} title="로그인 / 권한">
           <LockIcon open={authLevel > 0} size={13} />
-          {authLevel >= 3 ? 'PAT' : authLevel > 0 ? `Lv${authLevel}` : '로그인'}
+          {authLevel > 0 ? `Lv${authLevel}` : '로그인'}
         </button>
         <button className="iconbtn hide-mobile" onClick={() => adjustUiScale(-1)} title="화면 축소">A−</button>
         <button className="iconbtn hide-mobile" onClick={() => adjustUiScale(1)} title="화면 확대">A+</button>
@@ -121,7 +122,7 @@ export default function Header() {
             })}
             <div className="mdrawer-actions">
               <button className="authbtn px" onClick={() => { setMenuOpen(false); openAuth() }}>
-                <LockIcon open={authLevel > 0} size={13} />{authLevel >= 3 ? 'PAT' : authLevel > 0 ? `Lv${authLevel}` : '로그인'}
+                <LockIcon open={authLevel > 0} size={13} />{authLevel > 0 ? `Lv${authLevel}` : '로그인'}
               </button>
               <button className="iconbtn" onClick={toggleTheme} title="다크모드">◐</button>
               <button className="iconbtn" onClick={() => adjustUiScale(-1)} title="축소">A−</button>

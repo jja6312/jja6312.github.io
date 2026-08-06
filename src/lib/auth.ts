@@ -9,6 +9,7 @@ export type Level = 0 | 1 | 2 | 3
 export const LOCKS: { prefix: string; level: Level }[] = [
   { prefix: '/knowledge/meetings', level: 3 },
   { prefix: '/knowledge/announcements', level: 3 },
+  { prefix: '/knowledge/provisioning', level: 3 },
   { prefix: '/schedule/calendar', level: 2 },
   { prefix: '/schedule/todo', level: 2 },
   { prefix: '/schedule/goals', level: 2 },

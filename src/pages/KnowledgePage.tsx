@@ -5,6 +5,7 @@ import KnowledgeDocsPage from './KnowledgeDocsPage'
 import CliBuilderPage from './CliBuilderPage'
 import QuotePage from './QuotePage'
 import MeetingsPage from './MeetingsPage'
+import ProvisioningPage from './ProvisioningPage'
 import Locks from '../components/Locks'
 import LockedNotice from '../components/LockedNotice'
 import { requiredLevel } from '../lib/auth'
@@ -16,6 +17,7 @@ const SECTIONS = [
   { id: 'terraform', label: 'Terraform', kbd: 'g t' },
   { id: 'troubleshooting', label: '트러블슈팅', kbd: 'g s' },
   { id: 'quote', label: '견적', kbd: 'g q', locked: true },
+  { id: 'provisioning', label: '프로비저닝 관리', kbd: 'g v', locked: true },
   { id: 'meetings', label: '회의록', kbd: 'g m', locked: true },
   { id: 'announcements', label: 'Announcement', kbd: 'g a', locked: true },
 ] as const
@@ -56,6 +58,7 @@ export default function KnowledgePage() {
             path="knowledge/terraform" />
         )}
         {active === 'quote' && <QuotePage />}
+        {active === 'provisioning' && <ProvisioningPage />}
         {active === 'meetings' && <MeetingsPage />}
       </>}
     </div>

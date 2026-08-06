@@ -45,6 +45,7 @@ for (const level of [1, 2, 3]) {
   }
   if ((level >= 2) !== !!bundle.schedule) throw new Error(`L${level} schedule 범위 오류`)
   if ((level >= 3) !== !!bundle.meetings) throw new Error(`L${level} meetings 범위 오류`)
+  if ((level >= 3) !== !!bundle.provisioning) throw new Error(`L${level} provisioning 범위 오류`)
   console.log(`L${level} 복호화 OK · payload ${Object.keys(keys).length}개`)
 }
 

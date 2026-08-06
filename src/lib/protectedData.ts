@@ -20,6 +20,7 @@ export interface ProtectedBundle {
     catalog: ProtectedDoc[]
     snapshots: ProtectedDoc[]
   }
+  provisioning?: unknown
 }
 
 interface ProtectedFile {
@@ -88,12 +89,13 @@ export function useProtectedData() {
 }
 
 export function protectedJson(bundle: ProtectedBundle | null, path: string): unknown {
-  if (!bundle?.schedule) return undefined
+  if (!bundle) return undefined
   const map: Record<string, unknown> = {
-    'profile/calendar.json': bundle.schedule.calendar,
-    'todo/board.json': bundle.schedule.board,
-    'schedule/journal.json': bundle.schedule.journal,
-    'schedule/goals.json': bundle.schedule.goals,
+    'profile/calendar.json': bundle.schedule?.calendar,
+    'todo/board.json': bundle.schedule?.board,
+    'schedule/journal.json': bundle.schedule?.journal,
+    'schedule/goals.json': bundle.schedule?.goals,
+    'provisioning/contracts.json': bundle.provisioning,
   }
   return map[path]
 }

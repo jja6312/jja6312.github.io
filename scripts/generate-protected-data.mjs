@@ -80,6 +80,7 @@ const level2 = {
   },
 }
 const level3 = {
+  provisioning: readJson('provisioning/contracts.json', { customers: [] }),
   meetings: readDocs('meetings/minutes'),
   announcements: {
     catalog: readDocs('announcements/catalog'),
@@ -114,4 +115,4 @@ mkdirSync(dirname(OUT), { recursive: true })
 writeFileSync(OUT, JSON.stringify({ version: 2, generatedAt, payloads, keyrings }, null, 1) + '\n')
 writeFileSync(SITE_VERIFIERS, JSON.stringify(verifiers, null, 2) + '\n')
 if (rotateVerifiers) writeFileSync(DB_VERIFIERS, JSON.stringify(verifiers, null, 2) + '\n')
-console.log(`protectedData.json — L1 ${level1.terraformDocs.length} docs · L2 schedule · L3 ${level3.meetings.length} meetings/${level3.announcements.catalog.length + level3.announcements.snapshots.length} announcements`)
+console.log(`protectedData.json — L1 ${level1.terraformDocs.length} docs · L2 schedule · L3 ${level3.provisioning.customers.length} customers/${level3.meetings.length} meetings/${level3.announcements.catalog.length + level3.announcements.snapshots.length} announcements`)
