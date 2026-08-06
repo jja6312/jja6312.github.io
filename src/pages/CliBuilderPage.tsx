@@ -30,6 +30,14 @@ interface Catalog {
 }
 const EMPTY_CATALOG: Catalog = { categories: [], commands: {} }
 
+const MAINTENANCE_REBOOT_OPERATIONS = [
+  { verb: 'GET', icon: '↓', available: true, detail: '최대 연장 가능 시각 조회' },
+  { verb: 'LIST', icon: '≡', available: false, detail: '등록된 명령 없음' },
+  { verb: 'CREATE', icon: '+', available: false, detail: '등록된 명령 없음' },
+  { verb: 'UPDATE', icon: '↻', available: true, detail: '재부팅 예정 시각 변경' },
+  { verb: 'DELETE', icon: '×', available: false, detail: '등록된 명령 없음' },
+] as const
+
 /* ── 동적 조회 지원 옵션 — 이름만 넣으면 $()/변수로 OCID를 찾아준다 ──
    기본값 = 동적. 체크 해제 시 OCID 직접 입력. */
 const DYNAMIC: Record<string, { input: string; note: string }> = {
@@ -462,6 +470,19 @@ export default function CliBuilderPage() {
       <main className="cli-main">
         <div className="crumb"><span className="px">OCI CLI</span> / {cmd ? cmd.label : 'Custom'}</div>
         <h1 className={`sheet-h1${cmd && isVerified(active) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
+        {cmd?.maintenanceReboot && (
+          <div className="cli-crud-strip" aria-label="Instance Maintenance Reboot 명령 지원 현황">
+            {MAINTENANCE_REBOOT_OPERATIONS.map(operation => (
+              <div key={operation.verb}
+                className={`cli-crud-op ${operation.available ? 'available' : 'unavailable'}`}
+                aria-disabled={!operation.available} title={`${operation.verb} — ${operation.detail}`}>
+                <span className="cli-crud-icon" aria-hidden="true">{operation.icon}</span>
+                <span className="cli-crud-verb">{operation.verb}</span>
+                <span className="cli-crud-state">{operation.available ? '지원됨' : '미지원'}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {cmd
           ? <p className="cli-help">{cmd.help}</p>
           : <p className="cli-help">자유 입력 — 직접 작성하거나, 왼쪽에서 자원을 골라 폼으로 만드세요. 저장하면 즐겨찾기로 재사용됩니다.</p>}
