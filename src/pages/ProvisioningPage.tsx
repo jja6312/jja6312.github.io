@@ -6,20 +6,17 @@ interface ProvisioningCustomer {
   customer: string
   tcsaSent: string
   tcsaApproved: string
-  orderStatus: string
+  tcsaNumber: string
+  orderDate: string
+  orderAmount: string
+  orderState: '' | 'open' | 'closed'
   salesMailConfirmed: string
   creditConfirmed: string
 }
 interface ProvisioningData { customers: ProvisioningCustomer[] }
 
 const EMPTY: ProvisioningData = { customers: [] }
-const DATE_FIELDS: { key: Exclude<keyof ProvisioningCustomer, 'id' | 'customer'>; label: string }[] = [
-  { key: 'tcsaSent', label: 'TCSA 발송' },
-  { key: 'tcsaApproved', label: 'TCSA 승인 완료' },
-  { key: 'orderStatus', label: 'Order Status' },
-  { key: 'salesMailConfirmed', label: '매출 메일 확인' },
-  { key: 'creditConfirmed', label: '충전 확인' },
-]
+type ProvisioningDateKey = 'tcsaSent' | 'tcsaApproved' | 'orderDate' | 'salesMailConfirmed' | 'creditConfirmed'
 
 const todayLocalIso = () => {
   const today = new Date()
@@ -41,7 +38,8 @@ export default function ProvisioningPage() {
     update({
       customers: [...data.customers, {
         id: `customer-${Date.now()}`, customer,
-        tcsaSent: '', tcsaApproved: '', orderStatus: '', salesMailConfirmed: '', creditConfirmed: '',
+        tcsaSent: '', tcsaApproved: '', tcsaNumber: '', orderDate: '', orderAmount: '', orderState: '',
+        salesMailConfirmed: '', creditConfirmed: '',
       }],
     })
     setNewCustomer('')
@@ -53,6 +51,18 @@ export default function ProvisioningPage() {
       update({ customers: data.customers.filter(customer => customer.id !== item.id) })
     }
   }
+  const dateControl = (item: ProvisioningCustomer, key: ProvisioningDateKey, label: string) => (
+    <div className="provisioning-date-control">
+      <input type="date" className="provisioning-date" value={item[key] ?? ''} readOnly={!writable}
+        aria-label={`${item.customer} ${label}`}
+        onChange={event => patchCustomer(item.id, { [key]: event.target.value })} />
+      {writable && (
+        <button type="button" className="provisioning-today"
+          aria-label={`${item.customer} ${label} 오늘 날짜 입력`}
+          onClick={() => patchCustomer(item.id, { [key]: todayLocalIso() })}>Today</button>
+      )}
+    </div>
+  )
 
   return (
     <div className="provisioning-page">
@@ -66,7 +76,7 @@ export default function ProvisioningPage() {
       </div>
 
       {!writable && (
-        <div className="cross-note">자물쇠 3으로 암호화 현황을 열었습니다. 현재는 <b>읽기 전용</b>이며 날짜 수정에는 PAT가 필요합니다.</div>
+        <div className="cross-note">자물쇠 3으로 암호화 현황을 열었습니다. 현재는 <b>읽기 전용</b>이며 정보 수정에는 PAT가 필요합니다.</div>
       )}
 
       {writable && (
@@ -83,13 +93,20 @@ export default function ProvisioningPage() {
           <thead>
             <tr>
               <th>고객사 이름</th>
-              {DATE_FIELDS.map(field => <th key={field.key}>{field.label}</th>)}
+              <th>TCSA 발송</th>
+              <th>TCSA 승인 완료</th>
+              <th>Order Status</th>
+              <th>매출 메일 확인</th>
+              <th>충전 확인</th>
               {writable && <th aria-label="관리" />}
             </tr>
           </thead>
           <tbody>
             {data.customers.map(item => {
-              const fullyComplete = DATE_FIELDS.every(field => !!item[field.key])
+              const tcsaApprovedComplete = !!item.tcsaApproved && !!item.tcsaNumber?.trim()
+              const orderComplete = item.orderState === 'closed'
+              const fullyComplete = !!item.tcsaSent && tcsaApprovedComplete && orderComplete
+                && !!item.salesMailConfirmed && !!item.creditConfirmed
               return (
                 <tr key={item.id} className={fullyComplete ? 'fully-complete' : ''}>
                 <td className="provisioning-customer">
@@ -98,30 +115,48 @@ export default function ProvisioningPage() {
                       onChange={event => patchCustomer(item.id, { customer: event.target.value })} />
                   ) : <b>{item.customer}</b>}
                 </td>
-                {DATE_FIELDS.map(field => (
-                  <td key={field.key} className={item[field.key] ? 'complete' : ''}>
-                    <div className="provisioning-date-control">
-                      <input type="date" className="provisioning-date" value={item[field.key]} readOnly={!writable}
-                        aria-label={`${item.customer} ${field.label}`}
-                        onChange={event => patchCustomer(item.id, { [field.key]: event.target.value })} />
-                      {writable && (
-                        <button type="button" className="provisioning-today"
-                          aria-label={`${item.customer} ${field.label} 오늘 날짜 입력`}
-                          onClick={() => patchCustomer(item.id, { [field.key]: todayLocalIso() })}>Today</button>
-                      )}
-                    </div>
-                  </td>
-                ))}
+                <td className={item.tcsaSent ? 'complete' : ''}>
+                  {dateControl(item, 'tcsaSent', 'TCSA 발송')}
+                </td>
+                <td className={tcsaApprovedComplete ? 'complete' : item.tcsaApproved ? 'dated' : ''}>
+                  <div className="provisioning-stage-control">
+                    {dateControl(item, 'tcsaApproved', 'TCSA 승인 완료')}
+                    <input className="provisioning-detail-input" value={item.tcsaNumber ?? ''} readOnly={!writable}
+                      placeholder="TCSA_11974403397" aria-label={`${item.customer} TCSA 번호`}
+                      onChange={event => patchCustomer(item.id, { tcsaNumber: event.target.value })} />
+                  </div>
+                </td>
+                <td className={orderComplete ? 'complete' : item.orderDate ? 'dated' : ''}>
+                  <div className="provisioning-stage-control">
+                    {dateControl(item, 'orderDate', 'Order Status 날짜')}
+                    <input className="provisioning-detail-input" value={item.orderAmount ?? ''} readOnly={!writable}
+                      inputMode="decimal" placeholder="계약액" aria-label={`${item.customer} 계약액`}
+                      onChange={event => patchCustomer(item.id, { orderAmount: event.target.value })} />
+                    <select className={`provisioning-status ${item.orderState || 'unset'}`} value={item.orderState ?? ''}
+                      disabled={!writable} aria-label={`${item.customer} Order 상태`}
+                      onChange={event => patchCustomer(item.id, { orderState: event.target.value as ProvisioningCustomer['orderState'] })}>
+                      <option value="">상태 선택</option>
+                      <option value="open">Open</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </div>
+                </td>
+                <td className={item.salesMailConfirmed ? 'complete' : ''}>
+                  {dateControl(item, 'salesMailConfirmed', '매출 메일 확인')}
+                </td>
+                <td className={item.creditConfirmed ? 'complete' : ''}>
+                  {dateControl(item, 'creditConfirmed', '충전 확인')}
+                </td>
                 {writable && (
                   <td className="provisioning-actions">
                     <button className="kdel" title="고객사 삭제" onClick={() => removeCustomer(item)}>✕</button>
                   </td>
                 )}
-                </tr>
+              </tr>
               )
             })}
             {data.customers.length === 0 && (
-              <tr><td className="provisioning-empty" colSpan={DATE_FIELDS.length + 1 + (writable ? 1 : 0)}>등록된 고객사가 없습니다.</td></tr>
+              <tr><td className="provisioning-empty" colSpan={6 + (writable ? 1 : 0)}>등록된 고객사가 없습니다.</td></tr>
             )}
           </tbody>
         </table>
