@@ -21,6 +21,14 @@ const DATE_FIELDS: { key: Exclude<keyof ProvisioningCustomer, 'id' | 'customer'>
   { key: 'creditConfirmed', label: '충전 확인' },
 ]
 
+const todayLocalIso = () => {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export default function ProvisioningPage() {
   const { data, update, sync, writable } = useSyncedJson<ProvisioningData>(
     'provisioning/contracts.json', EMPTY, 'provisioning: 계약 진행 현황 갱신',
@@ -92,9 +100,16 @@ export default function ProvisioningPage() {
                 </td>
                 {DATE_FIELDS.map(field => (
                   <td key={field.key} className={item[field.key] ? 'complete' : ''}>
-                    <input type="date" className="provisioning-date" value={item[field.key]} readOnly={!writable}
-                      aria-label={`${item.customer} ${field.label}`}
-                      onChange={event => patchCustomer(item.id, { [field.key]: event.target.value })} />
+                    <div className="provisioning-date-control">
+                      <input type="date" className="provisioning-date" value={item[field.key]} readOnly={!writable}
+                        aria-label={`${item.customer} ${field.label}`}
+                        onChange={event => patchCustomer(item.id, { [field.key]: event.target.value })} />
+                      {writable && (
+                        <button type="button" className="provisioning-today"
+                          aria-label={`${item.customer} ${field.label} 오늘 날짜 입력`}
+                          onClick={() => patchCustomer(item.id, { [field.key]: todayLocalIso() })}>Today</button>
+                      )}
+                    </div>
                   </td>
                 ))}
                 {writable && (
