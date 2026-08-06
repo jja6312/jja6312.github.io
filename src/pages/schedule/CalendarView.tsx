@@ -10,7 +10,7 @@ const iso = (y: number, m: number, d: number) =>
 const WEEK = ['일', '월', '화', '수', '목', '금', '토']
 
 export default function CalendarView() {
-  const { data, update, sync } = useSyncedJson<CalData>('profile/calendar.json', {} as CalData, 'profile: 달력 갱신')
+  const { data, update, sync, writable } = useSyncedJson<CalData>('profile/calendar.json', {} as CalData, 'profile: 달력 갱신')
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, '').data
   const goalOf = (id?: string) => goals.find(g => g.id === id)
@@ -145,12 +145,12 @@ export default function CalendarView() {
                 <span style={{ flex: 1 }}>{e.text}</span>
                 {g && <span className="goal-tag px" style={{ borderColor: g.color, color: g.color }}>{g.title}</span>}
                 <span className="px" style={{ fontSize: 10, color: 'var(--text-faint)' }}>{CATS.find(c => c.id === e.cat)?.label}</span>
-                <button className="iconbtn" onClick={() => editEvent(sel, e.id)} title="수정">✎</button>
-                <button className="kdel" onClick={() => removeEvent(sel, e.id)} title="삭제">✕</button>
+                {writable && <button className="iconbtn" onClick={() => editEvent(sel, e.id)} title="수정">✎</button>}
+                {writable && <button className="kdel" onClick={() => removeEvent(sel, e.id)} title="삭제">✕</button>}
               </div>
             )
           })}
-          <div className="cal-add">
+          {writable && <div className="cal-add">
             <div className="cal-cats">
               {CATS.map(c => (
                 <button key={c.id} className={`cal-cat${cat === c.id ? ' on' : ''}`}
@@ -168,7 +168,7 @@ export default function CalendarView() {
               placeholder="+ 일정·학습 내용" value={draft}
               onChange={e => setDraft(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') addEvent() }} />
-          </div>
+          </div>}
         </div>
       )}
     </div>

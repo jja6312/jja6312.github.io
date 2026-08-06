@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
-import catalog from '../data/cliCatalog.json'
+import { useProtectedData } from '../lib/protectedData'
 
 interface CliOption {
   name: string
@@ -28,7 +28,7 @@ interface Catalog {
   categories: { id: string; label: string; groups: { label: string; resources: string[] }[] }[]
   commands: Record<string, CliCommand>
 }
-const CAT = catalog as unknown as Catalog
+const EMPTY_CATALOG: Catalog = { categories: [], commands: {} }
 
 /* ── 동적 조회 지원 옵션 — 이름만 넣으면 $()/변수로 OCID를 찾아준다 ──
    기본값 = 동적. 체크 해제 시 OCID 직접 입력. */
@@ -294,17 +294,16 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
   return prelude.length ? prelude.join('\n\n') + '\n\n' + main : main
 }
 
-const catOfResource = (r: string) =>
-  CAT.categories.find(c => c.groups.some(g => g.resources.includes(r)))?.id
-// 전용 조립 레시피 — 카테고리 밖, Custom 과 같은 최상위 레벨
-const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.maintenanceReboot)
+const catOfResource = (catalog: Catalog, r: string) =>
+  catalog.categories.find(c => c.groups.some(g => g.resources.includes(r)))?.id
 
 export default function CliBuilderPage() {
   const { showToast } = useHub()
+  const protectedState = useProtectedData()
+  const CAT = (protectedState.data?.cliCatalog as Catalog | undefined) ?? EMPTY_CATALOG
   const [sp] = useSearchParams()
   const rParam = sp.get('r')                                  // Ctrl+K 딥링크: ?r=<resource>
-  const initial = rParam && CAT.commands[rParam] ? rParam : '__custom'
-  const [active, setActive] = useState<string>(initial)
+  const [active, setActive] = useState<string>('__custom')
   const [values, setValues] = useState<Record<string, string>>({})
   const [dyn, setDyn] = useState<Record<string, boolean>>({})
   const [customText, setCustomText] = useState('oci ')
@@ -313,23 +312,23 @@ export default function CliBuilderPage() {
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
   // 딥링크로 들어온 자원의 카테고리는 펼쳐 둔다 (그 외는 닫힘)
-  const [openCats, setOpenCats] = useState<Record<string, boolean>>(() => {
-    const cat = rParam && CAT.commands[rParam] ? catOfResource(rParam) : undefined
-    return cat ? { [cat]: true } : {}
-  })
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({})
 
   // 팔레트에서 ?r 이 바뀌며 재진입하면 해당 자원 선택 + 카테고리 펼침
   useEffect(() => {
     if (!rParam || !CAT.commands[rParam]) return
     setActive(rParam); setValues({}); setDyn({}); setShowOptional(false)
-    const cat = catOfResource(rParam)
+    const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
-  }, [rParam])
+  }, [rParam, CAT])
 
   // 검증 상태 — 내가 직접 실행해 확인한 명령만 파란색. blog-db knowledge/oci-cli/verified.json 공유.
   const pat = getPat()
   const [verified, setVerified] = useState<string[]>([])
   const vShaRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!pat && protectedState.data?.cliVerified) setVerified(protectedState.data.cliVerified)
+  }, [pat, protectedState.data])
   useEffect(() => {
     if (!pat) return
     getFile(pat, 'knowledge/oci-cli/verified.json').then(f => {
@@ -399,12 +398,19 @@ export default function CliBuilderPage() {
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
   const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot)
+  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.maintenanceReboot)
   const field = (o: CliOption, optional?: boolean) => (
     <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
       dynamic={!noDyn && isDynamic(dyn, o.name)}
       onToggleDynamic={!noDyn && o.name in DYNAMIC ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
       subVal={k => values[subKey(o.name, k)] || ''}
       onSub={(k, v) => setVal(subKey(o.name, k), v)} />
+  )
+
+  if (!protectedState.data) return (
+    <div className="cli-main">
+      <div className="cmt-empty">{protectedState.loading ? '보호된 OCI CLI 데이터를 복호화하는 중…' : protectedState.error}</div>
+    </div>
   )
 
   return (

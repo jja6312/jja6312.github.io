@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
 import { useHub } from '../store'
 import { getPat, listDir, getFileByUrl, explainGhError } from '../lib/githubDb'
-import PatNotice from '../components/PatNotice'
+import { useProtectedData } from '../lib/protectedData'
 
 interface Doc { name: string; content: string }
 
@@ -11,6 +11,7 @@ export default function KnowledgeDocsPage({ crumb, title, desc, path, badge }: {
   crumb: string; title: string; desc: string; path: string; badge: string
 }) {
   const pat = getPat()
+  const protectedState = useProtectedData()
   const { showToast } = useHub()
   const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(false)
@@ -18,7 +19,10 @@ export default function KnowledgeDocsPage({ crumb, title, desc, path, badge }: {
   const [open, setOpen] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
-    if (!pat) return
+    if (!pat) {
+      if (protectedState.data) setDocs(protectedState.data.terraformDocs ?? [])
+      return
+    }
     setLoading(true)
     try {
       const entries = (await listDir(pat, path)).filter(e => e.name.endsWith('.md'))
@@ -29,7 +33,7 @@ export default function KnowledgeDocsPage({ crumb, title, desc, path, badge }: {
       setDocs(loaded.filter((x): x is Doc => !!x).sort((a, b) => a.name.localeCompare(b.name)))
     } catch (e) { showToast(`문서 조회 실패: ${explainGhError(e)}`) }
     finally { setLoading(false) }
-  }, [pat, path, showToast])
+  }, [pat, path, showToast, protectedState.data])
 
   useEffect(() => { refresh() }, [refresh])
 
@@ -42,11 +46,11 @@ export default function KnowledgeDocsPage({ crumb, title, desc, path, badge }: {
   const docTitle = (d: Doc) =>
     (d.content.match(/^#\s+(.+)$/m)?.[1]) ?? d.name.replace(/^_|\.md$/g, '').replace(/^ocicli_/, '')
 
-  if (!pat) return (
+  if (!pat && !protectedState.data) return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px' }}>
       <div className="crumb"><span className="px">{crumb}</span></div>
       <h1 className="sheet-h1">{title}</h1>
-      <div style={{ height: 20 }} /><PatNotice />
+      <div className="cmt-empty">{protectedState.loading ? '보호 문서를 복호화하는 중…' : protectedState.error}</div>
     </div>
   )
 

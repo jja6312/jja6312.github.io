@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom'
 
-// PAT 미등록 시 각 데이터 탭에서 보여주는 안내
+// PAT 없이는 원격 조회·쓰기를 제공할 수 없는 공개 탭의 안내
 export default function PatNotice() {
   return (
     <div className="card" style={{ padding: '30px 24px', textAlign: 'center', fontSize: 14.5, color: 'var(--text-dim)' }}>
-      이 탭은 blog-db(private)를 읽고 씁니다 — <b style={{ color: 'var(--partial)' }}>PAT 등록이 필요</b>합니다.<br />
-      <Link to="/feedback" style={{ color: 'var(--accent)' }}>피드백 탭의 PAT 설정</Link>에서 한 번 등록하면 모든 탭에 적용됩니다.
+      이 탭의 원격 조회·등록에는 <b style={{ color: 'var(--partial)' }}>PAT가 필요</b>합니다.<br />
+      <Link to="/feedback" style={{ color: 'var(--accent)' }}>피드백 탭의 PAT 설정</Link>에서 등록할 수 있습니다. 잠금 데이터 열람은 PAT 없이 가능합니다.
     </div>
   )
 }

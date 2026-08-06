@@ -124,9 +124,9 @@ export default function FeedbackPage() {
       </p>
 
       {/* PAT 설정 */}
-      <details className="card" style={{ padding: '12px 18px', marginBottom: 18, fontSize: 14.5 }} open={!pat}>
+      <details className="card" style={{ padding: '12px 18px', marginBottom: 18, fontSize: 14.5 }}>
         <summary style={{ cursor: 'pointer', color: pat ? 'var(--accent)' : 'var(--partial)' }}>
-          {pat ? 'PAT 등록됨 — blog-db 직접 commit' : 'PAT 미등록 — 지금은 이 브라우저에만 저장됨'}
+          {pat ? 'PAT 등록됨 — blog-db 쓰기·실시간 동기화 활성' : 'PAT 선택사항 — 열람은 자물쇠 비밀번호만으로 가능'}
         </summary>
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <input className="cmdinput" type="password" style={{ flex: 1, minWidth: 200 }}
@@ -139,6 +139,7 @@ export default function FeedbackPage() {
           {pat && <button className="iconbtn" onClick={() => { setPat(''); setPatState(''); showToast('PAT 삭제됨') }}>삭제</button>}
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 8 }}>
+          PAT는 등록·수정·실시간 동기화에만 사용됩니다. 보호된 데이터 열람에는 필요하지 않습니다.<br />
           github.com/settings/personal-access-tokens → Fine-grained → Repository access: blog-db만 → Contents: Read and write
         </div>
         {pat && (

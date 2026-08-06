@@ -8,7 +8,7 @@ import {
 const ddayLabel = (n: number) => n > 0 ? `D-${n}` : n === 0 ? 'D-DAY' : `D+${-n} 지남`
 
 export default function GoalsView() {
-  const { data, update, sync } = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, 'goals: 목표 갱신')
+  const { data, update, sync, writable } = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, 'goals: 목표 갱신')
   // 진척 집계용 — 읽기 전용 로드
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, '').data
   const cal = useSyncedJson<CalData>('profile/calendar.json', {} as CalData, '').data
@@ -46,7 +46,7 @@ export default function GoalsView() {
       </p>
 
       {/* 목표 추가 */}
-      <div className="goal-add">
+      {writable && <div className="goal-add">
         <input className="cli-input" style={{ flex: 1 }} placeholder="목표 (예: RHCE 취득)"
           value={title} onChange={e => setTitle(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') add() }} />
@@ -54,7 +54,7 @@ export default function GoalsView() {
           onChange={e => setDeadline(e.target.value)} />
         <label className="goal-undated px"><input type="checkbox" checked={undated} onChange={e => setUndated(e.target.checked)} /> 미정</label>
         <button className="submitbtn" onClick={add}>추가</button>
-      </div>
+      </div>}
 
       {goals.length === 0 && <div className="cmt-empty" style={{ padding: '28px 0' }}>등록된 목표 없음 — 위에서 2026년 목표를 추가하세요.</div>}
 
@@ -67,7 +67,7 @@ export default function GoalsView() {
           const open = expandId === g.id
           return (
             <div key={g.id} className="goal-card" style={{ borderLeftColor: g.color }}>
-              {editing ? (
+              {editing && writable ? (
                 <div className="goal-edit">
                   <input className="cli-input" defaultValue={g.title} id={`gt-${g.id}`} style={{ flex: 1 }} />
                   <input className="cli-input" type="date" defaultValue={g.deadline} id={`gd-${g.id}`} style={{ width: 150 }} title="비우면 미정" />
@@ -89,10 +89,10 @@ export default function GoalsView() {
                     </>) : (
                       <span className="goal-dday undated">미정</span>
                     )}
-                    <div className="goal-actions">
+                    {writable && <div className="goal-actions">
                       <button className="iconbtn" title="수정" onClick={() => setEditId(g.id)}>✎</button>
                       <button className="iconbtn" title="삭제" onClick={() => remove(g.id)}>🗑</button>
-                    </div>
+                    </div>}
                   </div>
                   <div className="goal-prog">
                     <div className="goal-bar"><div className="goal-fill" style={{ width: `${pct}%`, background: g.color }} /></div>

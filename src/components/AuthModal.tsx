@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useHub } from '../store'
-import { levelForPw, storePw, getStoredPw, MAX_LEVEL } from '../lib/auth'
-import { getPat, setPat, getFile } from '../lib/githubDb'
+import { levelForPw, storePw, getStoredPw } from '../lib/auth'
 import LockIcon from './LockIcon'
 
 // 자물쇠 n개 표시
@@ -21,35 +20,26 @@ export default function AuthModal() {
   }, [authModalOpen])
   if (!authModalOpen) return null
 
-  const loggedIn = !!getStoredPw() || !!getPat()
+  const loggedIn = !!getStoredPw()
 
   const submit = async () => {
     if (!pw.trim() || busy) return
     setBusy(true); setErr('')
     const val = pw.trim()
-    // 1) 레벨1·2 비번인가
+    // 자물쇠 1·2·3 비밀번호 검증
     const lv = await levelForPw(val)
     if (lv > 0) {
       storePw(val)
-      setAuthLevel(Math.max(lv, getPat() ? MAX_LEVEL : 0))
+      setAuthLevel(lv)
       setBusy(false)
       showToast(`로그인됨 — 자물쇠 ${lv}개 항목까지 열람 가능`)
       if (authWant && lv < authWant) showToast(`단, 이 항목은 자물쇠 ${authWant}개 권한이 필요합니다`)
       closeAuth(); return
     }
-    // 2) 비번이 아니면 PAT 로 시도 — blog-db 접근이 되면 유효(자물쇠 3 = 마스터)
-    let ok = false
-    try { await getFile(val, 'auth/verifiers.json'); ok = true } catch { ok = false }
     setBusy(false)
-    if (ok) {
-      setPat(val); setAuthLevel(MAX_LEVEL)
-      showToast('PAT 로그인됨 — 전체(자물쇠 3개) 열람 가능')
-      closeAuth()
-    } else {
-      setErr('비밀번호 또는 PAT 가 맞지 않습니다.')
-    }
+    setErr('자물쇠 비밀번호가 맞지 않습니다.')
   }
-  const logout = () => { storePw(''); setPat(''); setAuthLevel(0); showToast('로그아웃됨'); closeAuth() }
+  const logout = () => { storePw(''); setAuthLevel(0); showToast('자물쇠 잠금됨'); closeAuth() }
 
   return (
     <div className="palette" onClick={closeAuth}>
@@ -64,9 +54,9 @@ export default function AuthModal() {
           </div>
         )}
         <p className="auth-desc">
-          자물쇠 비밀번호를 입력하면 그 레벨까지 열람됩니다. 자물쇠 <b>3개</b>(회의록·Announcement)는 본인 <b>PAT</b>로 열립니다 — 아래에 PAT 를 그대로 입력해도 됩니다.
+          자물쇠 비밀번호를 입력하면 해당 레벨까지 암호화된 데이터를 열람할 수 있습니다. PAT는 필요하지 않습니다.
         </p>
-        <input ref={inputRef} className="cmdinput auth-input" type="password" placeholder="비밀번호 또는 PAT"
+        <input ref={inputRef} className="cmdinput auth-input" type="password" placeholder="자물쇠 비밀번호"
           value={pw} onChange={e => { setPw(e.target.value); setErr('') }}
           onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') closeAuth() }} />
         {err && <div className="auth-err px">{err}</div>}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
 import { useHub } from '../store'
 import { getPat, listDir, getFileByUrl, explainGhError } from '../lib/githubDb'
-import PatNotice from '../components/PatNotice'
+import { useProtectedData } from '../lib/protectedData'
 
 interface AnnDoc { name: string; folder: 'catalog' | 'snapshots'; content: string }
 
@@ -39,6 +39,7 @@ function parseType(md: string): string | null {
 
 export default function AnnouncementsPage() {
   const pat = getPat()
+  const protectedState = useProtectedData()
   const { showToast } = useHub()
   const [docs, setDocs] = useState<AnnDoc[]>([])
   const [loading, setLoading] = useState(false)
@@ -46,7 +47,15 @@ export default function AnnouncementsPage() {
   const [open, setOpen] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
-    if (!pat) return
+    if (!pat) {
+      if (protectedState.data?.announcements) {
+        setDocs([
+          ...protectedState.data.announcements.catalog.map(d => ({ ...d, folder: 'catalog' as const })),
+          ...protectedState.data.announcements.snapshots.map(d => ({ ...d, folder: 'snapshots' as const })),
+        ].sort((a, b) => b.name.localeCompare(a.name)))
+      }
+      return
+    }
     setLoading(true)
     try {
       const loaded = await Promise.all(SECTIONS.map(async s => {
@@ -60,7 +69,7 @@ export default function AnnouncementsPage() {
       setDocs(loaded.flat().sort((a, b) => b.name.localeCompare(a.name)))
     } catch (e) { showToast(`공지 DB 조회 실패: ${explainGhError(e)}`) }
     finally { setLoading(false) }
-  }, [pat, showToast])
+  }, [pat, showToast, protectedState.data])
 
   useEffect(() => { refresh() }, [refresh])
 
@@ -70,11 +79,11 @@ export default function AnnouncementsPage() {
     return docs.filter(d => (d.name + '\n' + d.content).toLowerCase().includes(needle))
   }, [docs, q])
 
-  if (!pat) return (
+  if (!pat && !protectedState.data) return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px' }}>
       <div className="crumb"><span className="px">ANNOUNCEMENTS</span></div>
       <h1 className="sheet-h1">Announcement</h1>
-      <div style={{ height: 20 }} /><PatNotice />
+      <div className="cmt-empty">{protectedState.loading ? '보호된 Announcement를 복호화하는 중…' : protectedState.error}</div>
     </div>
   )
 

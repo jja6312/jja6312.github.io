@@ -13,6 +13,7 @@ export default function TodoView() {
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, 'todo: 보드 갱신')
   const journal = useSyncedJson<Journal>('schedule/journal.json', EMPTY_JOURNAL, 'journal: 일지 갱신')
+  const writable = board.writable && journal.writable
 
   const [date, setDate] = useState(todayIso())
   const [inputs, setInputs] = useState<Record<string, string>>({})
@@ -85,7 +86,7 @@ export default function TodoView() {
       {/* ── 오늘의 목표 (상단, 길게) ── */}
       <section className="todo-band">
         <label className="todo-band-label px">오늘의 목표</label>
-        <textarea className="cli-input todo-band-area" rows={3} value={entry.goal}
+        <textarea className="cli-input todo-band-area" rows={3} value={entry.goal} readOnly={!writable}
           placeholder="오늘 이루려는 것 — 하루의 방향" onChange={e => setEntry({ goal: e.target.value })} />
       </section>
 
@@ -93,7 +94,7 @@ export default function TodoView() {
       <div className="todo-toolbar">
         <div className="todo-kindpick">
           {CARD_KINDS.map(k => (
-            <button key={k.id} className={`kind-btn${kind === k.id ? ' on' : ''}`}
+            <button key={k.id} disabled={!writable} className={`kind-btn${kind === k.id ? ' on' : ''}`}
               style={kind === k.id ? { background: k.color, borderColor: k.color, color: '#111' } : { borderColor: k.color, color: k.color }}
               onClick={() => setKind(k.id)}>{k.label}</button>
           ))}
@@ -101,7 +102,7 @@ export default function TodoView() {
         {goals.length > 0 && (
           <label className="todo-goalpick">
             <span className="px">목표 태그</span>
-            <select className="cli-input goal-select" value={activeGoal} onChange={e => setActiveGoal(e.target.value)}>
+            <select className="cli-input goal-select" disabled={!writable} value={activeGoal} onChange={e => setActiveGoal(e.target.value)}>
               <option value="">없음</option>
               {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
             </select>
@@ -127,7 +128,7 @@ export default function TodoView() {
                 const kc = kindColor(card.kind)
                 const editing = editId === card.id
                 return (
-                  <div key={card.id} className="kcard" draggable={!editing}
+                  <div key={card.id} className="kcard" draggable={!editing && writable}
                     style={kc ? { borderLeft: `3px solid ${kc}` } : undefined}
                     onDragStart={() => { dragRef.current = { colId: col.id, cardId: card.id } }}
                     onDragOver={e => e.preventDefault()}
@@ -144,7 +145,7 @@ export default function TodoView() {
                         {g && <span className="goal-tag px" style={{ borderColor: g.color, color: g.color, marginLeft: 6 }}>{g.title}</span>}
                       </div>
                     )}
-                    {!editing && (
+                    {!editing && writable && (
                       <div className="kcard-btns">
                         <button className="kedit" onClick={() => { setEditId(card.id); setEditText(card.text) }} title="수정">✎</button>
                         <button className="kdel" onClick={() => removeCard(col.id, card.id)} title="삭제">✕</button>
@@ -153,13 +154,13 @@ export default function TodoView() {
                   </div>
                 )
               })}
-              <div className="kadd">
+              {writable && <div className="kadd">
                 <input className="cmdinput" style={{ fontFamily: 'Pretendard', fontSize: 14, padding: '8px 12px' }}
                   placeholder={col.id === 'done' ? `+ 완료 (${date.slice(5).replace('-', '.')})` : `+ ${CARD_KINDS.find(k => k.id === kind)?.label} 추가`}
                   value={inputs[col.id] || ''}
                   onChange={e => setInputs({ ...inputs, [col.id]: e.target.value })}
                   onKeyDown={e => { if (e.key === 'Enter') addCard(col.id) }} />
-              </div>
+              </div>}
             </div>
           )
         })}
@@ -168,7 +169,7 @@ export default function TodoView() {
       {/* ── 배운 점 (하단, 길게) ── */}
       <section className="todo-band">
         <label className="todo-band-label px">배운 점</label>
-        <textarea className="cli-input todo-band-area" rows={4} value={entry.learned}
+        <textarea className="cli-input todo-band-area" rows={4} value={entry.learned} readOnly={!writable}
           placeholder="오늘 배운 것·깨달은 것" onChange={e => setEntry({ learned: e.target.value })} />
         {goals.length > 0 && (
           <div className="jr-goals">
@@ -176,7 +177,7 @@ export default function TodoView() {
             {goals.map(g => {
               const on = entry.goalIds?.includes(g.id)
               return (
-                <button key={g.id} className={`goal-tag px${on ? ' on' : ''}`}
+                <button key={g.id} disabled={!writable} className={`goal-tag px${on ? ' on' : ''}`}
                   style={{ borderColor: g.color, color: on ? '#fff' : g.color, background: on ? g.color : 'transparent' }}
                   onClick={() => setEntry({ goalIds: on ? (entry.goalIds ?? []).filter(x => x !== g.id) : [...(entry.goalIds ?? []), g.id] })}>
                   {g.title}

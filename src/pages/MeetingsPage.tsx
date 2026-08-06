@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
 import { useHub } from '../store'
 import { getPat, listDir, getFileByUrl, explainGhError } from '../lib/githubDb'
-import PatNotice from '../components/PatNotice'
+import { useProtectedData } from '../lib/protectedData'
 
 interface Minute { name: string; content: string }
 
 export default function MeetingsPage() {
   const pat = getPat()
+  const protectedState = useProtectedData()
   const { showToast } = useHub()
   const [minutes, setMinutes] = useState<Minute[]>([])
   const [loading, setLoading] = useState(false)
@@ -15,7 +16,10 @@ export default function MeetingsPage() {
   const [open, setOpen] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
-    if (!pat) return
+    if (!pat) {
+      if (protectedState.data) setMinutes(protectedState.data.meetings ?? [])
+      return
+    }
     setLoading(true)
     try {
       const entries = (await listDir(pat, 'meetings/minutes')).filter(e => e.name.endsWith('.md'))
@@ -26,7 +30,7 @@ export default function MeetingsPage() {
       setMinutes(docs.filter((x): x is Minute => !!x).sort((a, b) => b.name.localeCompare(a.name)))
     } catch (e) { showToast(`회의록 조회 실패: ${explainGhError(e)}`) }
     finally { setLoading(false) }
-  }, [pat, showToast])
+  }, [pat, showToast, protectedState.data])
 
   useEffect(() => { refresh() }, [refresh])
 
@@ -36,11 +40,11 @@ export default function MeetingsPage() {
     return minutes.filter(m => (m.name + '\n' + m.content).toLowerCase().includes(needle))
   }, [minutes, q])
 
-  if (!pat) return (
+  if (!pat && !protectedState.data) return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px' }}>
       <div className="crumb"><span className="px">MEETINGS</span></div>
       <h1 className="sheet-h1">회의록</h1>
-      <div style={{ height: 20 }} /><PatNotice />
+      <div className="cmt-empty">{protectedState.loading ? '보호된 회의록을 복호화하는 중…' : protectedState.error}</div>
     </div>
   )
 

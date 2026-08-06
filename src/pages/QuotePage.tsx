@@ -1,30 +1,34 @@
 import { useEffect, useState } from 'react'
 import { useHub } from '../store'
 import { getPat, getFile, explainGhError } from '../lib/githubDb'
-import PatNotice from '../components/PatNotice'
+import { useProtectedData } from '../lib/protectedData'
 
 // 견적서 작성 — 사업부 견적 입력기(quote_form.html)를 blog-db(private)에서 로드해 그대로 구동.
 // 도구 산출물(YAML)을 복사해 Claude Code에 전달하면 assemble_quote.py 로 견적 xlsx 가 나온다.
 export default function QuotePage() {
   const pat = getPat()
+  const protectedState = useProtectedData()
   const { showToast } = useHub()
   const [html, setHtml] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!pat) return
+    if (!pat) {
+      if (protectedState.data?.quoteHtml) setHtml(protectedState.data.quoteHtml)
+      return
+    }
     setLoading(true)
     getFile(pat, 'tools/quote_form.html')
       .then(f => setHtml(f?.content ?? null))
       .catch(e => showToast(`견적 도구 로드 실패: ${explainGhError(e)}`))
       .finally(() => setLoading(false))
-  }, [pat, showToast])
+  }, [pat, showToast, protectedState.data])
 
-  if (!pat) return (
+  if (!pat && !protectedState.data) return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px' }}>
       <div className="crumb"><span className="px">QUOTE</span></div>
       <h1 className="sheet-h1">견적</h1>
-      <div style={{ height: 20 }} /><PatNotice />
+      <div className="cmt-empty">{protectedState.loading ? '보호된 견적 도구를 복호화하는 중…' : protectedState.error}</div>
     </div>
   )
 

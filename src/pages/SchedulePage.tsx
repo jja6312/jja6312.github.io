@@ -6,6 +6,7 @@ import LockedNotice from '../components/LockedNotice'
 import CalendarView from './schedule/CalendarView'
 import TodoView from './schedule/TodoView'
 import GoalsView from './schedule/GoalsView'
+import { getPat } from '../lib/githubDb'
 
 const VIEWS = [
   { id: 'calendar', label: '월간일정', desc: '달력에 학습·자격증·일정' },
@@ -20,6 +21,7 @@ export default function SchedulePage() {
   const active = VIEWS.find(v => v.id === view)?.id ?? 'calendar'
   const activeLevel = requiredLevel(`/schedule/${active}`)
   const locked = activeLevel > authLevel
+  const pat = getPat()
 
   return (
     <div className="sched-layout">
@@ -37,6 +39,11 @@ export default function SchedulePage() {
         })}
       </aside>
       <main className="sched-main">
+        {!locked && !pat && (
+          <div className="cross-note" style={{ marginBottom: 16 }}>
+            자물쇠 비밀번호로 암호화 스냅샷을 열었습니다. 현재는 <b>읽기 전용</b>이며, 수정·GitHub 동기화에만 PAT가 필요합니다.
+          </div>
+        )}
         {locked
           ? <LockedNotice level={activeLevel} authLevel={authLevel} onLogin={() => openAuth(activeLevel)} />
           : active === 'calendar' ? <CalendarView />

@@ -1,18 +1,20 @@
 // 일정관리(월간일정·TODO·목표) 공통 데이터 계층 — blog-db 동기화 훅 + 타입 + 연동 헬퍼
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getPat, getFile, putFile } from './githubDb'
+import { protectedJson, useProtectedData } from './protectedData'
 
 /* ── 동기화 상태 ─────────────────────────────────────── */
-export type Sync = 'loading' | 'synced' | 'dirty' | 'saving' | 'error'
+export type Sync = 'loading' | 'synced' | 'readonly' | 'dirty' | 'saving' | 'error'
 export const SYNC_LABEL: Record<Sync, string> = {
   loading: '불러오는 중…', synced: '✓ 동기화됨', dirty: '● 변경됨 (곧 commit)',
-  saving: '↑ commit 중…', error: '⚠ 저장 실패',
+  readonly: '🔒 읽기 전용 · 수정은 PAT 필요', saving: '↑ commit 중…', error: '⚠ 저장 실패',
 }
 
 /* blog-db JSON 파일 1개를 로드→편집→3초 debounce commit 하는 범용 훅.
    월간일정/칸반/일지/목표가 전부 이 패턴 — TodoPage·Calendar 의 중복을 하나로. */
 export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
   const pat = getPat()
+  const protectedState = useProtectedData()
   const [data, setData] = useState<T>(empty)
   const [sync, setSync] = useState<Sync>('loading')
   const shaRef = useRef<string | undefined>(undefined)
@@ -21,7 +23,12 @@ export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
   ref.current = data
 
   useEffect(() => {
-    if (!pat) { setSync('error'); return }
+    if (!pat) {
+      const snapshot = protectedJson(protectedState.data, path)
+      if (snapshot !== undefined) { setData(snapshot as T); setSync('readonly') }
+      else if (!protectedState.loading) setSync('error')
+      return
+    }
     let alive = true
     getFile(pat, path).then(f => {
       if (!alive) return
@@ -29,9 +36,10 @@ export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
       setSync('synced')
     }).catch(() => { if (alive) setSync('error') })
     return () => { alive = false }
-  }, [pat, path])
+  }, [pat, path, protectedState.data, protectedState.loading])
 
   const save = useCallback(async () => {
+    if (!pat) { setSync('readonly'); return }
     setSync('saving')
     const body = JSON.stringify(ref.current, null, 2) + '\n'
     try {
@@ -48,13 +56,14 @@ export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
   }, [pat, path, commitMsg])
 
   const update = useCallback((next: T) => {
+    if (!pat) { setSync('readonly'); return }
     setData(next)
     setSync('dirty')
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(save, 3000)
-  }, [save])
+  }, [pat, save])
 
-  return { data, update, sync }
+  return { data, update, sync, writable: !!pat }
 }
 
 /* ── 목표 ────────────────────────────────────────────── */

@@ -14,7 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SITE = os.path.dirname(HERE)
 DATA = os.path.join(SITE, '..', 'blog-db', 'knowledge', 'oci-cli', '_data')
 RECIPE = os.path.join(SITE, '..', 'blog-db', 'knowledge', 'oci-cli')
-OUT = os.path.join(SITE, 'src', 'data', 'cliCatalog.json')
+OUT = os.path.join(SITE, '.protected-cache', 'cliCatalog.json')
 
 STRUCTURE = [
   ('02-compute', 'Compute', [
@@ -347,6 +347,7 @@ EXTRA = {
 # 커스텀 레시피는 카테고리에 넣지 않는다 — CliBuilderPage 가 Custom 과 같은 최상위 레벨에 렌더
 catalog['commands'].update(EXTRA)
 
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
 json.dump(catalog, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 n_cur = sum(1 for r in catalog['commands'] if r in CURATION)
 print('cliCatalog v3 — 명령 %d (수동 큐레이션 %d · 휴리스틱 %d)'

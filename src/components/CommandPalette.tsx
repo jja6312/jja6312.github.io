@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useHub } from '../store'
-import cliCatalog from '../data/cliCatalog.json'
+import { useProtectedData } from '../lib/protectedData'
 
 interface Cmd { id: string; label: string; kbd?: string; run: () => void }
 interface CliCmd { resource: string; label: string; cmd: string; help: string }
-const CLI_COMMANDS = Object.values((cliCatalog as { commands: Record<string, CliCmd> }).commands)
 
 export default function CommandPalette() {
   const { paletteOpen, setPaletteOpen, toggleTheme, setCmtOpen, setHelpOpen, cmtOpen } = useHub()
   const nav = useNavigate()
+  const protectedState = useProtectedData()
   const [q, setQ] = useState('')
   const [sel, setSel] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -36,11 +36,13 @@ export default function CommandPalette() {
 
   // OCI CLI 자원 — 검색어가 있을 때만 노출 (37개가 기본 목록을 채우지 않도록).
   // label(자원명) + cmd(oci compute …) 둘 다 검색 대상 → "oci compute" 로 찾힌다.
-  const cliCmds: Cmd[] = useMemo(() => CLI_COMMANDS.map(c => ({
+  const cliCmds: Cmd[] = useMemo(() => Object.values(
+    (protectedState.data?.cliCatalog as { commands?: Record<string, CliCmd> } | undefined)?.commands ?? {},
+  ).map(c => ({
     id: `cli-${c.resource}`,
     label: `OCI CLI · ${c.label} — ${c.cmd}`,
     run: () => nav(`/knowledge/oci-cli?r=${c.resource}`),
-  })), [nav])
+  })), [nav, protectedState.data])
 
   const ql = q.trim().toLowerCase()
   const base = cmds.filter(c => c.label.toLowerCase().includes(ql))

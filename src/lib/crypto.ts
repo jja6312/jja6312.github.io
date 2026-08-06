@@ -15,6 +15,7 @@ const toB64 = (b: ArrayBuffer | Uint8Array) => {
 const fromB64 = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0))
 
 export interface Cipher { salt: string; iv: string; ct: string }   // 모두 base64
+export interface RawCipher { iv: string; ct: string }
 
 // TS 5.7 의 Uint8Array<ArrayBufferLike> vs BufferSource 엄격 검사 회피용 캐스팅
 const bs = (u: Uint8Array): BufferSource => u as unknown as BufferSource
@@ -40,6 +41,12 @@ export async function encryptJSON(pw: string, data: unknown): Promise<Cipher> {
 
 export async function decryptJSON<T>(pw: string, c: Cipher): Promise<T> {
   const key = await deriveKey(pw, fromB64(c.salt))
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bs(fromB64(c.iv)) }, key, bs(fromB64(c.ct)))
+  return JSON.parse(dec.decode(pt)) as T
+}
+
+export async function decryptRawJSON<T>(keyB64: string, c: RawCipher): Promise<T> {
+  const key = await crypto.subtle.importKey('raw', bs(fromB64(keyB64)), { name: 'AES-GCM' }, false, ['decrypt'])
   const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bs(fromB64(c.iv)) }, key, bs(fromB64(c.ct)))
   return JSON.parse(dec.decode(pt)) as T
 }
