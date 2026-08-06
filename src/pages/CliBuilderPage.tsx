@@ -13,6 +13,10 @@ interface CliOption {
   choices: string[] | null
   help: string
   placeholder: string
+  flag?: boolean
+  defaultValue?: string
+  suggestions?: string[]
+  shellQuote?: boolean
 }
 interface CliSection { label: string; options: CliOption[] }
 type CrudVerb = 'get' | 'list' | 'create' | 'update' | 'delete'
@@ -52,6 +56,13 @@ const defaultOperation = (command: CliCommand): CrudVerb => {
 const supportsOperation = (command: CliCommand | null | undefined, operation: CrudVerb) => command?.maintenanceReboot
   ? operation === 'get' || operation === 'update'
   : !!command?.operations?.[operation]
+const operationDefaults = (command: CliCommand, operation: CrudVerb): Record<string, string> => {
+  const selected = command.operations?.[operation]
+  if (!selected) return {}
+  return Object.fromEntries(allOptions(selected)
+    .filter(option => option.defaultValue !== undefined)
+    .map(option => [option.name, option.defaultValue as string]))
+}
 
 /* ── 동적 조회 지원 옵션 — 이름만 넣으면 $()/변수로 OCID를 찾아준다 ──
    기본값 = 동적. 체크 해제 시 OCID 직접 입력. */
@@ -282,6 +293,10 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
 
   for (const o of allOptions(selected)) {
     const v = (values[o.name] ?? '').trim()
+    if (o.flag) {
+      if (v === 'true') args.push(`  ${o.name}`)
+      continue
+    }
     // JSON 서브필드 스펙 — 값이 조립되면 넣고, 비면 생략
     if (JSONSPEC[o.name]) {
       const j = buildJsonValue(o.name, values)
@@ -319,7 +334,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
       continue
     }
     if (!v) continue
-    const quoted = /\s|[{}$]/.test(v) ? `'${v}'` : v
+    const quoted = o.shellQuote || /\s|[{}$]/.test(v) ? `'${v.replaceAll("'", "'\\''")}'` : v
     args.push(`  ${o.name} ${quoted}`)
   }
 
@@ -351,7 +366,8 @@ export default function CliBuilderPage() {
   // 팔레트에서 ?r 이 바뀌며 재진입하면 해당 자원 선택 + 카테고리 펼침
   useEffect(() => {
     if (!rParam || !CAT.commands[rParam]) return
-    setActive(rParam); setValues({}); setDyn({}); setShowOptional(false); setCrudOperation(defaultOperation(CAT.commands[rParam]))
+    const operation = defaultOperation(CAT.commands[rParam])
+    setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setDyn({}); setShowOptional(false); setCrudOperation(operation)
     const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
   }, [rParam, CAT])
@@ -401,12 +417,15 @@ export default function CliBuilderPage() {
 
   const selectResource = (res: string) => {
     const next = CAT.commands[res]
-    setActive(res); setValues({}); setDyn({}); setShowOptional(false)
-    if (next) setCrudOperation(defaultOperation(next))
+    setActive(res); setDyn({}); setShowOptional(false)
+    if (next) {
+      const operation = defaultOperation(next)
+      setCrudOperation(operation); setValues(operationDefaults(next, operation))
+    } else setValues({})
   }
   const selectOperation = (operation: CrudVerb) => {
     if (!isOperationAvailable(operation)) return
-    setCrudOperation(operation); setValues({}); setDyn({}); setShowOptional(false)
+    setCrudOperation(operation); setValues(cmd ? operationDefaults(cmd, operation) : {}); setDyn({}); setShowOptional(false)
   }
   const setVal = (name: string, v: string) => setValues(s => ({ ...s, [name]: v }))
   const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
@@ -617,6 +636,17 @@ function Field({ o, value, onChange, optional, dynamic, onToggleDynamic, subVal,
       <span className="cli-field-help">{dynamic && dynMeta ? dynMeta.note : o.help}</span>
     </label>
   )
+  if (o.flag) {
+    return (
+      <div className="cli-field">
+        {label}
+        <label className="cli-flag-control">
+          <input type="checkbox" checked={value === 'true'} onChange={e => onChange(e.target.checked ? 'true' : '')} />
+          <span>{value === 'true' ? '사용' : '사용 안 함'}</span>
+        </label>
+      </div>
+    )
+  }
   if (o.multi) {
     return (
       <div className="cli-field">
@@ -690,6 +720,19 @@ function Field({ o, value, onChange, optional, dynamic, onToggleDynamic, subVal,
       <div className="cli-field">
         {label}
         <textarea className="cli-input cli-json" value={value} placeholder={o.placeholder || '{ }'} onChange={e => onChange(e.target.value)} />
+      </div>
+    )
+  }
+  if (o.suggestions?.length) {
+    const listId = `cli-suggestions-${o.name.replaceAll('-', '')}`
+    return (
+      <div className="cli-field">
+        {label}
+        <input className="cli-input" list={listId} value={value} placeholder={o.placeholder}
+          onChange={e => onChange(e.target.value)} />
+        <datalist id={listId}>
+          {o.suggestions.map(suggestion => <option key={suggestion} value={suggestion} />)}
+        </datalist>
       </div>
     )
   }

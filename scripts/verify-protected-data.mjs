@@ -50,6 +50,11 @@ for (const level of [1, 2, 3]) {
       if (!command.operations[operation]?.cmd) throw new Error(`L${level} ${command.resource} ${operation} 명령 누락`)
     }
   }
+  const instanceGetOptions = bundle.cliCatalog.commands.instance.operations.get.sections.flatMap(section => section.options)
+  const queryOption = instanceGetOptions.find(option => option.name === '--query')
+  const rawOption = instanceGetOptions.find(option => option.name === '--raw-output')
+  if (queryOption?.defaultValue !== 'data."time-maintenance-reboot-due"') throw new Error(`L${level} Instance GET query 기본값 오류`)
+  if (!rawOption?.flag || rawOption.defaultValue !== 'true') throw new Error(`L${level} Instance GET raw-output 플래그 오류`)
   if ((level >= 2) !== !!bundle.schedule) throw new Error(`L${level} schedule 범위 오류`)
   if ((level >= 3) !== !!bundle.meetings) throw new Error(`L${level} meetings 범위 오류`)
   if ((level >= 3) !== !!bundle.provisioning) throw new Error(`L${level} provisioning 범위 오류`)

@@ -220,12 +220,18 @@ def build_option(o):
     choices = o.get('choices')
     if typ == 'bool' or (choices and set(map(str.lower, map(str, choices))) == {'true', 'false'}):
         choices = ['true', 'false']
-    return {
+    option = {
         'name': o['name'], 'required': bool(o.get('required')),
         'type': 'json' if o.get('json') else typ, 'choices': choices,
         'help': (o.get('help') or '').strip()[:140],
         'placeholder': placeholder(o['name'], 'json' if o.get('json') else typ),
     }
+    for key in ('flag', 'defaultValue', 'suggestions', 'shellQuote'):
+        if key in o:
+            option[key] = o[key]
+    if o.get('placeholder'):
+        option['placeholder'] = o['placeholder']
+    return option
 
 def layout_command(res, command, curated=False):
     opts = {o['name']: build_option(o) for o in command['options']}
@@ -318,6 +324,36 @@ for res, d in raw.items():
         )
         if not operation_source:
             continue
+        if res == 'instance' and operation == 'get':
+            operation_source = {**operation_source, 'options': [dict(option) for option in operation_source['options']]}
+            for option in operation_source['options']:
+                if option['name'] == '--instance-id':
+                    option['shellQuote'] = True
+            operation_source['options'].extend([
+                {
+                    'name': '--profile', 'required': False, 'type': 'str', 'choices': None,
+                    'help': 'OCI CLI 프로파일 이름 (~/.oci/config)', 'placeholder': 'DEFAULT', 'shellQuote': True,
+                },
+                {
+                    'name': '--region', 'required': False, 'type': 'str', 'choices': None,
+                    'help': '대상 인스턴스 리전', 'placeholder': 'ap-seoul-1', 'shellQuote': True,
+                },
+                {
+                    'name': '--query', 'required': False, 'type': 'str', 'choices': None,
+                    'help': 'JMESPath 조회식 — 자주 쓰는 항목을 선택하거나 직접 입력',
+                    'placeholder': 'data."time-maintenance-reboot-due"',
+                    'defaultValue': 'data."time-maintenance-reboot-due"', 'shellQuote': True,
+                    'suggestions': [
+                        'data."time-maintenance-reboot-due"', 'data."display-name"',
+                        'data."lifecycle-state"', 'data.shape', 'data."availability-domain"', 'data.id',
+                    ],
+                },
+                {
+                    'name': '--raw-output', 'required': False, 'type': 'bool', 'choices': None,
+                    'help': '조회 결과의 따옴표를 제거하고 원시 값만 출력', 'placeholder': '',
+                    'flag': True, 'defaultValue': 'true',
+                },
+            ])
         op_sections, op_advanced = layout_command(res, operation_source, curated=operation == 'create')
         if operation == 'create':
             operation_cmd = cmd

@@ -396,6 +396,12 @@ kbd {
   padding: 2px 10px; cursor: pointer; user-select: none;
 }
 .cli-dyn-toggle input { accent-color: var(--accent); cursor: pointer; }
+.cli-flag-control {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 7px 12px;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--code-bg);
+  color: var(--text-dim); font-size: 12.5px; cursor: pointer; user-select: none;
+}
+.cli-flag-control input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
 /* 콘솔 마법사식 섹션 */
 .cli-sec { margin: 0 0 22px; padding: 14px 16px 6px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--bg-card); }
 .cli-sec .cli-section-label { color: var(--text); font-size: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line-soft); padding-bottom: 8px; }
