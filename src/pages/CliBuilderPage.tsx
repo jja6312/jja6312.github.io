@@ -19,6 +19,7 @@ interface CliCommand {
   resource: string; label: string
   cmd: string; help: string
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
+  maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
   sections: CliSection[]; advanced: CliOption[]
 }
 // 조립·검색용 평탄화 — 섹션 순서(콘솔 마법사 순서)를 그대로 유지
@@ -197,9 +198,38 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
   ].join('\n')
 }
 
+/* 인스턴스 유지보수 재부팅 예정 시각 — 조회와 변경 명령을 한 번에 생성 */
+function buildMaintenanceReboot(values: Record<string, string>): string {
+  const v = (key: string, fallback: string) => (values[key] || '').trim() || fallback
+  const instanceId = v('--instance-id', '<instanceid>')
+  const profile = v('--profile', '<profile>')
+  const region = v('--region', '<region>')
+  const rebootDue = v('--time-maintenance-reboot-due', '<YYYY-MM-DDTHH:mm:ssZ>')
+  const CONT = ' \\'
+
+  return [
+    '# 현재 유지보수 재부팅 예정 시각 조회',
+    'oci compute instance get' + CONT,
+    `  --instance-id "${instanceId}"` + CONT,
+    `  --profile "${profile}"` + CONT,
+    `  --region "${region}"` + CONT,
+    `  --query 'data."time-maintenance-reboot-due"'` + CONT,
+    '  --raw-output',
+    '',
+    '# 유지보수 재부팅 예정 시각 변경',
+    'oci compute instance update' + CONT,
+    `  --instance-id "${instanceId}"` + CONT,
+    `  --time-maintenance-reboot-due "${rebootDue}"` + CONT,
+    `  --profile "${profile}"` + CONT,
+    `  --region "${region}"` + CONT,
+    '  --force',
+  ].join('\n')
+}
+
 /* 최종 명령 조립 — 동적 옵션은 변수 선언(prelude) + 참조로 */
 function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>): string {
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
+  if (cmd.maintenanceReboot) return buildMaintenanceReboot(values)
 
   const prelude: string[] = []
   const args: string[] = []
@@ -266,8 +296,8 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
 
 const catOfResource = (r: string) =>
   CAT.categories.find(c => c.groups.some(g => g.resources.includes(r)))?.id
-// cross-tenancy 복사 — 카테고리 밖, Custom 과 같은 최상위 레벨
-const CROSS_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy)
+// 전용 조립 레시피 — 카테고리 밖, Custom 과 같은 최상위 레벨
+const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.maintenanceReboot)
 
 export default function CliBuilderPage() {
   const { showToast } = useHub()
@@ -367,8 +397,8 @@ export default function CliBuilderPage() {
 
 
 
-  // cross-tenancy 복사 화면에선 동적 조회 비활성 — compartment 등은 OCID 직접 입력
-  const noDyn = !!cmd?.crossCopy
+  // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
+  const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot)
   const field = (o: CliOption, optional?: boolean) => (
     <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
       dynamic={!noDyn && isDynamic(dyn, o.name)}
@@ -384,7 +414,7 @@ export default function CliBuilderPage() {
         <button className={`cli-navitem custom${active === '__custom' ? ' on' : ''}`} onClick={() => setActive('__custom')}>
           <span className="px">Custom</span>
         </button>
-        {CROSS_COMMANDS.map(c => (
+        {SPECIAL_COMMANDS.map(c => (
           <button key={c.resource} className={`cli-navitem custom${active === c.resource ? ' on' : ''}${isVerified(c.resource) ? ' verified' : ''}`}
             onClick={() => selectResource(c.resource)}>
             <span className="px">{c.label}</span>

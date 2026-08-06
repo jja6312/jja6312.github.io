@@ -281,8 +281,8 @@ for res, d in raw.items():
         'sections': sections, 'advanced': advanced,
     }
 
-# ── 커스텀 레시피 (backbone 없음) — cross-tenancy 볼륨 복사 ──
-# 여러 원본 OCID 일괄(for 루프) + 원본 display name 유지(get→create→update). CliBuilderPage 가 crossCopy 로 전용 조립.
+# ── 커스텀 레시피 (backbone 없음) ──
+# 여러 명령을 묶거나 별도 조립이 필요한 작업은 CliBuilderPage 의 전용 빌더가 최종 명령을 만든다.
 def _co(name, req, help, ph='', multi=False):
     o = {'name': name, 'required': req, 'type': 'str', 'choices': None, 'help': help, 'placeholder': ph}
     if multi:
@@ -317,11 +317,34 @@ def _cross(kind, src_opt, label, src_ph):
         'advanced': [],
     }
 
+def _maintenance_reboot():
+    return {
+        'resource': 'instance-maintenance-reboot',
+        'label': 'Instance — Maintenance Reboot',
+        'cmd': 'oci compute instance get',
+        'maintenanceReboot': True,
+        'help': ('Compute 인스턴스의 유지보수 재부팅 예정 시각을 조회하고 새 시각으로 변경. '
+                 '최종 명령에 조회(get)와 변경(update) 명령이 함께 생성됩니다.'),
+        'sections': [
+            {'label': '인스턴스 · 실행 환경', 'options': [
+                _co('--instance-id', True, '대상 Compute 인스턴스 OCID', 'ocid1.instance.oc1.ap-seoul-1.xxxx'),
+                _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT'),
+                _co('--region', True, '대상 인스턴스 리전', 'ap-seoul-1'),
+            ]},
+            {'label': '새 유지보수 재부팅 시각', 'options': [
+                _co('--time-maintenance-reboot-due', True,
+                    '변경할 UTC 시각 (RFC 3339 / ISO 8601 형식)', '2026-08-30T23:18:00Z'),
+            ]},
+        ],
+        'advanced': [],
+    }
+
 EXTRA = {
+    'instance-maintenance-reboot': _maintenance_reboot(),
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
     'block-volume-cross-copy': _cross('volume', '--source-volume-id', 'Block Volume', 'ocid1.volume.oc1.ap-seoul-1.xxxx'),
 }
-# cross-copy 는 카테고리에 넣지 않는다 — CliBuilderPage 가 Custom 과 같은 최상위 레벨에 렌더
+# 커스텀 레시피는 카테고리에 넣지 않는다 — CliBuilderPage 가 Custom 과 같은 최상위 레벨에 렌더
 catalog['commands'].update(EXTRA)
 
 json.dump(catalog, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)

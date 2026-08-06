@@ -5932,6 +5932,58 @@
     }
    ]
   },
+  "instance-maintenance-reboot": {
+   "resource": "instance-maintenance-reboot",
+   "label": "Instance — Maintenance Reboot",
+   "cmd": "oci compute instance get",
+   "maintenanceReboot": true,
+   "help": "Compute 인스턴스의 유지보수 재부팅 예정 시각을 조회하고 새 시각으로 변경. 최종 명령에 조회(get)와 변경(update) 명령이 함께 생성됩니다.",
+   "sections": [
+    {
+     "label": "인스턴스 · 실행 환경",
+     "options": [
+      {
+       "name": "--instance-id",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "대상 Compute 인스턴스 OCID",
+       "placeholder": "ocid1.instance.oc1.ap-seoul-1.xxxx"
+      },
+      {
+       "name": "--profile",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "OCI CLI 프로파일 이름 (~/.oci/config)",
+       "placeholder": "DEFAULT"
+      },
+      {
+       "name": "--region",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "대상 인스턴스 리전",
+       "placeholder": "ap-seoul-1"
+      }
+     ]
+    },
+    {
+     "label": "새 유지보수 재부팅 시각",
+     "options": [
+      {
+       "name": "--time-maintenance-reboot-due",
+       "required": true,
+       "type": "str",
+       "choices": null,
+       "help": "변경할 UTC 시각 (RFC 3339 / ISO 8601 형식)",
+       "placeholder": "2026-08-30T23:18:00Z"
+      }
+     ]
+    }
+   ],
+   "advanced": []
+  },
   "boot-volume-cross-copy": {
    "resource": "boot-volume-cross-copy",
    "label": "Boot Volume — Cross-Tenancy Copy",
