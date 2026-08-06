@@ -80,8 +80,10 @@ export default function ProvisioningPage() {
             </tr>
           </thead>
           <tbody>
-            {data.customers.map(item => (
-              <tr key={item.id}>
+            {data.customers.map(item => {
+              const fullyComplete = DATE_FIELDS.every(field => !!item[field.key])
+              return (
+                <tr key={item.id} className={fullyComplete ? 'fully-complete' : ''}>
                 <td className="provisioning-customer">
                   {writable ? (
                     <input className="provisioning-name-input" value={item.customer} aria-label={`${item.customer} 고객사 이름`}
@@ -100,8 +102,9 @@ export default function ProvisioningPage() {
                     <button className="kdel" title="고객사 삭제" onClick={() => removeCustomer(item)}>✕</button>
                   </td>
                 )}
-              </tr>
-            ))}
+                </tr>
+              )
+            })}
             {data.customers.length === 0 && (
               <tr><td className="provisioning-empty" colSpan={DATE_FIELDS.length + 1 + (writable ? 1 : 0)}>등록된 고객사가 없습니다.</td></tr>
             )}
