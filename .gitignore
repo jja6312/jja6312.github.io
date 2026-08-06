@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .protected-cache/
+scripts/__pycache__/
 
 # Editor directories and files
 .vscode/*

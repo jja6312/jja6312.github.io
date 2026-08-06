@@ -15,29 +15,43 @@ interface CliOption {
   placeholder: string
 }
 interface CliSection { label: string; options: CliOption[] }
+type CrudVerb = 'get' | 'list' | 'create' | 'update' | 'delete'
+interface CliOperation {
+  cmd: string; help: string
+  sections: CliSection[]; advanced: CliOption[]
+}
 interface CliCommand {
   resource: string; label: string
   cmd: string; help: string
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
   maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
+  operations?: Partial<Record<CrudVerb, CliOperation>>
   sections: CliSection[]; advanced: CliOption[]
 }
 // 조립·검색용 평탄화 — 섹션 순서(콘솔 마법사 순서)를 그대로 유지
-const allOptions = (c: CliCommand): CliOption[] => [...c.sections.flatMap(s => s.options), ...c.advanced]
+const allOptions = (c: Pick<CliCommand, 'sections' | 'advanced'>): CliOption[] => [...c.sections.flatMap(s => s.options), ...c.advanced]
 interface Catalog {
   categories: { id: string; label: string; groups: { label: string; resources: string[] }[] }[]
   commands: Record<string, CliCommand>
 }
 const EMPTY_CATALOG: Catalog = { categories: [], commands: {} }
 
-const MAINTENANCE_REBOOT_OPERATIONS = [
-  { verb: 'get', icon: '↓', available: true, detail: '최대 연장 가능 시각 조회' },
-  { verb: 'list', icon: '≡', available: false, detail: '등록된 명령 없음' },
-  { verb: 'create', icon: '+', available: false, detail: '등록된 명령 없음' },
-  { verb: 'update', icon: '↻', available: true, detail: '재부팅 예정 시각 변경' },
-  { verb: 'delete', icon: '×', available: false, detail: '등록된 명령 없음' },
+const CRUD_OPERATIONS: { verb: CrudVerb; icon: string }[] = [
+  { verb: 'get', icon: '↓' },
+  { verb: 'list', icon: '≡' },
+  { verb: 'create', icon: '+' },
+  { verb: 'update', icon: '↻' },
+  { verb: 'delete', icon: '×' },
 ] as const
-type MaintenanceRebootOperation = 'get' | 'update'
+
+const defaultOperation = (command: CliCommand): CrudVerb => {
+  if (command.maintenanceReboot) return 'get'
+  if (command.operations?.create) return 'create'
+  return CRUD_OPERATIONS.find(operation => command.operations?.[operation.verb])?.verb ?? 'create'
+}
+const supportsOperation = (command: CliCommand | null | undefined, operation: CrudVerb) => command?.maintenanceReboot
+  ? operation === 'get' || operation === 'update'
+  : !!command?.operations?.[operation]
 
 /* ── 동적 조회 지원 옵션 — 이름만 넣으면 $()/변수로 OCID를 찾아준다 ──
    기본값 = 동적. 체크 해제 시 OCID 직접 입력. */
@@ -97,7 +111,10 @@ function buildJsonValue(optName: string, values: Record<string, string>): string
   return Object.keys(obj).length ? JSON.stringify(obj) : ''
 }
 
-interface Favorite { id: string; name: string; resource: string; values: Record<string, string>; dyn?: Record<string, boolean> }
+interface Favorite {
+  id: string; name: string; resource: string; values: Record<string, string>
+  dyn?: Record<string, boolean>; operation?: CrudVerb
+}
 const FAV_KEY = 'hub-cli-favorites'
 const loadFavs = (): Favorite[] => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]') } catch { return [] } }
 const saveFavs = (f: Favorite[]) => localStorage.setItem(FAV_KEY, JSON.stringify(f))
@@ -208,7 +225,7 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
 }
 
 /* 인스턴스 유지보수 재부팅 예정 시각 — 선택한 GET 또는 UPDATE 명령 생성 */
-function buildMaintenanceReboot(values: Record<string, string>, operation: MaintenanceRebootOperation): string {
+function buildMaintenanceReboot(values: Record<string, string>, operation: 'get' | 'update'): string {
   const v = (key: string, fallback: string) => (values[key] || '').trim() || fallback
   const instanceId = v('--instance-id', '<instanceid>')
   const profile = v('--profile', '<profile>')
@@ -240,15 +257,18 @@ function buildMaintenanceReboot(values: Record<string, string>, operation: Maint
 }
 
 /* 최종 명령 조립 — 동적 옵션은 변수 선언(prelude) + 참조로 */
-function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>, maintenanceOperation: MaintenanceRebootOperation): string {
+function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>, operation: CrudVerb): string {
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
-  if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, maintenanceOperation)
+  if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get')
+
+  const selected = cmd.operations?.[operation] ?? cmd
 
   const prelude: string[] = []
   const args: string[] = []
 
-  const compDynamic = allOptions(cmd).some(o => o.name === '--compartment-id') && isDynamic(dyn, '--compartment-id')
+  const compOption = allOptions(selected).find(o => o.name === '--compartment-id')
   const compStatic = (values['--compartment-id'] ?? '').trim()
+  const compDynamic = !!compOption && isDynamic(dyn, '--compartment-id') && (compOption.required || !!compStatic)
   // 다른 동적 조회가 참조할 compartment 표현
   const compRef = compDynamic ? '"$COMP"' : (compStatic ? compStatic : '<compartment-ocid>')
 
@@ -260,7 +280,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
     )
   }
 
-  for (const o of allOptions(cmd)) {
+  for (const o of allOptions(selected)) {
     const v = (values[o.name] ?? '').trim()
     // JSON 서브필드 스펙 — 값이 조립되면 넣고, 비면 생략
     if (JSONSPEC[o.name]) {
@@ -303,7 +323,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
     args.push(`  ${o.name} ${quoted}`)
   }
 
-  const main = [cmd.cmd, ...args].join(' \\\n')
+  const main = [selected.cmd, ...args].join(' \\\n')
   return prelude.length ? prelude.join('\n\n') + '\n\n' + main : main
 }
 
@@ -322,7 +342,7 @@ export default function CliBuilderPage() {
   const [customText, setCustomText] = useState('oci ')
   const [favs, setFavs] = useState<Favorite[]>(loadFavs())
   const [showOptional, setShowOptional] = useState(false)
-  const [maintenanceOperation, setMaintenanceOperation] = useState<MaintenanceRebootOperation>('get')
+  const [crudOperation, setCrudOperation] = useState<CrudVerb>('create')
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
   // 딥링크로 들어온 자원의 카테고리는 펼쳐 둔다 (그 외는 닫힘)
@@ -331,7 +351,7 @@ export default function CliBuilderPage() {
   // 팔레트에서 ?r 이 바뀌며 재진입하면 해당 자원 선택 + 카테고리 펼침
   useEffect(() => {
     if (!rParam || !CAT.commands[rParam]) return
-    setActive(rParam); setValues({}); setDyn({}); setShowOptional(false); setMaintenanceOperation('get')
+    setActive(rParam); setValues({}); setDyn({}); setShowOptional(false); setCrudOperation(defaultOperation(CAT.commands[rParam]))
     const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
   }, [rParam, CAT])
@@ -362,13 +382,31 @@ export default function CliBuilderPage() {
   }
 
   const cmd = active !== '__custom' ? CAT.commands[active] : null
+  const selectedOperation = cmd?.operations?.[crudOperation]
+  const formSections = cmd?.maintenanceReboot
+    ? cmd.sections.filter((_, index) => crudOperation === 'update' || index === 0)
+    : selectedOperation?.sections ?? cmd?.sections ?? []
+  const formAdvanced = selectedOperation?.advanced ?? cmd?.advanced ?? []
+  const hasCrud = !!cmd && !cmd.crossCopy && (!!cmd.maintenanceReboot || !!cmd.operations)
+  const isOperationAvailable = (operation: CrudVerb) => supportsOperation(cmd, operation)
+  const operationHelp = cmd?.maintenanceReboot
+    ? crudOperation === 'update'
+      ? '인스턴스 유지보수 재부팅 예정 시각을 변경합니다.'
+      : '유지보수 재부팅을 연장할 수 있는 최대 시각을 조회합니다.'
+    : selectedOperation?.help || cmd?.help
   const cli = useMemo(
-    () => cmd ? buildCli(cmd, values, dyn, maintenanceOperation) : customText,
-    [cmd, values, dyn, maintenanceOperation, customText],
+    () => cmd ? buildCli(cmd, values, dyn, crudOperation) : customText,
+    [cmd, values, dyn, crudOperation, customText],
   )
 
   const selectResource = (res: string) => {
-    setActive(res); setValues({}); setDyn({}); setShowOptional(false); setMaintenanceOperation('get')
+    const next = CAT.commands[res]
+    setActive(res); setValues({}); setDyn({}); setShowOptional(false)
+    if (next) setCrudOperation(defaultOperation(next))
+  }
+  const selectOperation = (operation: CrudVerb) => {
+    if (!isOperationAvailable(operation)) return
+    setCrudOperation(operation); setValues({}); setDyn({}); setShowOptional(false)
   }
   const setVal = (name: string, v: string) => setValues(s => ({ ...s, [name]: v }))
   const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
@@ -401,13 +439,17 @@ export default function CliBuilderPage() {
     if (!name) return
     const fav: Favorite = {
       id: `fav-${favs.length}-${name}`, name, resource: active,
-      values: active === '__custom' ? { __custom: customText } : values, dyn,
+      values: active === '__custom' ? { __custom: customText } : values, dyn, operation: crudOperation,
     }
     const next = [...favs, fav]; setFavs(next); saveFavs(next); showToast('즐겨찾기 저장됨')
   }
   const loadFav = (f: Favorite) => {
     if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci ') }
-    else { setActive(f.resource); setValues(f.values); setDyn(f.dyn ?? {}); setShowOptional(true) }
+    else {
+      setActive(f.resource); setValues(f.values); setDyn(f.dyn ?? {}); setShowOptional(true)
+      const favoriteCommand = CAT.commands[f.resource]
+      if (favoriteCommand) setCrudOperation(f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultOperation(favoriteCommand))
+    }
   }
   const delFav = (id: string) => { const n = favs.filter(f => f.id !== id); setFavs(n); saveFavs(n) }
 
@@ -479,22 +521,25 @@ export default function CliBuilderPage() {
       <main className="cli-main">
         <div className="crumb"><span className="px">OCI CLI</span> / {cmd ? cmd.label : 'Custom'}</div>
         <h1 className={`sheet-h1${cmd && isVerified(active) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
-        {cmd?.maintenanceReboot && (
-          <div className="cli-crud-strip" aria-label="Instance Maintenance Reboot 명령 지원 현황">
-            {MAINTENANCE_REBOOT_OPERATIONS.map(operation => (
-              <button type="button" key={operation.verb} disabled={!operation.available}
-                className={`cli-crud-op verb-${operation.verb}${maintenanceOperation === operation.verb ? ' selected' : ''}`}
-                aria-pressed={operation.available ? maintenanceOperation === operation.verb : undefined}
-                title={`${operation.verb.toUpperCase()} — ${operation.detail}`}
-                onClick={() => operation.available && setMaintenanceOperation(operation.verb)}>
+        {hasCrud && (
+          <div className="cli-crud-strip" aria-label={`${cmd?.label} 명령 선택`}>
+            {CRUD_OPERATIONS.map(operation => {
+              const available = isOperationAvailable(operation.verb)
+              return (
+              <button type="button" key={operation.verb} disabled={!available}
+                className={`cli-crud-op verb-${operation.verb}${crudOperation === operation.verb ? ' selected' : ''}`}
+                aria-pressed={available ? crudOperation === operation.verb : undefined}
+                title={`${operation.verb.toUpperCase()}${available ? ' 명령 선택' : ' 명령 없음'}`}
+                onClick={() => selectOperation(operation.verb)}>
                 <span className="cli-crud-icon" aria-hidden="true">{operation.icon}</span>
                 <span className="cli-crud-verb">{operation.verb.toUpperCase()}</span>
               </button>
-            ))}
+              )
+            })}
           </div>
         )}
         {cmd
-          ? <p className="cli-help">{cmd.help}</p>
+          ? <p className="cli-help">{operationHelp}</p>
           : <p className="cli-help">자유 입력 — 직접 작성하거나, 왼쪽에서 자원을 골라 폼으로 만드세요. 저장하면 즐겨찾기로 재사용됩니다.</p>}
         {cmd && (
           <label className="cli-verify">
@@ -512,17 +557,17 @@ export default function CliBuilderPage() {
 
         {cmd ? (
           <div className="cli-form">
-            {cmd.sections.filter((_, index) => !cmd.maintenanceReboot || maintenanceOperation === 'update' || index === 0).map(sec => (
+            {formSections.map(sec => (
               <div key={sec.label} className="cli-sec">
                 <div className="cli-section-label px">{sec.label}</div>
                 {sec.options.map(o => field(o, !o.required))}
               </div>
             ))}
-            {cmd.advanced.length > 0 && <>
+            {formAdvanced.length > 0 && <>
               <button className="cli-optional-toggle" onClick={() => setShowOptional(s => !s)}>
-                {showOptional ? '▾' : '▸'} 고급 옵션 {cmd.advanced.length}개 (태그·대기 등) {showOptional ? '접기' : '펼치기'}
+                {showOptional ? '▾' : '▸'} 고급 옵션 {formAdvanced.length}개 (태그·대기 등) {showOptional ? '접기' : '펼치기'}
               </button>
-              {showOptional && cmd.advanced.map(o => field(o, true))}
+              {showOptional && formAdvanced.map(o => field(o, true))}
             </>}
           </div>
         ) : (

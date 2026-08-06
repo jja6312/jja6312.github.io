@@ -7,7 +7,7 @@ v3: 콘솔 생성 마법사와 같은 경험 —
   - advanced: tags·wait 등은 '고급'으로 접힘
 실행: python scripts/generate-cli-catalog.py  (cc3/jja6312.github.io 에서)
 """
-import json, re, glob, os, sys, io
+import json, re, glob, os, sys, io, importlib.util
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -15,6 +15,11 @@ SITE = os.path.dirname(HERE)
 DATA = os.path.join(SITE, '..', 'blog-db', 'knowledge', 'oci-cli', '_data')
 RECIPE = os.path.join(SITE, '..', 'blog-db', 'knowledge', 'oci-cli')
 OUT = os.path.join(SITE, '.protected-cache', 'cliCatalog.json')
+
+_parser_spec = importlib.util.spec_from_file_location('parse_oci_cli', os.path.join(HERE, 'parse-oci-cli.py'))
+_parser_module = importlib.util.module_from_spec(_parser_spec)
+_parser_spec.loader.exec_module(_parser_module)
+parse_cli_file = _parser_module.parse_file
 
 STRUCTURE = [
   ('02-compute', 'Compute', [
@@ -222,6 +227,62 @@ def build_option(o):
         'placeholder': placeholder(o['name'], 'json' if o.get('json') else typ),
     }
 
+def layout_command(res, command, curated=False):
+    opts = {o['name']: build_option(o) for o in command['options']}
+    cur = CURATION.get(res) if curated else None
+    promote = set(cur['promote']) if cur else set()
+
+    for name in promote:
+        if name in opts:
+            opts[name]['required'] = True
+            opts[name]['console'] = True
+
+    used = set()
+    sections = []
+    if cur:
+        for label, names in cur['sections']:
+            items = [opts[name] for name in names if name in opts]
+            used.update(name for name in names if name in opts)
+            if items:
+                sections.append({'label': label, 'options': items})
+        missing_req = [o for name, o in opts.items() if o['required'] and name not in used and name not in ADVANCED_ALWAYS]
+        if missing_req:
+            sections.insert(1, {'label': '필수 (기타)', 'options': missing_req})
+            used.update(o['name'] for o in missing_req)
+    else:
+        basic = [opts[name] for name in NAMEISH if name in opts]
+        if '--compartment-id' in opts:
+            basic.append(opts['--compartment-id'])
+        used.update(o['name'] for o in basic)
+        required = [o for name, o in opts.items() if o['required'] and name not in used and name not in ADVANCED_ALWAYS]
+        used.update(o['name'] for o in required)
+        rest = [o for name, o in opts.items() if name not in used and name not in ADVANCED_ALWAYS]
+        used.update(o['name'] for o in rest)
+        if basic:
+            sections.append({'label': '기본 정보', 'options': basic})
+        if required:
+            sections.append({'label': '필수 구성', 'options': required})
+        if rest:
+            sections.append({'label': '구성', 'options': rest})
+
+    advanced = [o for name, o in opts.items() if name not in used]
+    return sections, advanced
+
+def find_operation(commands, group, operation):
+    same_group = [command for command in commands if command.get('group') == group]
+    prefixes = {'get': ('get',), 'list': ('list',), 'update': ('update',), 'delete': ('delete', 'terminate')}[operation]
+    for prefix in prefixes:
+        exact = next((command for command in same_group if command.get('verb') == prefix), None)
+        if exact:
+            return exact
+        prefixed = sorted(
+            (command for command in same_group if (command.get('verb') or '').startswith(prefix + '-')),
+            key=lambda command: len(command['verb']),
+        )
+        if prefixed:
+            return prefixed[0]
+    return None
+
 catalog = {'categories': [], 'commands': {}}
 MANUAL_CATEGORY_RESOURCES = {'instance-maintenance-reboot'}
 placed = set()
@@ -234,52 +295,45 @@ for cat_id, cat_label, groups in STRUCTURE:
             placed.update(rs)
     catalog['categories'].append(cat)
 
+source_cache = {}
 for res, d in raw.items():
     if res not in placed:
         continue
     cmd = recipe_cmd(res)
     if not cmd:
         continue
-    opts = {o['name']: build_option(o) for o in d['primary']['options']}
-    cur = CURATION.get(res)
-    promote = set(cur['promote']) if cur else set()
-
-    # promote 적용 — 콘솔 기준 필수
-    for name in promote:
-        if name in opts:
-            opts[name]['required'] = True
-            opts[name]['console'] = True   # 표기용: 콘솔 기준 필수
-
-    used = set()
-    sections = []
-    if cur:
-        for label, names in cur['sections']:
-            items = [opts[n] for n in names if n in opts]
-            used.update(n for n in names if n in opts)
-            if items:
-                sections.append({'label': label, 'options': items})
-        # 큐레이션에 빠졌지만 required 인 옵션 → 첫 섹션 뒤에 배치
-        missing_req = [o for n, o in opts.items() if o['required'] and n not in used and n not in ADVANCED_ALWAYS]
-        if missing_req:
-            sections.insert(1, {'label': '필수 (기타)', 'options': missing_req})
-            used.update(o['name'] for o in missing_req)
+    sections, advanced = layout_command(res, d['primary'], curated=True)
+    source_file = d.get('source_file')
+    if source_file and os.path.exists(source_file):
+        if source_file not in source_cache:
+            source_cache[source_file] = parse_cli_file(source_file)
+        source_commands = source_cache[source_file]
     else:
-        # 휴리스틱: 기본 정보 → 필수 → 구성
-        basic = [opts[n] for n in NAMEISH if n in opts] + ([opts['--compartment-id']] if '--compartment-id' in opts else [])
-        used.update(o['name'] for o in basic)
-        req = [o for n, o in opts.items() if o['required'] and n not in used and n not in ADVANCED_ALWAYS]
-        used.update(o['name'] for o in req)
-        rest = [o for n, o in opts.items() if n not in used and n not in ADVANCED_ALWAYS]
-        used.update(o['name'] for o in rest)
-        if basic: sections.append({'label': '기본 정보', 'options': basic})
-        if req: sections.append({'label': '필수 구성', 'options': req})
-        if rest: sections.append({'label': '구성', 'options': rest})
-
-    advanced = [o for n, o in opts.items() if n not in used]
+        source_commands = []
+    prefix = cmd.rsplit(' ', 1)[0]
+    operations = {}
+    for operation in ('get', 'list', 'create', 'update', 'delete'):
+        operation_source = d['primary'] if operation == 'create' else find_operation(
+            source_commands, d['primary'].get('group'), operation,
+        )
+        if not operation_source:
+            continue
+        op_sections, op_advanced = layout_command(res, operation_source, curated=operation == 'create')
+        if operation == 'create':
+            operation_cmd = cmd
+        else:
+            actual_verb = 'terminate' if operation == 'delete' and operation_source['verb'].startswith('terminate') else operation
+            operation_cmd = prefix + ' ' + actual_verb
+        operations[operation] = {
+            'cmd': operation_cmd,
+            'help': (operation_source.get('help') or '').strip()[:200],
+            'sections': op_sections,
+            'advanced': op_advanced,
+        }
     catalog['commands'][res] = {
         'resource': res, 'label': RES_LABEL.get(res, res),
         'cmd': cmd, 'help': (d['primary'].get('help') or '').strip()[:200],
-        'sections': sections, 'advanced': advanced,
+        'sections': sections, 'advanced': advanced, 'operations': operations,
     }
 
 # ── 커스텀 레시피 (backbone 없음) ──

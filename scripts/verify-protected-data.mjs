@@ -43,6 +43,13 @@ for (const level of [1, 2, 3]) {
   if (bundle.cliCatalog.commands['instance-maintenance-reboot']?.cmd !== 'oci compute instance-maintenance-reboot get') {
     throw new Error(`L${level} maintenance reboot 조회 명령 오류`)
   }
+  const crudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations)
+  if (crudCommands.length !== 37) throw new Error(`L${level} CRUD 자원 수 오류: ${crudCommands.length}`)
+  for (const command of crudCommands) {
+    for (const operation of ['get', 'list', 'create', 'update', 'delete']) {
+      if (!command.operations[operation]?.cmd) throw new Error(`L${level} ${command.resource} ${operation} 명령 누락`)
+    }
+  }
   if ((level >= 2) !== !!bundle.schedule) throw new Error(`L${level} schedule 범위 오류`)
   if ((level >= 3) !== !!bundle.meetings) throw new Error(`L${level} meetings 범위 오류`)
   if ((level >= 3) !== !!bundle.provisioning) throw new Error(`L${level} provisioning 범위 오류`)
