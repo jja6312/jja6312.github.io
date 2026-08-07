@@ -1,67 +1,29 @@
 {
  "curricula": [
   {
-   "id": "adw-cloud-shell-sprint",
-   "title": "ADW–Cloud Shell 사설 연결 스프린트",
-   "description": "고정 공인 IP가 없는 OCI Cloud Shell을 VCN Private Network에 연결하고, Service Gateway와 ADW ACL을 사용해 인터넷을 우회하는 접속 경로를 직접 구성한다.",
-   "mode": "sprint",
-   "difficulty": 2,
-   "public": true,
-   "tags": [
-    "oci",
-    "adw",
-    "autonomous-database",
-    "cloud-shell",
-    "networking"
-   ],
-   "created": "2026-08-05",
-   "days": [
-    {
-     "day": 1,
-     "sheet": "day01-private-access",
-     "title": "Cloud Shell에서 ADW까지 사설 경로 열기",
-     "goal": "Cloud Shell을 VCN에 연결하고 Service Gateway·라우팅·Egress·ADW ACL을 구성한 뒤 SQLcl 접속으로 전체 경로를 검증한다",
-     "estimated_minutes": 60
-    }
-   ]
-  },
-  {
    "id": "oci-database",
-   "title": "OCI 데이터베이스",
-   "description": "OCI 데이터베이스 서비스를 카테고리 단위로 학습. 매니지드 DB의 접속·과금·운영을 레벨별로.",
+   "title": "OCI Autonomous AI Database",
+   "description": "현재 OCI 콘솔의 ADB 선택지를 고객 요구사항으로 번역하고, 비용·보안·복구 판단과 Cloud Shell ACL 접속을 한 번에 검증하는 단일 심화 과정.",
    "mode": "category",
-   "difficulty": 2,
+   "difficulty": 3,
    "public": true,
    "tags": [
     "oci",
     "database",
-    "autonomous"
+    "autonomous-ai-database",
+    "adb",
+    "architecture"
    ],
-   "created": "2026-08-03",
+   "created": "2026-08-07",
    "topics": [
     {
-     "topic": "autonomous-db",
-     "sheet": "autonomous-db",
-     "title": "Autonomous Database",
-     "goal": "ADB의 워크로드 타입·접속 3요소(Wallet/PE/ACL)를 이해하고, 새 ADB를 만들어 앱이 붙는 것까지 실제로 구축한다",
-     "estimated_minutes": 75,
-     "level": 1
-    },
-    {
-     "topic": "autonomous-db-l2",
-     "sheet": "autonomous-db-l2",
-     "title": "Autonomous Database",
-     "goal": "ECPU·Auto Scaling 과금 구조를 읽고, Private Endpoint로 사설 접속을 구축하며 백업·복구를 검증한다",
-     "estimated_minutes": 80,
-     "level": 2
-    },
-    {
-     "topic": "autonomous-db-l3",
-     "sheet": "autonomous-db-l3",
-     "title": "Autonomous Database",
-     "goal": "성능 이상을 지표로 진단하고, 재해 복구(Data Guard/Backup)와 이관·과금 최적화를 아키텍처로 설계한다",
-     "estimated_minutes": 85,
-     "level": 3
+     "topic": "autonomous-ai-database-design",
+     "sheet": "autonomous-ai-database-design",
+     "title": "콘솔 옵션에서 고객 설계까지",
+     "goal": "ADB 생성 화면의 각 선택이 워크로드·비용·접속·복구에 미치는 영향을 설명하고, 고객 상황에 맞는 구성을 설계한 뒤 Cloud Shell에서 VCN ACL 경로와 SQL 접속을 검증한다",
+     "estimated_minutes": 60,
+     "level": 2,
+     "status": "ready"
     }
    ]
   },
@@ -308,699 +270,214 @@
   }
  ],
  "sheets": {
-  "day01-private-access": {
-   "curriculum": "adw-cloud-shell-sprint",
-   "day": 1,
-   "sheet": "day01-private-access",
-   "title": "Cloud Shell에서 ADW까지 사설 경로 열기",
-   "tags": [
-    "oci",
-    "adw",
-    "autonomous-database",
-    "cloud-shell",
-    "service-gateway",
-    "acl"
-   ],
-   "difficulty": 2,
-   "estimated_minutes": 60,
-   "goal": "Cloud Shell을 VCN에 연결하고 Service Gateway·라우팅·Egress·ADW ACL을 구성한 뒤 SQLcl 접속으로 전체 경로를 검증한다",
-   "concepts": [
-    {
-     "id": "c1",
-     "title": "개념 1. Cloud Shell 공인 IP를 ACL에 넣으면 안 되는 이유",
-     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"cs1-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\">\n    <rect x=\"18\" y=\"45\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"88\" y=\"68\" fill=\"var(--text)\">Cloud Shell</text><text x=\"88\" y=\"85\" fill=\"var(--text-faint)\" font-size=\"10\">임시 관리 VM</text>\n    <rect x=\"248\" y=\"18\" width=\"164\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/><text x=\"330\" y=\"39\" fill=\"var(--wrong)\" font-weight=\"700\">Public Egress IP</text><text x=\"330\" y=\"55\" fill=\"var(--text-faint)\" font-size=\"10\">고정값으로 보장되지 않음</text>\n    <rect x=\"248\" y=\"86\" width=\"164\" height=\"48\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"330\" y=\"107\" fill=\"var(--accent)\" font-weight=\"700\">VCN Private Network</text><text x=\"330\" y=\"123\" fill=\"var(--text-dim)\" font-size=\"10\">관리 가능한 사설 경로</text>\n    <rect x=\"502\" y=\"45\" width=\"140\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"572\" y=\"68\" fill=\"var(--pixel)\" font-weight=\"700\">ADW ACL</text><text x=\"572\" y=\"85\" fill=\"var(--text-faint)\" font-size=\"10\">VCN 신원 허용</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#cs1-ar)\"><path d=\"M158 62 L244 43\"/><path d=\"M158 82 L244 105\"/><path d=\"M412 110 C455 110 460 80 498 75\"/></g>\n  <path d=\"M412 42 C455 42 460 58 498 65\" stroke=\"var(--wrong)\" stroke-width=\"1.5\" stroke-dasharray=\"5 4\" fill=\"none\"/>\n</svg>",
-     "body": "<p>Cloud Shell 세션에는 외부에서 접속할 수 있는 고정 공인 IP가 제공되지 않는다. Public Network를 통해 인터넷으로 나갈 수는 있지만 그 Egress 주소를 장기 ACL 값으로 보장할 수 없다. 따라서 현재 보이는 공인 IP 한 개를 ADW ACL에 넣는 방식은 세션이나 서비스 측 주소가 바뀌면 다시 실패할 수 있다.</p>\n<p>핵심은 IP 한 개를 찾아 등록하는 것이 아니라 Cloud Shell을 우리 VCN의 사설 인스턴스처럼 붙이고, ADW가 그 VCN을 신뢰하도록 만드는 것이다.</p>\n"
-    },
-    {
-     "id": "c2",
-     "title": "개념 2. Service Gateway와 Route Table의 역할",
-     "diagram": "<svg viewBox=\"0 0 660 135\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"cs2-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g text-anchor=\"middle\" font-size=\"11.5\">\n    <rect x=\"18\" y=\"35\" width=\"145\" height=\"58\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"90\" y=\"59\" fill=\"var(--text)\">Cloud Shell VNIC</text><text x=\"90\" y=\"78\" fill=\"var(--text-faint)\" font-size=\"10\">사설 서브넷 IP</text>\n    <rect x=\"205\" y=\"35\" width=\"145\" height=\"58\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"277\" y=\"59\" fill=\"var(--accent)\" font-weight=\"700\">Route Table</text><text x=\"277\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"10\">OSN → Service GW</text>\n    <rect x=\"392\" y=\"35\" width=\"120\" height=\"58\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"452\" y=\"59\" fill=\"var(--accent)\" font-weight=\"700\">Service GW</text><text x=\"452\" y=\"78\" fill=\"var(--text-dim)\" font-size=\"10\">인터넷 우회</text>\n    <rect x=\"554\" y=\"35\" width=\"88\" height=\"58\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"598\" y=\"59\" fill=\"var(--pixel)\" font-weight=\"700\">ADW</text><text x=\"598\" y=\"78\" fill=\"var(--text-faint)\" font-size=\"10\">OSN</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.7\" marker-end=\"url(#cs2-ar)\"><line x1=\"163\" y1=\"64\" x2=\"201\" y2=\"64\"/><line x1=\"350\" y1=\"64\" x2=\"388\" y2=\"64\"/><line x1=\"512\" y1=\"64\" x2=\"550\" y2=\"64\"/></g>\n  <text x=\"330\" y=\"118\" text-anchor=\"middle\" fill=\"var(--text-faint)\" font-size=\"10.5\">Destination: All &lt;region&gt; Services in Oracle Services Network</text>\n</svg>",
-     "body": "<p>ADW Public Endpoint는 공인 주소를 사용하지만 Oracle Services Network(OSN)에 속한다. Service Gateway는 VCN에서 지원되는 Oracle 서비스로 가는 트래픽을 인터넷에 노출하지 않고 전달한다. 단, Gateway를 생성하는 것만으로는 부족하고 Cloud Shell 서브넷의 Route Table이 OSN 목적지를 그 Gateway로 보내야 한다.</p>\n<p>Service Gateway와 Route Rule은 세트다. 보안 목록 또는 NSG의 Egress 규칙도 통신 포트를 허용해야 한다.</p>\n"
-    },
-    {
-     "id": "c3",
-     "title": "개념 3. ADW ACL의 VCN 규칙은 언제 일치하는가",
-     "diagram": "<svg viewBox=\"0 0 660 155\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11\">\n    <rect x=\"18\" y=\"14\" width=\"150\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"93\" y=\"35\" fill=\"var(--text)\">VCN 서브넷</text><text x=\"93\" y=\"51\" fill=\"var(--text-faint)\" font-size=\"10\">10.0.10.0/24</text>\n    <rect x=\"245\" y=\"14\" width=\"150\" height=\"48\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"320\" y=\"35\" fill=\"var(--accent)\" font-weight=\"700\">Service Gateway</text><text x=\"320\" y=\"51\" fill=\"var(--text-dim)\" font-size=\"10\">VCN 규칙과 일치</text>\n    <rect x=\"492\" y=\"14\" width=\"150\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"567\" y=\"35\" fill=\"var(--pixel)\">ADW ACL</text><text x=\"567\" y=\"51\" fill=\"var(--text-faint)\" font-size=\"10\">허용 VCN</text>\n    <rect x=\"245\" y=\"94\" width=\"150\" height=\"48\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--wrong)\"/><text x=\"320\" y=\"115\" fill=\"var(--wrong)\" font-weight=\"700\">NAT Gateway</text><text x=\"320\" y=\"131\" fill=\"var(--text-faint)\" font-size=\"10\">공인 IP로 변환</text>\n    <text x=\"567\" y=\"119\" fill=\"var(--wrong)\" font-size=\"10.5\">VCN ACL 불일치</text>\n  </g>\n  <g fill=\"none\" stroke-width=\"1.6\"><path d=\"M168 34 L241 34\" stroke=\"var(--accent)\"/><path d=\"M395 34 L488 34\" stroke=\"var(--accent)\"/><path d=\"M168 48 C195 90 210 115 241 117\" stroke=\"var(--wrong)\"/><path d=\"M395 117 L488 117\" stroke=\"var(--wrong)\" stroke-dasharray=\"5 4\"/></g>\n</svg>",
-     "body": "<p>ADW ACL의 <code>Virtual cloud network</code> 규칙은 클라이언트가 해당 VCN에서 <strong>Service Gateway를 통과해</strong> 접속할 때 사용한다. NAT Gateway를 통해 나가면 ADW에는 VCN 신원이 아니라 NAT의 공인 IP가 보이므로 NAT 공인 IP를 ACL에 등록해야 하는 전혀 다른 구성이 된다.</p>\n<p>ACL에 VCN만 지정하면 VCN 전체가 허용된다. 더 좁게 제한하려면 같은 규칙의 <code>IP addresses or CIDRs</code>에 Cloud Shell 서브넷 CIDR을 추가한다.</p>\n"
-    },
-    {
-     "id": "c4",
-     "title": "개념 4. Wallet과 네트워크는 서로 다른 관문이다",
-     "diagram": "<svg viewBox=\"0 0 660 125\" font-family=\"Pretendard,sans-serif\">\n  <g text-anchor=\"middle\" font-size=\"11.5\">\n    <rect x=\"16\" y=\"28\" width=\"130\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"81\" y=\"51\" fill=\"var(--text)\">① 경로</text><text x=\"81\" y=\"69\" fill=\"var(--text-faint)\" font-size=\"10\">Route + SGW</text>\n    <rect x=\"181\" y=\"28\" width=\"130\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"246\" y=\"51\" fill=\"var(--text)\">② 방화벽</text><text x=\"246\" y=\"69\" fill=\"var(--text-faint)\" font-size=\"10\">Egress / NSG</text>\n    <rect x=\"346\" y=\"28\" width=\"130\" height=\"54\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"411\" y=\"51\" fill=\"var(--accent)\" font-weight=\"700\">③ ADW ACL</text><text x=\"411\" y=\"69\" fill=\"var(--text-dim)\" font-size=\"10\">VCN 허용</text>\n    <rect x=\"511\" y=\"28\" width=\"133\" height=\"54\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"577\" y=\"51\" fill=\"var(--pixel)\">④ 인증</text><text x=\"577\" y=\"69\" fill=\"var(--text-faint)\" font-size=\"10\">Wallet + DB 계정</text>\n  </g>\n  <text x=\"330\" y=\"108\" text-anchor=\"middle\" fill=\"var(--text-faint)\" font-size=\"10.5\">하나라도 실패하면 접속 실패 — 각 관문을 따로 검증한다</text>\n</svg>",
-     "body": "<p>Wallet은 mTLS 인증서와 접속 문자열을 제공한다. 그러나 Wallet이 올바르더라도 Route나 ACL이 막히면 접속할 수 없다. 반대로 네트워크가 열려도 DB 사용자 비밀번호나 Wallet이 틀리면 인증에 실패한다. 장애 분석은 <code>경로 → ACL → Wallet/DB 인증</code> 순으로 나누면 빠르다.</p>\n"
-    }
-   ],
-   "lab": {
-    "situation": "고객 ADW는 Public Endpoint를 유지하되 <code>Secure access from allowed IPs and VCNs only</code>로 제한되어 있다. 운영자는 고정 공인 IP가 없는 OCI Cloud Shell에서 안전하게 SQL 점검을 해야 한다.",
-    "request": "Cloud Shell의 임시 공인 IP를 등록하지 말고, Private Network와 Service Gateway를 사용해 ADW에 접속한 뒤 SQL 결과로 성공을 증명해 주세요.",
-    "steps": [
-     {
-      "id": "l1",
-      "title": "전제조건과 리전 확인",
-      "body": "<p>ADW 상세 화면에서 <code>Lifecycle state: Available</code>, <code>Access type: Secure access from allowed IPs and VCNs only</code>, 리전을 확인한다. Cloud Shell Private Network는 테넌시 홈 리전의 VCN·서브넷만 직접 선택할 수 있으므로 대상 VCN도 홈 리전에 준비한다. 다른 리전이면 홈 리전 VCN과 대상 리전 VCN 사이의 Remote Peering이 별도로 필요하다.</p>\n<p>Cloud Shell에서 현재 CLI 리전을 확인한다.</p>\n<pre><code class=\"language-bash\">oci iam region-subscription list \\\n  --query &quot;data[?\\&quot;is-home-region\\&quot;==\\`true\\`].\\&quot;region-name\\&quot; | [0]&quot; \\\n  --raw-output\noci setup config get --query region\n</code></pre>\n<p>확인: 홈 리전과 사용할 VCN 리전을 기록하고, ADW가 다른 리전이면 이번 단일 리전 실습을 중단한다.</p>\n"
-     },
-     {
-      "id": "l2",
-      "title": "Cloud Shell용 사설 서브넷 준비",
-      "body": "<p>콘솔: <code>Networking → Virtual Cloud Networks → &lt;VCN&gt; → Subnets → Create Subnet</code></p>\n<pre><code class=\"language-text\">Name                 : cloudshell-private-subnet\nSubnet Type          : Regional\nIPv4 CIDR Block      : 10.0.10.0/24    # 기존 CIDR과 겹치지 않게 변경\nPublic IPv4 Address  : Prohibit\n</code></pre>\n<p>확인: 서브넷 상태가 <code>Available</code>이고 사용 가능한 사설 IP가 1개 이상 남아 있어야 한다. Cloud Shell Private Network가 이 서브넷에 임시 VNIC를 만들기 때문이다.</p>\n"
-     },
-     {
-      "id": "l3",
-      "title": "Service Gateway 생성",
-      "body": "<p>콘솔: <code>VCN 상세 → Service Gateways → Create Service Gateway</code></p>\n<pre><code class=\"language-text\">Name      : sgw-adw\nServices  : All &lt;현재 리전&gt; Services in Oracle Services Network\n</code></pre>\n<p>확인: Service Gateway 상태가 <code>Available</code>, 트래픽 상태가 <code>Allowed</code>인지 확인한다. VCN당 Service Gateway는 하나면 충분하므로 기존 Gateway가 있으면 새로 만들지 말고 서비스 CIDR Label을 확인한다.</p>\n"
-     },
-     {
-      "id": "l4",
-      "title": "Route와 Egress 규칙 추가",
-      "body": "<p>Cloud Shell 서브넷이 사용하는 Route Table에 추가한다.</p>\n<pre><code class=\"language-text\">Target Type          : Service Gateway\nDestination Service  : All &lt;현재 리전&gt; Services in Oracle Services Network\nTarget               : sgw-adw\n</code></pre>\n<p>서브넷 Security List 또는 연결할 NSG의 Stateful Egress에 추가한다.</p>\n<pre><code class=\"language-text\">Destination Type     : Service\nDestination Service  : All &lt;현재 리전&gt; Services in Oracle Services Network\nIP Protocol          : TCP\nDestination Port     : 1521-1522\n</code></pre>\n<p>Wallet 기반 mTLS 접속은 일반적으로 TCP 1522를 사용한다. TLS 접속까지 고려해 1521–1522를 허용했다. 기존 <code>0.0.0.0/0, All protocols</code> Egress 규칙이 있으면 기능상 중복이므로 추가하지 않는다.</p>\n<p>확인: 서브넷 상세 화면에서 실제 연결된 Route Table과 Security List를 다시 열어 규칙이 들어간 대상을 검증한다.</p>\n"
-     },
-     {
-      "id": "l5",
-      "title": "ADW ACL에 VCN 추가",
-      "body": "<p>콘솔: <code>Oracle Database → Autonomous Database → &lt;ADW&gt; → Network → Edit</code></p>\n<pre><code class=\"language-text\">Access Type       : Secure access from allowed IPs and VCNs only\nIP Notation Type  : Virtual cloud network\nVCN               : 실습 VCN\nIP/CIDRs           : 10.0.10.0/24   # 선택 사항, Cloud Shell 서브넷만 제한\n</code></pre>\n<p>기존 회사·관리자 IP 규칙은 삭제하지 않고 VCN 규칙을 추가한다. 빈 ACL을 저장하면 모든 DB 접속이 차단될 수 있다.</p>\n<p>확인: ADW가 업데이트 후 다시 <code>Available</code>이고 Network의 Access Control List에 VCN이 표시된다.</p>\n"
-     },
-     {
-      "id": "l6",
-      "title": "Cloud Shell을 Private Network에 연결",
-      "body": "<p>Cloud Shell 상단에서 <code>Network → Private Network Definition List → Create Private Network Definition</code>을 선택한다.</p>\n<pre><code class=\"language-text\">Name                  : adw-private-access\nVCN                   : 실습 VCN\nSubnet                : cloudshell-private-subnet\nUse as active network : On\n</code></pre>\n<p>권한 오류가 나면 관리자에게 다음 IAM 정책을 요청한다.</p>\n<pre><code class=\"language-text\">allow group &lt;group&gt; to use subnets in compartment &lt;compartment&gt;\nallow group &lt;group&gt; to use vnics in compartment &lt;compartment&gt;\nallow group &lt;group&gt; to use network-security-groups in compartment &lt;compartment&gt;\nallow group &lt;group&gt; to inspect vcns in compartment &lt;compartment&gt;\n</code></pre>\n<p>확인: Cloud Shell 상단 Network가 <code>adw-private-access</code>로 표시되고 Details에 선택한 VCN·서브넷이 보인다.</p>\n"
-     },
-     {
-      "id": "l7",
-      "title": "Wallet 발급과 SQLcl 접속 검증",
-      "body": "<p>ADW OCID를 환경변수에 넣고 Wallet 암호는 화면에 노출하지 않고 입력받는다.</p>\n<pre><code class=\"language-bash\">export ADW_OCID=&#39;ocid1.autonomousdatabase.oc1...&#39;\nread -s WALLET_PASSWORD\noci db autonomous-database generate-wallet \\\n  --autonomous-database-id &quot;$ADW_OCID&quot; \\\n  --file Wallet_ADW.zip \\\n  --password &quot;$WALLET_PASSWORD&quot;\nunset WALLET_PASSWORD\n\nunzip -o Wallet_ADW.zip -d &quot;$HOME/wallet_adw&quot;\ngrep &#39;^[[:alnum:]_-]*[[:space:]]*=&#39; &quot;$HOME/wallet_adw/tnsnames.ora&quot;\n</code></pre>\n<p>출력에서 <code>_low</code> 서비스명을 확인해 접속한다. 예시 서비스명은 실제 값으로 바꾼다.</p>\n<pre><code class=\"language-bash\">sql -cloudconfig Wallet_ADW.zip ADMIN@myadw_low\n</code></pre>\n<p>SQLcl에서 최종 검증한다.</p>\n<pre><code class=\"language-sql\">SELECT SYS_CONTEXT(&#39;USERENV&#39;, &#39;DB_NAME&#39;) AS db_name,\n       SYS_CONTEXT(&#39;USERENV&#39;, &#39;SESSION_USER&#39;) AS session_user\nFROM dual;\n</code></pre>\n<p>결과에 DB 이름과 <code>ADMIN</code>이 나오면 <code>Cloud Shell → VCN → Service Gateway → ADW ACL → Wallet 인증</code> 전체 경로가 성공한 것이다. Wallet ZIP과 압축 해제 파일은 Git 저장소에 넣지 않는다.</p>\n<p>접속이 실패하면 <code>Cloud Shell 활성 Network → 서브넷 Route → Egress/NSG → ADW VCN ACL → Wallet 서비스명</code> 순서로 확인한다.</p>\n"
-     }
-    ]
-   },
-   "sources": [
-    {
-     "label": "Cloud Shell Networking",
-     "url": "https://docs.oracle.com/en-us/iaas/Content/API/Concepts/cloudshellintro_topic-Cloud_Shell_Networking.htm"
-    },
-    {
-     "label": "Autonomous Database ACL 구성",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/access-control-rules-autonomous.html"
-    },
-    {
-     "label": "Service Gateway와 Route Rule",
-     "url": "https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/servicegateway.htm"
-    },
-    {
-     "label": "OCI CLI Wallet 생성",
-     "url": "https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/autonomous-database/generate-wallet.html"
-    }
-   ],
-   "scenarios": [
-    {
-     "id": "s1",
-     "type": "ox",
-     "situation": "운영자가 Cloud Shell Public Network에서 확인한 현재 Egress IP 한 개를 ADW ACL에 등록하면 장기 운영에도 충분하다고 주장한다.",
-     "question": "이 방법은 Cloud Shell의 고정 공인 IP를 사용하는 안정적인 구성이다. (O/X)",
-     "answers": [
-      "X"
-     ],
-     "explanation": "Cloud Shell에는 ACL용으로 보장되는 고정 공인 IP가 제공되지 않는다. 안정적인 구성은 Cloud Shell Private Network를 VCN에 붙이고 Service Gateway 경로와 ADW VCN ACL을 사용하는 것이다.",
-     "concept_anchor": "c1",
-     "xp": 10
-    },
-    {
-     "id": "s2",
-     "type": "choice",
-     "situation": "Cloud Shell을 VCN 사설 서브넷에 연결했고 ADW ACL에는 해당 VCN을 허용했다. 그러나 서브넷에서 ADW Public Endpoint로 가는 경로가 없다.",
-     "question": "ADW VCN ACL과 일치하는 권장 경로를 만드는 조합은 무엇인가?",
-     "choices": [
-      "Internet Gateway + 0.0.0.0/0",
-      "NAT Gateway + NAT 공인 IP",
-      "Service Gateway + All <region> Services in Oracle Services Network Route Rule",
-      "Local Peering Gateway + 같은 VCN"
-     ],
-     "answers": [
-      "3"
-     ],
-     "explanation": "ADW ACL의 Virtual cloud network 유형은 해당 VCN의 클라이언트가 Service Gateway를 통해 접속할 때 사용하는 규칙이다. Gateway와 Route Rule을 함께 구성해야 한다.",
-     "concept_anchor": "c2",
-     "xp": 10
-    },
-    {
-     "id": "s3",
-     "type": "command",
-     "situation": "ADW OCID가 $ADW_OCID에 있고 Cloud Shell에서 Wallet_ADW.zip을 발급해야 한다. Wallet 암호는 $WALLET_PASSWORD에 들어 있다.",
-     "question": "OCI CLI로 단일 ADW Wallet 파일을 생성하는 명령을 입력하라.",
-     "answers": [
-      "oci db autonomous-database generate-wallet --autonomous-database-id $ADW_OCID --file Wallet_ADW.zip --password $WALLET_PASSWORD",
-      "oci db autonomous-database generate-wallet --autonomous-database-id \"$ADW_OCID\" --file Wallet_ADW.zip --password \"$WALLET_PASSWORD\""
-     ],
-     "match": "normalize-flags",
-     "explanation": "generate-wallet은 ADW OCID, 출력 파일, Wallet 키 암호를 필수로 받는다. 실제 사용 후 암호 환경변수는 unset하고 Wallet은 Git에 커밋하지 않는다.",
-     "concept_anchor": "c4",
-     "xp": 10
-    },
-    {
-     "id": "s4",
-     "type": "command",
-     "situation": "Wallet으로 SQLcl 접속에 성공했다. 현재 접속한 DB 이름과 DB 세션 사용자를 한 번에 증적으로 남겨야 한다.",
-     "question": "dual에서 DB_NAME과 SESSION_USER를 조회하는 SQL 한 줄을 입력하라.",
-     "answers": [
-      "SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS db_name, SYS_CONTEXT('USERENV', 'SESSION_USER') AS session_user FROM dual;"
-     ],
-     "match": "exact-trim",
-     "explanation": "네트워크 포트 확인만으로는 DB 로그인을 증명할 수 없다. 실제 SQL 결과가 반환되어야 네트워크·ACL·Wallet·DB 인증 전체 성공을 확인할 수 있다.",
-     "concept_anchor": "c4",
-     "xp": 10
-    },
-    {
-     "id": "s5",
-     "type": "essay",
-     "situation": "같은 VCN의 사설 서브넷에서 NAT Gateway를 통해 ADW에 접속하도록 구성했는데, ADW ACL에는 Virtual cloud network 규칙만 등록되어 있어 연결이 거부된다.",
-     "question": "거부 원인을 설명하고 VCN 기반 허용을 유지하는 수정 방법을 제시하라.",
-     "answers": [],
-     "rubric": "원인: NAT Gateway를 통과하면 출발지가 NAT 공인 IP로 변환되어 ADW의 VCN 규칙과 일치하지 않는다고 설명하면 1점. 수정: 서브넷 Route Table의 OSN 목적지를 Service Gateway로 보내고 ADW ACL의 VCN 규칙을 유지한다고 제시하면 1점. 대안으로 NAT 공인 IP를 IP ACL에 등록할 수 있지만 VCN 기반 사설 경로라는 목표와 다르다고 구분하면 가점.",
-     "explanation": "ADW ACL 규칙은 단순히 리소스가 어느 VCN에 생성됐는지가 아니라 실제 접속 경로와 출발지 표현에 따라 일치한다. VCN 규칙을 쓰려면 Service Gateway 경로를 사용한다.",
-     "concept_anchor": "c3",
-     "xp": 10
-    }
-   ]
-  },
-  "autonomous-db": {
+  "autonomous-ai-database-design": {
    "curriculum": "oci-database",
-   "topic": "autonomous-db",
-   "level": 1,
-   "sheet": "autonomous-db",
-   "title": "Autonomous Database — 접속의 기본기",
+   "topic": "autonomous-ai-database-design",
+   "level": 2,
+   "sheet": "autonomous-ai-database-design",
+   "title": "콘솔 옵션에서 고객 설계까지",
    "tags": [
     "oci",
     "database",
-    "autonomous",
-    "connection"
+    "autonomous-ai-database",
+    "adb",
+    "architecture",
+    "cloud-shell"
    ],
-   "difficulty": 1,
-   "estimated_minutes": 75,
-   "goal": "ADB의 워크로드 타입·접속 3요소(Wallet/PE/ACL)를 이해하고, 새 ADB를 만들어 앱이 붙는 것까지 실제로 구축한다",
+   "difficulty": 3,
+   "estimated_minutes": 60,
+   "goal": "ADB 생성 화면의 각 선택이 워크로드·비용·접속·복구에 미치는 영향을 설명하고, 고객 상황에 맞는 구성을 설계한 뒤 Cloud Shell에서 VCN ACL 경로와 SQL 접속을 검증한다",
    "concepts": [
     {
      "id": "c1",
-     "title": "개념 1. ADB의 책임 경계 — 무엇을 Oracle이 하나",
-     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11.5\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">Oracle이 한다</text>\n    <text x=\"166\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">패치·업그레이드·튜닝·백업</text>\n    <text x=\"166\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">인프라·OS·DB 엔진 운영</text>\n    <text x=\"166\" y=\"110\" fill=\"var(--text-faint)\" font-size=\"10\">\"운전대를 Oracle이 잡음\"</text>\n    <rect x=\"344\" y=\"24\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"494\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">내가(MSP) 한다</text>\n    <text x=\"494\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">접속(Wallet/PE/ACL) · 스키마·SQL</text>\n    <text x=\"494\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">과금 설정(ECPU·scaling) · IAM 권한</text>\n    <text x=\"494\" y=\"110\" fill=\"var(--text-faint)\" font-size=\"10\">고객 티켓의 80%가 이 4개</text>\n  </g>\n</svg>",
-     "body": "<pre><code>ADB 한 문장\n└── &quot;DB는 Oracle이 굴리고 너는 SQL만 써라&quot; — 그래서 MSP가 손댈 건 적어 보이지만,\n    고객이 가장 자주 막히는 접속·과금·백업·권한 4개는 전부 내 영역이다\n</code></pre>\n<ul>\n<li>매니지드라고 방심하면 안 되는 지점: <strong>접속</strong>은 100% 사용자 책임 — Wallet·네트워크·ACL 셋 중 하나만 어긋나도 못 붙는다</li>\n</ul>\n"
+     "title": "개념 1. 생성 화면은 설계 결정표다",
+     "diagram": "<svg viewBox=\"0 0 760 190\" role=\"img\" aria-label=\"고객 요구가 ADB 생성 옵션과 운영 결과로 연결되는 흐름\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs><marker id=\"adb-ar1\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-family=\"inherit\" text-anchor=\"middle\">\n    <rect x=\"18\" y=\"36\" width=\"160\" height=\"106\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"98\" y=\"62\" fill=\"var(--text)\" font-weight=\"700\">고객 요구</text>\n    <text x=\"98\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"11\">업무·RTO/RPO</text><text x=\"98\" y=\"104\" fill=\"var(--text-dim)\" font-size=\"11\">접속 출처·예산</text><text x=\"98\" y=\"124\" fill=\"var(--text-dim)\" font-size=\"11\">규제·라이선스</text>\n    <rect x=\"298\" y=\"18\" width=\"180\" height=\"142\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"388\" y=\"44\" fill=\"var(--accent)\" font-weight=\"700\">Create 옵션</text>\n    <text x=\"388\" y=\"67\" fill=\"var(--text-dim)\" font-size=\"11\">워크로드·버전·ECPU</text><text x=\"388\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"11\">스토리지·자동 확장</text><text x=\"388\" y=\"109\" fill=\"var(--text-dim)\" font-size=\"11\">네트워크·mTLS</text><text x=\"388\" y=\"130\" fill=\"var(--text-dim)\" font-size=\"11\">백업·암호화·패치</text>\n    <rect x=\"598\" y=\"36\" width=\"144\" height=\"106\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"670\" y=\"62\" fill=\"var(--pixel)\" font-weight=\"700\">운영 결과</text>\n    <text x=\"670\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"11\">성능·청구</text><text x=\"670\" y=\"104\" fill=\"var(--text-dim)\" font-size=\"11\">공격 표면</text><text x=\"670\" y=\"124\" fill=\"var(--text-dim)\" font-size=\"11\">복구 가능 범위</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.8\" marker-end=\"url(#adb-ar1)\"><line x1=\"178\" y1=\"89\" x2=\"294\" y2=\"89\"/><line x1=\"478\" y1=\"89\" x2=\"594\" y2=\"89\"/></g>\n</svg>",
+     "body": "<p>ADB는 패치·백업·튜닝의 많은 부분을 관리형으로 제공하지만, 고객 요구를 대신 결정하지는 않는다. 생성 화면은 이름을 적는 폼이 아니라 <strong>데이터 성격, 호환성, 비용, 접속 경계, 복구 목표</strong>를 확정하는 결정표다.</p>\n<h3>워크로드와 버전</h3>\n<table>\n<thead>\n<tr>\n<th>콘솔 워크로드</th>\n<th>주된 판단</th>\n<th>CLI <code>--db-workload</code></th>\n<th>피해야 할 오해</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Transaction Processing</td>\n<td>짧은 트랜잭션, 혼합 업무</td>\n<td><code>OLTP</code></td>\n<td>분석 쿼리를 실행할 수 없다는 뜻이 아님</td>\n</tr>\n<tr>\n<td>Lakehouse</td>\n<td>대용량 분석·데이터 레이크 결합</td>\n<td><code>LH</code></td>\n<td>예전 <code>DW</code> 값을 신규 표준으로 쓰지 않음</td>\n</tr>\n<tr>\n<td>JSON</td>\n<td>JSON 중심 개발</td>\n<td><code>AJD</code></td>\n<td>관계형 기능을 전혀 못 쓰는 별도 엔진이 아님</td>\n</tr>\n<tr>\n<td>APEX</td>\n<td>APEX 애플리케이션 중심</td>\n<td><code>APEX</code></td>\n<td>범용 운영 DB를 무조건 APEX로 고르지 않음</td>\n</tr>\n</tbody></table>\n<p>현재 문서는 <strong>Oracle AI Database 26ai</strong>와 <strong>Oracle Database 19c</strong> 선택을 안내한다. 신규 기능은 26ai, 기존 애플리케이션 인증·호환성이 우선이면 19c를 검토한다. CLI의 과거 <code>DW</code> 값은 지원 종료 안내가 있으므로 현재 콘솔 명칭과 <code>LH</code>를 기준으로 자동화를 갱신한다.</p>\n<h3>서비스 티어</h3>\n<ul>\n<li>Paid: 확장, SLA 및 운영 기능이 필요한 고객 환경의 기본 후보.</li>\n<li>Always Free: 실습·소규모 검증용. 자원과 기능 제한을 설계 전 확인.</li>\n<li>Developers: 고정 4 ECPU/20GB, SLA·DR·Private Endpoint·확장·자동 시작/중지·BYOL 등을 제공하지 않는 개발용 티어. <strong>중지해도 청구가 멈추지 않는다.</strong></li>\n</ul>\n<p>판단 순서: 고객 업무 → 지원 DB 버전 → 필요한 운영 기능 → 비용 모델. “싸니까 Developer”부터 고르면 보안·복구 요구와 충돌한다.</p>\n"
     },
     {
      "id": "c2",
-     "title": "개념 2. 워크로드 타입 — 만들기 전 첫 결정",
-     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"114\" y=\"46\" fill=\"var(--accent)\" font-weight=\"700\">ATP</text>\n    <text x=\"114\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">Transaction Processing</text>\n    <text x=\"114\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10\">짧은 트랜잭션 대량</text>\n    <text x=\"114\" y=\"106\" fill=\"var(--text-faint)\" font-size=\"10\">OLTP·웹앱 백엔드</text>\n    <rect x=\"230\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"330\" y=\"46\" fill=\"var(--pixel)\" font-weight=\"700\">ADW</text>\n    <text x=\"330\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">Data Warehouse</text>\n    <text x=\"330\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10\">대용량 분석 쿼리</text>\n    <text x=\"330\" y=\"106\" fill=\"var(--text-faint)\" font-size=\"10\">BI·리포팅·집계</text>\n    <rect x=\"446\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"546\" y=\"46\" fill=\"var(--text)\" font-weight=\"700\">JSON / APEX</text>\n    <text x=\"546\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">문서형 · 로우코드 앱</text>\n    <text x=\"546\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10\">용도 특화 프리셋</text>\n    <text x=\"546\" y=\"106\" fill=\"var(--text-faint)\" font-size=\"10\">엔진 기본값이 다름</text>\n  </g>\n</svg>",
-     "body": "<ul>\n<li>타입은 내부 최적화(옵티마이저·메모리·병렬)의 기본값을 바꾼다 — OLTP에 ADW를 고르면 짧은 쿼리 성능이 손해</li>\n<li>공식: <em>&quot;Autonomous Transaction Processing is designed for transactional workloads with a high volume of short-running transactions.&quot;</em></li>\n</ul>\n"
+     "title": "개념 2. ECPU·스토리지·라이선스가 청구 경계다",
+     "diagram": "<svg viewBox=\"0 0 760 180\" role=\"img\" aria-label=\"기준 ECPU와 컴퓨트 및 스토리지 자동 확장 범위\" xmlns=\"http://www.w3.org/2000/svg\">\n  <g font-family=\"inherit\">\n    <text x=\"24\" y=\"35\" fill=\"var(--text)\" font-weight=\"700\">Compute</text>\n    <rect x=\"130\" y=\"18\" width=\"170\" height=\"34\" rx=\"7\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"215\" y=\"40\" text-anchor=\"middle\" fill=\"var(--accent)\" font-size=\"11\">기준 2 ECPU</text>\n    <rect x=\"300\" y=\"18\" width=\"340\" height=\"34\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"470\" y=\"40\" text-anchor=\"middle\" fill=\"var(--text-dim)\" font-size=\"11\">자동 확장 시 최대 6 ECPU · 실제 사용 청구</text>\n    <text x=\"24\" y=\"105\" fill=\"var(--text)\" font-weight=\"700\">Storage</text>\n    <rect x=\"130\" y=\"88\" width=\"170\" height=\"34\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"215\" y=\"110\" text-anchor=\"middle\" fill=\"var(--pixel)\" font-size=\"11\">기준 용량</text>\n    <rect x=\"300\" y=\"88\" width=\"340\" height=\"34\" rx=\"7\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"470\" y=\"110\" text-anchor=\"middle\" fill=\"var(--text-dim)\" font-size=\"11\">자동 확장 시 최대 3배 · 할당 용량 청구</text>\n    <text x=\"130\" y=\"155\" fill=\"var(--wrong)\" font-size=\"11\">데이터 삭제만으로 이미 할당된 스토리지가 즉시 줄지는 않는다. Shrink 영향과 재시작 가능성을 확인한다.</text>\n  </g>\n</svg>",
+     "body": "<p>ECPU는 현재 권장 컴퓨트 모델이며 OCPU 모델은 퇴역했다. 최소 2 ECPU부터 시작한다. 컴퓨트 자동 확장은 기본 활성화되어 최대 기준 ECPU의 3배까지 CPU·I/O를 사용하고, 실제 추가 사용량이 청구된다.</p>\n<h3>옵션별 현업 판단</h3>\n<ul>\n<li>Compute auto scaling: 예측하기 어려운 피크에는 유리. 엄격한 예산 상한이 우선이면 부하 시험·알람과 함께 비활성화를 검토.</li>\n<li>Storage auto scaling: 기본 비활성화. 용량 부족 위험은 낮추지만 할당 증가가 비용으로 남는다. 보존·정리 정책과 알람을 먼저 둔다.</li>\n<li>License Included: 기존 Oracle 라이선스 적용 근거가 없을 때 안전한 선택.</li>\n<li>BYOL: Transaction Processing/Lakehouse에서 라이선스 자격을 계약 담당자와 검증한 뒤 사용. Standard Edition은 자동 확장 포함 최대 32 ECPU 제한을 확인한다.</li>\n<li>Stop: 일반 유료 ADB는 컴퓨트 청구를 멈추는 수단이지만 스토리지 등은 남는다. 연결과 트랜잭션이 중단되며, 장기 중지 후 시작 시 패치로 지연될 수 있다.</li>\n</ul>\n<p>흔한 오류는 “자동 확장 최대치만큼 항상 청구된다”와 “행을 삭제하면 스토리지 비용도 바로 줄어든다”다. 전자는 실제 추가 사용량, 후자는 할당 용량과 축소 절차를 구분해야 한다.</p>\n"
     },
     {
      "id": "c3",
-     "title": "개념 3. 접속 3요소 — 못 붙는 이유는 항상 여기",
-     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"adb1-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"60\" width=\"110\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"71\" y=\"88\" fill=\"var(--text)\">앱 / 클라이언트</text>\n    <rect x=\"180\" y=\"14\" width=\"150\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"255\" y=\"32\" fill=\"var(--accent)\" font-weight=\"700\">① Wallet (자격)</text>\n    <text x=\"255\" y=\"48\" fill=\"var(--text-dim)\" font-size=\"10\">mTLS 인증서 번들</text>\n    <rect x=\"180\" y=\"62\" width=\"150\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"255\" y=\"80\" fill=\"var(--accent)\" font-weight=\"700\">② 네트워크 (경로)</text>\n    <text x=\"255\" y=\"96\" fill=\"var(--text-dim)\" font-size=\"10\">Public / Private Endpoint</text>\n    <rect x=\"180\" y=\"110\" width=\"150\" height=\"42\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"255\" y=\"128\" fill=\"var(--accent)\" font-weight=\"700\">③ ACL (허가)</text>\n    <text x=\"255\" y=\"144\" fill=\"var(--text-dim)\" font-size=\"10\">Access Control List / NSG</text>\n    <rect x=\"400\" y=\"60\" width=\"130\" height=\"46\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"465\" y=\"88\" fill=\"var(--pixel)\" font-weight=\"700\">ADB</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.4\" fill=\"none\" marker-end=\"url(#adb1-ar)\">\n    <path d=\"M126 74 C 150 50, 160 40, 176 36\"/>\n    <line x1=\"126\" y1=\"83\" x2=\"176\" y2=\"83\"/>\n    <path d=\"M126 92 C 150 116, 160 126, 176 130\"/>\n    <line x1=\"330\" y1=\"83\" x2=\"396\" y2=\"83\"/>\n  </g>\n  <text x=\"330\" y=\"0\" font-size=\"0\"> </text>\n</svg>",
-     "body": "<pre><code>&quot;접속이 안 돼요&quot; 3분 진단\n├── ① Wallet ─── 만료·버전·잘못된 파일? mTLS면 필수, TLS-only 구성이면 불필요\n├── ② 네트워크 ─ Public이면 인터넷 도달, Private면 VCN 안(같은 VCN·peering·VPN)에서만\n└── ③ ACL ────── Public ADB의 접근 제어 목록에 출발지 IP가 있나 (Secure access from allowed IPs)\n</code></pre>\n<ul>\n<li>세 개는 AND 조건 — 하나만 어긋나도 실패하고, 에러 메시지가 셋을 잘 구분해 주지 않는다. 그래서 순서대로 짚는다</li>\n</ul>\n"
+     "title": "개념 3. ACL과 Private Endpoint는 같은 것이 아니다",
+     "diagram": "<svg viewBox=\"0 0 780 230\" role=\"img\" aria-label=\"ADB 공개 엔드포인트 ACL과 사설 엔드포인트의 차이\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs><marker id=\"adb-ar3\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-family=\"inherit\" text-anchor=\"middle\">\n    <text x=\"198\" y=\"22\" fill=\"var(--accent)\" font-weight=\"700\">Public endpoint + ACL</text>\n    <rect x=\"20\" y=\"48\" width=\"120\" height=\"48\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"80\" y=\"76\" fill=\"var(--text)\" font-size=\"11\">Cloud Shell</text>\n    <rect x=\"258\" y=\"48\" width=\"128\" height=\"48\" rx=\"8\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"322\" y=\"68\" fill=\"var(--accent)\" font-size=\"11\">Public ADB</text><text x=\"322\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">ACL이 출처 제한</text>\n    <text x=\"198\" y=\"119\" fill=\"var(--text-dim)\" font-size=\"10\">VCN ACL은 Service Gateway 경로의 VCN/사설 IP를 식별</text>\n    <text x=\"592\" y=\"22\" fill=\"var(--pixel)\" font-weight=\"700\">Private endpoint</text>\n    <rect x=\"414\" y=\"48\" width=\"120\" height=\"48\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"474\" y=\"68\" fill=\"var(--text)\" font-size=\"11\">VCN Client</text><text x=\"474\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">VPN/FC/CS</text>\n    <rect x=\"652\" y=\"48\" width=\"110\" height=\"48\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"707\" y=\"68\" fill=\"var(--pixel)\" font-size=\"11\">Private ADB</text><text x=\"707\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">사설 IP·DNS</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.6\" fill=\"none\" marker-end=\"url(#adb-ar3)\"><line x1=\"140\" y1=\"72\" x2=\"254\" y2=\"72\"/><line x1=\"534\" y1=\"72\" x2=\"648\" y2=\"72\"/></g>\n  <g font-family=\"inherit\" font-size=\"11\"><text x=\"26\" y=\"162\" fill=\"var(--text)\">ACL: 인터넷/허용 IP 또는 VCN+Service Gateway, 공개 엔드포인트 유지</text><text x=\"26\" y=\"184\" fill=\"var(--text)\">Private: VCN 내 사설 IP와 NSG, 포트 1522(mTLS)·1521/1522(TLS)·443(도구)</text><text x=\"26\" y=\"206\" fill=\"var(--wrong)\">ACL에 VCN OCID만 넣고 NAT/Internet Gateway로 나가면 VCN 출처로 인식되지 않는다.</text></g>\n</svg>",
+     "body": "<p>네트워크 선택은 접속 허용 목록만이 아니라 <strong>엔드포인트가 어디에 존재하는가</strong>를 결정한다.</p>\n<table>\n<thead>\n<tr>\n<th>선택</th>\n<th>적합한 상황</th>\n<th>핵심 통제</th>\n<th>주의점</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Secure access from everywhere</td>\n<td>빠른 개발, 출처 제한이 별도 계층에 있음</td>\n<td>DB 인증·TLS/mTLS</td>\n<td>공격 표면이 가장 넓음</td>\n</tr>\n<tr>\n<td>Allowed IPs and VCNs only</td>\n<td>공개 엔드포인트를 유지하면서 고정 IP/VCN만 허용</td>\n<td>IP CIDR 또는 VCN ACL</td>\n<td>VCN 방식은 Service Gateway 경로가 핵심</td>\n</tr>\n<tr>\n<td>Private endpoint access only</td>\n<td>규제·내부 업무, 인터넷 노출 금지</td>\n<td>사설 IP·DNS·NSG</td>\n<td>VCN DNS/라우팅과 접속 경로 필요</td>\n</tr>\n</tbody></table>\n<p>Cloud Shell 기본 모드는 OCI Service Network다. VCN ACL 실습에서는 Cloud Shell을 <strong>Private Network</strong>에 붙여 대상 VCN의 사설 경로를 사용하고, 그 서브넷의 경로표가 Service Gateway로 지역의 Oracle Services Network를 향하게 한다. Private Network는 홈 리전 VCN/서브넷만 선택 가능하며, 사용자 지정 DNS resolver를 지원하지 않는 제약도 설계에 반영한다.</p>\n<p>TLS는 전송 암호화, mTLS는 서버뿐 아니라 클라이언트 지갑 인증까지 요구한다. mTLS 1522, TLS 1521 또는 1522를 방화벽 점검 기준으로 삼는다.</p>\n"
     },
     {
      "id": "c4",
-     "title": "개념 4. Wallet — 무엇이 들었나",
-     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"20\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"44\" fill=\"var(--accent)\" font-weight=\"700\">Wallet zip 내용물</text>\n    <text x=\"166\" y=\"68\" fill=\"var(--text-dim)\" font-size=\"10.5\">tnsnames.ora — 서비스명(_high/_medium/_low)</text>\n    <text x=\"166\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10.5\">cwallet.sso / ewallet — 인증서·키</text>\n    <text x=\"166\" y=\"104\" fill=\"var(--text-dim)\" font-size=\"10.5\">sqlnet.ora — wallet 위치 지정</text>\n    <rect x=\"344\" y=\"20\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"494\" y=\"44\" fill=\"var(--pixel)\" font-weight=\"700\">서비스명 3종 = 우선순위</text>\n    <text x=\"494\" y=\"68\" fill=\"var(--text-dim)\" font-size=\"10.5\">_high — 자원 많이·동시성 낮게</text>\n    <text x=\"494\" y=\"86\" fill=\"var(--text-dim)\" font-size=\"10.5\">_medium — 균형</text>\n    <text x=\"494\" y=\"104\" fill=\"var(--text-dim)\" font-size=\"10.5\">_low — 자원 적게·동시성 높게</text>\n  </g>\n</svg>",
-     "body": "<ul>\n<li>접속 문자열의 <code>_high/_medium/_low</code> 는 자원 배분 서비스다 — 배치 잡은 low, 대화형 리포트는 high 식으로 나눠 쓴다</li>\n<li>함정: Wallet은 <strong>비밀</strong>이다 — git·이미지에 넣지 않는다. 유출되면 회전(rotate)해야 한다 (L2의 PE·보안과 연결)</li>\n</ul>\n"
+     "title": "개념 4. 백업·DR·암호화·패치는 생성 뒤의 생존 조건이다",
+     "diagram": "<svg viewBox=\"0 0 760 190\" role=\"img\" aria-label=\"운영 요구를 백업 DR 암호화 패치 옵션으로 매핑\" xmlns=\"http://www.w3.org/2000/svg\">\n  <g font-family=\"inherit\" text-anchor=\"middle\">\n    <rect x=\"20\" y=\"24\" width=\"142\" height=\"50\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"91\" y=\"46\" fill=\"var(--text)\" font-size=\"11\">실수·논리 손상</text><text x=\"91\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">최근 시점 복구</text>\n    <rect x=\"210\" y=\"24\" width=\"142\" height=\"50\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"281\" y=\"46\" fill=\"var(--text)\" font-size=\"11\">장기 보존</text><text x=\"281\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">감사·규정</text>\n    <rect x=\"400\" y=\"24\" width=\"142\" height=\"50\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"471\" y=\"46\" fill=\"var(--text)\" font-size=\"11\">지역 장애</text><text x=\"471\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">RTO/RPO</text>\n    <rect x=\"590\" y=\"24\" width=\"142\" height=\"50\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"661\" y=\"46\" fill=\"var(--text)\" font-size=\"11\">키·변경 통제</text><text x=\"661\" y=\"63\" fill=\"var(--text-dim)\" font-size=\"10\">규제·배포</text>\n    <rect x=\"20\" y=\"112\" width=\"142\" height=\"50\" rx=\"8\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"91\" y=\"134\" fill=\"var(--accent)\" font-size=\"11\">1–60일 보존</text><text x=\"91\" y=\"151\" fill=\"var(--text-dim)\" font-size=\"10\">PITR</text>\n    <rect x=\"210\" y=\"112\" width=\"142\" height=\"50\" rx=\"8\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"281\" y=\"134\" fill=\"var(--accent)\" font-size=\"11\">장기 백업</text><text x=\"281\" y=\"151\" fill=\"var(--text-dim)\" font-size=\"10\">3개월–10년</text>\n    <rect x=\"400\" y=\"112\" width=\"142\" height=\"50\" rx=\"8\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"471\" y=\"134\" fill=\"var(--accent)\" font-size=\"11\">Backup DR / ADG</text><text x=\"471\" y=\"151\" fill=\"var(--text-dim)\" font-size=\"10\">비용↔RTO</text>\n    <rect x=\"590\" y=\"112\" width=\"142\" height=\"50\" rx=\"8\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"661\" y=\"134\" fill=\"var(--accent)\" font-size=\"11\">KMS·Patch level</text><text x=\"661\" y=\"151\" fill=\"var(--text-dim)\" font-size=\"10\">Regular/Early</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.4\"><line x1=\"91\" y1=\"74\" x2=\"91\" y2=\"112\"/><line x1=\"281\" y1=\"74\" x2=\"281\" y2=\"112\"/><line x1=\"471\" y1=\"74\" x2=\"471\" y2=\"112\"/><line x1=\"661\" y1=\"74\" x2=\"661\" y2=\"112\"/></g>\n</svg>",
+     "body": "<ul>\n<li>Automatic backup retention: 1–60일. 복구는 DB를 사용 불가 상태로 만들므로 변경 승인과 영향 공지가 필요하다.</li>\n<li>Retention lock: 규정 보존에 유용하지만 활성화 후 직접 해제·변경할 수 없어 Support Request가 필요할 수 있다. 실습에서 켜지 않는다.</li>\n<li>Long-term backup: 3개월–10년 보관, 별도 비용. 일상 PITR과 감사 보존을 구분한다.</li>\n<li>Disaster Recovery: Backup-based DR은 비용이 낮은 대신 RTO가 길고, Autonomous Data Guard는 연속 peer로 빠른 복구에 적합하다. 워크로드 지원 범위와 비용을 생성 시점에 확인한다.</li>\n<li>Encryption: 기본 Oracle-managed key 또는 고객 관리 키(로컬/원격 테넌시). 고객 관리 키는 Vault IAM·키 수명·삭제 방지·교체 절차까지 고객 책임이 늘어난다.</li>\n<li>Maintenance: Regular은 안정 우선, Early는 조기 패치 검증이 필요한 비운영 환경에 적합.</li>\n<li>Character set: 생성 후 변경 비용이 크다. 원천 데이터와 애플리케이션 요구를 먼저 확인한다.</li>\n<li>Database tools·APEX·ORDS: 편의 기능의 공개 접근과 인증 경계를 검토한다.</li>\n<li>Security attributes/ZPR, tags, customer contacts: 거버넌스·비용·운영 알림을 생성 시점부터 연결한다. 연락처는 최대 10개까지 지정 가능하다.</li>\n</ul>\n<p>백업은 “켜져 있음”이 완료가 아니다. 복구 시점, 외부 파일 제외 범위, 애플리케이션 재연결과 실제 복구 연습이 완료 조건이다.</p>\n"
+    },
+    {
+     "id": "c5",
+     "title": "개념 5. IAM·DB 인증·Wallet은 서로 다른 문이다",
+     "diagram": "<svg viewBox=\"0 0 760 160\" role=\"img\" aria-label=\"IAM 네트워크 TLS 데이터베이스 인증의 계층\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs><marker id=\"adb-ar5\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-family=\"inherit\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"48\" width=\"118\" height=\"52\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"75\" y=\"70\" fill=\"var(--text)\" font-size=\"11\">IAM</text><text x=\"75\" y=\"87\" fill=\"var(--text-dim)\" font-size=\"10\">OCI 작업 권한</text>\n    <rect x=\"170\" y=\"48\" width=\"118\" height=\"52\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"229\" y=\"70\" fill=\"var(--text)\" font-size=\"11\">Network</text><text x=\"229\" y=\"87\" fill=\"var(--text-dim)\" font-size=\"10\">경로·ACL·NSG</text>\n    <rect x=\"324\" y=\"48\" width=\"118\" height=\"52\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"383\" y=\"70\" fill=\"var(--text)\" font-size=\"11\">TLS/mTLS</text><text x=\"383\" y=\"87\" fill=\"var(--text-dim)\" font-size=\"10\">채널·Wallet</text>\n    <rect x=\"478\" y=\"48\" width=\"118\" height=\"52\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"537\" y=\"70\" fill=\"var(--text)\" font-size=\"11\">DB Auth</text><text x=\"537\" y=\"87\" fill=\"var(--text-dim)\" font-size=\"10\">ADMIN 비밀번호</text>\n    <rect x=\"632\" y=\"48\" width=\"112\" height=\"52\" rx=\"8\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"688\" y=\"70\" fill=\"var(--accent)\" font-size=\"11\">SQL</text><text x=\"688\" y=\"87\" fill=\"var(--text-dim)\" font-size=\"10\">서비스 선택</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.5\" marker-end=\"url(#adb-ar5)\"><line x1=\"134\" y1=\"74\" x2=\"166\" y2=\"74\"/><line x1=\"288\" y1=\"74\" x2=\"320\" y2=\"74\"/><line x1=\"442\" y1=\"74\" x2=\"474\" y2=\"74\"/><line x1=\"596\" y1=\"74\" x2=\"628\" y2=\"74\"/></g>\n  <text x=\"380\" y=\"132\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"11\" fill=\"var(--wrong)\">한 계층의 성공은 다음 계층의 성공을 보장하지 않는다. 오류 메시지와 도달 단계로 분리한다.</text>\n</svg>",
+     "body": "<ul>\n<li>IAM policy는 콘솔/CLI에서 ADB·VCN·Wallet을 다루는 권한이다. 예: <code>manage autonomous-database-family</code>.</li>\n<li>Network는 DNS, route, SGW/NSG/ACL과 포트 도달성이다.</li>\n<li>Wallet은 민감정보다. 애플리케이션은 instance wallet을 우선하고, 지역 wallet은 관리자 범위로 제한한다. 파일 권한과 수명 주기를 통제한다.</li>\n<li>DB 인증은 ADMIN 또는 별도 DB 사용자 자격이다. 명령행 인수나 히스토리에 비밀번호를 남기지 않는다.</li>\n<li>서비스 이름 <code>tpurgent</code>, <code>tp</code>, <code>high</code>, <code>medium</code>, <code>low</code>는 우선순위·동시성·작업 성격을 고른다. 짧은 OLTP는 <code>tp</code>/<code>tpurgent</code>/<code>low</code>, 대형 분석·배치는 <code>medium</code>, 낮은 동시성의 분석은 <code>high</code>를 검토한다.</li>\n</ul>\n<p>진단 순서: <code>NotAuthorizedOrNotFound</code> → IAM/OCID/리전, DNS 실패 → Cloud Shell 모드·DNS, timeout → route/SGW/ACL/포트, 인증서 오류 → Wallet/mTLS, <code>ORA-01017</code> → DB 사용자·비밀번호, 연결 후 지연 → 서비스 이름·SQL·ECPU.</p>\n"
+    },
+    {
+     "id": "c6",
+     "title": "개념 6. 고객 상황을 옵션으로 번역하는 질문표",
+     "diagram": "<svg viewBox=\"0 0 760 220\" role=\"img\" aria-label=\"고객 요구 인터뷰에서 ADB 설계안까지의 결정 트리\" xmlns=\"http://www.w3.org/2000/svg\">\n  <g font-family=\"inherit\" text-anchor=\"middle\" font-size=\"11\">\n    <rect x=\"292\" y=\"12\" width=\"176\" height=\"40\" rx=\"8\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/><text x=\"380\" y=\"37\" fill=\"var(--accent)\">데이터·쿼리 성격?</text>\n    <rect x=\"32\" y=\"92\" width=\"150\" height=\"42\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"107\" y=\"110\" fill=\"var(--text)\">짧은 트랜잭션</text><text x=\"107\" y=\"126\" fill=\"var(--text-dim)\" font-size=\"10\">TP / JSON / APEX</text>\n    <rect x=\"222\" y=\"92\" width=\"150\" height=\"42\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"297\" y=\"110\" fill=\"var(--text)\">대형 분석</text><text x=\"297\" y=\"126\" fill=\"var(--text-dim)\" font-size=\"10\">Lakehouse</text>\n    <rect x=\"412\" y=\"92\" width=\"150\" height=\"42\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"487\" y=\"110\" fill=\"var(--text)\">인터넷 노출 금지</text><text x=\"487\" y=\"126\" fill=\"var(--text-dim)\" font-size=\"10\">Private Endpoint</text>\n    <rect x=\"602\" y=\"92\" width=\"126\" height=\"42\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/><text x=\"665\" y=\"110\" fill=\"var(--text)\">제한 접속</text><text x=\"665\" y=\"126\" fill=\"var(--text-dim)\" font-size=\"10\">ACL + SGW</text>\n    <rect x=\"180\" y=\"174\" width=\"400\" height=\"34\" rx=\"8\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/><text x=\"380\" y=\"196\" fill=\"var(--pixel)\">RTO/RPO · 피크 · 보존 · 키 · 예산으로 최종 조정</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.4\" fill=\"none\"><path d=\"M380 52v20H107v20M380 72H297v20M380 72H487v20M380 72H665v20\"/><path d=\"M107 134v20h273v20M297 134v20M487 134v20M665 134v20H380\"/></g>\n</svg>",
+     "body": "<h3>구축 전 반드시 묻는 8가지</h3>\n<ol>\n<li>트랜잭션·분석·JSON·APEX 중 주 업무와 가장 긴 SQL은 무엇인가?</li>\n<li>인증된 DB 버전, 문자 집합, 드라이버, TLS/mTLS 제약은 무엇인가?</li>\n<li>정상·피크 동시 사용자, 지연 목표, 성장률은 얼마인가?</li>\n<li>접속 출처는 인터넷 고정 IP, OCI VCN, 온프레미스 VPN/FastConnect 중 무엇인가?</li>\n<li>RPO/RTO, 백업 보존, 장기 보존, 지역 장애 요구는 무엇인가?</li>\n<li>Oracle-managed key 허용 여부와 고객 키 운영 주체는 누구인가?</li>\n<li>License Included/BYOL의 계약 근거와 월 예산·비용 알람 기준은 무엇인가?</li>\n<li>패치 검증 창, 운영 연락처, 태그·보안 속성 기준은 무엇인가?</li>\n</ol>\n<h3>빠른 설계 패턴</h3>\n<ul>\n<li>신규 내부 ERP: TP, Paid ECPU, Private Endpoint, Regular patch, 업무 RTO에 맞는 DR.</li>\n<li>변동 큰 분석: Lakehouse, Compute auto scaling, 저장 증가 알람, <code>medium/high</code> 서비스 분리.</li>\n<li>짧은 개발 검증: Developers 또는 Always Free의 제한을 문서화. 운영 승격 시 새 설계 심사.</li>\n<li>여러 고정 지점의 제한 접속: ACL IP/VCN + SGW. 동적 재택 IP가 많으면 ACL 유지보수 비용도 판단.</li>\n<li>규제 고객: Private Endpoint, 고객 관리 키 여부, retention lock·장기 백업·DR을 규정 담당자와 공동 승인.</li>\n</ul>\n<p>정답은 하나가 아니다. 중요한 것은 각 선택을 <strong>요구사항, 위험, 비용, 검증 방법</strong>과 연결한 의사결정 기록이다.</p>\n"
     }
    ],
    "lab": {
-    "situation": "고객사 E가 신규 웹 서비스의 DB로 ADB를 쓰기로 했다. 개발팀은 &quot;빨리 접속 정보만 주면 된다&quot;고 하고, 보안팀은 &quot;아무나 접속하면 안 된다&quot;고 한다.",
-    "request": "&quot;ADB를 하나 만들고, 앱이 붙는 것까지 확인해 주세요. 접속은 허가된 곳에서만 되게 해 주세요.&quot;",
+    "situation": "",
+    "request": "",
     "steps": [
      {
       "id": "l1",
-      "title": "요구 분석 — 타입과 접속 모델",
-      "body": "<pre><code>&quot;웹 서비스 백엔드&quot;       → 워크로드 타입 = ATP (짧은 트랜잭션)\n&quot;빨리 + 허가된 곳만&quot;     → L1은 Public + ACL(허용 IP)로 빠르게 — 사설 격리는 L2(PE)로 승격 예고\n&quot;앱이 붙는 것까지&quot;       → Wallet 발급 + 접속 테스트가 완료 기준\n</code></pre>\n"
+      "title": "의사결정 기록과 변수 준비",
+      "body": "<p>먼저 고객 요구와 선택 이유를 기록한다. 운영에서는 티켓·변경 요청 번호도 연결한다.</p>\n<pre><code class=\"language-bash\">export OCI_CLI_PROFILE=&quot;&lt;PROFILE&gt;&quot;\nexport OCI_REGION=&quot;ap-seoul-1&quot;\nexport COMPARTMENT_OCID=&quot;&lt;COMPARTMENT_OCID&gt;&quot;\nexport VCN_OCID=&quot;&lt;VCN_OCID&gt;&quot;\nexport SUBNET_OCID=&quot;&lt;PRIVATE_SUBNET_OCID&gt;&quot;\nexport ADB_NAME=&quot;labadb&quot;\n</code></pre>\n<p><code>&lt;...&gt;</code>는 자리표시자다. 셸 히스토리·문서에 비밀번호, Wallet 암호, 실제 고객 OCID를 남기지 않는다.</p>\n<p>확인: <code>printf &#39;%s\\n&#39; &quot;$OCI_REGION&quot; &quot;$ADB_NAME&quot;</code>가 의도한 리전·이름을 출력하고, 설계 기록에 요구→옵션→위험→검증 항목이 각각 한 줄 이상 있다.</p>\n"
      },
      {
       "id": "l2",
-      "title": "ADB 생성",
-      "body": "<p>콘솔: <code>Oracle Database → Autonomous Database → Create Autonomous Database</code></p>\n<pre><code>Workload type     : Transaction Processing (ATP)\nDisplay name       : app-e-atp\nECPU / Storage     : 최소 구성 (Auto Scaling은 L2에서)\nNetwork access     : Secure access from allowed IPs and VCNs (ACL)\nAllowed IP         : 앱 서버 공인 IP / 사무실 IP\nAdmin password     : 강한 비밀번호 (Vault 보관 권장)\n</code></pre>\n<p>확인: ADB 상태 Available.</p>\n"
+      "title": "IAM 선행 조건 확인",
+      "body": "<p>관리자는 최소 권한 원칙에 맞춰 실제 그룹·구획으로 범위를 좁힌다. 교육용 기준 예시는 다음과 같다.</p>\n<pre><code class=\"language-text\">Allow group &lt;ADB_ADMIN_GROUP&gt; to manage autonomous-database-family in compartment &lt;COMPARTMENT_NAME&gt;\nAllow group &lt;CLOUD_SHELL_GROUP&gt; to use subnets in compartment &lt;COMPARTMENT_NAME&gt;\nAllow group &lt;CLOUD_SHELL_GROUP&gt; to use vnics in compartment &lt;COMPARTMENT_NAME&gt;\nAllow group &lt;CLOUD_SHELL_GROUP&gt; to use network-security-groups in compartment &lt;COMPARTMENT_NAME&gt;\nAllow group &lt;CLOUD_SHELL_GROUP&gt; to inspect vcns in compartment &lt;COMPARTMENT_NAME&gt;\n</code></pre>\n<p>테넌시의 기존 policy와 중복·상위 권한을 확인한다. 운영에서는 한 그룹에 DB 관리와 네트워크 전체 관리를 무조건 합치지 않는다.</p>\n<pre><code class=\"language-bash\">oci iam availability-domain list \\\n  --compartment-id &quot;$COMPARTMENT_OCID&quot; \\\n  --profile &quot;$OCI_CLI_PROFILE&quot; \\\n  --region &quot;$OCI_REGION&quot; \\\n  --query &#39;data[0].name&#39; --raw-output\n</code></pre>\n<p>확인: 값이 반환된다. <code>NotAuthorizedOrNotFound</code>이면 리전·프로파일·구획 OCID·정책 적용 범위를 순서대로 확인하고 다음 단계로 넘어가지 않는다.</p>\n"
      },
      {
       "id": "l3",
-      "title": "IAM 권한 확인",
-      "body": "<p>앱 배포 담당이 ADB를 조회·접속 설정할 수 있어야 한다.</p>\n<pre><code>Allow group AppAdmins to use autonomous-databases in compartment prod\n</code></pre>\n<ul>\n<li>접속(SQL 레벨)은 DB 사용자/비번이지 IAM이 아니다 — IAM은 &quot;리소스 관리&quot; 권한임을 구분해 전달</li>\n</ul>\n"
+      "title": "VCN의 Service Gateway 경로를 확인",
+      "body": "<p>콘솔 경로: <strong>Networking → Virtual cloud networks → 대상 VCN</strong>.</p>\n<ol>\n<li>Service Gateway가 지역의 <strong>All ... Services in Oracle Services Network</strong>에 연결되어 있는지 확인한다.</li>\n<li>Cloud Shell에 붙일 private subnet의 route table에 해당 서비스 CIDR → Service Gateway 규칙이 있는지 확인한다.</li>\n<li>NSG/보안 목록의 stateful egress가 TCP 1522를 허용하는지 확인한다.</li>\n<li>실습 VCN·서브넷·규칙을 새로 만들었다면 이름에 <code>lab</code>과 종료일을 표시한다.</li>\n</ol>\n<pre><code class=\"language-bash\">oci network service-gateway list \\\n  --compartment-id &quot;$COMPARTMENT_OCID&quot; \\\n  --vcn-id &quot;$VCN_OCID&quot; \\\n  --profile &quot;$OCI_CLI_PROFILE&quot; \\\n  --region &quot;$OCI_REGION&quot; \\\n  --query &#39;data[].{name:&quot;display-name&quot;,state:&quot;lifecycle-state&quot;}&#39; \\\n  --output table\n</code></pre>\n<p>확인: 사용할 Service Gateway가 <code>AVAILABLE</code>이고, subnet의 실제 route table과 보안 규칙을 캡처 또는 변경 기록에 남겼다. NAT/Internet Gateway 경로만 있는 상태를 VCN ACL 경로로 오판하지 않는다.</p>\n"
      },
      {
       "id": "l4",
-      "title": "Wallet 발급",
-      "body": "<p>콘솔: <code>ADB 상세 → Database Connection → Download Wallet</code> (또는 CLI)</p>\n<pre><code>oci db autonomous-database generate-wallet \\\n  --autonomous-database-id &lt;adb-ocid&gt; \\\n  --file wallet.zip \\\n  --password &lt;wallet-password&gt;\n</code></pre>\n<ul>\n<li>Wallet은 비밀 — 안전 채널로 전달하고 git·이미지에 넣지 않는다 (개념 4)</li>\n</ul>\n"
+      "title": "콘솔에서 최소 ADB 생성",
+      "body": "<p>콘솔 경로: <strong>Oracle AI Database → Autonomous AI Database → Create Autonomous AI Database</strong>.</p>\n<table>\n<thead>\n<tr>\n<th>영역</th>\n<th>실습 값</th>\n<th>고객 적용 전 재확인</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Workload / version</td>\n<td>Transaction Processing / 26ai</td>\n<td>인증·호환성</td>\n</tr>\n<tr>\n<td>Tier / compute</td>\n<td>Paid / ECPU 2 / auto scaling ON</td>\n<td>피크·예산</td>\n</tr>\n<tr>\n<td>Storage</td>\n<td>20GB / auto scaling OFF</td>\n<td>증가율·알람</td>\n</tr>\n<tr>\n<td>License</td>\n<td>License Included</td>\n<td>BYOL 자격</td>\n</tr>\n<tr>\n<td>Network</td>\n<td>Allowed IPs and VCNs only / 대상 VCN / private subnet CIDR</td>\n<td>SGW 경로</td>\n</tr>\n<tr>\n<td>TLS</td>\n<td>mTLS required</td>\n<td>드라이버·Wallet 배포</td>\n</tr>\n<tr>\n<td>Backup</td>\n<td>7일 / lock OFF</td>\n<td>RPO·규정</td>\n</tr>\n<tr>\n<td>Encryption / patch</td>\n<td>Oracle-managed / Regular</td>\n<td>키 책임·검증 창</td>\n</tr>\n</tbody></table>\n<p>ADMIN 비밀번호는 비밀번호 관리자에서 생성하고 화면 밖에 복사하지 않는다. 자동화할 때는 CLI 평문 <code>--admin-password</code>보다 OCI Vault secret을 가리키는 <code>--secret-id</code>를 우선 검토한다.</p>\n<p>확인: Lifecycle state가 <code>AVAILABLE</code>이고, ADB 상세의 workload/version/ECPU/autoscaling/network/retention 값이 표와 일치한다. DB OCID를 <code>ADB_OCID</code>로 설정한다.</p>\n<pre><code class=\"language-bash\">export ADB_OCID=&quot;&lt;AUTONOMOUS_DATABASE_OCID&gt;&quot;\n</code></pre>\n"
      },
      {
       "id": "l5",
-      "title": "접속 검증",
-      "body": "<pre><code>[1] Wallet 압축 해제 후 TNS_ADMIN 지정\n[2] 서비스명 app_e_atp_low 로 접속 (배치·테스트는 low)\n   sqlplus admin/&lt;pw&gt;@app_e_atp_low\n[3] SELECT 1 FROM dual;   → 결과 나오면 성공\n</code></pre>\n<ul>\n<li>실패 시 3요소 순서(개념 3): Wallet → 네트워크(Public 도달) → ACL(내 IP가 목록에 있나)</li>\n</ul>\n"
+      "title": "CLI로 생성 결과를 기계 검증",
+      "body": "<p>사람이 콘솔을 읽는 검증과 자동화 가능한 검증을 함께 둔다.</p>\n<pre><code class=\"language-bash\">oci db autonomous-database get \\\n  --autonomous-database-id &quot;$ADB_OCID&quot; \\\n  --profile &quot;$OCI_CLI_PROFILE&quot; \\\n  --region &quot;$OCI_REGION&quot; \\\n  --query &#39;data.{name:&quot;display-name&quot;,state:&quot;lifecycle-state&quot;,workload:&quot;db-workload&quot;,version:&quot;db-version&quot;,computeModel:&quot;compute-model&quot;,ecpu:&quot;compute-count&quot;,computeAuto:&quot;is-auto-scaling-enabled&quot;,storageGB:&quot;data-storage-size-in-gbs&quot;,storageAuto:&quot;is-auto-scaling-for-storage-enabled&quot;,mtls:&quot;is-mtls-connection-required&quot;,publicEndpoint:&quot;connection-urls&quot;}&#39; \\\n  --output json\n</code></pre>\n<p>예상: <code>AVAILABLE</code>, <code>OLTP</code>, <code>ECPU</code>, <code>2</code>, compute auto scaling <code>true</code>, storage auto scaling <code>false</code>, mTLS <code>true</code>. 콘솔 표시명과 API 값(<code>Transaction Processing</code>↔<code>OLTP</code>)이 다른 점을 기록한다.</p>\n<p>확인: 기대값과 다른 필드는 수정 이유·승인자를 남기고 바로잡는다. 필드가 <code>null</code>이면 CLI 버전과 원문 JSON(<code>--output json</code>)을 확인해 JMESPath 필드명을 추측으로 바꾸지 않는다.</p>\n"
      },
      {
       "id": "l6",
-      "title": "허가 검증 — 격리 확인",
-      "body": "<ul>\n<li>ACL에 없는 IP(예: 개인 테더링)에서 같은 접속 시도 → 실패해야 한다</li>\n<li>&quot;허가된 곳만&quot;의 절반은 &quot;허가 안 된 곳에서 안 되는 것&quot;의 증명</li>\n</ul>\n"
+      "title": "Cloud Shell을 VCN에 붙이고 Wallet로 접속",
+      "body": "<p>Cloud Shell 상단 <strong>Network</strong>에서 <strong>Private Network</strong>를 선택하고 대상 VCN·private subnet·필요한 NSG를 연결한다. 연결이 완료된 뒤 Wallet을 안전하게 생성한다.</p>\n<pre><code class=\"language-bash\">umask 077\nread -rsp &quot;Wallet password: &quot; WALLET_PASSWORD; echo\noci db autonomous-database generate-wallet \\\n  --autonomous-database-id &quot;$ADB_OCID&quot; \\\n  --generate-type SINGLE \\\n  --file &quot;$HOME/Wallet_labadb.zip&quot; \\\n  --password &quot;$WALLET_PASSWORD&quot; \\\n  --profile &quot;$OCI_CLI_PROFILE&quot; \\\n  --region &quot;$OCI_REGION&quot;\nunset WALLET_PASSWORD\nchmod 600 &quot;$HOME/Wallet_labadb.zip&quot;\nunzip -l &quot;$HOME/Wallet_labadb.zip&quot;\n</code></pre>\n<p>SQLcl에서 비밀번호 프롬프트로 인증한다. DB 비밀번호를 명령행에 붙이지 않는다.</p>\n<pre><code class=\"language-text\">sql /nolog\nSQL&gt; set cloudconfig /home/&lt;CLOUD_SHELL_USER&gt;/Wallet_labadb.zip\nSQL&gt; connect ADMIN@labadb_low\nPassword? &lt;ADMIN_PASSWORD&gt;\nSQL&gt; SELECT SYS_CONTEXT(&#39;USERENV&#39;,&#39;DB_NAME&#39;) AS db_name,\n  2         SYS_CONTEXT(&#39;USERENV&#39;,&#39;SERVICE_NAME&#39;) AS service_name\n  3  FROM dual;\nSQL&gt; exit\n</code></pre>\n<p>확인: Wallet 목록이 보이고 파일 권한이 <code>600</code>이며, SQL 결과에 DB와 <code>_low</code> 서비스가 출력된다. 이것이 “ADB 생성 완료”가 아니라 “의도한 네트워크·mTLS·DB 인증으로 실제 SQL 성공”의 판정이다.</p>\n"
      },
      {
       "id": "l7",
-      "title": "인수인계",
-      "body": "<ul>\n<li>앱팀에 전달: 서비스명 3종(_high/_medium/_low)의 용도, Wallet 취급 원칙(비밀·회전)</li>\n<li>ACL 변경 절차: IP 추가는 티켓으로, 0.0.0.0/0 절대 금지</li>\n<li>승격 예고: 진짜 사설 격리가 필요하면 Public+ACL → Private Endpoint (L2)</li>\n</ul>\n"
+      "title": "실패를 재현하고 계층별로 진단",
+      "body": "<p>데이터나 ACL을 삭제하지 않고 Cloud Shell 네트워크를 <strong>OCI Service Network</strong>로 바꾼 뒤 같은 SQL 접속을 시도한다. VCN ACL만 허용했다면 실패해야 한다. 다시 <strong>Private Network</strong>로 복귀해 성공을 확인한다.</p>\n<pre><code class=\"language-text\">실패 위치                 우선 확인\nOCI CLI 권한 오류          profile / region / OCID / IAM policy\n호스트 이름 해석 실패      Cloud Shell mode / Wallet / DNS 제약\nTCP timeout               subnet route / SGW / ACL / egress 1522\n인증서·Wallet 오류         SINGLE wallet / 파일 무결성 / mTLS 설정\nORA-01017                 DB 사용자 / 비밀번호\n접속은 되나 느림           서비스 이름 / SQL plan / ECPU·autoscaling\n</code></pre>\n<p>예측 질문: VCN ACL은 그대로인데 Cloud Shell 기본 모드에서 실패한 이유는 무엇인가? 답은 “사용자 권한 부족”이 아니라 <strong>ACL이 허용한 VCN+Service Gateway 출처 경로를 사용하지 않았기 때문</strong>이어야 한다.</p>\n<p>확인: 기본 모드 실패와 Private Network 성공을 각각 기록하고, 실패 메시지를 위 계층 중 하나에 배치한다. 공개 전체 허용으로 바꿔 장애를 숨기지 않는다.</p>\n"
+     },
+     {
+      "id": "l8",
+      "title": "독립 재설계와 안전한 정리",
+      "body": "<p>도움 없이 다음 변형을 설계한다.</p>\n<blockquote>\n<p>“고객은 온프레미스 ERP와 OCI 배치 서버만 접속한다. 인터넷 공개는 금지, 15분 이내 지역 복구와 1년 감사 보존, 고객 관리 키가 필요하다. 월말 4배 부하가 예상된다.”</p>\n</blockquote>\n<p>산출물: 고객 질문의 미확정 값, Private Endpoint/VPN 또는 FastConnect 경로, ECPU·자동 확장 판단, DR 종류, 장기 백업, Vault IAM·키 복구, 성공/실패 검증 명령, 비용 위험을 1페이지 결정표로 작성한다. “4배 부하”는 자동 확장 최대 3배만으로 해결된다고 단정하지 말고 기준 ECPU와 부하 시험을 다시 산정한다.</p>\n<p>실습 자원을 삭제할 때는 실제 고객 DB가 아닌지 <strong>OCID·표시명·구획</strong>을 다시 확인한다. 필요한 실습 데이터가 있으면 export 또는 백업 후 삭제한다.</p>\n<pre><code class=\"language-bash\">oci db autonomous-database get \\\n  --autonomous-database-id &quot;$ADB_OCID&quot; \\\n  --profile &quot;$OCI_CLI_PROFILE&quot; \\\n  --region &quot;$OCI_REGION&quot; \\\n  --query &#39;data.{name:&quot;display-name&quot;,id:id,compartment:&quot;compartment-id&quot;,state:&quot;lifecycle-state&quot;}&#39; \\\n  --output table\n\n# 위 출력과 변경 승인을 확인한 뒤에만 실행\noci db autonomous-database delete \\\n  --autonomous-database-id &quot;$ADB_OCID&quot; \\\n  --profile &quot;$OCI_CLI_PROFILE&quot; \\\n  --region &quot;$OCI_REGION&quot; \\\n  --force\n\nrm -f &quot;$HOME/Wallet_labadb.zip&quot;\n</code></pre>\n<p>확인: 삭제 요청 후 해당 OCID가 종료 상태이거나 조회되지 않고, Wallet 파일도 남지 않는다. 공유 VCN·Service Gateway·route rule은 이 실습이 단독 생성한 자원임이 입증되지 않으면 삭제하지 않는다.</p>\n"
      }
     ]
    },
    "sources": [
     {
-     "label": "ADB 개요",
-     "url": "https://docs.oracle.com/en-us/iaas/Content/Database/Concepts/adboverview.htm"
+     "label": "생성 옵션과 현재 명칭",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/autonomous-provision.html"
     },
     {
-     "label": "접속 개요",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/connect-introduction.html"
+     "label": "ECPU 모델",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/autonomous-compute-models.html"
+    },
+    {
+     "label": "Developer 티어 제한",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/autonomous-database-for-developers.html"
+    },
+    {
+     "label": "ACL",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/access-control-rules-autonomous.html"
+    },
+    {
+     "label": "Cloud Shell 네트워킹",
+     "url": "https://docs.oracle.com/iaas/Content/API/Concepts/cloudshellintro_topic-Cloud_Shell_Networking.htm"
     },
     {
      "label": "Wallet 다운로드",
      "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/connect-download-wallet.html"
     },
     {
-     "label": "워크로드 타입",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/adb-workload-types.html"
+     "label": "백업·복구",
+     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/backup-recover.html"
+    },
+    {
+     "label": "ADB IAM 정책",
+     "url": "https://docs.oracle.com/en/cloud/paas/autonomous-database/serverless/adbsb/autonomous-database-iam-policies.html"
+    },
+    {
+     "label": "OCI CLI create",
+     "url": "https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/autonomous-database/create.html"
     }
    ],
    "scenarios": [
     {
      "id": "s1",
      "type": "ox",
-     "situation": "고객이 'ADB는 매니지드니까 접속이 안 되면 Oracle 책임'이라고 주장한다.",
-     "question": "이 주장은 맞다 (O/X)",
+     "situation": "ADB의 네트워크를 'Allowed IPs and VCNs only'로 두고 VCN OCID를 ACL에 추가했다. Cloud Shell은 기본 OCI Service Network 모드이며, private subnet에는 Service Gateway 경로가 없다.",
+     "question": "VCN OCID가 ACL에 있으므로 Cloud Shell의 SQL 접속은 반드시 성공한다. (O/X)",
      "answers": [
       "X"
      ],
-     "explanation": "Oracle은 패치·튜닝·백업 등 DB 운영을 책임지지만, 접속(Wallet·네트워크·ACL)은 100% 사용자 영역이다. 고객 티켓의 다수가 이 접속 4요소에서 나온다.",
-     "concept_anchor": "c1",
-     "xp": 10
+     "explanation": "VCN ACL은 해당 VCN에서 Service Gateway를 거치는 트래픽을 식별한다. Cloud Shell을 Private Network에 연결하고 subnet route·egress·SGW를 갖춰야 한다. ACL 등록만으로 경로가 생기지는 않는다.",
+     "concept_anchor": "c3",
+     "xp": 15
     },
     {
      "id": "s2",
      "type": "choice",
-     "situation": "짧은 주문/결제 트랜잭션이 초당 수백 건 발생하는 커머스 백엔드 DB를 ADB로 만든다.",
-     "question": "적합한 워크로드 타입은?",
+     "situation": "금융 고객의 내부 ERP다. 인터넷 엔드포인트 금지, VPN으로 연결된 VCN 안에서만 접근, 빠른 지역 장애 복구와 고객 관리 키가 요구된다.",
+     "question": "가장 적절한 1차 설계 방향은?",
      "choices": [
-      "ADW (Data Warehouse)",
-      "ATP (Transaction Processing)",
-      "JSON Database",
-      "APEX Service"
-     ],
-     "answers": [
-      "2"
-     ],
-     "explanation": "ATP는 대량의 짧은 트랜잭션(OLTP)에 최적화된 기본값을 갖는다. ADW를 고르면 분석용 최적화 때문에 짧은 쿼리 성능이 손해다.",
-     "concept_anchor": "c2",
-     "xp": 10
-    },
-    {
-     "id": "s3",
-     "type": "choice",
-     "situation": "앱에서 ADB 접속이 실패한다. Public 접속 구성이고 Wallet은 어제 정상 발급받았다. 앱 서버는 사무실이 아닌 신규 클라우드 VM으로 옮겨졌다.",
-     "question": "가장 먼저 확인할 것은?",
-     "choices": [
-      "Wallet을 다시 발급받는다",
-      "워크로드 타입을 ATP로 바꾼다",
-      "ACL 허용 목록에 새 VM의 공인 IP가 있는지 확인한다",
-      "ADB를 재시작한다"
+      "Secure access from everywhere + IP ACL 없이 mTLS만 사용",
+      "Public endpoint + 모든 VCN 허용 + Backup-based DR",
+      "Private Endpoint + NSG/VPN 경로 + Autonomous Data Guard 검토 + 고객 관리 키 수명 주기",
+      "Developers 티어 + Public endpoint + 자동 시작/중지"
      ],
      "answers": [
       "3"
      ],
-     "explanation": "접속 3요소 중 최근 바뀐 것은 출발지(서버 이전) — Public ADB의 ACL에 새 IP가 없으면 막힌다. Wallet·네트워크는 그대로이므로 ACL부터.",
-     "concept_anchor": "c3",
-     "xp": 10
+     "explanation": "인터넷 엔드포인트 금지는 Private Endpoint, 빠른 복구는 RTO/RPO를 수치화한 뒤 Autonomous Data Guard, 고객 키는 Vault IAM·교체·삭제 방지를 함께 설계해야 한다. 나머지는 명시 요구나 티어 기능과 충돌한다.",
+     "concept_anchor": "c6",
+     "xp": 15
     },
     {
-     "id": "s4",
+     "id": "s3",
      "type": "command",
-     "situation": "앱팀에 접속용 Wallet을 발급해 줘야 한다. ADB OCID는 $ADB, wallet 비밀번호는 환경변수로 안 넣고 프롬프트로 받는다고 가정하되 CLI 한 줄 형태를 보여달라.",
-     "question": "Wallet을 생성하는 CLI 명령 한 줄은? (파일명 wallet.zip)",
+     "situation": "생성된 ADB의 상태, 워크로드, ECPU 수, 컴퓨트 자동 확장, mTLS 요구 여부를 한 번에 확인한다. 환경 변수 ADB_OCID, OCI_CLI_PROFILE, OCI_REGION은 설정되어 있다.",
+     "question": "OCI CLI 명령을 작성하라. 결과는 JSON이어야 한다.",
      "answers": [
-      "oci db autonomous-database generate-wallet --autonomous-database-id $ADB --file wallet.zip --password <pw>",
-      "oci db autonomous-database generate-wallet --autonomous-database-id \"$ADB\" --file wallet.zip --password <pw>"
+      "oci db autonomous-database get --autonomous-database-id $ADB_OCID --profile $OCI_CLI_PROFILE --region $OCI_REGION --query 'data.{state:\"lifecycle-state\",workload:\"db-workload\",ecpu:\"compute-count\",computeAuto:\"is-auto-scaling-enabled\",mtls:\"is-mtls-connection-required\"}' --output json",
+      "oci db autonomous-database get --autonomous-database-id \"$ADB_OCID\" --profile \"$OCI_CLI_PROFILE\" --region \"$OCI_REGION\" --query 'data.{state:\"lifecycle-state\",workload:\"db-workload\",ecpu:\"compute-count\",computeAuto:\"is-auto-scaling-enabled\",mtls:\"is-mtls-connection-required\"}' --output json"
      ],
      "match": "normalize-flags",
-     "explanation": "generate-wallet가 mTLS 접속에 필요한 인증서 번들을 만든다. Wallet은 비밀이므로 안전 채널로 전달하고 git·이미지에 넣지 않는다.",
-     "concept_anchor": "c4",
-     "xp": 10
-    },
-    {
-     "id": "s5",
-     "type": "essay",
-     "situation": "개발자가 'app_e_atp_high 로 배치 작업을 돌렸더니 낮에 대화형 리포트가 느려졌다'고 한다.",
-     "question": "원인과 조치를 서비스명 3종 관점에서 서술하라.",
-     "answers": [],
-     "rubric": "① 원인: _high는 쿼리당 자원을 많이 쓰고 동시성이 낮다 — 배치가 _high 자원을 점유해 대화형과 경합 ② 조치: 배치는 _low(자원 적게·동시성 높게)로, 대화형 리포트는 _medium/_high로 분리. 서비스명이 곧 자원 배분 정책임을 언급 + 분리 조치 시 O, 하나만 △.",
-     "explanation": "_high/_medium/_low는 단순 이름이 아니라 자원·동시성 배분 정책이다. 워크로드 성격에 맞춰 서비스명을 나눠 쓰는 것이 ADB 운영의 기본기.",
-     "concept_anchor": "c4",
-     "xp": 10
-    }
-   ]
-  },
-  "autonomous-db-l2": {
-   "curriculum": "oci-database",
-   "topic": "autonomous-db-l2",
-   "level": 2,
-   "sheet": "autonomous-db-l2",
-   "title": "Autonomous Database — 과금·사설 접속·백업",
-   "tags": [
-    "oci",
-    "database",
-    "autonomous",
-    "private-endpoint",
-    "billing",
-    "backup"
-   ],
-   "difficulty": 2,
-   "estimated_minutes": 80,
-   "goal": "ECPU·Auto Scaling 과금 구조를 읽고, Private Endpoint로 사설 접속을 구축하며 백업·복구를 검증한다",
-   "concepts": [
-    {
-     "id": "c1",
-     "title": "개념 1. ECPU 과금 모델 — 무엇에 돈이 나가나",
-     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"116\" y=\"46\" fill=\"var(--accent)\" font-weight=\"700\">ECPU</text>\n    <text x=\"116\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">컴퓨트 단위 (현행 모델)</text>\n    <text x=\"116\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">시간당 과금</text>\n    <text x=\"116\" y=\"104\" fill=\"var(--text-faint)\" font-size=\"10\">OCPU는 레거시</text>\n    <rect x=\"230\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"330\" y=\"46\" fill=\"var(--pixel)\" font-weight=\"700\">Storage</text>\n    <text x=\"330\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">GB·월 단위 별도</text>\n    <text x=\"330\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">백업 스토리지도 과금</text>\n    <text x=\"330\" y=\"104\" fill=\"var(--text-faint)\" font-size=\"10\">보관 기간에 비례</text>\n    <rect x=\"446\" y=\"24\" width=\"200\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"546\" y=\"46\" fill=\"var(--text)\" font-weight=\"700\">비용 축 2개</text>\n    <text x=\"546\" y=\"66\" fill=\"var(--text-dim)\" font-size=\"10\">compute(ECPU × 시간)</text>\n    <text x=\"546\" y=\"84\" fill=\"var(--text-dim)\" font-size=\"10\">+ storage(GB × 월)</text>\n    <text x=\"546\" y=\"104\" fill=\"var(--text-faint)\" font-size=\"10\">둘을 분리해서 본다</text>\n  </g>\n</svg>",
-     "body": "<pre><code>&quot;청구서가 예상보다 많아요&quot; 진단\n├── compute ── ECPU 수 × 가동 시간. Auto Scaling이 켜져 있으면 순간 3배까지 (개념 2)\n├── storage ─ 데이터 + 백업 스토리지. 오래된 백업이 쌓였나\n└── 결론 ──── 두 축을 나눠 본다 — 대개는 Auto Scaling 급증 또는 백업 누적 중 하나\n</code></pre>\n"
-    },
-    {
-     "id": "c2",
-     "title": "개념 2. Auto Scaling — 편리함의 청구서",
-     "diagram": "<svg viewBox=\"0 0 660 140\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"300\" height=\"100\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">ON — 순간 부하 흡수</text>\n    <text x=\"166\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">기준 ECPU의 최대 3배까지 자동 확장</text>\n    <text x=\"166\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">스파이크에 응답성 유지</text>\n    <text x=\"166\" y=\"112\" fill=\"var(--partial)\" font-size=\"10.5\">대가: 확장 구간은 그만큼 과금</text>\n    <rect x=\"344\" y=\"24\" width=\"300\" height=\"100\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"494\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">OFF — 비용 예측성</text>\n    <text x=\"494\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">기준 ECPU 고정 — 청구서 예측 쉬움</text>\n    <text x=\"494\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">스파이크엔 느려질 수 있음</text>\n    <text x=\"494\" y=\"112\" fill=\"var(--text-faint)\" font-size=\"10.5\">예산 통제가 중요할 때</text>\n  </g>\n</svg>",
-     "body": "<ul>\n<li>Auto Scaling은 &quot;성능 안전망 ↔ 비용 예측성&quot;의 트레이드오프 — 기본값을 확인 없이 두면 청구서가 튄다</li>\n<li>운영 팁: 스파이크가 드물면 OFF + 기준 ECPU를 넉넉히, 스파이크가 잦고 예측 불가면 ON + 상한 인지</li>\n</ul>\n"
-    },
-    {
-     "id": "c3",
-     "title": "개념 3. Private Endpoint — 사설 격리 승격",
-     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"adb2-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"20\" width=\"300\" height=\"60\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"164\" y=\"42\" fill=\"var(--text)\" font-weight=\"700\">Public + ACL (L1)</text>\n    <text x=\"164\" y=\"62\" fill=\"var(--text-dim)\" font-size=\"10\">인터넷 경로 + IP 허용목록 — 빠르지만 표면 넓음</text>\n    <rect x=\"14\" y=\"96\" width=\"300\" height=\"60\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"164\" y=\"118\" fill=\"var(--accent)\" font-weight=\"700\">Private Endpoint (L2)</text>\n    <text x=\"164\" y=\"138\" fill=\"var(--text-dim)\" font-size=\"10\">VCN 안 사설 IP — 인터넷 노출 자체가 없음</text>\n    <rect x=\"360\" y=\"40\" width=\"130\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"425\" y=\"60\" fill=\"var(--pixel)\" font-weight=\"700\">subnet 지정</text>\n    <text x=\"425\" y=\"76\" fill=\"var(--text-dim)\" font-size=\"10\">private subnet 권장</text>\n    <rect x=\"360\" y=\"96\" width=\"130\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"425\" y=\"116\" fill=\"var(--text)\" font-weight=\"700\">NSG 부착</text>\n    <text x=\"425\" y=\"132\" fill=\"var(--text-dim)\" font-size=\"10\">앱 서브넷만 허용</text>\n    <rect x=\"520\" y=\"68\" width=\"126\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"583\" y=\"88\" fill=\"var(--text)\" font-weight=\"700\">DNS 해석</text>\n    <text x=\"583\" y=\"104\" fill=\"var(--text-dim)\" font-size=\"10\">사설 호스트명</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#adb2-ar)\">\n    <line x1=\"314\" y1=\"118\" x2=\"356\" y2=\"62\"/>\n    <line x1=\"314\" y1=\"122\" x2=\"356\" y2=\"118\"/>\n  </g>\n</svg>",
-     "body": "<ul>\n<li>PE는 ADB를 <strong>VCN 안의 사설 IP</strong>로 만든다 — 인터넷 접근이 원천 차단되고, 접근은 VCN·peering·VPN 경유만</li>\n<li>함정: PE로 바꾸면 접속 경로(개념 L1-c3의 ②)가 통째로 달라진다 — 기존 Public 접속 설정은 폐기하고 사설 DNS·NSG를 새로 검증</li>\n</ul>\n"
-    },
-    {
-     "id": "c4",
-     "title": "개념 4. 백업과 복구 — 자동은 어디까지",
-     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"166\" y=\"46\" fill=\"var(--accent)\" font-weight=\"700\">자동 백업 (Oracle)</text>\n    <text x=\"166\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">주기적 자동 + 보관 기간 내 시점복구</text>\n    <text x=\"166\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">별도 설정 없이 동작</text>\n    <text x=\"166\" y=\"110\" fill=\"var(--text-faint)\" font-size=\"10\">\"백업은 되고 있다\"의 근거</text>\n    <rect x=\"344\" y=\"24\" width=\"300\" height=\"104\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"494\" y=\"46\" fill=\"var(--pixel)\" font-weight=\"700\">사용자의 몫</text>\n    <text x=\"494\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10.5\">복구 리허설 (실제 restore 해보기)</text>\n    <text x=\"494\" y=\"90\" fill=\"var(--text-dim)\" font-size=\"10.5\">보관 기간 정책 · 장기 보관은 수동</text>\n    <text x=\"494\" y=\"110\" fill=\"var(--text-faint)\" font-size=\"10\">\"복구가 된다\"의 증명은 내가</text>\n  </g>\n</svg>",
-     "body": "<ul>\n<li>자동 백업이 있다 ≠ 복구가 된다 — <strong>한 번도 restore 안 해본 백업은 백업이 아니다</strong></li>\n<li>시점 복구(PITR): 실수 삭제·논리 오류를 특정 시각으로 되돌린다. 인프라 재해 대비는 L3(Data Guard)</li>\n</ul>\n"
-    }
-   ],
-   "lab": {
-    "situation": "L1에서 만든 app-e-atp가 운영에 들어갔다. 보안 감사에서 &quot;DB가 인터넷에 노출됐다&quot;는 지적을 받았고, 재무팀은 &quot;지난달 DB 비용이 2배로 튀었다&quot;고 문의했다.",
-    "request": "&quot;DB를 사설로 격리해 주시고, 비용이 왜 튀었는지 밝혀서 예측 가능하게 해 주세요. 백업으로 복구가 실제 되는지도 확인해 주세요.&quot;",
-    "steps": [
-     {
-      "id": "l1",
-      "title": "비용 급증 원인 규명",
-      "body": "<p>Cost Analysis에서 ADB 비용을 compute/storage 두 축으로 분리해 본다 (개념 1).</p>\n<pre><code>[1] compute(ECPU) 라인이 튀었나  → Auto Scaling 급증 의심\n[2] storage 라인이 튀었나        → 백업 누적·데이터 증가 의심\n</code></pre>\n<p>확인: 대개 Auto Scaling ON 상태에서 예상 못한 스파이크 — 원인 라인을 스크린샷으로 확보.</p>\n"
-     },
-     {
-      "id": "l2",
-      "title": "과금 정책 결정",
-      "body": "<pre><code>스파이크가 드물다   → Auto Scaling OFF + 기준 ECPU를 실측 피크 기준으로 상향 (예측성 확보)\n스파이크가 잦다     → Auto Scaling ON 유지 + 상한(3배) 인지 + 알람(예산 초과 경보) 설정\n</code></pre>\n<p>확인: 결정과 근거(트래픽 패턴)를 재무팀에 1장으로 회신.</p>\n"
-     },
-     {
-      "id": "l3",
-      "title": "Private Endpoint 신설 — 사설 격리",
-      "body": "<p>주의: Public→Private 전환은 접속 경로가 통째로 바뀐다. 앱 다운타임 창을 잡고 진행.</p>\n<p>콘솔: <code>ADB → More actions → Update network access → Private endpoint access only</code></p>\n<pre><code>VCN     : 앱 VCN\nSubnet  : private subnet\nNSG     : 앱 서브넷에서 1521만 허용\n</code></pre>\n<p>확인: ADB에 인터넷 경로가 사라지고 사설 IP가 부여됨.</p>\n"
-     },
-     {
-      "id": "l4",
-      "title": "사설 접속 재검증",
-      "body": "<pre><code>[1] 앱 VCN 안(또는 Bastion)에서 사설 호스트명으로 접속\n[2] sqlplus admin/&lt;pw&gt;@app_e_atp_low  → 성공\n[3] 인터넷(사무실 외부)에서 시도 → 도달 불가(격리 증명)\n</code></pre>\n<ul>\n<li>L1의 Public ACL 설정은 제거 — 접속 3요소 중 ②(경로)가 바뀌었으므로 전체 재검증.</li>\n</ul>\n"
-     },
-     {
-      "id": "l5",
-      "title": "복구 리허설",
-      "body": "<p>&quot;백업이 있다&quot;를 &quot;복구가 된다&quot;로 바꾸는 단계.</p>\n<pre><code>[1] 테스트 테이블 생성 후 특정 시각 기록\n[2] 데이터 변경/삭제\n[3] 시점 복구(PITR) 또는 백업에서 복제본 생성으로 그 시각 상태 확인\n</code></pre>\n<p>확인: 복구된 데이터가 기록 시점과 일치 — 복구 소요 시간(RTO)도 함께 측정해 기록.</p>\n"
-     },
-     {
-      "id": "l6",
-      "title": "인수인계",
-      "body": "<ul>\n<li>비용 리포트: compute/storage 분리 + 과금 정책 결정 근거</li>\n<li>접속 정보 갱신: 사설 호스트명·경로, 기존 Public 설정 폐기 명시</li>\n<li>복구 리허설 결과: 복구 가능 확인 + RTO 실측치. 정기 리허설 주기 제안</li>\n<li>재해(리전 장애) 대비는 별도 — L3 Data Guard 예고</li>\n</ul>\n"
-     }
-    ]
-   },
-   "sources": [
-    {
-     "label": "ECPU Compute 모델",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/ecpu-compute-model.html"
-    },
-    {
-     "label": "Auto Scaling",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/autonomous-auto-scale.html"
-    },
-    {
-     "label": "Private Endpoint",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/private-endpoint-overview.html"
-    },
-    {
-     "label": "Backup & Restore",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/backup-restore.html"
-    }
-   ],
-   "scenarios": [
-    {
-     "id": "s1",
-     "type": "choice",
-     "situation": "재무팀이 'ADB 비용이 지난달 2배'라고 문의했다. 데이터량은 거의 그대로다.",
-     "question": "가장 먼저 볼 곳은?",
-     "choices": [
-      "storage 사용량 추이",
-      "Auto Scaling으로 인한 ECPU(compute) 사용 추이",
-      "Wallet 발급 횟수",
-      "백업 보관 기간 설정"
-     ],
-     "answers": [
-      "2"
-     ],
-     "explanation": "비용 축은 compute(ECPU×시간)와 storage(GB×월) 둘 — 데이터가 그대로면 compute 축, 특히 Auto Scaling이 스파이크에서 기준의 3배까지 확장된 구간이 단골 원인이다.",
-     "concept_anchor": "c1",
-     "xp": 10
-    },
-    {
-     "id": "s2",
-     "type": "ox",
-     "situation": "동료가 '예산 통제가 최우선인 고객이니 Auto Scaling을 끄면 성능 문제는 알아서 해결된다'고 말한다.",
-     "question": "이 말은 맞다 (O/X)",
-     "answers": [
-      "X"
-     ],
-     "explanation": "OFF는 비용 예측성을 주지만 스파이크에서 느려질 수 있다 — 트레이드오프다. OFF를 선택하면 기준 ECPU를 실측 피크 기준으로 상향하는 보완이 따라야 한다.",
-     "concept_anchor": "c2",
-     "xp": 10
-    },
-    {
-     "id": "s3",
-     "type": "choice",
-     "situation": "보안 감사에서 'ADB가 인터넷에 노출'이라는 지적. Public+ACL로 운영 중이다.",
-     "question": "근본 해결책은?",
-     "choices": [
-      "ACL 허용 IP를 더 줄인다",
-      "Wallet 비밀번호를 강화한다",
-      "Private Endpoint로 전환해 인터넷 경로를 원천 제거한다",
-      "mTLS를 TLS로 바꾼다"
-     ],
-     "answers": [
-      "3"
-     ],
-     "explanation": "ACL은 허용목록일 뿐 인터넷 노출 자체는 남는다. PE 전환이 노출을 원천 제거한다 — 단 접속 경로가 통째로 바뀌므로 다운타임 창 + 사설 DNS·NSG 재검증이 따라온다.",
-     "concept_anchor": "c3",
-     "xp": 10
+     "explanation": "`get`의 단일 원문 응답에서 운영 판정 필드를 뽑는다. 예상값만 믿지 말고 CLI 버전의 실제 JSON 키를 먼저 확인하는 습관이 중요하다.",
+     "concept_anchor": "c5",
+     "xp": 20
     },
     {
      "id": "s4",
      "type": "command",
-     "situation": "PE 전환 후 앱 VCN의 Bastion에서 사설 접속을 검증한다. 서비스명은 app_e_atp_low, 사용자 admin.",
-     "question": "접속 검증 명령 한 줄은? (sqlplus)",
+     "situation": "Cloud Shell에서 SINGLE 유형의 Wallet을 `/home/user/Wallet_labadb.zip`으로 생성한다. ADB_OCID, OCI_CLI_PROFILE, OCI_REGION, WALLET_PASSWORD는 이미 안전하게 설정되어 있다.",
+     "question": "OCI CLI 명령을 작성하라.",
      "answers": [
-      "sqlplus admin/<pw>@app_e_atp_low",
-      "sqlplus admin@app_e_atp_low"
+      "oci db autonomous-database generate-wallet --autonomous-database-id $ADB_OCID --generate-type SINGLE --file /home/user/Wallet_labadb.zip --password $WALLET_PASSWORD --profile $OCI_CLI_PROFILE --region $OCI_REGION",
+      "oci db autonomous-database generate-wallet --autonomous-database-id \"$ADB_OCID\" --generate-type SINGLE --file \"/home/user/Wallet_labadb.zip\" --password \"$WALLET_PASSWORD\" --profile \"$OCI_CLI_PROFILE\" --region \"$OCI_REGION\""
      ],
      "match": "normalize-flags",
-     "explanation": "PE 전환 후에는 반드시 VCN 안에서 사설 호스트명 경유 접속을 재검증한다 — 기존 Public 경로 설정은 폐기 대상이다.",
-     "concept_anchor": "c3",
-     "xp": 10
+     "explanation": "`generate-wallet`과 `--generate-type SINGLE`을 사용한다. 실행 후 변수 unset, 파일 권한 600, 안전한 배포·폐기까지가 Wallet 관리의 전체 절차다.",
+     "concept_anchor": "c5",
+     "xp": 20
     },
     {
      "id": "s5",
      "type": "essay",
-     "situation": "고객이 '자동 백업이 있다니 안심'이라며 복구 테스트 없이 운영하려 한다.",
-     "question": "이 상태의 위험과 리허설 절차를 서술하라.",
+     "situation": "온라인 주문 고객은 평소 2 ECPU 수준이지만 월말에 약 4배 부하가 온다. 내부망만 허용하며 RPO 15분, RTO 30분, 감사 백업 1년, 기존 Oracle 라이선스가 있다고 주장한다.",
+     "question": "구축 전에 확인할 질문과 1차 설계, 검증 계획을 서술하라.",
      "answers": [],
-     "rubric": "① 위험: 백업 존재 ≠ 복구 가능 — 한 번도 restore 안 해본 백업은 실제 장애 때 RTO·절차·권한 문제로 실패할 수 있다 ② 리허설: 테스트 데이터 기록 → 변경/삭제 → PITR(또는 백업 복제본)로 시점 복원 → 데이터 일치 확인 + RTO 실측 기록, 정기 주기화. 위험과 절차(검증 포인트 포함) 모두 언급 시 O, 하나만 △.",
-     "explanation": "'백업이 있다'를 '복구가 된다'로 바꾸는 것은 사용자 몫이다 — 리허설과 RTO 실측이 운영의 증거가 된다.",
-     "concept_anchor": "c4",
-     "xp": 10
-    }
-   ]
-  },
-  "autonomous-db-l3": {
-   "curriculum": "oci-database",
-   "topic": "autonomous-db-l3",
-   "level": 3,
-   "sheet": "autonomous-db-l3",
-   "title": "Autonomous Database — 성능 진단과 재해 복구 설계",
-   "tags": [
-    "oci",
-    "database",
-    "autonomous",
-    "data-guard",
-    "performance",
-    "dr"
-   ],
-   "difficulty": 3,
-   "estimated_minutes": 85,
-   "goal": "성능 이상을 지표로 진단하고, 재해 복구(Data Guard/Backup)와 이관·과금 최적화를 아키텍처로 설계한다",
-   "concepts": [
-    {
-     "id": "c1",
-     "title": "개념 1. \"느려요\"의 해부 — 매니지드에서 성능을 보는 법",
-     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"adb3-ar\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--text-faint)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"10\" y=\"54\" width=\"140\" height=\"52\" rx=\"25\" fill=\"var(--wrong)\" opacity=\"0.15\" stroke=\"var(--wrong)\"/>\n    <text x=\"80\" y=\"84\" fill=\"var(--wrong)\" font-weight=\"700\">\"DB가 느려요\"</text>\n    <rect x=\"210\" y=\"10\" width=\"190\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"305\" y=\"28\" fill=\"var(--text)\">① 자원 포화인가</text>\n    <text x=\"305\" y=\"44\" fill=\"var(--text-dim)\" font-size=\"9.5\">ECPU 사용률·대기 세션 (Perf Hub)</text>\n    <rect x=\"210\" y=\"60\" width=\"190\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"305\" y=\"78\" fill=\"var(--text)\">② 특정 SQL인가</text>\n    <text x=\"305\" y=\"94\" fill=\"var(--text-dim)\" font-size=\"9.5\">Top SQL·실행계획 변화</text>\n    <rect x=\"210\" y=\"110\" width=\"190\" height=\"42\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"305\" y=\"128\" fill=\"var(--text)\">③ 경로/서비스명인가</text>\n    <text x=\"305\" y=\"144\" fill=\"var(--text-dim)\" font-size=\"9.5\">_high 혼용·네트워크 지연</text>\n    <rect x=\"450\" y=\"54\" width=\"200\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"550\" y=\"76\" fill=\"var(--accent)\" font-weight=\"700\">지표로 갈라서 조치</text>\n    <text x=\"550\" y=\"94\" fill=\"var(--text-dim)\" font-size=\"10\">스케일 vs SQL 튜닝 vs 배분</text>\n  </g>\n  <g stroke=\"var(--text-faint)\" stroke-width=\"1.4\" fill=\"none\" marker-end=\"url(#adb3-ar)\">\n    <path d=\"M150 68 C 175 50, 185 38, 206 30\"/>\n    <line x1=\"150\" y1=\"80\" x2=\"206\" y2=\"80\"/>\n    <path d=\"M150 92 C 175 110, 185 122, 206 130\"/>\n    <line x1=\"400\" y1=\"80\" x2=\"446\" y2=\"80\"/>\n  </g>\n</svg>",
-     "body": "<pre><code>매니지드라서 다른 점\n├── 인프라 튜닝(메모리·패치)은 Oracle 영역 — 내가 도구로 보는 건 Performance Hub\n├── 갈림길 3개: 자원 포화(→ ECPU 스케일) / 특정 SQL(→ 튜닝·계획 고정) / 배분(→ 서비스명 재배치)\n└── &quot;느려요&quot;에 ECPU부터 올리는 건 진단 생략 — 포화가 아니면 돈만 나간다\n</code></pre>\n"
-    },
-    {
-     "id": "c2",
-     "title": "개념 2. 클론 전략 — 운영을 건드리지 않는 실험실",
-     "diagram": "<svg viewBox=\"0 0 660 160\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"24\" width=\"200\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"114\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">Full Clone</text>\n    <text x=\"114\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">데이터+메타데이터 전부</text>\n    <text x=\"114\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"10\">부하테스트·검증 환경</text>\n    <text x=\"114\" y=\"112\" fill=\"var(--text-faint)\" font-size=\"10\">스토리지 비용 그대로</text>\n    <rect x=\"230\" y=\"24\" width=\"200\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"330\" y=\"48\" fill=\"var(--text)\" font-weight=\"700\">Metadata Clone</text>\n    <text x=\"330\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">스키마만, 데이터 없음</text>\n    <text x=\"330\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"10\">개발 초기·구조 검토</text>\n    <text x=\"330\" y=\"112\" fill=\"var(--text-faint)\" font-size=\"10\">가볍고 저렴</text>\n    <rect x=\"446\" y=\"24\" width=\"200\" height=\"110\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"546\" y=\"48\" fill=\"var(--pixel)\" font-weight=\"700\">Refreshable Clone</text>\n    <text x=\"546\" y=\"70\" fill=\"var(--text-dim)\" font-size=\"10\">원본을 주기 반영 (읽기)</text>\n    <text x=\"546\" y=\"88\" fill=\"var(--text-dim)\" font-size=\"10\">리포팅 분리·읽기 오프로드</text>\n    <text x=\"546\" y=\"112\" fill=\"var(--text-faint)\" font-size=\"10\">refresh 주기 관리 필요</text>\n  </g>\n  <text x=\"330\" y=\"152\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">패치 검증·성능 실험·리포팅 — 운영 DB를 직접 건드릴 이유를 클론이 없애준다</text>\n</svg>",
-     "body": "<ul>\n<li>L2의 &quot;복구 리허설&quot;도 클론으로 한다 — 특정 시점 백업에서 클론을 떠서 검증하면 운영 무중단</li>\n<li>리포팅 쿼리가 운영을 누르는 고전 문제의 정답이 Refreshable Clone — 읽기 부하를 통째로 분리</li>\n</ul>\n"
-    },
-    {
-     "id": "c3",
-     "title": "개념 3. 재해 복구 2단 — Backup 기반과 Autonomous Data Guard",
-     "diagram": "<svg viewBox=\"0 0 660 170\" font-family=\"Pretendard,sans-serif\">\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"16\" y=\"24\" width=\"300\" height=\"120\" rx=\"10\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"166\" y=\"48\" fill=\"var(--text)\" font-weight=\"700\">Backup-based DR</text>\n    <text x=\"166\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">백업을 다른 리전에 복제 → 장애 시 복원</text>\n    <text x=\"166\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">RTO 길다 (복원 시간) · 비용 낮음</text>\n    <text x=\"166\" y=\"116\" fill=\"var(--text-faint)\" font-size=\"10\">\"하루쯤 멈춰도 되는\" 시스템</text>\n    <rect x=\"344\" y=\"24\" width=\"300\" height=\"120\" rx=\"10\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"494\" y=\"48\" fill=\"var(--accent)\" font-weight=\"700\">Autonomous Data Guard</text>\n    <text x=\"494\" y=\"72\" fill=\"var(--text-dim)\" font-size=\"10.5\">Standby DB 상시 유지 (동일/원격 리전)</text>\n    <text x=\"494\" y=\"92\" fill=\"var(--text-dim)\" font-size=\"10.5\">스위치오버/페일오버 — RTO 분 단위</text>\n    <text x=\"494\" y=\"116\" fill=\"var(--text-faint)\" font-size=\"10\">Standby 유지 비용 — RTO가 돈이다</text>\n  </g>\n</svg>",
-     "body": "<pre><code>선택은 숫자로 한다\n├── RTO(복구 시간 목표)·RPO(허용 데이터 손실)를 고객에게 먼저 묻는다\n├── &quot;몇 시간 정지 허용 + 저비용&quot;  → Backup-based\n└── &quot;분 단위 복구 + 리전 재해 대비&quot; → Autonomous Data Guard (원격 리전 standby)\n</code></pre>\n<ul>\n<li>함정: Data Guard를 켜고 스위치오버를 한 번도 안 해본 조직 — 전환 리허설 없는 DR은 DR이 아니다 (L2 백업 교훈의 반복)</li>\n</ul>\n"
-    },
-    {
-     "id": "c4",
-     "title": "개념 4. 이관과 총비용 — 아키텍트의 마지막 질문",
-     "diagram": "<svg viewBox=\"0 0 660 150\" font-family=\"Pretendard,sans-serif\">\n  <defs><marker id=\"adb3-ar4\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"var(--accent)\"/></marker></defs>\n  <g font-size=\"11\" text-anchor=\"middle\">\n    <rect x=\"14\" y=\"34\" width=\"160\" height=\"52\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--line)\"/>\n    <text x=\"94\" y=\"56\" fill=\"var(--text)\" font-weight=\"700\">온프렘/타DB</text>\n    <text x=\"94\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"10\">기존 Oracle·기타</text>\n    <rect x=\"250\" y=\"10\" width=\"170\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--accent)\"/>\n    <text x=\"335\" y=\"30\" fill=\"var(--accent)\">Data Pump</text>\n    <text x=\"335\" y=\"46\" fill=\"var(--text-dim)\" font-size=\"9.5\">중단 창 허용 시 — 단순·확실</text>\n    <rect x=\"250\" y=\"66\" width=\"170\" height=\"44\" rx=\"9\" fill=\"var(--bg-card)\" stroke=\"var(--pixel)\"/>\n    <text x=\"335\" y=\"86\" fill=\"var(--pixel)\">GoldenGate</text>\n    <text x=\"335\" y=\"102\" fill=\"var(--text-dim)\" font-size=\"9.5\">무중단 요구 시 — 실시간 복제</text>\n    <rect x=\"486\" y=\"34\" width=\"160\" height=\"52\" rx=\"9\" fill=\"var(--accent-glow)\" stroke=\"var(--accent)\"/>\n    <text x=\"566\" y=\"56\" fill=\"var(--accent)\" font-weight=\"700\">ADB</text>\n    <text x=\"566\" y=\"74\" fill=\"var(--text-dim)\" font-size=\"10\">운영비 재계산</text>\n  </g>\n  <g stroke=\"var(--accent)\" stroke-width=\"1.5\" fill=\"none\" marker-end=\"url(#adb3-ar4)\">\n    <path d=\"M174 52 C 205 40, 215 34, 246 28\"/>\n    <path d=\"M174 68 C 205 80, 215 86, 246 90\"/>\n    <line x1=\"420\" y1=\"32\" x2=\"482\" y2=\"52\"/>\n    <line x1=\"420\" y1=\"88\" x2=\"482\" y2=\"68\"/>\n  </g>\n  <text x=\"330\" y=\"138\" text-anchor=\"middle\" font-size=\"10.5\" fill=\"var(--text-dim)\">이관 방식은 \"중단 창\"이 결정한다 — 그리고 총비용에는 compute·storage + DR(standby)·클론까지 넣어야 정직한 견적이다</text>\n</svg>",
-     "body": "<ul>\n<li>아키텍처 리뷰 4문항: 워크로드 타입(L1) / 접속·격리 모델(L2) / RTO·RPO와 DR 방식(L3) / 총비용(스케일링·백업·standby 포함)</li>\n<li>이 4문항에 근거가 있으면 ADB 설계는 끝난 것이다</li>\n</ul>\n"
-    }
-   ],
-   "lab": {
-    "situation": "app-e-atp가 매출 시스템의 핵심이 됐다. 경영진이 &quot;리전 장애가 나도 서비스는 살아야 한다&quot;고 선언했고, 동시에 월말 리포팅 쿼리가 운영 트랜잭션을 느리게 만들고 있다.",
-    "request": "&quot;리전 재해에도 분 단위로 복구되게 해 주세요. 리포팅이 운영을 누르는 것도 해결해 주세요. 전환이 진짜 되는지 증명까지.&quot;",
-    "steps": [
-     {
-      "id": "l1",
-      "title": "요구 분석 — 숫자부터",
-      "body": "<pre><code>&quot;리전 장애에도 생존 + 분 단위&quot;  → RTO 분 단위 = Backup-based 탈락 → Autonomous Data Guard (원격 리전)\n&quot;리포팅이 운영을 누름&quot;          → Refreshable Clone으로 읽기 부하 분리\n&quot;증명까지&quot;                      → 스위치오버 리허설이 완료 기준\n</code></pre>\n<p>확인: RTO·RPO 숫자를 경영진 문서로 합의 (구두 아님).</p>\n"
-     },
-     {
-      "id": "l2",
-      "title": "Autonomous Data Guard 활성화",
-      "body": "<p>콘솔: <code>ADB 상세 → Autonomous Data Guard → Enable</code></p>\n<pre><code>Standby 위치 : 원격 리전 (리전 재해 대비가 요구이므로 Local이 아닌 Cross-region)\n</code></pre>\n<ul>\n<li>비용 고지: standby는 상시 유지 비용이 든다 — &quot;RTO가 돈이다&quot;를 견적으로 먼저 승인받는다</li>\n</ul>\n<p>확인: Standby 상태 Available, role 표시(Primary/Standby).</p>\n"
-     },
-     {
-      "id": "l3",
-      "title": "리포팅 분리 — Refreshable Clone",
-      "body": "<p>콘솔: <code>More actions → Create clone → Refreshable clone</code></p>\n<pre><code>Clone 이름   : app-e-report\nRefresh 방식 : 주기 refresh (리포팅 허용 지연에 맞춰)\n</code></pre>\n<ul>\n<li>BI·월말 배치의 접속 문자열을 클론으로 전환 — 운영 DB에는 트랜잭션만 남긴다</li>\n</ul>\n<p>확인: 운영 Perf Hub에서 리포팅성 Top SQL이 사라짐.</p>\n"
-     },
-     {
-      "id": "l4",
-      "title": "스위치오버 리허설",
-      "body": "<p>DR의 완료 기준 — 계획 전환을 실제로 한다 (야간 창).</p>\n<pre><code>[1] 콘솔에서 Switchover 실행 (Primary ↔ Standby 역할 교대)\n[2] 앱 접속 확인 — 신규 Primary로 트랜잭션 정상\n[3] RTO 실측 기록 (선언 목표와 대조)\n[4] Switchover 원복\n</code></pre>\n<p>확인: 실측 RTO ≤ 합의 RTO — 미달이면 아키텍처 재검토가 지금 필요한 것.</p>\n"
-     },
-     {
-      "id": "l5",
-      "title": "운영 체계화",
-      "body": "<pre><code>├── 분기 1회 스위치오버 리허설 일정화 (전환 안 해본 DR은 DR이 아니다)\n├── 클론 refresh 실패 알람 (리포팅 데이터 신선도 감시)\n└── 비용 리포트에 standby·클론 항목 명시 — 총비용의 정직성\n</code></pre>\n"
-     },
-     {
-      "id": "l6",
-      "title": "인수인계",
-      "body": "<ul>\n<li>DR 런북 1장: 페일오버 판단 기준 → 실행 절차 → 확인 목록 → 원복 절차</li>\n<li>아키텍처 리뷰 4문항 답안(타입/접속/DR/총비용)을 문서로 — 이것이 이 커리큘럼의 최종 산출물</li>\n<li>성능 문의 대응 순서(개념 1): 포화 → SQL → 배분, ECPU 증설은 진단 뒤에</li>\n</ul>\n"
-     }
-    ]
-   },
-   "sources": [
-    {
-     "label": "Autonomous Data Guard",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/autonomous-data-guard.html"
-    },
-    {
-     "label": "Backup & Restore",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/backup-restore.html"
-    },
-    {
-     "label": "Performance Hub",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/perf-hub.html"
-    },
-    {
-     "label": "Clone",
-     "url": "https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/clone-autonomous-database.html"
-    }
-   ],
-   "scenarios": [
-    {
-     "id": "s1",
-     "type": "choice",
-     "situation": "'DB가 느리다'는 티켓. 담당자가 곧바로 ECPU를 2배로 올리자고 한다.",
-     "question": "올바른 이의 제기는?",
-     "choices": [
-      "ECPU 증설은 다운타임이 필요하므로 안 된다",
-      "Performance Hub로 포화/특정 SQL/배분 중 어디인지 진단이 먼저 — 포화가 아니면 돈만 나간다",
-      "매니지드라 성능은 Oracle 책임이므로 SR부터 연다",
-      "Auto Scaling을 끄면 해결된다"
-     ],
-     "answers": [
-      "2"
-     ],
-     "explanation": "갈림길 3개(자원 포화/특정 SQL/서비스명 배분)를 지표로 가른 뒤 조치가 정석 — 특정 SQL의 계획 변화가 원인이면 ECPU 2배는 비용만 2배다.",
-     "concept_anchor": "c1",
-     "xp": 10
-    },
-    {
-     "id": "s2",
-     "type": "choice",
-     "situation": "월말 리포팅 배치가 운영 트랜잭션을 누른다. 데이터는 하루 지연까지 허용된다.",
-     "question": "가장 알맞은 분리 수단은?",
-     "choices": [
-      "Full Clone을 매일 새로 뜬다",
-      "Metadata Clone에 리포팅을 돌린다",
-      "Refreshable Clone으로 읽기 부하를 분리한다",
-      "ECPU Auto Scaling을 켠다"
-     ],
-     "answers": [
-      "3"
-     ],
-     "explanation": "Refreshable Clone은 원본을 주기 반영하는 읽기 복제본 — 리포팅을 통째로 옮기면 운영 DB에는 트랜잭션만 남는다. 하루 지연 허용이면 refresh 주기로 충분히 커버.",
-     "concept_anchor": "c2",
-     "xp": 10
-    },
-    {
-     "id": "s3",
-     "type": "ox",
-     "situation": "경영진이 'RTO 5분, 리전 재해 대비'를 선언했다. 담당자가 '백업을 원격 리전에 복제하고 있으니 충족된다'고 보고했다.",
-     "question": "이 보고는 맞다 (O/X)",
-     "answers": [
-      "X"
-     ],
-     "explanation": "Backup-based DR은 복원 시간이 필요해 RTO가 길다 — 분 단위 RTO + 리전 재해면 원격 리전 standby를 상시 유지하는 Autonomous Data Guard가 답이다. 선택은 RTO·RPO 숫자가 결정한다.",
-     "concept_anchor": "c3",
-     "xp": 10
-    },
-    {
-     "id": "s4",
-     "type": "command",
-     "situation": "이관 협의 — 기존 온프렘 Oracle을 ADB로 옮긴다. 서비스는 주말 6시간 중단 창이 허용된다.",
-     "question": "이 조건에서 표준 이관 도구는? (도구 이름만)",
-     "answers": [
-      "Data Pump",
-      "data pump",
-      "datapump",
-      "expdp/impdp"
-     ],
-     "match": "exact-trim",
-     "explanation": "중단 창이 허용되면 Data Pump(export/import)가 단순·확실한 표준 경로다. 무중단 요구일 때만 GoldenGate 실시간 복제로 올라간다 — 이관 방식은 중단 창이 결정한다.",
-     "concept_anchor": "c4",
-     "xp": 10
-    },
-    {
-     "id": "s5",
-     "type": "essay",
-     "situation": "Autonomous Data Guard를 켠 지 1년, 스위치오버는 한 번도 안 해봤다. DR 점검 요청이 왔다.",
-     "question": "이 상태의 문제와 리허설 절차를 서술하라.",
-     "answers": [],
-     "rubric": "① 문제: 전환 안 해본 DR은 DR이 아니다 — 실제 페일오버 때 앱 재접속·DNS·권한·RTO가 검증 안 된 상태 ② 절차: 야간 창에 계획 Switchover → 신규 Primary로 앱 트랜잭션 확인 → RTO 실측·목표 대조 → 원복, 분기 주기화. 문제 인식과 절차(실측 포함) 모두 언급 시 O, 하나만 △.",
-     "explanation": "L2 백업 교훈의 반복 — 존재가 아니라 전환 증명이 DR의 완료 기준이다. 실측 RTO가 목표에 미달이면 지금이 아키텍처 재검토 시점이다.",
-     "concept_anchor": "c3",
-     "xp": 10
+     "rubric": "총 10점. ① 워크로드·DB 버전·피크 부하 시험(2점) ② 자동 확장 최대 3배를 고려해 기준 ECPU 재산정과 비용 알람(2점) ③ Private Endpoint의 VPN/FastConnect·DNS·NSG 경로(2점) ④ RPO/RTO에 맞춘 DR 선택과 1년 장기 백업·복구 시험(2점) ⑤ BYOL 계약·에디션·ECPU 제한 검증, CLI 구성 조회와 SQL 성공/의도적 실패 증거(2점). 각 항목은 선택만 쓰면 절반, 근거와 성공 판정까지 쓰면 만점.",
+     "explanation": "핵심은 요구를 곧바로 옵션에 끼워 맞추지 않는 것이다. 4배 피크는 기준 2 ECPU의 자동 확장 최대 6 ECPU만으로 부족할 수 있고, '라이선스가 있다'는 말은 BYOL 적격성 증거가 아니다. 네트워크와 DR도 경로·수치·복구 시험으로 닫아야 한다.",
+     "concept_anchor": "c6",
+     "xp": 30
     }
    ]
   },
