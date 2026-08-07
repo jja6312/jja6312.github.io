@@ -4,10 +4,12 @@ import {
   EMPTY_GOALS, EMPTY_BOARD, EMPTY_JOURNAL, type GoalsFile, type Goal,
   type Board, type CalData, type Journal,
 } from '../../lib/scheduleDb'
+import { useHub } from '../../store'
 
 const ddayLabel = (n: number) => n > 0 ? `D-${n}` : n === 0 ? 'D-DAY' : `D+${-n} 지남`
 
 export default function GoalsView() {
+  const rewardActivity = useHub(state => state.rewardActivity)
   const { data, update, sync, writable } = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, 'goals: 목표 갱신')
   // 진척 집계용 — 읽기 전용 로드
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, '').data
@@ -31,6 +33,7 @@ export default function GoalsView() {
       color: GOAL_COLORS[goals.length % GOAL_COLORS.length], createdAt: new Date().toISOString(),
     }
     update({ ...data, goals: [...goals, g] })
+    rewardActivity(`goal-created:${g.id}`, 5, '새 목표 등록', 'once')
     setTitle(''); setDeadline(''); setUndated(false)
   }
   const saveEdit = (id: string, patch: Partial<Goal>) =>

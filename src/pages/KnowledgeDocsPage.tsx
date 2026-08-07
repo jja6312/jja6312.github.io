@@ -12,7 +12,7 @@ export default function KnowledgeDocsPage({ crumb, title, desc, path, badge }: {
 }) {
   const pat = getPat()
   const protectedState = useProtectedData()
-  const { showToast } = useHub()
+  const { showToast, rewardActivity } = useHub()
   const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState('')
@@ -71,7 +71,11 @@ export default function KnowledgeDocsPage({ crumb, title, desc, path, badge }: {
 
       {filtered.map(d => (
         <div key={d.name} className="scen" style={{ padding: '14px 18px', marginBottom: 10, cursor: 'pointer' }}
-          onClick={() => setOpen(open === d.name ? null : d.name)}>
+          onClick={() => {
+            const next = open === d.name ? null : d.name
+            setOpen(next)
+            if (next) rewardActivity(`knowledge-read:${path}:${d.name}`, 2, `${title} 문서 확인`, 'once')
+          }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
             <span className="sid px">{badge}</span>
             <b style={{ fontSize: 15.5 }}>{docTitle(d)}</b>

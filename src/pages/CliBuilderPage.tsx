@@ -519,7 +519,7 @@ const catOfResource = (catalog: Catalog, r: string) =>
   catalog.categories.find(c => c.groups.some(g => g.resources.includes(r)))?.id
 
 export default function CliBuilderPage() {
-  const { showToast } = useHub()
+  const { showToast, rewardActivity } = useHub()
   const protectedState = useProtectedData()
   const CAT = (protectedState.data?.cliCatalog as Catalog | undefined) ?? EMPTY_CATALOG
   const [sp] = useSearchParams()
@@ -604,9 +604,13 @@ export default function CliBuilderPage() {
   const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
 
   const copy = useCallback(async () => {
-    try { await navigator.clipboard.writeText(cli); showToast('클립보드에 복사됨') }
+    try {
+      await navigator.clipboard.writeText(cli)
+      const rewarded = rewardActivity(`cli-copy:${active}`, 5, 'OCI CLI 명령 복사')
+      if (!rewarded) showToast('클립보드에 복사됨')
+    }
     catch { showToast('복사 실패 — 수동 선택') }
-  }, [cli, showToast])
+  }, [active, cli, rewardActivity, showToast])
 
   const toggleOutput = useCallback(() => {
     if (!outOpen) setOutUncapped(true)

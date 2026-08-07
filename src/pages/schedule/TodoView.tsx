@@ -4,12 +4,14 @@ import {
   CARD_KINDS, kindColor, cardDoneDate,
   type Board, type Card, type CardKind, type Journal, type GoalsFile,
 } from '../../lib/scheduleDb'
+import { useHub } from '../../store'
 
 const isoOf = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const todayIso = () => isoOf(new Date())
 
 export default function TodoView() {
+  const rewardActivity = useHub(state => state.rewardActivity)
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, 'todo: 보드 갱신')
   const journal = useSyncedJson<Journal>('schedule/journal.json', EMPTY_JOURNAL, 'journal: 일지 갱신')
@@ -68,6 +70,9 @@ export default function TodoView() {
     const idx = beforeCardId ? target.cards.findIndex(x => x.id === beforeCardId) : -1
     if (idx >= 0) target.cards.splice(idx, 0, moved); else target.cards.push(moved)
     board.update({ columns: cols })
+    if (src.colId !== 'done' && toCol === 'done') {
+      rewardActivity(`todo-complete:${moved.id}`, 8, 'TODO 완료', 'once')
+    }
   }
 
   return (

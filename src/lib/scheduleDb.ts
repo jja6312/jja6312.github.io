@@ -2,6 +2,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getPat, getFile, putFile } from './githubDb'
 import { protectedJson, useProtectedData } from './protectedData'
+import { useHub } from '../store'
+
+const activityLabel = (path: string) => path.startsWith('todo/') ? 'TODO 저장'
+  : path.includes('calendar') ? '일정 저장'
+    : path.includes('goals') ? '목표 저장'
+      : path.includes('journal') ? '일지 저장'
+        : path.includes('provisioning') ? '프로비저닝 저장'
+          : '업무 데이터 저장'
 
 /* ── 동기화 상태 ─────────────────────────────────────── */
 export type Sync = 'loading' | 'synced' | 'readonly' | 'dirty' | 'saving' | 'error'
@@ -45,12 +53,14 @@ export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
     try {
       shaRef.current = await putFile(pat, path, body, commitMsg, shaRef.current)
       setSync('synced')
+      useHub.getState().rewardActivity(`save:${path}`, 5, activityLabel(path))
     } catch {
       // sha 충돌 → 최신 sha 재취득 후 1회 재시도 (마지막 쓰기 우선)
       try {
         const f = await getFile(pat, path)
         shaRef.current = await putFile(pat, path, body, commitMsg, f?.sha)
         setSync('synced')
+        useHub.getState().rewardActivity(`save:${path}`, 5, activityLabel(path))
       } catch { setSync('error') }
     }
   }, [pat, path, commitMsg])

@@ -9,7 +9,7 @@ interface Minute { name: string; content: string }
 export default function MeetingsPage() {
   const pat = getPat()
   const protectedState = useProtectedData()
-  const { showToast } = useHub()
+  const { showToast, rewardActivity } = useHub()
   const [minutes, setMinutes] = useState<Minute[]>([])
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState('')
@@ -69,7 +69,11 @@ export default function MeetingsPage() {
 
       {filtered.map(m => (
         <div key={m.name} className="scen" style={{ padding: '14px 18px', marginBottom: 10, cursor: 'pointer' }}
-          onClick={() => setOpen(open === m.name ? null : m.name)}>
+          onClick={() => {
+            const next = open === m.name ? null : m.name
+            setOpen(next)
+            if (next) rewardActivity(`meeting-read:${m.name}`, 2, '회의록 확인', 'once')
+          }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
             <span className="sid px">MIN</span>
             <b style={{ fontSize: 15.5 }}>{(m.content.match(/^#\s+(.+)$/m)?.[1]) ?? m.name.replace(/\.md$/, '')}</b>

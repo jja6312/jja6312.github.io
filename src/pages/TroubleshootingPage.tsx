@@ -20,7 +20,7 @@ type FieldKey = typeof FIELDS[number]['key']
 
 export default function TroubleshootingPage() {
   const pat = getPat()
-  const { showToast } = useHub()
+  const { showToast, rewardActivity } = useHub()
   const [cases, setCases] = useState<CaseDoc[]>([])
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState('')
@@ -67,7 +67,7 @@ export default function TroubleshootingPage() {
     setBusy(true)
     try {
       await putFile(pat, path, md, `case: ${title.trim()}`)
-      showToast('트러블슈팅 기록 완료 ✓')
+      rewardActivity(`troubleshooting-created:${path}`, 15, '트러블슈팅 기록', 'once')
       setWriting(false); reset(); refresh()
     } catch (e) { showToast(`commit 실패: ${explainGhError(e)}`) }
     finally { setBusy(false) }
@@ -126,7 +126,11 @@ export default function TroubleshootingPage() {
 
       {filtered.map(c => (
         <div key={c.name} className="scen" style={{ padding: '14px 18px', marginBottom: 10, cursor: 'pointer' }}
-          onClick={() => setOpen(open?.name === c.name ? null : c)}>
+          onClick={() => {
+            const next = open?.name === c.name ? null : c
+            setOpen(next)
+            if (next) rewardActivity(`troubleshooting-read:${c.name}`, 2, '트러블슈팅 사례 확인', 'once')
+          }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
             <span className="sid px">{c.name.slice(0, 6)}</span>
             <b style={{ fontSize: 15.5 }}>{(c.content.match(/^#\s+(.+)$/m)?.[1]) ?? c.name}</b>

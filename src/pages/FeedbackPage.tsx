@@ -18,7 +18,7 @@ const statusMeta: Record<FeedbackStatus, string> = {
 }
 
 export default function FeedbackPage() {
-  const { showToast } = useHub()
+  const { showToast, rewardActivity } = useHub()
   const [pat, setPatState] = useState(getPat())
   const [patInput, setPatInput] = useState('')
   const [title, setTitle] = useState('')
@@ -77,11 +77,10 @@ export default function FeedbackPage() {
     try {
       if (pat) {
         await commitFeedback(pat, item)
-        showToast('blog-db commit 완료 ✓')
       } else {
         savePending([...loadPending(), { ...item, _pending: true }])
-        showToast('로컬 저장 — PAT 등록 시 커밋')
       }
+      rewardActivity(`feedback-created:${item.id}`, 10, pat ? '피드백 등록' : '피드백 임시 저장', 'once')
       setTitle(''); setBody(''); setTags('')
       refresh()
     } catch (e) {

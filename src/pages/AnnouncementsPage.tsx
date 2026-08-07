@@ -40,7 +40,7 @@ function parseType(md: string): string | null {
 export default function AnnouncementsPage() {
   const pat = getPat()
   const protectedState = useProtectedData()
-  const { showToast } = useHub()
+  const { showToast, rewardActivity } = useHub()
   const [docs, setDocs] = useState<AnnDoc[]>([])
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState('')
@@ -120,7 +120,11 @@ export default function AnnouncementsPage() {
               const typ = d.folder === 'catalog' ? parseType(d.content) : null
               return (
                 <div key={key} className="scen" style={{ padding: '14px 18px', marginBottom: 10, cursor: 'pointer' }}
-                  onClick={() => setOpen(open === key ? null : key)}>
+                  onClick={() => {
+                    const next = open === key ? null : key
+                    setOpen(next)
+                    if (next) rewardActivity(`announcement-read:${key}`, 2, 'Announcement 확인', 'once')
+                  }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
                     <span className="sid px">{d.folder === 'snapshots' ? d.name.slice(0, 6) : 'CARD'}</span>
                     {sev && (

@@ -1,4 +1,5 @@
 import { PROFILE, CERT_GROUPS } from '../data/profile'
+import { activityDay, useHub, xpNeeded } from '../store'
 
 /* 근속 자동계산 — 입사일 기준 오늘까지. "N년 M개월 (D일)" */
 function tenure(hireDate: string): string {
@@ -45,6 +46,9 @@ function Certs() {
 
 export default function ProfilePage() {
   const since = PROFILE.hireDate.replace(/-/g, '.')
+  const { xp, level, totalXp, streak, activityDays, activityAwards } = useHub()
+  const required = xpNeeded(level)
+  const todaySystems = Object.entries(activityAwards).filter(([id, day]) => id.startsWith('system:') && day === activityDay()).length
   return (
     <div className="prof-wrap">
       <header className="prof-hero">
@@ -55,6 +59,26 @@ export default function ProfilePage() {
         <p className="prof-tag">{PROFILE.tagline}</p>
         <a className="prof-gh" href={PROFILE.github} target="_blank" rel="noreferrer">{PROFILE.github.replace('https://', '')}</a>
       </header>
+
+      <section className="prof-sec activity-achievement">
+        <div className="prof-h2-row">
+          <h2 className="prof-h2">활동 성취</h2>
+          <span className="chip goal">TOTAL {totalXp.toLocaleString()} XP</span>
+        </div>
+        <p className="prof-desc">학습뿐 아니라 업무허브의 도구를 꾸준히 사용한 기록입니다.</p>
+        <div className="activity-stat-grid">
+          <div className="activity-stat"><span className="px">LEVEL</span><b>{level}</b></div>
+          <div className="activity-stat"><span className="px">STREAK</span><b>{streak}일</b></div>
+          <div className="activity-stat"><span className="px">ACTIVE DAYS</span><b>{activityDays.length}일</b></div>
+          <div className="activity-stat"><span className="px">TODAY</span><b>{todaySystems}개 시스템</b></div>
+        </div>
+        <div className="activity-level-row">
+          <span className="px">LV.{level}</span>
+          <div className="activity-level-bar"><div style={{ width: `${Math.min(100, (xp / required) * 100)}%` }} /></div>
+          <span className="px">{xp} / {required} XP</span>
+        </div>
+        <p className="activity-xp-guide">시스템 첫 사용 +3 XP · 문서 확인 +2 XP · 저장 +5 XP · TODO 완료 +8 XP</p>
+      </section>
 
       <section className="prof-sec">
         <div className="prof-h2-row">
