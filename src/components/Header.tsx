@@ -15,6 +15,7 @@ const tabs: Tab[] = [
       { to: '/learning/sprint', label: '스프린트' },
       { to: '/learning/category', label: '주제별' },
       { to: '/learning/review', label: '복습' },
+      { to: '/learning/request', label: '학습자료 생성 요청' },
     ],
   },
   {

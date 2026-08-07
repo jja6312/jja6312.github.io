@@ -186,6 +186,7 @@ export default function ReviewPage() {
           <button key={id} className="ksec-btn" onClick={() => navTab(`/learning/${id}`)}>{label}</button>
         ))}
         <button className="ksec-btn on">복습</button>
+        <button className="ksec-btn" onClick={() => navTab('/learning/request')}>생성 요청</button>
       </div>
       <div className="crumb"><span className="px">LEARNING</span> / 복습</div>
       <h1 className="sheet-h1">복습 퀴즈</h1>

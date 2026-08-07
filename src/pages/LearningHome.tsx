@@ -170,6 +170,7 @@ export default function LearningHome() {
             onClick={() => nav(`/learning/${m.id}`)}>{m.label}</button>
         ))}
         <button className="ksec-btn" onClick={() => nav('/learning/review')}>복습</button>
+        <button className="ksec-btn" onClick={() => nav('/learning/request')}>생성 요청</button>
       </div>
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 120px' }}>
         <div className="crumb"><span className="px">LEARNING</span> / {mode.label}</div>

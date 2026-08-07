@@ -6,6 +6,7 @@ import CommandPalette from './components/CommandPalette'
 import AuthModal from './components/AuthModal'
 import { currentLevel, requiredLevel } from './lib/auth'
 import LearningHome from './pages/LearningHome'
+import LearningRequestPage from './pages/LearningRequestPage'
 import SheetPage from './pages/SheetPage'
 import ReviewPage from './pages/ReviewPage'
 import FeedbackPage from './pages/FeedbackPage'
@@ -129,6 +130,7 @@ function Shell() {
         <Route path="/" element={<Navigate to="/learning" replace />} />
         <Route path="/learning" element={<LearningHome />} />
         <Route path="/learning/review" element={<ReviewPage />} />
+        <Route path="/learning/request" element={<LearningRequestPage />} />
         <Route path="/learning/:section" element={<LearningHome />} />
         <Route path="/learning/:curriculumId/:sheetId" element={<SheetPage />} />
         <Route path="/review" element={<Navigate to="/learning/review" replace />} />
