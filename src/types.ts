@@ -89,6 +89,10 @@ export interface Comment {
   anchor: string      // cN | sN | 전체
   text: string
   created: string
+  updated?: string
+  sheet?: string
+  sheetTitle?: string
+  kind?: 'comment' | 'note'
 }
 
 export type FeedbackSeverity = 'bug' | 'friction' | 'idea'

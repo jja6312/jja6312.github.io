@@ -353,7 +353,7 @@ export default function SheetPage() {
       <div className="footer-note">
         ⓘ 진도·답안·점수·댓글은 현재 이 브라우저(localStorage)에 저장 — blog-db 연동(Phase 2)에서 commit 동기화로 전환 예정.
       </div>
-      <CommentDock />
+      <CommentDock sheetId={sheet.sheet} sheetTitle={sheet.title} />
     </>
   )
 }

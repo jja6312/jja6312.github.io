@@ -43,7 +43,8 @@ interface HubState {
   markStep: (sheet: string, step: string) => void
   setResult: (sheet: string, scenario: string, verdict: Verdict, submitted: string) => void
   completeSheet: (sheet: string) => void
-  addComment: (anchor: string, text: string) => void
+  addComment: (anchor: string, text: string, sheet?: string, sheetTitle?: string) => void
+  saveLearningNote: (sheet: string, sheetTitle: string, text: string, noteId?: string) => string
   setCmtOpen: (v: boolean) => void
   setHelpOpen: (v: boolean) => void
   setPaletteOpen: (v: boolean) => void
@@ -136,14 +137,48 @@ export const useHub = create<HubState>()(
         set({ completedSheets: [...get().completedSheets, sheet] })
       },
 
-      addComment: (anchor, text) => {
+      addComment: (anchor, text, sheet, sheetTitle) => {
         const c: Comment = {
           id: `cmt-${Date.now()}`,
           anchor, text,
           created: new Date().toISOString(),
+          sheet,
+          sheetTitle,
+          kind: 'comment',
         }
         set({ comments: [...get().comments, c], cmtOpen: true })
         get().addXP(5)
+      },
+
+      saveLearningNote: (sheet, sheetTitle, text, noteId) => {
+        const now = new Date().toISOString()
+        const existing = get().comments.find(c =>
+          c.kind === 'note' && c.sheet === sheet && (!noteId || c.id === noteId),
+        )
+        if (existing) {
+          set({
+            comments: get().comments.map(c => c.id === existing.id
+              ? { ...c, text, sheetTitle, updated: now }
+              : c),
+            cmtOpen: true,
+          })
+          return existing.id
+        }
+
+        const id = `note-${Date.now()}`
+        const note: Comment = {
+          id,
+          anchor: '전체',
+          text,
+          created: now,
+          updated: now,
+          sheet,
+          sheetTitle,
+          kind: 'note',
+        }
+        set({ comments: [...get().comments, note], cmtOpen: true })
+        get().addXP(5, '학습 메모 저장')
+        return id
       },
 
       setCmtOpen: (v) => set({ cmtOpen: v }),

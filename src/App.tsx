@@ -52,6 +52,7 @@ function SystemXpTracker() {
 
 function Hotkeys() {
   const nav = useNavigate()
+  const { pathname } = useLocation()
   const gPending = useRef(false)
   const stepIdx = useRef(-1)
 
@@ -69,7 +70,11 @@ function Hotkeys() {
       if (gPending.current) {
         gPending.current = false
         // g 시퀀스 = 탭 이동 (탭 하나당 하나씩, 헤더 순서와 동일)
-        if (e.key === 'l') nav('/learning')
+        if (e.key.toLowerCase() === 'g' && /^\/learning\/[^/]+\/[^/]+$/.test(pathname)) {
+          e.preventDefault()
+          window.dispatchEvent(new CustomEvent('open-learning-note'))
+        }
+        else if (e.key === 'l') nav('/learning')
         else if (e.key === 'r') nav('/learning/review')
         else if (e.key === 'f') nav('/feedback')
         else if (e.key === 'k') nav('/knowledge')
@@ -102,7 +107,7 @@ function Hotkeys() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [nav])
+  }, [nav, pathname])
   return null
 }
 
