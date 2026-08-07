@@ -165,7 +165,7 @@ body {
   font-family: Consolas, monospace;
 }
 .concept-body pre code { background: none; border: none; padding: 0; }
-.concept-body { min-width: 0; }
+.concept-body { min-width: 0; overflow-wrap: anywhere; }
 .concept-body table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .doclink { font-size: 14.5px; }
 .doclink a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent-dim); }
