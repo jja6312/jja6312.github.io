@@ -30,6 +30,7 @@ interface CliCommand {
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
   maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
   compartmentCleanup?: boolean // scoped resource cleanup PREVIEW/DELETE script
+  manualBackup?: 'instance-boot-volume' | 'mysql'
   operations?: Partial<Record<CrudVerb, CliOperation>>
   sections: CliSection[]; advanced: CliOption[]
 }
@@ -268,6 +269,133 @@ function buildMaintenanceReboot(values: Record<string, string>, operation: 'get'
 }
 
 /* 최종 명령 조립 — 동적 옵션은 변수 선언(prelude) + 참조로 */
+/* Resolve exact resource names safely, then create and verify one manual backup. */
+function buildManualBackup(kind: 'instance-boot-volume' | 'mysql', values: Record<string, string>): string {
+  const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
+  const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
+  const common = [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    '',
+    `PROFILE=${q(v('--profile', 'DEFAULT'))}`,
+    `REGION=${q(v('--region', 'ap-seoul-1'))}`,
+    `COMPARTMENT_NAME=${q(v('--compartment-name', '<compartment-name>'))}`,
+    'CTX=(--profile "$PROFILE" --region "$REGION")',
+    '',
+    '# 이름이 중복되면 임의의 첫 번째 OCID를 사용하지 않고 안전하게 중단합니다.',
+    'COMPARTMENT_COUNT=$(oci iam compartment list \\',
+    '  --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE \\',
+    '  --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+    '  --query \'length(data)\' --raw-output "${CTX[@]}")',
+    'if [[ "$COMPARTMENT_COUNT" != "1" ]]; then',
+    '  echo "[ERROR] ACTIVE compartment 이름은 정확히 1개여야 합니다: $COMPARTMENT_NAME (found=$COMPARTMENT_COUNT)" >&2',
+    '  oci iam compartment list --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+    '    --query \'data[].{name:name,id:id,parent:"compartment-id"}\' --output table "${CTX[@]}" >&2',
+    '  exit 1',
+    'fi',
+    'COMPARTMENT_ID=$(oci iam compartment list \\',
+    '  --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+    '  --query \'data[0].id\' --raw-output "${CTX[@]}")',
+    '',
+  ]
+
+  if (kind === 'instance-boot-volume') {
+    return [
+      ...common,
+      `INSTANCE_NAME=${q(v('--instance-name', '<instance-name>'))}`,
+      `BACKUP_DISPLAY_NAME_INPUT=${q(v('--backup-display-name'))}`,
+      `BACKUP_TYPE=${q(v('--backup-type', 'FULL').toUpperCase())}`,
+      `MAX_WAIT_SECONDS=${q(v('--max-wait-seconds', '3600'))}`,
+      '',
+      '[[ "$BACKUP_TYPE" == "FULL" || "$BACKUP_TYPE" == "INCREMENTAL" ]] || { echo "[ERROR] backup type은 FULL 또는 INCREMENTAL이어야 합니다." >&2; exit 2; }',
+      '[[ "$MAX_WAIT_SECONDS" =~ ^[0-9]+$ ]] || { echo "[ERROR] max wait seconds는 숫자여야 합니다." >&2; exit 2; }',
+      '',
+      'INSTANCE_COUNT=$(oci compute instance list \\',
+      '  --compartment-id "$COMPARTMENT_ID" --display-name "$INSTANCE_NAME" --all \\',
+      '  --query \'length(data[?"lifecycle-state" != `TERMINATED`])\' --raw-output "${CTX[@]}")',
+      'if [[ "$INSTANCE_COUNT" != "1" ]]; then',
+      '  echo "[ERROR] 종료되지 않은 instance 이름은 정확히 1개여야 합니다: $INSTANCE_NAME (found=$INSTANCE_COUNT)" >&2',
+      '  oci compute instance list --compartment-id "$COMPARTMENT_ID" --display-name "$INSTANCE_NAME" --all \\',
+      '    --query \'data[].{name:"display-name",state:"lifecycle-state",ad:"availability-domain",id:id}\' --output table "${CTX[@]}" >&2',
+      '  exit 1',
+      'fi',
+      'INSTANCE_ID=$(oci compute instance list --compartment-id "$COMPARTMENT_ID" --display-name "$INSTANCE_NAME" --all \\',
+      '  --query \'data[?"lifecycle-state" != `TERMINATED`] | [0].id\' --raw-output "${CTX[@]}")',
+      'INSTANCE_AD=$(oci compute instance get --instance-id "$INSTANCE_ID" --query \'data."availability-domain"\' --raw-output "${CTX[@]}")',
+      '',
+      'ATTACHMENT_COUNT=$(oci compute boot-volume-attachment list \\',
+      '  --availability-domain "$INSTANCE_AD" --compartment-id "$COMPARTMENT_ID" --instance-id "$INSTANCE_ID" --all \\',
+      '  --query \'length(data[?"lifecycle-state" == `ATTACHED`])\' --raw-output "${CTX[@]}")',
+      'if [[ "$ATTACHMENT_COUNT" != "1" ]]; then',
+      '  echo "[ERROR] ATTACHED boot volume 연결은 정확히 1개여야 합니다. (found=$ATTACHMENT_COUNT)" >&2',
+      '  oci compute boot-volume-attachment list --availability-domain "$INSTANCE_AD" --compartment-id "$COMPARTMENT_ID" --instance-id "$INSTANCE_ID" --all \\',
+      '    --query \'data[].{state:"lifecycle-state",bootVolumeId:"boot-volume-id",id:id}\' --output table "${CTX[@]}" >&2',
+      '  exit 1',
+      'fi',
+      'BOOT_VOLUME_ID=$(oci compute boot-volume-attachment list \\',
+      '  --availability-domain "$INSTANCE_AD" --compartment-id "$COMPARTMENT_ID" --instance-id "$INSTANCE_ID" --all \\',
+      '  --query \'data[?"lifecycle-state" == `ATTACHED`] | [0]."boot-volume-id"\' --raw-output "${CTX[@]}")',
+      'BACKUP_DISPLAY_NAME="${BACKUP_DISPLAY_NAME_INPUT:-${INSTANCE_NAME}-boot-manual-$(date -u +%Y%m%d-%H%M%S)}"',
+      '',
+      'echo "[RESOLVED] compartment=$COMPARTMENT_ID"',
+      'echo "[RESOLVED] instance=$INSTANCE_ID / AD=$INSTANCE_AD"',
+      'echo "[RESOLVED] boot-volume=$BOOT_VOLUME_ID"',
+      'BOOT_BACKUP_ID=$(oci bv boot-volume-backup create \\',
+      '  --boot-volume-id "$BOOT_VOLUME_ID" --display-name "$BACKUP_DISPLAY_NAME" --type "$BACKUP_TYPE" \\',
+      '  --wait-for-state AVAILABLE --max-wait-seconds "$MAX_WAIT_SECONDS" \\',
+      '  --query \'data.id\' --raw-output "${CTX[@]}")',
+      '',
+      'echo "[CREATED] boot-volume-backup=$BOOT_BACKUP_ID"',
+      'oci bv boot-volume-backup get --boot-volume-backup-id "$BOOT_BACKUP_ID" \\',
+      '  --query \'data.{name:"display-name",type:type,state:"lifecycle-state",created:"time-created",id:id}\' --output table "${CTX[@]}"',
+    ].join('\n')
+  }
+
+  return [
+    ...common,
+    `DB_SYSTEM_NAME=${q(v('--db-system-name', '<mysql-db-system-name>'))}`,
+    `BACKUP_DISPLAY_NAME_INPUT=${q(v('--backup-display-name'))}`,
+    `BACKUP_TYPE=${q(v('--backup-type', 'FULL').toUpperCase())}`,
+    `RETENTION_DAYS=${q(v('--retention-in-days', '7'))}`,
+    `SOFT_DELETE=${q(v('--soft-delete', 'ENABLED').toUpperCase())}`,
+    `DESCRIPTION=${q(v('--description'))}`,
+    `MAX_WAIT_SECONDS=${q(v('--max-wait-seconds', '7200'))}`,
+    '',
+    '[[ "$BACKUP_TYPE" == "FULL" || "$BACKUP_TYPE" == "INCREMENTAL" ]] || { echo "[ERROR] backup type은 FULL 또는 INCREMENTAL이어야 합니다." >&2; exit 2; }',
+    '[[ "$SOFT_DELETE" == "ENABLED" || "$SOFT_DELETE" == "DISABLED" ]] || { echo "[ERROR] soft delete는 ENABLED 또는 DISABLED여야 합니다." >&2; exit 2; }',
+    '[[ "$RETENTION_DAYS" =~ ^[0-9]+$ ]] || { echo "[ERROR] retention days는 숫자여야 합니다." >&2; exit 2; }',
+    '[[ "$MAX_WAIT_SECONDS" =~ ^[0-9]+$ ]] || { echo "[ERROR] max wait seconds는 숫자여야 합니다." >&2; exit 2; }',
+    '',
+    'DB_SYSTEM_COUNT=$(oci mysql db-system list \\',
+    '  --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --lifecycle-state ACTIVE --all \\',
+    '  --query \'length(data)\' --raw-output "${CTX[@]}")',
+    'if [[ "$DB_SYSTEM_COUNT" != "1" ]]; then',
+    '  echo "[ERROR] ACTIVE MySQL DB System 이름은 정확히 1개여야 합니다: $DB_SYSTEM_NAME (found=$DB_SYSTEM_COUNT)" >&2',
+    '  oci mysql db-system list --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --all \\',
+    '    --query \'data[].{name:"display-name",state:"lifecycle-state",id:id}\' --output table "${CTX[@]}" >&2',
+    '  exit 1',
+    'fi',
+    'DB_SYSTEM_ID=$(oci mysql db-system list \\',
+    '  --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --lifecycle-state ACTIVE --all \\',
+    '  --query \'data[0].id\' --raw-output "${CTX[@]}")',
+    'BACKUP_DISPLAY_NAME="${BACKUP_DISPLAY_NAME_INPUT:-${DB_SYSTEM_NAME}-manual-$(date -u +%Y%m%d-%H%M%S)}"',
+    'DESCRIPTION_ARGS=()',
+    '[[ -n "$DESCRIPTION" ]] && DESCRIPTION_ARGS=(--description "$DESCRIPTION")',
+    '',
+    'echo "[RESOLVED] compartment=$COMPARTMENT_ID"',
+    'echo "[RESOLVED] mysql-db-system=$DB_SYSTEM_ID"',
+    'MYSQL_BACKUP_ID=$(oci mysql backup create \\',
+    '  --db-system-id "$DB_SYSTEM_ID" --display-name "$BACKUP_DISPLAY_NAME" --backup-type "$BACKUP_TYPE" \\',
+    '  --retention-in-days "$RETENTION_DAYS" --soft-delete "$SOFT_DELETE" "${DESCRIPTION_ARGS[@]}" \\',
+    '  --wait-for-state SUCCEEDED --max-wait-seconds "$MAX_WAIT_SECONDS" \\',
+    '  --query \'data.id\' --raw-output "${CTX[@]}")',
+    '',
+    'echo "[CREATED] mysql-backup=$MYSQL_BACKUP_ID"',
+    'oci mysql backup get --backup-id "$MYSQL_BACKUP_ID" \\',
+    '  --query \'data.{name:"display-name",type:"backup-type",state:"lifecycle-state",retentionDays:"retention-in-days",created:"time-created",id:id}\' --output table "${CTX[@]}"',
+  ].join('\n')
+}
+
 /* Build a safety-gated Bash cleanup script for one exact compartment. */
 function buildCompartmentCleanup(values: Record<string, string>): string {
   const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
@@ -444,6 +572,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
   if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get')
   if (cmd.compartmentCleanup) return buildCompartmentCleanup(values)
+  if (cmd.manualBackup) return buildManualBackup(cmd.manualBackup, values)
 
   const selected = cmd.operations?.[operation] ?? cmd
 
@@ -652,7 +781,7 @@ export default function CliBuilderPage() {
 
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
-  const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup)
+  const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup || cmd?.manualBackup)
   const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup)
   const field = (o: CliOption, optional?: boolean) => (
     <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}

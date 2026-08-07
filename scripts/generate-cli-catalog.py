@@ -23,7 +23,7 @@ parse_cli_file = _parser_module.parse_file
 
 STRUCTURE = [
   ('02-compute', 'Compute', [
-    ('Instances', ['instance', 'instance-maintenance-reboot', 'instance-configuration', 'instance-pool']),
+    ('Instances', ['instance', 'instance-boot-volume-backup', 'instance-maintenance-reboot', 'instance-configuration', 'instance-pool']),
     ('Dedicated Infrastructure', ['dedicated-vm-host', 'capacity-reservation', 'compute-cluster']),
     ('Images', ['custom-image']),
   ]),
@@ -42,7 +42,7 @@ STRUCTURE = [
   ('05-database', 'Database', [
     ('Autonomous Database', ['autonomous-database']),
     ('Oracle Base Database', ['base-db']),
-    ('MySQL HeatWave', ['mysql']),
+    ('MySQL HeatWave', ['mysql', 'mysql-manual-backup']),
   ]),
   ('06-observability', 'Observability', [
     ('Monitoring', ['alarm']),
@@ -290,7 +290,7 @@ def find_operation(commands, group, operation):
     return None
 
 catalog = {'categories': [], 'commands': {}}
-MANUAL_CATEGORY_RESOURCES = {'instance-maintenance-reboot'}
+MANUAL_CATEGORY_RESOURCES = {'instance-maintenance-reboot', 'instance-boot-volume-backup', 'mysql-manual-backup'}
 placed = set()
 for cat_id, cat_label, groups in STRUCTURE:
     cat = {'id': cat_id, 'label': cat_label, 'groups': []}
@@ -469,9 +469,62 @@ def _maintenance_reboot():
         'advanced': [],
     }
 
+def _instance_boot_volume_backup():
+    return {
+        'resource': 'instance-boot-volume-backup',
+        'label': 'Instance Boot Volume — Manual Backup',
+        'cmd': 'oci bv boot-volume-backup create',
+        'manualBackup': 'instance-boot-volume',
+        'help': ('컴파트먼트 이름과 인스턴스 이름을 정확히 1개 OCID로 해석하고, 인스턴스의 AD와 연결된 Boot Volume을 찾아 수동 백업을 생성합니다. '
+                 '동명이 여러 개이면 생성하지 않고 후보를 출력합니다.'),
+        'sections': [
+            {'label': '이름으로 대상 조회', 'options': [
+                _co('--compartment-name', True, '테넌시 전체에서 정확히 일치하는 컴파트먼트 이름', 'prod'),
+                _co('--instance-name', True, '해당 컴파트먼트에서 정확히 일치하는 인스턴스 display name', 'app-server-01'),
+                _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT'),
+                _co('--region', True, '대상 인스턴스와 Boot Volume 리전', 'ap-seoul-1', default='ap-seoul-1'),
+            ]},
+            {'label': '수동 백업 설정', 'options': [
+                _co('--backup-display-name', False, '백업 이름. 비우면 <instance>-boot-manual-UTC시각', 'app-server-01-boot-manual-20260807-150000'),
+                _co('--backup-type', True, 'FULL은 전체 백업, INCREMENTAL은 직전 백업 이후 변경분', choices=['FULL', 'INCREMENTAL'], default='FULL'),
+                _co('--max-wait-seconds', True, 'AVAILABLE 상태를 기다릴 최대 시간(초)', '3600', default='3600'),
+            ]},
+        ],
+        'advanced': [],
+    }
+
+def _mysql_manual_backup():
+    return {
+        'resource': 'mysql-manual-backup',
+        'label': 'MySQL DB System — Manual Backup',
+        'cmd': 'oci mysql backup create',
+        'manualBackup': 'mysql',
+        'help': ('컴파트먼트 이름과 MySQL DB System 이름을 정확히 1개 OCID로 해석한 뒤 수동 백업을 생성합니다. '
+                 'ACTIVE 상태가 아니거나 동명이 여러 개이면 생성하지 않습니다.'),
+        'sections': [
+            {'label': '이름으로 대상 조회', 'options': [
+                _co('--compartment-name', True, '테넌시 전체에서 정확히 일치하는 컴파트먼트 이름', 'prod'),
+                _co('--db-system-name', True, '해당 컴파트먼트에서 정확히 일치하는 MySQL DB System display name', 'mysql-prod-01'),
+                _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT'),
+                _co('--region', True, '대상 MySQL DB System 리전', 'ap-seoul-1', default='ap-seoul-1'),
+            ]},
+            {'label': '수동 백업 설정', 'options': [
+                _co('--backup-display-name', False, '백업 이름. 비우면 <mysql>-manual-UTC시각', 'mysql-prod-01-manual-20260807-150000'),
+                _co('--backup-type', True, 'FULL은 전체 백업, INCREMENTAL은 직전 백업 이후 변경분', choices=['FULL', 'INCREMENTAL'], default='FULL'),
+                _co('--retention-in-days', True, '백업 보존 일수', '7', default='7'),
+                _co('--soft-delete', True, '보존 만료 후 7일간 DELETE SCHEDULED 상태로 유지할지 선택', choices=['ENABLED', 'DISABLED'], default='ENABLED'),
+                _co('--description', False, '백업 설명', '정기점검 전 수동 백업'),
+                _co('--max-wait-seconds', True, '백업 생성 Work Request를 기다릴 최대 시간(초)', '7200', default='7200'),
+            ]},
+        ],
+        'advanced': [],
+    }
+
 EXTRA = {
     'compartment-resource-cleansing': _compartment_cleanup(),
     'instance-maintenance-reboot': _maintenance_reboot(),
+    'instance-boot-volume-backup': _instance_boot_volume_backup(),
+    'mysql-manual-backup': _mysql_manual_backup(),
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
     'block-volume-cross-copy': _cross('volume', '--source-volume-id', 'Block Volume', 'ocid1.volume.oc1.ap-seoul-1.xxxx'),
 }

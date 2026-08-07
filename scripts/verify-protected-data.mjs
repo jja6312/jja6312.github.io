@@ -43,6 +43,21 @@ for (const level of [1, 2, 3]) {
   if (bundle.cliCatalog.commands['instance-maintenance-reboot']?.cmd !== 'oci compute instance-maintenance-reboot get') {
     throw new Error(`L${level} maintenance reboot 조회 명령 오류`)
   }
+  if (!instanceGroup.resources.includes('instance-boot-volume-backup')) {
+    throw new Error(`L${level} instance boot volume manual backup menu missing`)
+  }
+  if (bundle.cliCatalog.commands['instance-boot-volume-backup']?.manualBackup !== 'instance-boot-volume') {
+    throw new Error(`L${level} instance boot volume manual backup metadata invalid`)
+  }
+  const mysqlGroup = bundle.cliCatalog.categories
+    .flatMap(category => category.groups)
+    .find(group => group.label === 'MySQL HeatWave')
+  if (!mysqlGroup?.resources.includes('mysql-manual-backup')) {
+    throw new Error(`L${level} MySQL manual backup menu missing`)
+  }
+  if (bundle.cliCatalog.commands['mysql-manual-backup']?.manualBackup !== 'mysql') {
+    throw new Error(`L${level} MySQL manual backup metadata invalid`)
+  }
   const cleanup = bundle.cliCatalog.commands['compartment-resource-cleansing']
   if (!cleanup?.compartmentCleanup) throw new Error(`L${level} compartment cleansing 메뉴 누락`)
   const cleanupOptions = cleanup.sections.flatMap(section => section.options)
@@ -75,3 +90,9 @@ if (!cliBuilder.includes(`--query 'data."time-maintenance-reboot-due-max"'`)) th
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')
 if (!cliBuilder.includes('confirm compartment OCID')) throw new Error('컴파트먼트 정리 이중 확인 가드 누락')
 if (!cliBuilder.includes('oci log-analytics storage purge-storage-data')) throw new Error('Log Analytics compartment purge 누락')
+if (!cliBuilder.includes('oci compute boot-volume-attachment list')) throw new Error('instance boot volume attachment lookup missing')
+if (!cliBuilder.includes('oci bv boot-volume-backup create')) throw new Error('boot volume manual backup create missing')
+if (!cliBuilder.includes('oci mysql backup create')) throw new Error('MySQL manual backup create missing')
+if (!cliBuilder.includes('COMPARTMENT_COUNT') || !cliBuilder.includes('INSTANCE_COUNT') || !cliBuilder.includes('DB_SYSTEM_COUNT')) {
+  throw new Error('manual backup duplicate-name guards missing')
+}
