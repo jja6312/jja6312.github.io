@@ -9,9 +9,16 @@ import { useHub } from '../../store'
 const isoOf = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const todayIso = () => isoOf(new Date())
+const formatCardTime = (value: string) => {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(parsed)
+}
 
 export default function TodoView() {
-  const rewardActivity = useHub(state => state.rewardActivity)
+  const { rewardActivity, showToast } = useHub()
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, 'todo: 보드 갱신')
   const journal = useSyncedJson<Journal>('schedule/journal.json', EMPTY_JOURNAL, 'journal: 일지 갱신')
@@ -19,10 +26,14 @@ export default function TodoView() {
 
   const [date, setDate] = useState(todayIso())
   const [inputs, setInputs] = useState<Record<string, string>>({})
+  const [dueInputs, setDueInputs] = useState<Record<string, string>>({})
+  const [dueUndated, setDueUndated] = useState<Record<string, boolean>>({})
   const [kind, setKind] = useState<CardKind>('task')
   const [activeGoal, setActiveGoal] = useState('')
   const [editId, setEditId] = useState<string | null>(null)   // 수정 중인 카드
   const [editText, setEditText] = useState('')
+  const [editDueAt, setEditDueAt] = useState('')
+  const [editDueUndated, setEditDueUndated] = useState(true)
   const dragRef = useRef<{ colId: string; cardId: string } | null>(null)
 
   const goalOf = (id?: string) => goals.find(g => g.id === id)
@@ -38,13 +49,19 @@ export default function TodoView() {
   const addCard = (colId: string) => {
     const text = (inputs[colId] || '').trim()
     if (!text) return
+    const undated = dueUndated[colId] ?? true
+    const dueAt = dueInputs[colId] || ''
+    if (!undated && !dueAt) { showToast('마감 일시를 입력하거나 미정을 선택하세요'); return }
     const card: Card = {
       id: `card-${Date.now()}`, text, created: new Date().toISOString(), kind,
+      ...(!undated && dueAt ? { dueAt } : {}),
       ...(activeGoal ? { goalId: activeGoal } : {}),
       ...(colId === 'done' ? { doneAt: date } : {}),
     }
     board.update({ columns: board.data.columns.map(c => c.id === colId ? { ...c, cards: [...c.cards, card] } : c) })
     setInputs({ ...inputs, [colId]: '' })
+    setDueInputs({ ...dueInputs, [colId]: '' })
+    setDueUndated({ ...dueUndated, [colId]: true })
   }
   const removeCard = (colId: string, cardId: string) =>
     board.update({ columns: board.data.columns.map(c => c.id === colId ? { ...c, cards: c.cards.filter(x => x.id !== cardId) } : c) })
@@ -52,8 +69,15 @@ export default function TodoView() {
     board.update({ columns: board.data.columns.map(c => ({ ...c, cards: c.cards.map(x => x.id === cardId ? { ...x, ...patch } : x) })) })
   const saveEdit = () => {
     const t = editText.trim()
-    if (editId && t) patchCard(editId, { text: t })
-    setEditId(null); setEditText('')
+    if (!editDueUndated && !editDueAt) { showToast('마감 일시를 입력하거나 미정을 선택하세요'); return }
+    if (editId && t) patchCard(editId, { text: t, dueAt: editDueUndated ? undefined : editDueAt })
+    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true)
+  }
+  const cancelEdit = () => {
+    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true)
+  }
+  const startEdit = (card: Card) => {
+    setEditId(card.id); setEditText(card.text); setEditDueAt(card.dueAt ?? ''); setEditDueUndated(!card.dueAt)
   }
   const moveCard = (toCol: string, beforeCardId?: string) => {
     const src = dragRef.current
@@ -132,27 +156,49 @@ export default function TodoView() {
                 const g = goalOf(card.goalId)
                 const kc = kindColor(card.kind)
                 const editing = editId === card.id
+                const overdue = Boolean(card.dueAt && col.id !== 'done' && new Date(card.dueAt).getTime() < Date.now())
                 return (
-                  <div key={card.id} className="kcard" draggable={!editing && writable}
+                  <div key={card.id} className={`kcard${overdue ? ' overdue' : ''}`} draggable={!editing && writable}
                     style={kc ? { borderLeft: `3px solid ${kc}` } : undefined}
                     onDragStart={() => { dragRef.current = { colId: col.id, cardId: card.id } }}
                     onDragOver={e => e.preventDefault()}
                     onDrop={e => { e.preventDefault(); e.stopPropagation(); moveCard(col.id, card.id) }}>
                     {editing ? (
-                      <input className="cli-input kcard-edit" autoFocus value={editText}
-                        onChange={e => setEditText(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') { setEditId(null); setEditText('') } }}
-                        onBlur={saveEdit} />
+                      <div className="kcard-edit-form">
+                        <input className="cli-input kcard-edit" autoFocus value={editText}
+                          onChange={e => setEditText(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }} />
+                        <div className="kcard-deadline-row">
+                          <span className="px">마감</span>
+                          <input className="cli-input kdue-input" type="datetime-local" value={editDueUndated ? '' : editDueAt}
+                            disabled={editDueUndated} onChange={e => setEditDueAt(e.target.value)} />
+                          <label className="kdue-undated px">
+                            <input type="checkbox" checked={editDueUndated} onChange={e => setEditDueUndated(e.target.checked)} /> 미정
+                          </label>
+                        </div>
+                        <div className="kcard-edit-actions">
+                          <button className="iconbtn" onClick={cancelEdit}>취소</button>
+                          <button className="submitbtn" onClick={saveEdit}>저장</button>
+                        </div>
+                      </div>
                     ) : (
-                      <div style={{ flex: 1 }} onDoubleClick={() => { setEditId(card.id); setEditText(card.text) }} title="더블클릭하여 수정">
-                        {card.kind && <span className="kind-chip" style={{ background: kc }}>{CARD_KINDS.find(k => k.id === card.kind)?.label}</span>}
-                        <span>{card.text}</span>
-                        {g && <span className="goal-tag px" style={{ borderColor: g.color, color: g.color, marginLeft: 6 }}>{g.title}</span>}
+                      <div className="kcard-main" onDoubleClick={() => startEdit(card)} title="더블클릭하여 수정">
+                        <div>
+                          {card.kind && <span className="kind-chip" style={{ background: kc }}>{CARD_KINDS.find(k => k.id === card.kind)?.label}</span>}
+                          <span>{card.text}</span>
+                          {g && <span className="goal-tag px" style={{ borderColor: g.color, color: g.color, marginLeft: 6 }}>{g.title}</span>}
+                        </div>
+                        <div className="kcard-meta">
+                          <span>생성 {formatCardTime(card.created)}</span>
+                          <span className={`kcard-due${!card.dueAt ? ' undated' : overdue ? ' overdue' : ''}`}>
+                            {card.dueAt ? `${overdue ? '기한 지남 · ' : '마감 '}${formatCardTime(card.dueAt)}` : '마감 미정'}
+                          </span>
+                        </div>
                       </div>
                     )}
                     {!editing && writable && (
                       <div className="kcard-btns">
-                        <button className="kedit" onClick={() => { setEditId(card.id); setEditText(card.text) }} title="수정">✎</button>
+                        <button className="kedit" onClick={() => startEdit(card)} title="수정">✎</button>
                         <button className="kdel" onClick={() => removeCard(col.id, card.id)} title="삭제">✕</button>
                       </div>
                     )}
@@ -165,6 +211,17 @@ export default function TodoView() {
                   value={inputs[col.id] || ''}
                   onChange={e => setInputs({ ...inputs, [col.id]: e.target.value })}
                   onKeyDown={e => { if (e.key === 'Enter') addCard(col.id) }} />
+                <div className="kcard-deadline-row kadd-deadline">
+                  <span className="px">마감</span>
+                  <input className="cli-input kdue-input" type="datetime-local"
+                    value={(dueUndated[col.id] ?? true) ? '' : (dueInputs[col.id] || '')}
+                    disabled={dueUndated[col.id] ?? true}
+                    onChange={e => setDueInputs({ ...dueInputs, [col.id]: e.target.value })} />
+                  <label className="kdue-undated px">
+                    <input type="checkbox" checked={dueUndated[col.id] ?? true}
+                      onChange={e => setDueUndated({ ...dueUndated, [col.id]: e.target.checked })} /> 미정
+                  </label>
+                </div>
               </div>}
             </div>
           )

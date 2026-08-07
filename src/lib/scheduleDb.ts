@@ -101,7 +101,7 @@ export const CARD_KINDS: { id: CardKind; label: string; color: string }[] = [
 ]
 export const kindColor = (k?: CardKind) => CARD_KINDS.find(c => c.id === k)?.color
 // doneAt: '완료' 칼럼으로 옮긴 날짜(YYYY-MM-DD). 완료는 일자별로 보존 — 어제 완료분은 오늘 TODO 에 안 보임.
-export interface Card { id: string; text: string; created: string; goalId?: string; kind?: CardKind; doneAt?: string }
+export interface Card { id: string; text: string; created: string; dueAt?: string; goalId?: string; kind?: CardKind; doneAt?: string }
 // 완료 날짜 — doneAt 없으면(구 데이터) 생성일로 대체해 사라지지 않게
 export const cardDoneDate = (c: Card) => c.doneAt ?? c.created.slice(0, 10)
 export interface Column { id: string; title: string; cards: Card[] }
