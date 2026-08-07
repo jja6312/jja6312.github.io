@@ -73,6 +73,7 @@ body {
   display: grid; grid-template-columns: 240px minmax(0, 720px); gap: 36px;
   max-width: 1040px; margin: 0 auto; padding: 32px 24px 140px;
 }
+.layout > main { min-width: 0; }
 @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } }
 .sidebar {
   position: sticky; top: 66px; align-self: start; display: flex; flex-direction: column; gap: 18px;
@@ -131,7 +132,7 @@ body {
 .sheet-h1 { font-size: 28.5px; line-height: 1.3; letter-spacing: -.3px; font-weight: 700; }
 .sheetmeta { display: flex; gap: 8px; margin: 12px 0 8px; flex-wrap: wrap; }
 .chip { font-size: 12px; padding: 3px 10px; border-radius: 99px; background: var(--bg-inset); border: 1px solid var(--line-soft); color: var(--text-dim); }
-.chip.goal { border-color: var(--accent-dim); color: var(--accent); }
+.chip.goal { border-color: var(--accent-dim); color: var(--accent); max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .stagebar { display: flex; margin: 22px 0 30px; font-size: 12px; }
 .stage { flex: 1; text-align: center; padding: 8px 0; background: var(--bg-inset); border: 1px solid var(--line-soft); color: var(--text-faint); cursor: pointer; transition: background .13s, color .13s; }
 .stage:hover { color: var(--text-dim); background: var(--bg-card); }
@@ -140,7 +141,7 @@ body {
 .stage.on { background: var(--accent-glow); color: var(--accent); border-color: var(--accent-dim); }
 .stage .n { font-size: 10px; display: block; margin-bottom: 1px; }
 
-.concept { margin-bottom: 38px; }
+.concept { margin-bottom: 38px; min-width: 0; }
 .concept-h2 { font-size: 20px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .concept-h2 .anchor { font-size: 10px; color: var(--text-faint); }
 .concept-h2:hover .cbtn { opacity: 1; }
@@ -164,6 +165,8 @@ body {
   font-family: Consolas, monospace;
 }
 .concept-body pre code { background: none; border: none; padding: 0; }
+.concept-body { min-width: 0; }
+.concept-body table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .doclink { font-size: 14.5px; }
 .doclink a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent-dim); }
 .donebtn {
@@ -677,11 +680,12 @@ select.cli-input { cursor: pointer; }
   .hdr-right { gap: 8px; }
   .iconbtn { padding: 4px 8px; }
   .layout { padding: 20px 14px 170px; }
+  .crumb { overflow-wrap: anywhere; }
   .sheet-h1 { font-size: 23px; }
   .sheetmeta .chip { font-size: 11px; }
   .stagebar { font-size: 11px; margin: 16px 0 22px; }
   .scen { padding: 16px 14px; }
-  .diagram { padding: 12px 8px; }
+  .diagram { max-width: 100%; padding: 12px 8px; }
   .diagram svg { min-width: 560px; }   /* 다이어그램은 축소 대신 가로 스크롤 */
   .optrow .opt, .choicecol .opt { padding: 11px 14px; }   /* 터치 타깃 확보 */
   .cmdrow { flex-direction: column; }
