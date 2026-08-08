@@ -323,6 +323,7 @@ body.cmt-open .chatbar { left: calc(50% - 160px); }
   width: 100vw; height: 100dvh; color: var(--text); background: var(--bg);
   animation: note-in .16s ease-out;
 }
+.learning-note-invalid { min-height: 100dvh; display: grid; place-items: center; padding: 24px; color: var(--text-dim); background: var(--bg); }
 @keyframes note-in { from { opacity: 0; transform: scale(.99); } to { opacity: 1; transform: none; } }
 .learning-note-head {
   min-height: 68px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto;

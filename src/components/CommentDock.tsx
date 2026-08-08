@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useHub } from '../store'
 import type { Comment } from '../types'
-import LearningNoteModal from './LearningNoteModal'
 
 const anchors = ['전체', 'c1', 'c2', 'c3', 's1', 's2', 's3', 's4', 's5']
 
@@ -12,11 +11,9 @@ interface CommentDockProps {
 
 // 하단 챗 입력바 + 우측 댓글 패널. 학습 메모도 특수 댓글로 함께 보관한다.
 export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
-  const { comments, cmtOpen, setCmtOpen, addComment, saveLearningNote, cmtTarget, setCmtTarget, showToast } = useHub()
+  const { comments, cmtOpen, setCmtOpen, addComment, cmtTarget, setCmtTarget, showToast } = useHub()
   const [text, setText] = useState('')
-  const [noteOpen, setNoteOpen] = useState(false)
-  const [noteId, setNoteId] = useState<string>()
-  const [noteText, setNoteText] = useState('')
+  const noteWindowRef = useRef<Window | null>(null)
 
   const sheetComments = useMemo(
     () => comments.filter(c => !c.sheet || c.sheet === sheetId),
@@ -29,10 +26,30 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
 
   const openNote = (note?: Comment) => {
     const target = note ?? latestNote
-    setNoteId(target?.id)
-    setNoteText(target?.text ?? '')
     setCmtOpen(false)
-    setNoteOpen(true)
+    if (noteWindowRef.current && !noteWindowRef.current.closed) {
+      noteWindowRef.current.focus()
+      return
+    }
+
+    const params = new URLSearchParams({ sheet: sheetId, title: sheetTitle })
+    if (target?.id) params.set('note', target.id)
+    const popupWidth = Math.min(1500, Math.max(320, window.screen.availWidth - 120))
+    const popupHeight = Math.min(1000, Math.max(560, window.screen.availHeight - 100))
+    const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
+    const top = Math.max(0, Math.round((window.screen.availHeight - popupHeight) / 2))
+    const popup = window.open(
+      `${window.location.origin}${window.location.pathname}#/learning-note?${params.toString()}`,
+      `learning-note-${sheetId.replace(/[^a-zA-Z0-9_-]/g, '-')}`,
+      `popup=yes,width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`,
+    )
+    if (!popup) {
+      showToast('팝업이 차단되었습니다. 이 사이트의 팝업을 허용해주세요.')
+      setCmtOpen(true)
+      return
+    }
+    noteWindowRef.current = popup
+    popup.focus()
   }
 
   useEffect(() => {
@@ -63,7 +80,7 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
           placeholder="배운 것 / 느낀 것을 댓글로 남기기…"
           onKeyDown={e => { if (e.key === 'Enter') submit() }}
         />
-        <button type="button" className="note-launch" onClick={() => openNote()} title="학습 메모 열기 (gg)">메모 <kbd>gg</kbd></button>
+        <button type="button" className="note-launch" onClick={() => openNote()} title="학습 메모 새 창 열기 (gg)">메모 <kbd>gg</kbd></button>
         <button type="button" className="send" onClick={submit} title="댓글 등록">↑</button>
       </div>
 
@@ -84,7 +101,7 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
               </div>
               <strong>{c.sheetTitle || sheetTitle}</strong>
               <span className="note-excerpt">{c.text.replace(/\s+/g, ' ').trim()}</span>
-              <span className="note-reopen">눌러서 전체화면으로 열기 →</span>
+              <span className="note-reopen">눌러서 새 창으로 열기 →</span>
             </button>
           ) : (
             <div key={c.id} className="cmt-item">
@@ -98,19 +115,6 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
         </div>
       </div>
 
-      {noteOpen && (
-        <LearningNoteModal
-          sheetTitle={sheetTitle}
-          initialText={noteText}
-          onClose={() => { setNoteOpen(false); setCmtOpen(true) }}
-          onSave={next => {
-            const savedId = saveLearningNote(sheetId, sheetTitle, next, noteId)
-            setNoteId(savedId)
-            setNoteText(next)
-            showToast('학습 메모를 댓글에 저장했습니다')
-          }}
-        />
-      )}
     </>
   )
 }

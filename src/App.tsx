@@ -7,6 +7,7 @@ import AuthModal from './components/AuthModal'
 import { currentLevel, requiredLevel } from './lib/auth'
 import LearningHome from './pages/LearningHome'
 import LearningRequestPage from './pages/LearningRequestPage'
+import LearningNoteWindowPage from './pages/LearningNoteWindowPage'
 import SheetPage from './pages/SheetPage'
 import ReviewPage from './pages/ReviewPage'
 import FeedbackPage from './pages/FeedbackPage'
@@ -112,6 +113,7 @@ function Hotkeys() {
 }
 
 function Shell() {
+  const { pathname } = useLocation()
   const cmtOpen = useHub(s => s.cmtOpen)
   const setAuthLevel = useHub(s => s.setAuthLevel)
   useEffect(() => {
@@ -125,6 +127,25 @@ function Shell() {
   }, [uiScale])
   // 앱 로드 시 저장된 비번/PAT 로 현재 권한 레벨 계산
   useEffect(() => { currentLevel().then(setAuthLevel) }, [setAuthLevel])
+
+  useEffect(() => {
+    const syncPersistedState = (event: StorageEvent) => {
+      if (event.key === 'hub-state-v1' && event.newValue) void useHub.persist.rehydrate()
+    }
+    window.addEventListener('storage', syncPersistedState)
+    return () => window.removeEventListener('storage', syncPersistedState)
+  }, [])
+
+  if (pathname === '/learning-note') {
+    return (
+      <>
+        <Routes>
+          <Route path="/learning-note" element={<LearningNoteWindowPage />} />
+        </Routes>
+        <Toast />
+      </>
+    )
+  }
 
   return (
     <>

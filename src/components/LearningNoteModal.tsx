@@ -96,7 +96,7 @@ export default function LearningNoteModal({ sheetTitle, initialText, onSave, onC
         <button type="button" onClick={() => insert('`', '`', '코드')}>코드</button>
         <button type="button" onClick={() => insert('- ', '', '항목')}>목록</button>
         <button type="button" onClick={() => insert('- [ ] ', '', '할 일')}>체크</button>
-        <span className="learning-note-hint"><kbd>gg</kbd>로 열기 · 마크다운 자동 미리보기</span>
+        <span className="learning-note-hint">별도 창 · 마크다운 자동 미리보기</span>
         <div className="learning-note-mobile-tabs">
           <button type="button" className={mobilePane === 'write' ? 'on' : ''} onClick={() => setMobilePane('write')}>작성</button>
           <button type="button" className={mobilePane === 'preview' ? 'on' : ''} onClick={() => setMobilePane('preview')}>미리보기</button>
