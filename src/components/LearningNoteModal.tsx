@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { marked } from 'marked'
+import TurndownService from 'turndown'
 
 interface LearningNoteModalProps {
   sheetTitle: string
@@ -8,42 +9,110 @@ interface LearningNoteModalProps {
   onClose: () => void
 }
 
-const starter = (title: string) => `# ${title}\n\n## 핵심 개념\n\n- \n\n## 실습 메모\n\n- [ ] \n\n## 질문·추가 확인\n\n- \n`
+type EditorMode = 'rich' | 'markdown'
+
+const starter = (title: string) => `# ${title}\n\n## 핵심 개념\n\n내용을 자유롭게 적어보세요.\n\n## 실습 메모\n\n- [ ] 확인할 작업\n\n## 질문·추가 확인\n\n질문을 적어보세요.\n`
+
+const turndown = new TurndownService({
+  headingStyle: 'atx',
+  bulletListMarker: '-',
+  codeBlockStyle: 'fenced',
+  emDelimiter: '*',
+  strongDelimiter: '**',
+})
+
+turndown.addRule('taskCheckbox', {
+  filter: node => node.nodeName === 'INPUT' && (node as HTMLInputElement).type === 'checkbox',
+  replacement: (_content, node) => (node as HTMLInputElement).checked ? '[x] ' : '[ ] ',
+})
+
+turndown.addRule('notionTask', {
+  filter: node => node.nodeName === 'DIV' && (node as HTMLElement).classList.contains('notion-task'),
+  replacement: content => `\n- ${content.trim()}\n`,
+})
 
 function safeMarkdown(markdown: string) {
   const parsed = marked.parse(markdown, { async: false }) as string
   const doc = new DOMParser().parseFromString(parsed, 'text/html')
-  doc.querySelectorAll('script,style,iframe,object,embed,form').forEach(el => el.remove())
-  doc.body.querySelectorAll('*').forEach(el => {
-    for (const attr of [...el.attributes]) {
-      if (attr.name.startsWith('on') || attr.name === 'style') el.removeAttribute(attr.name)
-      if ((attr.name === 'href' || attr.name === 'src') && /^(?:javascript|data):/i.test(attr.value.trim())) {
-        el.removeAttribute(attr.name)
+  doc.querySelectorAll('script,style,iframe,object,embed,form').forEach(element => element.remove())
+  doc.body.querySelectorAll('*').forEach(element => {
+    for (const attribute of [...element.attributes]) {
+      if (attribute.name.startsWith('on') || attribute.name === 'style') element.removeAttribute(attribute.name)
+      if ((attribute.name === 'href' || attribute.name === 'src') && /^(?:javascript|data):/i.test(attribute.value.trim())) {
+        element.removeAttribute(attribute.name)
       }
     }
   })
+  doc.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach(input => {
+    input.removeAttribute('disabled')
+    input.setAttribute('contenteditable', 'false')
+    input.dataset.checked = input.checked ? 'true' : 'false'
+  })
   return doc.body.innerHTML
 }
+
+const slashCommands = [
+  { label: '본문', description: '일반 텍스트', command: 'formatBlock', value: 'div' },
+  { label: '큰 제목', description: '문서의 큰 구분', command: 'formatBlock', value: 'h1' },
+  { label: '제목', description: '내용 구분', command: 'formatBlock', value: 'h2' },
+  { label: '글머리 목록', description: '순서 없는 목록', command: 'insertUnorderedList' },
+  { label: '할 일', description: '체크할 수 있는 항목', command: 'todo' },
+  { label: '인용', description: '중요 문장 강조', command: 'formatBlock', value: 'blockquote' },
+  { label: '코드 블록', description: '명령과 코드 기록', command: 'formatBlock', value: 'pre' },
+] as const
 
 export default function LearningNoteModal({ sheetTitle, initialText, onSave, onClose }: LearningNoteModalProps) {
   const startingText = initialText || starter(sheetTitle)
   const [text, setText] = useState(startingText)
   const [savedText, setSavedText] = useState(startingText)
   const [hasSaved, setHasSaved] = useState(Boolean(initialText))
-  const [mobilePane, setMobilePane] = useState<'write' | 'preview'>('write')
+  const [mode, setMode] = useState<EditorMode>('rich')
+  const [slashOpen, setSlashOpen] = useState(false)
+  const editorRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const preview = useMemo(() => safeMarkdown(text), [text])
   const dirty = text !== savedText
 
   useEffect(() => {
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    window.setTimeout(() => textareaRef.current?.focus(), 0)
     return () => { document.body.style.overflow = previous }
   }, [])
 
+  useEffect(() => {
+    if (mode === 'rich' && editorRef.current) {
+      editorRef.current.innerHTML = safeMarkdown(text)
+      window.setTimeout(() => editorRef.current?.focus(), 0)
+    } else if (mode === 'markdown') {
+      window.setTimeout(() => textareaRef.current?.focus(), 0)
+    }
+  // Rich HTML is refreshed only when entering rich mode so typing never loses its caret.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  useEffect(() => {
+    if (!dirty) return
+    const warnBeforeClose = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeClose)
+    return () => window.removeEventListener('beforeunload', warnBeforeClose)
+  }, [dirty])
+
+  const markdownFromEditor = () => {
+    const html = editorRef.current?.innerHTML ?? ''
+    const markdown = turndown.turndown(html)
+      .replace(/[\u200B\uFEFF]/g, '')
+      .replace(/^-\s+\[([ xX])\]\s+/gm, '- [$1] ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    return markdown
+  }
+
+  const syncFromEditor = () => setText(markdownFromEditor())
+
   const save = () => {
-    const next = text.trim()
+    const next = (mode === 'rich' ? markdownFromEditor() : text).trim()
     if (!next) return
     onSave(next)
     setText(next)
@@ -56,25 +125,72 @@ export default function LearningNoteModal({ sheetTitle, initialText, onSave, onC
     onClose()
   }
 
-  const insert = (before: string, after = '', placeholder = '') => {
-    const area = textareaRef.current
-    if (!area) return
-    const start = area.selectionStart
-    const end = area.selectionEnd
-    const selected = text.slice(start, end) || placeholder
-    const next = `${text.slice(0, start)}${before}${selected}${after}${text.slice(end)}`
-    setText(next)
-    window.requestAnimationFrame(() => {
-      area.focus()
-      area.setSelectionRange(start + before.length, start + before.length + selected.length)
-    })
+  const removeSlashTrigger = () => {
+    const selection = window.getSelection()
+    const node = selection?.anchorNode
+    const offset = selection?.anchorOffset ?? 0
+    if (!selection || !node || node.nodeType !== Node.TEXT_NODE || offset < 1 || node.textContent?.[offset - 1] !== '/') return
+    const range = document.createRange()
+    range.setStart(node, offset - 1)
+    range.setEnd(node, offset)
+    range.deleteContents()
+    selection.removeAllRanges()
+    selection.addRange(range)
+  }
+
+  const insertTodoBlock = () => {
+    const editor = editorRef.current
+    const selection = window.getSelection()
+    if (!editor || !selection?.rangeCount) return
+
+    const task = document.createElement('div')
+    task.className = 'notion-task'
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    checkbox.contentEditable = 'false'
+    checkbox.dataset.checked = 'false'
+    task.append(checkbox, document.createTextNode(' 할 일'))
+    const nextBlock = document.createElement('p')
+    const caretMarker = document.createTextNode('\uFEFF')
+    nextBlock.append(caretMarker)
+
+    const anchor = selection.anchorNode
+    let block = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as HTMLElement | null
+    while (block?.parentElement && block.parentElement !== editor) block = block.parentElement
+    if (block && block.parentElement === editor) block.after(task, nextBlock)
+    else editor.append(task, nextBlock)
+
+    const range = document.createRange()
+    range.setStart(caretMarker, caretMarker.length)
+    range.collapse(true)
+    selection.removeAllRanges()
+    selection.addRange(range)
+  }
+
+  const runCommand = (command: string, value?: string) => {
+    editorRef.current?.focus()
+    if (slashOpen) removeSlashTrigger()
+    if (command === 'todo') {
+      insertTodoBlock()
+    } else {
+      document.execCommand(command, false, value)
+    }
+    setSlashOpen(false)
+    syncFromEditor()
+  }
+
+  const switchMode = (nextMode: EditorMode) => {
+    if (nextMode === mode) return
+    if (mode === 'rich') setText(markdownFromEditor())
+    setSlashOpen(false)
+    setMode(nextMode)
   }
 
   return (
-    <div className="learning-note" role="dialog" aria-modal="true" aria-labelledby="learning-note-title"
-      onKeyDown={e => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save() }
-        else if (e.key === 'Escape') { e.preventDefault(); close() }
+    <div className="learning-note notion-note" role="dialog" aria-modal="true" aria-labelledby="learning-note-title"
+      onKeyDown={event => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save() }
+        else if (event.key === 'Escape' && !slashOpen) { event.preventDefault(); close() }
       }}>
       <header className="learning-note-head">
         <div className="learning-note-heading">
@@ -90,41 +206,103 @@ export default function LearningNoteModal({ sheetTitle, initialText, onSave, onC
         </div>
       </header>
 
-      <div className="learning-note-toolbar" aria-label="마크다운 서식">
-        <button type="button" onClick={() => insert('## ', '', '제목')}>H2</button>
-        <button type="button" onClick={() => insert('**', '**', '강조')}>굵게</button>
-        <button type="button" onClick={() => insert('`', '`', '코드')}>코드</button>
-        <button type="button" onClick={() => insert('- ', '', '항목')}>목록</button>
-        <button type="button" onClick={() => insert('- [ ] ', '', '할 일')}>체크</button>
-        <span className="learning-note-hint">별도 창 · 마크다운 자동 미리보기</span>
-        <div className="learning-note-mobile-tabs">
-          <button type="button" className={mobilePane === 'write' ? 'on' : ''} onClick={() => setMobilePane('write')}>작성</button>
-          <button type="button" className={mobilePane === 'preview' ? 'on' : ''} onClick={() => setMobilePane('preview')}>미리보기</button>
+      <div className="notion-toolbar" aria-label="문서 서식">
+        {mode === 'rich' && <div className="notion-format-tools">
+          <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => runCommand('formatBlock', 'div')}>본문</button>
+          <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => runCommand('formatBlock', 'h2')}>제목</button>
+          <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => runCommand('bold')}><b>B</b></button>
+          <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => runCommand('italic')}><i>I</i></button>
+          <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => runCommand('insertUnorderedList')}>목록</button>
+          <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => runCommand('todo')}>☐ 할 일</button>
+          <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => runCommand('formatBlock', 'blockquote')}>인용</button>
+          <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => runCommand('formatBlock', 'pre')}>코드</button>
+        </div>}
+        <span className="notion-slash-hint">문단 첫 칸에 <kbd>/</kbd> 입력</span>
+        <div className="notion-mode-tabs" role="tablist" aria-label="편집 방식">
+          <button type="button" role="tab" aria-selected={mode === 'rich'} className={mode === 'rich' ? 'on' : ''} onClick={() => switchMode('rich')}>문서</button>
+          <button type="button" role="tab" aria-selected={mode === 'markdown'} className={mode === 'markdown' ? 'on' : ''} onClick={() => switchMode('markdown')}>Markdown</button>
         </div>
       </div>
 
-      <div className="learning-note-workspace">
-        <section className={`learning-note-pane editor${mobilePane === 'write' ? ' mobile-active' : ''}`}>
-          <div className="learning-note-pane-title px">MARKDOWN</div>
-          <textarea
-            ref={textareaRef}
-            value={text}
-            aria-label="학습 마크다운 메모"
-            spellCheck={false}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Tab') {
-                e.preventDefault()
-                insert('  ')
-              }
-            }}
-          />
-        </section>
-        <section className={`learning-note-pane preview${mobilePane === 'preview' ? ' mobile-active' : ''}`}>
-          <div className="learning-note-pane-title px">PREVIEW</div>
-          <article className="learning-note-rendered" dangerouslySetInnerHTML={{ __html: preview }} />
-        </section>
-      </div>
+      <main className="notion-workspace">
+        {mode === 'rich' ? (
+          <div className="notion-page-wrap">
+            <div
+              ref={editorRef}
+              className="notion-editor"
+              contentEditable
+              suppressContentEditableWarning
+              role="textbox"
+              aria-multiline="true"
+              aria-label="학습 문서 메모"
+              data-placeholder="내용을 입력하세요. '/'를 누르면 블록을 선택할 수 있습니다."
+              onInput={syncFromEditor}
+              onClick={event => {
+                const input = event.target as HTMLInputElement
+                if (!input.matches('input[type="checkbox"]')) return
+                event.preventDefault()
+                const nextChecked = input.dataset.checked !== 'true'
+                input.dataset.checked = nextChecked ? 'true' : 'false'
+                window.setTimeout(() => {
+                  input.checked = nextChecked
+                  if (nextChecked) input.setAttribute('checked', '')
+                  else input.removeAttribute('checked')
+                  syncFromEditor()
+                }, 0)
+              }}
+              onKeyDown={event => {
+                if (event.key === 'Escape' && slashOpen) {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setSlashOpen(false)
+                  return
+                }
+                if (event.key === '/') {
+                  const selection = window.getSelection()
+                  const prefix = selection?.anchorNode?.textContent?.slice(0, selection.anchorOffset).replace(/[\u200B\uFEFF]/g, '') ?? ''
+                  if (!prefix.trim()) window.setTimeout(() => setSlashOpen(true), 0)
+                } else if (slashOpen && ['Enter', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+                  event.preventDefault()
+                }
+              }}
+            />
+            {slashOpen && (
+              <div className="notion-slash-menu" role="menu" aria-label="블록 선택">
+                <div className="notion-slash-title">기본 블록</div>
+                {slashCommands.map(item => (
+                  <button type="button" role="menuitem" key={item.label}
+                    onMouseDown={event => event.preventDefault()}
+                    onClick={() => runCommand(item.command, 'value' in item ? item.value : undefined)}>
+                    <strong>{item.label}</strong><span>{item.description}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="notion-markdown-wrap">
+            <textarea
+              ref={textareaRef}
+              className="notion-markdown-editor"
+              value={text}
+              aria-label="Markdown 원문"
+              spellCheck={false}
+              onChange={event => setText(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Tab') {
+                  event.preventDefault()
+                  const area = event.currentTarget
+                  const start = area.selectionStart
+                  const end = area.selectionEnd
+                  const next = `${text.slice(0, start)}  ${text.slice(end)}`
+                  setText(next)
+                  window.requestAnimationFrame(() => area.setSelectionRange(start + 2, start + 2))
+                }
+              }}
+            />
+          </div>
+        )}
+      </main>
     </div>
   )
 }
