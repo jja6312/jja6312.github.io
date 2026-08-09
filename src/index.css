@@ -395,9 +395,8 @@ body.cmt-open .chatbar { left: calc(50% - 160px); }
 .notion-mode-tabs button.on { color: var(--accent); background: var(--bg-card); box-shadow: 0 1px 3px rgba(0, 0, 0, .14); }
 .notion-workspace { min-height: 0; flex: 1; overflow: auto; background: var(--bg-soft); }
 .notion-page-wrap, .notion-markdown-wrap {
-  position: relative; width: min(900px, calc(100% - 48px)); min-height: calc(100% - 48px);
-  margin: 24px auto; border: 1px solid var(--line-soft); border-radius: 12px;
-  background: var(--bg); box-shadow: 0 8px 30px rgba(0, 0, 0, .06);
+  position: relative; width: 100%; min-height: 100%; margin: 0;
+  border: 0; border-radius: 0; background: var(--bg); box-shadow: none;
 }
 .notion-editor {
   min-height: calc(100dvh - 210px); padding: 54px 72px 110px; outline: 0;
