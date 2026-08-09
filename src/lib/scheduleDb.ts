@@ -94,10 +94,11 @@ export const CATS: { id: Cat; label: string; color: string }[] = [
 ]
 
 /* ── 칸반 (todo/board.json). card 에 goalId 태그 + kind(Task/Education) ── */
-export type CardKind = 'task' | 'edu'
+export type CardKind = 'task' | 'edu' | 'drive'
 export const CARD_KINDS: { id: CardKind; label: string; color: string }[] = [
-  { id: 'task', label: 'Task', color: '#e0a458' },      // 실제로 해야 할 일
-  { id: 'edu', label: 'Education', color: '#5ac8fa' },   // 학습해야 할 사항
+  { id: 'task', label: 'Task', color: '#e0a458' },        // 지시·요청 등 해야 할 일
+  { id: 'edu', label: 'Education', color: '#5ac8fa' },    // 학습해야 할 사항
+  { id: 'drive', label: 'Initiative', color: '#c07ce8' }, // 내가 주체적으로 하는 일
 ]
 export const kindColor = (k?: CardKind) => CARD_KINDS.find(c => c.id === k)?.color
 // doneAt: '완료' 칼럼으로 옮긴 날짜(YYYY-MM-DD). 완료는 일자별로 보존 — 어제 완료분은 오늘 TODO 에 안 보임.

@@ -32,6 +32,7 @@ export default function TodoView() {
   const [activeGoal, setActiveGoal] = useState('')
   const [editId, setEditId] = useState<string | null>(null)   // 수정 중인 카드
   const [editText, setEditText] = useState('')
+  const [editKind, setEditKind] = useState<CardKind>('task')
   const [editDueAt, setEditDueAt] = useState('')
   const [editDueUndated, setEditDueUndated] = useState(true)
   const dragRef = useRef<{ colId: string; cardId: string } | null>(null)
@@ -70,14 +71,15 @@ export default function TodoView() {
   const saveEdit = () => {
     const t = editText.trim()
     if (!editDueUndated && !editDueAt) { showToast('마감 일시를 입력하거나 미정을 선택하세요'); return }
-    if (editId && t) patchCard(editId, { text: t, dueAt: editDueUndated ? undefined : editDueAt })
+    if (editId && t) patchCard(editId, { text: t, kind: editKind, dueAt: editDueUndated ? undefined : editDueAt })
     setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true)
   }
   const cancelEdit = () => {
     setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true)
   }
   const startEdit = (card: Card) => {
-    setEditId(card.id); setEditText(card.text); setEditDueAt(card.dueAt ?? ''); setEditDueUndated(!card.dueAt)
+    setEditId(card.id); setEditText(card.text); setEditKind(card.kind ?? 'task')
+    setEditDueAt(card.dueAt ?? ''); setEditDueUndated(!card.dueAt)
   }
   const moveCard = (toCol: string, beforeCardId?: string) => {
     const src = dragRef.current
@@ -168,6 +170,13 @@ export default function TodoView() {
                         <input className="cli-input kcard-edit" autoFocus value={editText}
                           onChange={e => setEditText(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }} />
+                        <div className="kcard-kindpick">
+                          {CARD_KINDS.map(k => (
+                            <button key={k.id} type="button" className={`kind-btn sm${editKind === k.id ? ' on' : ''}`}
+                              style={editKind === k.id ? { background: k.color, borderColor: k.color, color: '#111' } : { borderColor: k.color, color: k.color }}
+                              onClick={() => setEditKind(k.id)}>{k.label}</button>
+                          ))}
+                        </div>
                         <div className="kcard-deadline-row">
                           <span className="px">마감</span>
                           <input className="cli-input kdue-input" type="datetime-local" value={editDueUndated ? '' : editDueAt}
