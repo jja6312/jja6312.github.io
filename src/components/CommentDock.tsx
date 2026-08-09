@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useHub } from '../store'
 import type { Comment } from '../types'
+import LearningNoteModal from './LearningNoteModal'
 
 const anchors = ['전체', 'c1', 'c2', 'c3', 's1', 's2', 's3', 's4', 's5']
 
@@ -9,11 +10,13 @@ interface CommentDockProps {
   sheetTitle: string
 }
 
-// 하단 챗 입력바 + 우측 댓글 패널. 학습 메모도 특수 댓글로 함께 보관한다.
+// 하단 챗 입력바 + 우측 댓글 패널. 학습 메모(gg)는 같은 페이지 오버레이로 열어 저장 버튼이 항상 보인다.
 export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
-  const { comments, cmtOpen, setCmtOpen, addComment, cmtTarget, setCmtTarget, showToast } = useHub()
+  const { comments, cmtOpen, setCmtOpen, addComment, cmtTarget, setCmtTarget, showToast, saveLearningNote } = useHub()
   const [text, setText] = useState('')
-  const noteWindowRef = useRef<Window | null>(null)
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [activeNoteId, setActiveNoteId] = useState<string | undefined>(undefined)
+  const [initialNoteText, setInitialNoteText] = useState('')
 
   const sheetComments = useMemo(
     () => comments.filter(c => !c.sheet || c.sheet === sheetId),
@@ -24,32 +27,13 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
     .sort((a, b) => Date.parse(b.updated || b.created) - Date.parse(a.updated || a.created))[0],
   [sheetComments, sheetId])
 
+  // 팝업 대신 같은 페이지에 오버레이로 연다 — 팝업 차단·모바일에서도 저장 버튼이 항상 뜬다.
   const openNote = (note?: Comment) => {
     const target = note ?? latestNote
+    setActiveNoteId(target?.id)
+    setInitialNoteText(target?.text ?? '')
     setCmtOpen(false)
-    if (noteWindowRef.current && !noteWindowRef.current.closed) {
-      noteWindowRef.current.focus()
-      return
-    }
-
-    const params = new URLSearchParams({ sheet: sheetId, title: sheetTitle })
-    if (target?.id) params.set('note', target.id)
-    const popupWidth = Math.min(1500, Math.max(320, window.screen.availWidth - 120))
-    const popupHeight = Math.min(1000, Math.max(560, window.screen.availHeight - 100))
-    const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
-    const top = Math.max(0, Math.round((window.screen.availHeight - popupHeight) / 2))
-    const popup = window.open(
-      `${window.location.origin}${window.location.pathname}#/learning-note?${params.toString()}`,
-      `learning-note-${sheetId.replace(/[^a-zA-Z0-9_-]/g, '-')}`,
-      `popup=yes,width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`,
-    )
-    if (!popup) {
-      showToast('팝업이 차단되었습니다. 이 사이트의 팝업을 허용해주세요.')
-      setCmtOpen(true)
-      return
-    }
-    noteWindowRef.current = popup
-    popup.focus()
+    setNoteOpen(true)
   }
 
   useEffect(() => {
@@ -57,18 +41,6 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
     window.addEventListener('open-learning-note', open)
     return () => window.removeEventListener('open-learning-note', open)
   })
-
-  useEffect(() => {
-    const syncSavedNote = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin || event.data?.type !== 'learning-note-saved' || event.data?.sheet !== sheetId) return
-      void Promise.resolve(useHub.persist.rehydrate()).then(() => {
-        setCmtOpen(true)
-        showToast('수정한 학습 메모를 불러왔습니다.')
-      })
-    }
-    window.addEventListener('message', syncSavedNote)
-    return () => window.removeEventListener('message', syncSavedNote)
-  }, [setCmtOpen, sheetId, showToast])
 
   const submit = () => {
     if (!text.trim()) return
@@ -92,7 +64,7 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
           placeholder="배운 것 / 느낀 것을 댓글로 남기기…"
           onKeyDown={e => { if (e.key === 'Enter') submit() }}
         />
-        <button type="button" className="note-launch" onClick={() => openNote()} title="학습 메모 새 창 열기 (gg)">메모 <kbd>gg</kbd></button>
+        <button type="button" className="note-launch" onClick={() => openNote()} title="학습 메모 열기 (gg)">메모 <kbd>gg</kbd></button>
         <button type="button" className="send" onClick={submit} title="댓글 등록">↑</button>
       </div>
 
@@ -127,6 +99,25 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
         </div>
       </div>
 
+      {noteOpen && (
+        <LearningNoteModal
+          key={activeNoteId ?? 'new'}
+          sheetTitle={sheetTitle}
+          initialText={initialNoteText}
+          onClose={() => setNoteOpen(false)}
+          onSave={text => {
+            try {
+              const id = saveLearningNote(sheetId, sheetTitle, text, activeNoteId)
+              setActiveNoteId(id)
+              setCmtOpen(true)
+              showToast('학습 메모를 저장했습니다.')
+            } catch (error) {
+              showToast('메모 저장 공간이 부족합니다. 큰 이미지를 줄인 뒤 다시 저장해주세요.')
+              throw error
+            }
+          }}
+        />
+      )}
     </>
   )
 }
