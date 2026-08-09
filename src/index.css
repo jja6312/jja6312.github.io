@@ -775,6 +775,46 @@ select.cli-input { cursor: pointer; }
 .contrib-meta code { font-size: 11px; color: var(--text-faint); }
 .contrib-meta .px { margin-left: auto; color: var(--text-faint); font-size: 10.5px; }
 
+/* AI 추천 목표 */
+.ai-diag { background: var(--bg-card); border: 1px solid var(--accent-dim); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 20px; }
+.ai-diag-lv { color: var(--accent); font-size: 11px; margin-bottom: 8px; }
+.ai-diag-summary { margin: 0 0 14px; font-size: 14px; line-height: 1.75; color: var(--text); }
+.ai-diag-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.ai-col-h { font-size: 10.5px; color: var(--text-faint); margin-bottom: 6px; }
+.ai-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.ai-list li { font-size: 13px; line-height: 1.6; color: var(--text-dim); }
+.ai-list.good li::marker { color: #6ee7a0; }
+.ai-list.gap li::marker { color: #e0a458; }
+.ai-hz { margin: 22px 0; }
+.ai-hz-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+.ai-hz-head b { font-size: 15px; color: var(--text); }
+.ai-hz-headline { font-size: 12.5px; color: var(--text-dim); }
+.ai-hz-badge { font: 700 11px/1 var(--font, inherit); padding: 5px 10px; border-radius: 20px; color: #08122a; }
+.ai-hz-badge.long { background: #c07ce8; }
+.ai-hz-badge.mid { background: #5ac8fa; }
+.ai-hz-badge.short { background: #6ee7a0; }
+.ai-pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.ai-pillar { background: var(--bg-inset); border: 1px solid var(--line-soft); border-radius: 11px; padding: 13px 15px; }
+.ai-pillar b { font-size: 13.5px; color: var(--accent); }
+.ai-pillar p { margin: 7px 0 0; font-size: 12.5px; line-height: 1.65; color: var(--text-dim); }
+.ai-goal-cards { display: flex; flex-direction: column; gap: 10px; }
+.ai-goal-card { background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 11px; padding: 13px 15px; box-shadow: var(--shadow); }
+.ai-goal-top { display: flex; align-items: center; gap: 10px; }
+.ai-goal-top b { flex: 1; font-size: 14px; color: var(--text); }
+.ai-goal-why { margin: 7px 0 8px; font-size: 13px; line-height: 1.65; color: var(--text-dim); }
+.ai-goal-metric { color: var(--text-faint); font-size: 11px; }
+.ai-add { flex: none; background: transparent; border: 1px solid var(--accent); border-radius: 8px; color: var(--accent); font-size: 11.5px; font-weight: 600; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+.ai-add:hover { background: var(--accent); color: #08122a; }
+.ai-months { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.ai-month { background: var(--bg-inset); border: 1px solid var(--line-soft); border-radius: 12px; padding: 14px 16px; }
+.ai-month-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 9px; }
+.ai-month-head b { flex: 1; font-size: 13.5px; color: var(--text); }
+.ai-month-period { color: var(--accent); font-size: 10.5px; }
+.ai-actions { margin: 0; padding-left: 17px; display: flex; flex-direction: column; gap: 5px; }
+.ai-actions li { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); }
+.ai-month-outcome { margin-top: 9px; color: var(--text-faint); font-size: 11px; }
+@media (max-width: 620px) { .ai-diag-cols { grid-template-columns: 1fr; } }
+
 /* 로드맵 */
 .road { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 @media (max-width: 760px) { .road { grid-template-columns: 1fr; } }

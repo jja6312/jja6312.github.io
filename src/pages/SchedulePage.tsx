@@ -6,12 +6,14 @@ import LockedNotice from '../components/LockedNotice'
 import CalendarView from './schedule/CalendarView'
 import TodoView from './schedule/TodoView'
 import GoalsView from './schedule/GoalsView'
+import AiGoalsView from './schedule/AiGoalsView'
 import { getPat } from '../lib/githubDb'
 
 const VIEWS = [
   { id: 'calendar', label: '월간일정', desc: '달력에 학습·자격증·일정' },
   { id: 'todo', label: 'TODO LIST', desc: '칸반 + 날짜별 일지' },
   { id: 'goals', label: '목표', desc: '2026 목표 · 마감기한' },
+  { id: 'ai-goals', label: 'AI 추천 목표', desc: '학습수준 진단 → 3년·1년·4개월' },
 ] as const
 
 export default function SchedulePage() {
@@ -48,7 +50,8 @@ export default function SchedulePage() {
           ? <LockedNotice level={activeLevel} authLevel={authLevel} onLogin={() => openAuth(activeLevel)} />
           : active === 'calendar' ? <CalendarView />
             : active === 'todo' ? <TodoView />
-              : <GoalsView />}
+              : active === 'ai-goals' ? <AiGoalsView />
+                : <GoalsView />}
       </main>
     </div>
   )
