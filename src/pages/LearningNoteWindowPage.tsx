@@ -4,7 +4,7 @@ import LearningNoteModal from '../components/LearningNoteModal'
 import { useHub } from '../store'
 
 export default function LearningNoteWindowPage() {
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const sheetId = params.get('sheet') || ''
   const sheetTitle = params.get('title') || '학습 메모'
   const requestedNoteId = params.get('note') || undefined
@@ -33,8 +33,19 @@ export default function LearningNoteWindowPage() {
       initialText={note?.text ?? ''}
       onClose={() => window.close()}
       onSave={text => {
-        saveLearningNote(sheetId, sheetTitle, text, note?.id)
-        showToast('학습 메모를 댓글에 저장했습니다.')
+        try {
+          const noteId = saveLearningNote(sheetId, sheetTitle, text, note?.id)
+          if (params.get('note') !== noteId) {
+            const next = new URLSearchParams(params)
+            next.set('note', noteId)
+            setParams(next, { replace: true })
+          }
+          window.opener?.postMessage({ type: 'learning-note-saved', sheet: sheetId, noteId }, window.location.origin)
+          showToast('학습 메모를 댓글에 저장했습니다.')
+        } catch (error) {
+          showToast('메모 저장 공간이 부족합니다. 큰 이미지를 줄인 뒤 다시 저장해주세요.')
+          throw error
+        }
       }}
     />
   )

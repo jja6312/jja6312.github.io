@@ -58,6 +58,18 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
     return () => window.removeEventListener('open-learning-note', open)
   })
 
+  useEffect(() => {
+    const syncSavedNote = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.data?.type !== 'learning-note-saved' || event.data?.sheet !== sheetId) return
+      void Promise.resolve(useHub.persist.rehydrate()).then(() => {
+        setCmtOpen(true)
+        showToast('수정한 학습 메모를 불러왔습니다.')
+      })
+    }
+    window.addEventListener('message', syncSavedNote)
+    return () => window.removeEventListener('message', syncSavedNote)
+  }, [setCmtOpen, sheetId, showToast])
+
   const submit = () => {
     if (!text.trim()) return
     addComment(cmtTarget, text.trim(), sheetId, sheetTitle)
@@ -101,7 +113,7 @@ export default function CommentDock({ sheetId, sheetTitle }: CommentDockProps) {
               </div>
               <strong>{c.sheetTitle || sheetTitle}</strong>
               <span className="note-excerpt">{c.text.replace(/\s+/g, ' ').trim()}</span>
-              <span className="note-reopen">눌러서 새 창으로 열기 →</span>
+              <span className="note-reopen">다시 열어 수정하기 →</span>
             </button>
           ) : (
             <div key={c.id} className="cmt-item">
