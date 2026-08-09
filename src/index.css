@@ -916,6 +916,10 @@ select.cli-input { cursor: pointer; }
 .sched-main { min-width: 0; }
 .sched-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
 .sched-sync { font-size: 11px; margin-left: auto; color: var(--partial); }
+.sched-save { margin-left: auto; padding: 6px 16px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #08122a; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+.sched-save:hover:not(:disabled) { filter: brightness(1.08); }
+.sched-save:disabled { opacity: .5; cursor: default; }
+.sched-save + .sched-sync { margin-left: 10px; }
 
 /* 목표 */
 .goal-long-term { margin: 12px 0 18px; padding: 16px; border: 1px solid var(--accent-dim); border-radius: 13px; background: color-mix(in srgb, var(--accent) 6%, var(--bg-card)); }

@@ -111,7 +111,10 @@ export default function TodoView() {
           <button className="iconbtn" onClick={() => shiftDate(1)} title="다음 날">›</button>
           <button className="cal-today" onClick={() => setDate(todayIso())}>오늘</button>
         </div>
-        <span className="px sched-sync">{SYNC_LABEL[journal.sync]}</span>
+        {writable && <button className="sched-save" style={{ marginLeft: 0 }}
+          onClick={() => { board.saveNow(); journal.saveNow() }}
+          disabled={board.sync === 'saving' || journal.sync === 'saving'}>저장</button>}
+        <span className="px sched-sync">{SYNC_LABEL[journal.sync === 'synced' ? board.sync : journal.sync]}</span>
       </div>
 
       {/* ── 오늘의 목표 (상단, 길게) ── */}
