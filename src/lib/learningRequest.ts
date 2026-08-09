@@ -16,17 +16,17 @@ export type LearningRequestForm = {
 
 export const EMPTY_LEARNING_REQUEST: LearningRequestForm = {
   topic: '',
-  currentLevel: '기초 용어는 알지만 직접 구축 경험은 적음',
+  currentLevel: '',
   outcome: '',
-  courseType: '주제별 Level 1~2',
-  courseSize: 'Level별 학습지 3개 내외',
-  lessonMinutes: '45',
+  courseType: '',
+  courseSize: '',
+  lessonMinutes: '',
   environment: '',
   handsOnResult: '',
   workScenarios: '',
   mustInclude: '',
   exclude: '',
-  sourceRules: '공식 문서와 1차 자료를 우선하고, 현재 시점에 유효한 내용인지 확인',
+  sourceRules: '',
   constraints: '',
 }
 

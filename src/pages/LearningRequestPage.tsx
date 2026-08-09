@@ -6,10 +6,12 @@ import {
 } from '../lib/learningRequest'
 import { useHub } from '../store'
 
-const STORAGE_KEY = 'hub-learning-request-v1'
+const STORAGE_KEY = 'hub-learning-request-v2'
+const LEGACY_STORAGE_KEY = 'hub-learning-request-v1'
 
 const loadDraft = (): LearningRequestForm => {
   try {
+    localStorage.removeItem(LEGACY_STORAGE_KEY)
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as Partial<LearningRequestForm>
     return { ...EMPTY_LEARNING_REQUEST, ...saved }
   } catch { return EMPTY_LEARNING_REQUEST }
@@ -84,6 +86,7 @@ export default function LearningRequestPage() {
             <div className="learn-request-section-head"><span className="learn-request-step px">02</span><div><h2>어떤 과정으로 만드나요?</h2><p>레벨은 지식의 양이 아니라 판단과 운영 책임의 깊이로 올라갑니다.</p></div></div>
             <div className="learn-request-grid two">
               <label className="learn-request-field"><span>구성 방식</span><select className="cli-input" value={form.courseType} onChange={e => set('courseType', e.target.value)}>
+                <option value="" disabled>선택하세요</option>
                 <option>단일 심화 학습지</option><option>주제별 Level 1~2</option><option>주제별 Level 1~3</option><option>7일 학습 스프린트</option><option>14일 학습 스프린트</option>
               </select></label>
               <label className="learn-request-field"><span>희망 분량</span><input className="cli-input" value={form.courseSize} onChange={e => set('courseSize', e.target.value)} placeholder="예: Level별 3개" /></label>
