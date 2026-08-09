@@ -167,7 +167,7 @@ body {
 .concept-body pre code { background: none; border: none; padding: 0; }
 .concept-body { min-width: 0; overflow-wrap: anywhere; }
 .concept-body table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.doclink { font-size: 14.5px; }
+.doclink { font-size: 14.5px; overflow-wrap: anywhere; word-break: break-word; }
 .doclink a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent-dim); }
 .donebtn {
   margin-top: 14px; background: var(--bg-inset); border: 1px solid var(--line); color: var(--text-dim);
@@ -942,7 +942,10 @@ select.cli-input { cursor: pointer; }
 .goal-link-date { font-size: 10.5px; color: var(--text-faint); }
 .goal-link-text { flex: 1; }
 .goal-link-check { color: var(--accent); }
-.goal-tag { display: inline-flex; align-items: center; font-size: 10.5px; padding: 1px 8px; border: 1px solid var(--accent); border-radius: 20px; background: transparent; cursor: pointer; font-family: inherit; }
+.goal-tag { display: inline-flex; align-items: center; font-size: 10px; line-height: 1.5; padding: 1px 7px; border: 1px solid var(--accent); border-radius: 20px; background: transparent; cursor: pointer; font-family: inherit; white-space: nowrap; flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* 칸반 카드 편집 — 분류(Task/Education/Initiative) 재선택 */
+.kcard-kindpick { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0; }
+.kind-btn.sm { padding: 3px 10px; font-size: 11px; font-weight: 600; }
 .goal-select { padding: 6px 10px; font-size: 13px; min-width: 120px; }
 @media (max-width: 560px) {
   .goal-long-term-head { align-items: flex-start; flex-direction: column; gap: 4px; }
