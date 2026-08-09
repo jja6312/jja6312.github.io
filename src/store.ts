@@ -8,7 +8,7 @@ export const activityDay = (date = new Date()) =>
 
 const UI_SCALE_MIN = 0.85
 const UI_SCALE_MAX = 1.6
-const HUB_STORAGE_VERSION = 1
+const HUB_STORAGE_VERSION = 2
 
 interface HubState {
   theme: 'dark' | 'light'

@@ -11,8 +11,6 @@ interface LearningNoteModalProps {
 
 type EditorMode = 'rich' | 'markdown'
 
-const starter = (title: string) => `# ${title}\n\n## 핵심 개념\n\n내용을 자유롭게 적어보세요.\n\n## 실습 메모\n\n- [ ] 확인할 작업\n\n## 질문·추가 확인\n\n질문을 적어보세요.\n`
-
 const turndown = new TurndownService({
   headingStyle: 'atx',
   bulletListMarker: '-',
@@ -62,7 +60,7 @@ const slashCommands = [
 ] as const
 
 export default function LearningNoteModal({ sheetTitle, initialText, onSave, onClose }: LearningNoteModalProps) {
-  const startingText = initialText || starter(sheetTitle)
+  const startingText = initialText
   const [text, setText] = useState(startingText)
   const [savedText, setSavedText] = useState(startingText)
   const [hasSaved, setHasSaved] = useState(Boolean(initialText))
