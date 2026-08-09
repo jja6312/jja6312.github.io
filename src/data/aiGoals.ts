@@ -1,5 +1,5 @@
-// AI 추천 목표 — indivisual 학습기록(커리어 자기진단·OCI 심화·OS/네트워크·시장) 분석 기반.
-// 멀티에이전트 분석(진단 4 + 종합 + 적대검증 2)으로 생성(2026-08). 갱신 시 이 파일만 교체.
+// AI 추천 목표 — indivisual 학습기록 분석 + 사용자 방향 확정(코테 제외·멀티클라우드 자격증 트랙) 반영.
+// 멀티에이전트(자격증 웹조사 2 + 재설계 + 적대검증 2)로 생성(2026-08). 갱신 시 이 파일만 교체.
 export interface AiGoals {
   asOf: string
   diagnosis: { summary: string; level: string; strengths: string[]; gaps: string[] }
@@ -11,62 +11,75 @@ export interface AiGoals {
 export const AI_GOALS: AiGoals = {
   "asOf": "2026-08",
   "diagnosis": {
-    "summary": "정지안은 자산은 최상위인데 관문을 아직 못 뚫은 '자산 과잉·관문 미돌파' 구간의 주니어 상단이다. OCI 실무 1년 5개월(20여 고객사)·Architect Professional·마이그레이션/HPC 실무·자격증 16종·OSS 수상으로 이루어진 한 개의 뾰족한 스파이크(D7)와 빌더 기질(CMP 풀스택·oci-cli PR merged)은 1.5년차 기준 한국 최상위권이지만, 인하우스/외국계로 올라가는 사다리인 코테·K8s(=0)·영어(유효성적 전무)가 구조적으로 막혀 있다. MSP에 머무는 한 scale-ops와 대규모 SLO 경험은 영원히 0이므로 인하우스 이직이 유일한 해제 조건이며 이것이 3년 비전의 축이다. 결정적으로 이 설계는 '무엇을 할지'가 아니라 '주 5h·재직 병행이라는 용량(약 85h/4개월, 260h/년) 안에서 얼마나 할 수 있는지'가 지배한다 — 이전 설계가 3배 과부하였던 원인이 capacity ledger 부재였으므로, 이번 설계는 phase당 메인 락 1개·동시 병렬 금지·모든 목표에 예상 h/주 부기를 강제하고, 논지상 최상위 병목인 코테를 4개월 단독 메인 락으로 보호한다. 과장 금지: Python 언어 자체는 초급, OpenStack 기여는 docstring 수준, RHCSA는 커리어 게이트가 아니라 별도 study-system 백로그, IaC는 회사 미승격이라는 정직한 갭을 그대로 안고 설계한다.",
-    "level": "주니어 상단 — MSP 진입 완료, 인하우스 점프 준비 단계 (자산 과잉·관문 미돌파)",
+    "summary": "지렛대를 알고리즘 코딩테스트에서 '멀티클라우드 professional 스택 + K8s owning + 관측성 + 영어 + 가시성'으로 전면 재편하되, 타깃 직무를 하나로 확정한다. 주 타깃 = 벤더/컨설팅 pre-sales SA·솔루션 아키텍트(정지안의 16종 자격 넓이·마이그레이션 서사·영어가 그대로 무기이고 알고리즘 시험 없는 최적 정합 경로). 2차 타깃 = 인하우스 플랫폼/SRE이나, 대규모 scale-ops와 leetcode 아닌 실무 코딩/시스템설계 스크리닝이 남은 게이트라 depth 미확보 시 게이트아웃 리스크를 명시한다. 핵심 교정: 진단이 스스로 지목한 공백은 '깊이'인데 SAP·ACE는 또 넓이(paper)이므로, 유일한 depth-building 자격증인 CKA를 축으로 삼고 관측성·AI-DB 실증 각 1건을 2026으로 당겨 '종이 아님' 증거를 만든다. 확실한 값싼 카드(SAP·RHCSA)를 9월 먼저 은행에 넣고, 올해 무리인 GCP PCA·AZ-305는 정직하게 2027 초·조건부로 이연한다.",
+    "level": "넓이 상위권 / 깊이 형성기 — 2년차·professional 2종 보유이나 K8s·영어·관측성·scale-ops는 0에 가까운 공백. 17번째 자격증의 한계신호는 첫 프로덕션 OKE 클러스터 1개·유효 영어점수 1개보다 작다",
     "strengths": [
-      "OCI 실무 스파이크가 한국 시장에서 희소한 불공정 우위 — AWS 5년차보다 OCI 1년+ 실무자가 적어 Oracle/OCI 도입 인하우스에서 경쟁자 자체가 적음",
-      "빌더 기질 실증 — CMP 단독 풀스택 개발·운영(하루 1h 절감, 사업부 주요 시스템화) + oci-cli PR #1057 merged(OCA Verified). 이미 '운영자'를 넘어 '빌더'로 한 발 걸침",
-      "마이그레이션·HPC/AI인프라 카드가 2026 메가트렌드(AI 인프라) 정중앙 — 삼성증권 HPC 온프렘→OCI PoC(수천 코어)·AWS→OCI 마이그레이션이 이력서 첫 줄 감",
-      "1.5년차 기준 입체 포트폴리오 — 자격증 16종 + 2025 오픈소스 개발자대회 우수상 + OSS 트리플 기여로 동년차 상위 5~10%",
-      "OCI/DB/마이그레이션 Professional·Architect-Professional 수준의 폭넓은 이론 성숙도 — 수치·한도·edge case까지 정밀하고, 실무(MSP)와 학습이 양방향으로 맞물림",
-      "적대적 검토를 거쳐 스코프를 덜어낸 현실적 설계 이력 — 이번에도 capacity ledger로 자기 스코프를 통제할 수 있는 사람"
+      "OCI Architect Professional·AI Foundations·AI Vector Search Pro + AWS SAA + NCP Pro 등 16종으로 자격증 넓이 자체가 상위권 — 벤더/컨설팅 SA 진입 티켓으로 직접 전환",
+      "Linux 중상 — RHCSA·CKA 실기 트러블슈팅(systemd·containerd·crictl·네트워크)에 그대로 득점 전환되는 실무 기반",
+      "AWS SAP는 SAA 보유 + '거의 준비됨' 상태로 2주 스프린트면 취득 가능한 4종 중 가장 확실·값싼 확정 카드",
+      "AWS→OCI 마이그레이션·삼성증권 HPC 온프렘→OCI PoC·CMP 풀스택 자동화·oci-cli PR#1057 merged 등 설계·구축·OSS 실전 이력",
+      "OCI Pro·AWS Pro 설계 근육이 GCP PCA 도메인(IAM/VPC/LB/DR/7R)으로 전이"
     ],
     "gaps": [
-      "알고리즘 코딩테스트 — 경력직/신입공채/SRE 세 트랙 공통 1차 필터이자 최상위 병목인데 현재 수준(baseline) 불명. 여기서 컷나면 채점대에 못 오름. baseline 선측정 없이는 통과 시점 확정 불가",
-      "Kubernetes A4=0(개념만·CKA 미취득) — 인하우스/SRE table stakes이자 진입 차단선, 면접 침몰 변수",
-      "영어 유효성적 전무 — 토익스피킹 IH(150) 만료로 기재 불가. 외국계·글로벌 MSP 직행 봉쇄, OCI 인하우스 정량 서류필터도 닫힘",
-      "관측성(Prometheus/Grafana/SLO)=0 — SRE table stakes이자 면접 붕괴 리스크인데 이전 설계 단·중·장기 어디에도 없던 직접 누락 갭",
-      "scale-ops = 0 — 실제 대규모 SLO/error budget/on-call/postmortem 경험 없음. MSP에 머무는 한 구조적으로 0이며 인하우스 이직이 유일 해제 조건",
-      "가시성 ≈ 0 — 기술 블로그 정기발행·발표 부재로 '검색되는 전문성' 없음. 이직보다 길게 가는 복리 자산인데 미가동",
-      "KOUG 네트워크/referral 미가동 — 인하우스 점프 최고 ROI 경로로 진단에 명시됐으나 이전 계획에 완전 누락",
-      "AI DB 영역 얇음 — 본인 최대 차별점(AI 인프라) 정중앙인데 1Z0-1093 핵심인 Autonomous DB·Select AI·Vector Search가 미커버",
-      "OpenStack 기여 깊이가 docstring 수준 → 면접에서 '넓이는 있으나 코드 깊이는 얕음' 노출 위험. 기능 단위 PR로 격상 필요",
-      "IaC/Terraform은 개인 홈랩 단계로 회사 공식 적용 미승격 + Python 언어 자체는 초급(과대기재 금지) — 자동화 실적과 raw 숙련도 혼동 금지"
+      "K8s=0 — 개념만 있고 오브젝트 모델·kubeadm·etcd·NetworkPolicy hands-on 전무. CKA는 4종 중 유일하게 깊이를 만드는 자격증이자 최대 관문",
+      "2026 계획이 CKA를 빼면 100% paper — 진단이 지목한 '깊이' 공백을 못 메우고 이미 상위권인 넓이만 두껍게 만들 위험(→ 관측성·AI-DB depth를 2026으로 당겨 방어)",
+      "scale-ops=0 — MSP 구조적 한계로 프로덕션 대규모 운영은 인하우스 이직 전엔 해제 불가(chicken-and-egg). 인하우스 플랫폼 타깃은 이 게이트 + leetcode 아닌 실무 코딩/시스템설계 스크리닝 리스크가 상존 → 주 타깃을 벤더/컨설팅 SA로 트는 근거",
+      "영어 유효성적 전무(과거 토스 IH 만료) — 글로벌 벤더 SA의 하드 게이트인데 lead-time가 길어 2027 착수는 점프를 통째 지연 → 2026 저강도 착수로 방어",
+      "관측성/SLO=0 — Prometheus·Grafana·SLI/SLO 정의 경험 없음",
+      "가시성 0 — 기술블로그·발표·referral 미가동으로 실력 대비 외부 시그널 부재",
+      "RHCSA는 정보처리기사·리눅스마스터2급·Linux 중상 보유자에게 EX200이 현 레벨 이하라 넓이 신호 기여 낮고 CKA 준비가 그 Linux 실기를 이미 커버 = 가장 skippable 버퍼. 소요도 '1주'가 아니라 2~3주가 정직",
+      "GCP PCA는 케이스스터디형 + GCP hands-on 0이라 8~12주 필요 → 올해 무리, 2027 Q1 이연. AZ-305 Expert는 AZ-900만 보유·AZ-104 선행 게이트까지 실질 2관문 + 4번째 클라우드라 로드맵 슬롯 미부여, 조건부로만 잔존"
     ]
   },
   "longTerm": {
-    "horizon": "3년 (2029)",
-    "headline": "코테·K8s·영어 게이트를 순차로 통과해 인하우스로 점프하고, 그 위에서 scale-ops를 해제한 뒤 OCI·AI인프라 마이그레이션 스파이크를 현실적 중대규모 리드 수준으로 키운다. 아래 pillar는 선후 배열이며 '동시 완성'이 아니다 — 앞 pillar가 열려야 뒤가 열린다.",
+    "horizon": "2029 (3년)",
+    "headline": "알고리즘 시험 없는 멀티클라우드 SA-아키텍트 — 주 타깃=벤더/컨설팅 pre-sales SA·솔루션 아키텍트(넓이 자산화·영어 지렛대 최대·시험-free 정합), 2차=인하우스 플랫폼(단 실무 코딩스크린·scale-ops 게이트 리스크). professional 3종 넓이를 CKA(유일 depth 자격증)·AI인프라·관측성 깊이와 영어·가시성으로 받쳐 인하우스/벤더 점프",
     "pillars": [
-      { "name": "1순위 — 인하우스 점프 게이트 통과 (코테·K8s·영어)", "detail": "3년 비전의 모든 것이 이 게이트에 종속된다. 코테 통과 → K8s owning+CKA → 유효 영어를 순차로 확보해 NHN/NCP/KT Cloud 또는 OCI 도입 인하우스 지원 '자격'을 실제로 갖춘다. 논지상 최상위 병목인 코테를 먼저 통과시키고, K8s는 그 다음 단일 메인 락으로 잡아 병렬 과부하를 원천 차단한다. 이게 안 되면 나머지 pillar는 물리적으로 열리지 않는다." },
-      { "name": "2순위 — 인하우스에서 scale-ops 해제", "detail": "MSP에 있는 한 구조적으로 0인 SLO/error budget/on-call/postmortem을 실전으로 확보한다. K8s를 직접 owning하는 플랫폼/SRE 트랙 안착 + 관측성(Prometheus/Grafana/SLO) 실무가 '진짜 엔지니어'로 넘어가는 문이다. 1순위 게이트 통과가 선행 조건." },
-      { "name": "3순위 — OCI·AI인프라 마이그레이션 스파이크 심화 (현실 눈금)", "detail": "D7 강점(OCI×마이그레이션×HPC/GPU×AI인프라)을 PoC 수준에서 중대규모 도입·마이그레이션을 리드하는 수준으로 끌어올리고 Autonomous DB·Vector Search 등 AI-DB 실기능을 붙인다. 단 'A3 최상위·대규모 단독 리드'는 3년·주 5h·이직 병행 조건에선 낙관이므로, 현실 눈금은 '중대규모 프로젝트 리드 참여~부분 오너십'으로 잡는다." },
-      { "name": "4순위 — 검색되는 전문성 (가시성 복리 자산)", "detail": "기술 블로그 정기 발행·발표·OSS 실코드 기여(docstring 넘어선 기능 PR)를 꾸준히 쌓아 스카우트·referral 경로가 열리는 개인 브랜드를 만든다. 이직보다 길게 가는 복리 자산이며, 홈랩·마이그레이션·AI-DB 여정을 콘텐츠화하면 강점이 그대로 가시화된다." },
-      { "name": "5순위 — 글로벌 대응력 (현실 목표)", "detail": "유효 영어 성적을 상시 유지하고 공식 문서·비동기 협업에 무리 없는 수준으로 끌어올려 외국계(AWS/Oracle Korea)·글로벌 MSP를 선택지로 유지한다. 단 '글로벌 협업 부담 제로'는 3년 안엔 과대이므로 현실 목표는 '읽기·문서 작성·비동기 커뮤니케이션 무리 없음'으로 낮춘다." }
+      { "name": "1. 멀티클라우드 professional 3종 포트폴리오 완성", "detail": "OCI Architect Professional(보유) + AWS SAP-C02 + GCP PCA의 professional 3종을 축으로 '어느 클라우드든 설계 판단이 되는 아키텍트' 포지션 확립. 자격증은 깊이 신호가 아니라 벤더-SA 진입 티켓으로 역할을 재정의." },
+      { "name": "2. Kubernetes owning (유일한 depth-building 자격증)", "detail": "CKA로 진입 후 CKAD/CKS로 확장. OKE 프로덕션 클러스터를 kubeadm·etcd 백업·RBAC·NetworkPolicy·Ingress/Gateway API·PV/PVC·HPA 수준에서 직접 운영·트러블슈팅하는 owning 역량. 4종 중 유일하게 종이 아닌 깊이를 만드는 자격." },
+      { "name": "3. AI 인프라 마이그레이션 스파이크", "detail": "온프렘/타클라우드→OCI 마이그레이션(7R)과 AI-DB(Autonomous DB·Vector Search·Select AI)·HPC를 묶는 스파이크. 삼성증권 HPC PoC·AWS→OCI 경험을 'AI 워크로드 이전 전문' 서사로 확장." },
+      { "name": "4. 관측성/SLO·플랫폼 엔지니어링", "detail": "Prometheus·Grafana·OCI Monitoring 기반 SLI/SLO 정의와 알람·대시보드를 설계·운영하는 SRE/플랫폼 역량. MSP식 사후대응을 넘어 신뢰성 설계로 이동." },
+      { "name": "5. 영어 + 가시성 → 벤더/컨설팅 SA 점프", "detail": "영어 유효성적 재확보(하드 게이트) + 기술블로그·KOUG 발표·referral로 외부 시그널 축적. scale-ops 구조적 한계를 시험 없는 벤더/컨설팅 SA·아키텍트 이직으로 해제하는 최종 관문." },
+      { "name": "6. (조건부) Azure 확장 — 시간 슬롯 미부여", "detail": "타깃 직무 JD가 Azure를 명시 요구하거나 Azure 딜이 배정되는 시점에만 AZ-104(실습형 administration)→AZ-305 순차 진행. 4번째 클라우드 Expert는 이미 가진 3개를 hands-on 깊이로 받치는 것보다 ROI가 낮으므로 트리거형 조건부로만 남긴다." }
     ]
   },
   "midTerm": {
-    "horizon": "1년 (2027)",
-    "headline": "코테 게이트를 실제로 통과한 뒤 K8s를 단일 메인 락으로 정복하고, 그 위에서 인하우스 실제 지원·오퍼까지 도달한다. 연 예산 ≈260h(주 5h)를 지키기 위해 동시 메인 락 1개 원칙을 유지하며, 지원 윈도우는 코테 통과를 게이트로 후반에 배치한다.",
+    "horizon": "2027 (1년)",
+    "headline": "2026 이연분과 depth를 3앵커(GCP PCA·OKE 프로덕션 운영·영어 유효점수)로 triage하고, 나머지(관측성 확장·AI-DB·OSS·IaC)는 opportunistic으로 강등해 낙관편향을 잘라낸다. 알고리즘 시험 없는 벤더/컨설팅 SA-아키텍트 트랙으로 인하우스 지원. GCP PCA는 2026 무리분을 정직하게 이연한 2027 Q1 항목",
     "goals": [
-      { "title": "코테 게이트 통과 (측정형, 활동량 아님)", "rationale": "세 트랙 공통 1차 필터이자 최상위 병목. '250문제 풀이' 같은 활동량이 아니라 시간제한 통과 능력으로 판정해야 실제 게이트가 열린다. 9월 baseline 실측이 선행되어야 통과 시점을 확정할 수 있다.", "metric": "시간제한(문제당 40분) 모의 코테 통과율 ≥70%(제한시간 내 정답 기준) 안정 + 실제 기업 코테 통과 1회. baseline(9월 실측) 대비 티어 2단계 상승. 예상 ≈60h/년" },
-      { "title": "Kubernetes 단일 메인 락 정복 + CKA", "rationale": "인하우스/SRE table stakes이자 면접 침몰 변수. 코테 게이트를 통과한 뒤에 착수해 메인 락 중복(코테와 동시 진행)을 회피한다.", "metric": "CKA 취득 1건 + OKE 클러스터 직접 구축·배포·롤링업데이트·트러블슈팅 기록 리포지토리 1건. 예상 ≈70h/년" },
-      { "title": "관측성 실측 1건 (홈랩 Prometheus/Grafana/SLO)", "rationale": "SRE table stakes이자 '면접 붕괴 리스크'로 지목됐으나 이전 설계 단·중·장기 어디에도 없던 직접 누락 갭. K8s 정복과 자연스럽게 이어지는 저비용 후속.", "metric": "홈랩에 Prometheus+Grafana 구성 후 SLO/error budget 1개 정의·대시보드·알림 실측 리포지토리 1건. 예상 ≈25h/년" },
-      { "title": "AI 인프라/AI-DB 실기능 깊이 1건", "rationale": "본인 최대 차별점이자 시장 정중앙인데 1Z0-1093 핵심(Autonomous DB·Vector Search·Select AI)이 공백. 이미 앞선 영역이라 ROI가 가장 높다.", "metric": "Autonomous DB에서 Vector Search 또는 Select AI 실동작 PoC 1건(공개 리포지토리 + 블로그화). 예상 ≈25h/년" },
-      { "title": "영어 유효 성적 유지 + IaC 회사 실무 승격", "rationale": "영어는 4개월에 확보 → 유지 단계로 전환(저비용). IaC는 개인 홈랩 머무름을 해소해 실적화한다. '공식'의 정의를 명시해 모호성을 제거.", "metric": "OPIc IM2+ 유효 성적 유지 + Terraform으로 콘솔 수작업 대체를 사업부 리더 승인 하에 실제 운영 반영 1건('공식'=승인 주체가 사업부 리더인 반영). 예상 ≈25h/년" },
-      { "title": "가시성 복리 자산 + OSS 실코드 PR", "rationale": "'검색되는 전문성' 부재로 스카우트·referral 경로가 좁음. 블로그는 월 2편=연 24편으로 수치를 통일한다. OSS는 docstring을 넘어선 기능 PR로 면접 깊이 방어선을 만든다.", "metric": "기술 블로그 연 24편(월 2편) + 컨퍼런스 발표 또는 공식 기고 1회 + 기능 단위 코드 PR merged 1건(문서 수정 제외). 예상 ≈50h/년" },
-      { "title": "KOUG 네트워킹 / referral 정량화", "rationale": "인하우스 점프 최고 ROI 경로로 진단에 명시됐으나 이전 계획에 완전 누락. 저비용·고효과라 병행 가능.", "metric": "온·오프라인 모임 분기 1회(연 4회) 참석 + NHN/KT/NCP 재직자 콜드 DM·대화 누적 12건 + referral 대화 1건 이상. 예상 ≈15h/년" },
-      { "title": "실제 인하우스 지원·면접·오퍼 (게이트형)", "rationale": "논지의 핵심 전환 행위인데 이전 설계에선 12월 문장으로만 걸쳐 있고 지표화되지 않음. 코테 게이트 통과를 선행 조건으로 하고 지원 윈도우를 후반으로 이동한다.", "metric": "코테 게이트 통과 확인 후(2027 후반) KR-Cloud(NHN/NCP/KT) 실지원 5건 + 기술면접 2건 + 오퍼 1건 목표. 예상 ≈20h/년" }
+      { "title": "[앵커] GCP PCA 취득 (2026 이월 마무리, 2027 Q1)", "rationale": "2026 내 ACE까지만 현실적이라 PCA는 2027 Q1으로 정직하게 이연. 케이스스터디형이라 실습 시간이 필요하나 OCI Pro·AWS SAP 설계 근육 전이로 완주 가능. 완주 시 professional 3종 넓이 완성.", "metric": "2027 Q1(1~3월) 취득. 케이스스터디 4종(Altostrat Media·Cymbal Retail·EHR Healthcare·KnightMotives) 사전 숙지 + 모의 2회 80%+. 예상 80~110h" },
+      { "title": "[앵커] OKE 프로덕션 운영 owning", "rationale": "CKA로 얻은 개념을 실제 클러스터 운영으로 전환해야 K8s가 이력서 한 줄이 아니라 owning 역량이 된다. 인하우스/벤더 SA 양쪽에서 유일하게 '종이 아님'을 증명하는 depth.", "metric": "사내/고객사 OKE 클러스터 2개+ 운영: etcd 백업 자동화(CronJob+etcdctl snapshot), NetworkPolicy 격리, Ingress+cert(lego) 적용, HPA·requests/limits 설정. 예상 120h" },
+      { "title": "[앵커] 영어 유효점수 확보 + 시험 없는 SA/아키텍트 인하우스 지원", "rationale": "영어는 벤더/컨설팅 SA의 정량 하드 게이트이자 lead-time 긴 자산. 2026 저강도 착수를 이어 2027에 유효점수로 확정하고, 알고리즘 시험 없는 채널로 실제 지원해 scale-ops 한계를 해제.", "metric": "영어 유효성적 확보(OPIc IH+ 또는 TOEIC 850+) + 알고리즘 시험 없는 벤더/컨설팅 SA·아키텍트 3곳 지원 + KOUG 발표 1회/referral 가동. 예상 120h(영어 잔여 80h 포함)" },
+      { "title": "[opportunistic] 관측성/SLO 스택 확장", "rationale": "2026에 당긴 SLO 1건을 서비스 3종으로 확장. 시간 여유가 있을 때만 진행하는 강등 항목(앵커 3종 우선).", "metric": "Prometheus+Grafana 또는 OCI Monitoring으로 서비스 3종 SLI/SLO 정의·대시보드·알람 룰 구축, 성능레포트 시스템과 연계. 예상 60h" },
+      { "title": "[opportunistic] AI-DB 실기능 심화 + IaC 회사 표준 승격", "rationale": "2026 RAG PoC를 심화하고 CMP 풀스택 자동화를 사내 표준으로 승격해 조직 영향력 확보. 앵커 이후 여유분에만 커밋.", "metric": "Autonomous DB·Select AI·Vector Search 심화 PoC 1건 + full-stack+preset 모듈 사내 표준 승격·신규 고객 프로비저닝 2건+ 실적용. 예상 90h" },
+      { "title": "[opportunistic] OSS 기능 PR (docstring 넘기)", "rationale": "기여 깊이가 docstring 수준 → 실제 기능/버그픽스 PR로 한 단계 상승. 글로벌 SA 트랙 신뢰 시그널이나 앵커보다 후순위.", "metric": "oci-cli 또는 openstacksdk에 비-docstring 기능/버그픽스 PR 1건 merged. 예상 40h" }
     ]
   },
   "shortTerm": {
-    "horizon": "4개월 (~2026-12)",
-    "headline": "코테를 4개월 단독 메인 락으로 보호(병렬 금지). 예산 5h/주(≈85h)를 넘지 않게 코테 ~3h/주 + 영어 ~1h/주 + 가시성·네트워킹 ~1h/주로 배분하고, RHCSA·K8s는 이 분기 메인 락과 겹치지 않도록 1년 계획으로 이연한다.",
+    "horizon": "2026-09~12 (약 17주, 주 5h + 영어 1h 기준 · 자격증 스프린트 주간 초과 투입 · 3종 상한)",
+    "headline": "확실한 값싼 카드(AWS SAP)·RHCSA를 9월 먼저 은행에 넣고 → 10~11월 CKA(유일 depth 자격증) 취득 → 관측성·AI-DB depth를 2026으로 당긴다. 확정 목표 = RHCSA·CKA·AWS SAP 3종, GCP ACE는 조건부 4번째. GCP PCA·AZ-305는 올해 무리라 정직하게 2027 초·조건부로 이연",
     "milestones": [
-      { "period": "2026-09", "focus": "코테 baseline 선측정 + 코테 습관화(단독 메인 락) — 예산 5h/주", "actions": ["9월 첫 주: 시간제한(문제당 40분) 모의 코테 1회로 현재 baseline 티어 실측 — 이 데이터 없이는 '1년 내 기업 코테 통과' 실현성 판정 및 지원 시점 확정 금지 (약 1h)", "baseline 기반 난도 설정 후 코테 주 3~4문제 고정 루틴(자료구조·그리디·BFS/DFS), 풀이 기록 리포지토리 개설 (약 3h/주, 메인 락)", "영어 시험(OPIc, 단일 척도로 확정) 응시일 예약 + 주 1회 스피킹 (약 1h/주, 보조)", "KOUG/클라우드 커뮤니티 1곳 가입 + 온라인 모임 1회 참석 (referral 경로 착수, 약 0.5h/주)"], "outcome": "코테 baseline 티어가 데이터로 확정되고, 코테 단독 메인 락 루틴 + 영어 응시 예약 + 커뮤니티 접점이 캘린더에 고정됨. 주 합계 ≈5h 이내 준수" },
-      { "period": "2026-10", "focus": "코테 메인 락 심화 + 가시성 첫 발행 — 예산 5h/주", "actions": ["코테 난도 상향(정렬·이분탐색·DP 입문) 주 3~4문제 유지, baseline 대비 티어 1단계 상승 목표 (약 3h/주, 메인 락)", "영어 스피킹 루틴 유지 + 모의 응답 녹음 자가점검 (약 1h/주)", "기술 블로그 1편 발행 — 코테 학습 로그 또는 마이그레이션 실무 중 손에 붙은 것 (약 1h/주)", "RHCSA·CKA는 이 분기 메인 락(코테)과 겹치지 않도록 착수 보류 확인 — 스코프 재부풀림 차단"], "outcome": "코테 티어가 baseline 대비 측정 가능하게 1단계 상승, 블로그 정기 채널 첫 글 발행. 병렬 트랙 과부하 없음" },
-      { "period": "2026-11", "focus": "코테 통과선 진입 검증 + 영어 유효 성적 확보 — 예산 5h/주", "actions": ["시간제한 모의 코테 주 1회 반복 측정, 통과율(제한시간 내 정답률) 추적 (약 3.5h/주, 메인 락)", "OPIc 응시 → IM2 이상 유효 성적 1건 확보(미달 시 즉시 재예약) (시험일 집중)", "블로그 2편차 발행 (약 1h/주)"], "outcome": "코테 시간제한 모의 통과율이 수치로 관리됨(목표 ≥70%), 유효 영어 성적(OPIc IM2+) 확보 또는 재응시 확정" },
-      { "period": "2026-12", "focus": "코테 통과 신뢰도 확정(지원 게이트) + referral 착수 + 2027 K8s 진입 타이밍 결정 — 예산 5h/주", "actions": ["코테 시간제한 모의 통과율 ≥70% 안정화 확인 = 인하우스 지원 게이트. 미달 시 지원 윈도우를 2027 후반으로 이연 판정 (약 3h/주, 메인 락)", "KOUG/커뮤니티에서 NHN/KT/NCP 재직자 대상 콜드 DM 또는 대화 3건 시도 (referral 경로, 약 1h/주)", "블로그 3편차 발행 + 2027 K8s/CKA 단일 메인 락 착수 시점 확정 (약 1h/주)"], "outcome": "코테 통과 신뢰도가 게이트 기준으로 판정됨(실제 기업 지원은 이 게이트 통과 후에만 개시). 4개월 산출물은 '코테 게이트 통과 여부 + OPIc IM2+ 성적 + referral 접점 3건 + 블로그 3편'으로 한정 — 이전 설계의 '12월 인하우스 지원 가능'은 비현실적이므로 하향" }
+      { "period": "2026-09", "focus": "확실한 두 승부를 먼저 은행에 — RHCSA(2~3주 스프린트, skippable 버퍼) + AWS SAP(2주) 병행 + 영어 저강도 착수", "actions": [
+        "응시 전 RHEL 버전(9 vs 10)·예약 가능일 사전 확인 후 RHCSA 실기 drill(2~3주): SELinux(semanage fcontext/port·restorecon·setsebool·ls -Z), firewalld(firewall-cmd zone/service/port), LVM(pvcreate·vgcreate·lvextend·xfs_growfs), systemd target·rd.break root 패스워드 재설정, nmcli IPv4/IPv6, /etc/fstab UUID·NFS·autofs, cron/at/systemd timer, dnf repo+flatpak(RHEL10 신규). RHEL10 EX200은 podman/컨테이너 도메인 제외 → 컨테이너 drill 금지, 150분 내 '재부팅 후 persist' 무결점 재현만 반복. RHCSA는 최우선 skippable 버퍼 — CKA 슬립 시 ACE가 아니라 RHCSA를 드롭",
+        "AWS SAP-C02 2주 스프린트(거의 준비된 확정 카드): Organizations·Control Tower·SCP·RAM, Transit Gateway·Direct Connect·PrivateLink·Route53 라우팅정책, 7R 마이그레이션(MGN·DMS·DataSync·Snow·Migration Hub), DR(Aurora Global DB·DynamoDB Global Tables·S3 CRR·pilot light/warm standby·RPO/RTO), 교차계정 IAM role·KMS·Secrets Manager·GuardDuty·Security Hub, 비용(Savings Plans·Compute Optimizer). 기출/모의 2회(75문항·180분·750/1000)",
+        "영어 저강도 착수(주 1h, lead-time 긴 하드 게이트 조기 확보): OPIc IH+ 또는 TOEIC 850+ 목표로 스피킹/리스닝 루틴 시작. 동시에 향후 2주 실투입 학습시간 로그 1개 실측(판별 실험: 주 실투입 h로 3종/4종 상한 재판정)"
+      ], "outcome": "AWS SAP-C02 + RHCSA 두 확정승을 먼저 은행에 확보(professional 2→3단: OCI Pro·AWS Pro) + 영어 착수. CKA 본격 진입 준비" },
+      { "period": "2026-10", "focus": "CKA 빌드 착수 — K8s=0에서 오브젝트 모델 기초 + 배점 최대 도메인(Troubleshooting 30%·Cluster Architecture 25%)", "actions": [
+        "K8s 기초: kubectl 명령형+선언형, -o yaml --dry-run=client로 매니페스트 생성, Pod/Deployment/ReplicaSet 롤링업데이트·롤백·scale, Service(ClusterIP/NodePort/LoadBalancer), ConfigMap/Secret, kubectl explain/describe/logs/events",
+        "Cluster Architecture: kubeadm 클러스터 부트스트랩·노드 join·kubeadm upgrade, static Pod(/etc/kubernetes/manifests), 컨트롤플레인(apiserver·scheduler·controller-manager·etcd), etcdctl snapshot save/restore(거의 매 시험 출제), RBAC(Role/ClusterRole·RoleBinding·ServiceAccount)",
+        "Services & Networking: NetworkPolicy, Ingress + Gateway API(신규), CoreDNS, Pod-to-Pod 연결성 / Storage: PV·PVC·StorageClass 동적프로비저닝·accessModes·reclaimPolicy",
+        "스케줄링: nodeSelector·node affinity·taint/toleration·requests/limits, Helm(install/upgrade)+Kustomize(overlay, 신규)"
+      ], "outcome": "CKA 전 도메인 커버 + K8s 오브젝트 모델 hands-on 기본기 확보. killer.sh 1회차 진입" },
+      { "period": "2026-11", "focus": "CKA 취득(유일 depth 자격증) + depth 당김 1 — 관측성/SLO '종이 아님' 증거 1건", "actions": [
+        "Troubleshooting drill: node NotReady→systemctl status kubelet, crictl 컨테이너 점검, kubectl debug/top(metrics-server), kubeconfig context 전환. killer.sh 모의 2회차 + kubectl JSONPath·--sort-by 속도훈련 → CKA 응시(합격선 66%, ~17문항, 무료 재응시 1회, 문서 kubernetes.io+Helm+Gateway API 허용·Kustomize 불허)",
+        "셀프 모의 판별 실험: SELinux semanage·LVM resize·rd.break를 문서 없이 150분 무결점 재현되는지로 RHCSA 잔여/드롭 최종 확정",
+        "관측성/SLO depth 당김(2026 내 '종이 아님' 증거 1건): Prometheus+Grafana 또는 OCI Monitoring으로 서비스 1종 SLI/SLO 정의·대시보드·알람 룰 1건 구축, 기존 성능레포트 시스템과 연계"
+      ], "outcome": "CKA 취득 → K8s owning 진입 + professional 3단(AWS 완성). 관측성 depth 첫 실증 1건 확보" },
+      { "period": "2026-12", "focus": "depth 당김 2 — AI-DB RAG PoC(블로그화) + GCP ACE 조건부 + 2027 이연 정직 확정", "actions": [
+        "AI-DB depth PoC: Autonomous DB + Select AI + Vector Search로 RAG PoC 1건 데모 → 기술블로그 1편화(가시성 겸함). AI Vector Search Pro 자격-실력 갭 해소",
+        "GCP ACE 조건부(CKA·SAP가 예정보다 조기 완료된 경우에만 12월 착수, 아니면 2027 Q1 PCA와 묶어 이연): gcloud CLI·Cloud Shell·Console, IAM 사전정의 role·서비스계정·org/folder/project 계층·빌링, Compute Engine·MIG·GKE·Cloud Run, Cloud Storage(스토리지클래스·lifecycle)·Persistent Disk·Cloud SQL, VPC·방화벽·Cloud Load Balancing·Cloud DNS, Cloud Monitoring/Logging·BigQuery 기본(50문항·120분)",
+        "2027 이연 정직 확정 — GCP PCA: 케이스스터디형 + GCP hands-on 0이라 8~12주 필요 → 2027 Q1(ACE로 잡은 gcloud 감 위에 착수). AZ-305: AZ-900만 보유·AZ-104 선행 게이트까지 실질 2관문 + 4번째 클라우드라 로드맵 시간 슬롯 미부여, Azure 요구 JD/딜 배정 시 AZ-104부터 조건부로만 진행"
+      ], "outcome": "2026 연내 RHCSA·CKA·AWS SAP 3종 확정 + 관측성·AI-DB depth 각 1건(종이 아님 증거) + 영어 착수. GCP ACE는 조건부, GCP PCA·AZ-305는 무리 없이 2027 초·조건부로 정직하게 이연 확정" }
     ]
   },
 }
