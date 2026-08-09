@@ -122,9 +122,11 @@ function Shell() {
 
   const uiScale = useHub(s => s.uiScale)
   useEffect(() => {
-    // 화면 배율 — Chromium/Safari 지원 zoom. 1이면 제거
-    ;(document.documentElement.style as unknown as { zoom: string }).zoom = uiScale === 1 ? '' : String(uiScale)
-  }, [uiScale])
+    // 학습 메모 팝업은 자체 확대/축소 기능을 사용한다. 허브 배율까지 중첩하면
+    // fixed 레이아웃이 뷰포트 밖으로 커져 스크롤바와 하단 내용이 잘린다.
+    const effectiveScale = pathname === '/learning-note' ? 1 : uiScale
+    ;(document.documentElement.style as unknown as { zoom: string }).zoom = effectiveScale === 1 ? '' : String(effectiveScale)
+  }, [pathname, uiScale])
   // 앱 로드 시 저장된 비번/PAT 로 현재 권한 레벨 계산
   useEffect(() => { currentLevel().then(setAuthLevel) }, [setAuthLevel])
 
