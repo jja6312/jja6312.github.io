@@ -8,6 +8,7 @@ export const activityDay = (date = new Date()) =>
 
 const UI_SCALE_MIN = 0.85
 const UI_SCALE_MAX = 1.6
+const HUB_STORAGE_VERSION = 1
 
 interface HubState {
   theme: 'dark' | 'light'
@@ -193,6 +194,17 @@ export const useHub = create<HubState>()(
     }),
     {
       name: 'hub-state-v1',
+      version: HUB_STORAGE_VERSION,
+      migrate: persistedState => {
+        if (!persistedState || typeof persistedState !== 'object') return persistedState as HubState
+        const state = persistedState as Partial<HubState>
+        return {
+          ...state,
+          comments: Array.isArray(state.comments)
+            ? state.comments.filter(comment => comment?.kind !== 'note')
+            : [],
+        } as HubState
+      },
       partialize: (s) => ({
         xp: s.xp, level: s.level, totalXp: s.totalXp, streak: s.streak,
         steps: s.steps, results: s.results, answers: s.answers,
