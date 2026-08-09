@@ -73,13 +73,7 @@ export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
     timer.current = setTimeout(save, 3000)
   }, [pat, save])
 
-  // 수동 즉시 저장 — 3초 debounce 를 건너뛰고 바로 commit
-  const saveNow = useCallback(() => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null }
-    return save()
-  }, [save])
-
-  return { data, update, sync, writable: !!pat, saveNow }
+  return { data, update, sync, writable: !!pat }
 }
 
 /* ── 목표 ────────────────────────────────────────────── */

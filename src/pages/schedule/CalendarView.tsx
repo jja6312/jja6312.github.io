@@ -10,7 +10,7 @@ const iso = (y: number, m: number, d: number) =>
 const WEEK = ['일', '월', '화', '수', '목', '금', '토']
 
 export default function CalendarView() {
-  const { data, update, sync, writable, saveNow } = useSyncedJson<CalData>('profile/calendar.json', {} as CalData, 'profile: 달력 갱신')
+  const { data, update, sync, writable } = useSyncedJson<CalData>('profile/calendar.json', {} as CalData, 'profile: 달력 갱신')
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, '').data
   const goalOf = (id?: string) => goals.find(g => g.id === id)
@@ -72,7 +72,6 @@ export default function CalendarView() {
     <div>
       <div className="sched-head">
         <h1 className="sheet-h1">월간일정</h1>
-        {writable && <button className="sched-save" onClick={() => saveNow()} disabled={sync === 'saving'}>저장</button>}
         <span className="px sched-sync">{SYNC_LABEL[sync]}</span>
       </div>
       <p className="prof-desc">

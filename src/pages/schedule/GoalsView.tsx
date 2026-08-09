@@ -10,7 +10,7 @@ const ddayLabel = (n: number) => n > 0 ? `D-${n}` : n === 0 ? 'D-DAY' : `D+${-n}
 
 export default function GoalsView() {
   const rewardActivity = useHub(state => state.rewardActivity)
-  const { data, update, sync, writable, saveNow } = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, 'goals: 목표 갱신')
+  const { data, update, sync, writable } = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, 'goals: 목표 갱신')
   // 진척 집계용 — 읽기 전용 로드
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, '').data
   const cal = useSyncedJson<CalData>('profile/calendar.json', {} as CalData, '').data
@@ -56,7 +56,6 @@ export default function GoalsView() {
     <div>
       <div className="sched-head">
         <h1 className="sheet-h1">목표</h1>
-        {writable && <button className="sched-save" onClick={() => saveNow()} disabled={sync === 'saving'}>저장</button>}
         <span className="px sched-sync">{SYNC_LABEL[sync]}</span>
       </div>
       <p className="prof-desc">
