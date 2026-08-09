@@ -10,6 +10,40 @@ export const PROFILE = {
   github: 'https://github.com/jja6312',
 }
 
+// 오픈소스 기여이력 — 메인 레포 정식 머지분만. (링크는 실제 검증된 URL)
+export interface Contribution {
+  project: string
+  repo: string
+  ref: string             // PR #1057 · Merged / change 961895 · Merged
+  kind: string            // Feature / Documentation
+  title: string           // PR·change 제목 (verbatim)
+  summary: string
+  date: string
+  url: string
+}
+export const CONTRIBUTIONS: Contribution[] = [
+  {
+    project: 'Oracle OCI CLI',
+    repo: 'oracle/oci-cli',
+    ref: 'PR #1057 · Merged',
+    kind: 'Feature',
+    title: 'fix: suggest true/false completions for BOOLEAN params in interactive mode',
+    summary: '인터랙티브 모드(oci -i)에서 BOOLEAN 옵션의 Tab 자동완성이 되지 않던 버그를 수정. BOOLEAN 타입을 식별해 true/false 후보를 제안하도록 구현하여 Oracle 메인테이너 정식 머지(OCA Verified).',
+    date: '2026.05',
+    url: 'https://github.com/oracle/oci-cli/pull/1057',
+  },
+  {
+    project: 'OpenStack · openstacksdk',
+    repo: 'openstack/openstacksdk',
+    ref: 'change 961895 · Merged',
+    kind: 'Documentation',
+    title: 'image: Fix docstring typo',
+    summary: 'image(glance) 모듈 docstring 오탈자 수정. Gerrit 리뷰를 거쳐 openstacksdk 4.11.0 릴리스에 반영.',
+    date: '2025',
+    url: 'https://review.opendev.org/c/openstack/openstacksdk/+/961895',
+  },
+]
+
 export interface Cert {
   name: string
   issued: string          // YYYY.MM

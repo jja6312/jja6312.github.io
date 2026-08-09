@@ -762,17 +762,18 @@ select.cli-input { cursor: pointer; }
 .prof-h2 { font-size: 20px; font-weight: 700; letter-spacing: -.2px; }
 .prof-h3 { font-size: 15px; font-weight: 700; margin: 24px 0 12px; color: var(--text); }
 .prof-desc { font-size: 13.5px; color: var(--text-dim); margin: 6px 0 18px; line-height: 1.7; }
-.activity-achievement { background: var(--bg-card); border: 1px solid var(--accent-dim); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); }
-.activity-achievement .prof-h2-row .chip { margin-left: auto; }
-.activity-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
-.activity-stat { background: var(--bg-inset); border: 1px solid var(--line-soft); border-radius: 11px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
-.activity-stat span { color: var(--text-faint); font-size: 9.5px; }
-.activity-stat b { color: var(--text); font-size: 17px; }
-.activity-level-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 15px; color: var(--accent); font-size: 10px; }
-.activity-level-bar { height: 8px; overflow: hidden; background: var(--bg-inset); border: 1px solid var(--line-soft); border-radius: 99px; }
-.activity-level-bar div { height: 100%; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); border-radius: inherit; transition: width .3s ease-out; }
-.activity-xp-guide { margin: 12px 0 0; color: var(--text-faint); font-size: 11.5px; text-align: center; }
-@media (max-width: 620px) { .activity-stat-grid { grid-template-columns: repeat(2, 1fr); } }
+/* 기여이력 */
+.contrib-list { display: flex; flex-direction: column; gap: 12px; }
+.contrib-card { display: block; background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
+.contrib-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.contrib-top { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 7px; }
+.contrib-project { font-size: 15px; color: var(--text); }
+.contrib-ref { margin-left: auto; color: var(--accent); font-size: 10.5px; white-space: nowrap; }
+.contrib-title { font-size: 12.5px; color: var(--pixel); word-break: break-word; }
+.contrib-summary { margin: 8px 0 10px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+.contrib-meta { display: flex; align-items: center; gap: 10px; }
+.contrib-meta code { font-size: 11px; color: var(--text-faint); }
+.contrib-meta .px { margin-left: auto; color: var(--text-faint); font-size: 10.5px; }
 
 /* 로드맵 */
 .road { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
