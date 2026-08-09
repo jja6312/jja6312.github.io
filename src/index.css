@@ -403,15 +403,17 @@ body.cmt-open .chatbar { left: calc(50% - 160px); }
 .notion-mode-tabs { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg-inset); }
 .notion-mode-tabs button.on { color: var(--accent); background: var(--bg-card); box-shadow: 0 1px 3px rgba(0, 0, 0, .14); }
 .notion-workspace {
-  min-height: 0; flex: 1; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+  min-height: 0; flex: 1; overflow: hidden;
   background: var(--bg-soft);
 }
 .notion-page-wrap, .notion-markdown-wrap {
-  position: relative; width: 100%; min-height: 100%; margin: 0;
+  position: relative; width: 100%; height: 100%; min-height: 0; margin: 0;
   border: 0; border-radius: 0; background: var(--bg); box-shadow: none;
 }
 .notion-editor {
-  min-height: 100%; padding: 54px 72px 110px; outline: 0;
+  width: 100%; height: 100%; min-height: 0; overflow-x: hidden; overflow-y: auto;
+  overscroll-behavior: contain; scrollbar-gutter: stable; touch-action: pan-y; -webkit-overflow-scrolling: touch;
+  padding: 54px 72px 110px; outline: 0;
   color: var(--text); font-size: var(--note-font-size, 15px); line-height: 1.8; overflow-wrap: anywhere;
 }
 .notion-editor:empty::before { content: attr(data-placeholder); color: var(--text-faint); pointer-events: none; }
@@ -440,7 +442,7 @@ body.cmt-open .chatbar { left: calc(50% - 160px); }
 .notion-slash-menu button:hover { background: var(--bg-inset); }
 .notion-slash-menu strong { font-size: 12px; }
 .notion-slash-menu span { color: var(--text-faint); font-size: 10.5px; }
-.notion-markdown-wrap { height: 100%; min-height: 0; overflow: hidden; }
+.notion-markdown-wrap { overflow: hidden; }
 .notion-markdown-editor {
   display: block; width: 100%; height: 100%; min-height: 0; overflow: auto; resize: none; border: 0; outline: 0;
   padding: 38px 46px 100px; color: var(--text); background: var(--code-bg); caret-color: var(--accent);
@@ -453,8 +455,8 @@ body.cmt-open .chatbar { left: calc(50% - 160px); }
   .notion-slash-hint { display: none; }
   .notion-image-status { margin-left: auto; }
   .notion-mode-tabs { margin-left: auto; }
-  .notion-page-wrap, .notion-markdown-wrap { width: 100%; min-height: 100%; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
-  .notion-editor { min-height: 100%; padding: 30px 20px 90px; }
+  .notion-page-wrap, .notion-markdown-wrap { width: 100%; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+  .notion-editor { padding: 30px 20px 90px; }
   .notion-slash-menu { top: 66px; left: 14px; width: calc(100% - 28px); }
   .notion-markdown-editor { padding: 24px 18px 80px; }
 }
