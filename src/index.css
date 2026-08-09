@@ -320,7 +320,8 @@ body.cmt-open .chatbar { left: calc(50% - 160px); }
 /* 전체화면 학습 마크다운 메모 */
 .learning-note {
   position: fixed; inset: 0; z-index: 140; display: flex; flex-direction: column;
-  width: 100vw; height: 100dvh; color: var(--text); background: var(--bg);
+  width: 100vw; height: 100vh; height: 100dvh; max-height: 100vh; max-height: 100dvh;
+  color: var(--text); background: var(--bg);
   animation: note-in .16s ease-out;
 }
 .learning-note-invalid { min-height: 100dvh; display: grid; place-items: center; padding: 24px; color: var(--text-dim); background: var(--bg); }

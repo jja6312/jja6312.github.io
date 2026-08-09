@@ -234,6 +234,39 @@ export default function LearningNoteModal({ sheetTitle, initialText, onSave, onC
     }
   }
 
+  // 닫는 백틱을 치면 `...` 를 <code> 인라인 코드로 감싼다
+  const wrapInlineCode = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== '`' || event.ctrlKey || event.metaKey || event.altKey) return false
+    const editor = editorRef.current
+    const selection = window.getSelection()
+    const node = selection?.anchorNode
+    const offset = selection?.anchorOffset ?? 0
+    if (!editor || !selection || !node || node.nodeType !== Node.TEXT_NODE || !editor.contains(node)) return false
+    const before = node.textContent?.slice(0, offset) ?? ''
+    const openIdx = before.lastIndexOf('`')
+    if (openIdx < 0 || offset - openIdx < 2) return false        // 여는 백틱 + 최소 1글자 필요
+    const codeText = before.slice(openIdx + 1, offset)
+    if (!codeText.trim()) return false
+
+    event.preventDefault()
+    const range = document.createRange()
+    range.setStart(node, openIdx)
+    range.setEnd(node, offset)
+    range.deleteContents()
+    const code = document.createElement('code')
+    code.textContent = codeText
+    range.insertNode(code)
+    const tail = document.createTextNode(String.fromCharCode(0x200B))           // 코드 밖에서 이어서 입력되도록
+    code.after(tail)
+    const caret = document.createRange()
+    caret.setStart(tail, tail.length)
+    caret.collapse(true)
+    selection.removeAllRanges()
+    selection.addRange(caret)
+    syncFromEditor()
+    return true
+  }
+
   const applyMarkdownShortcut = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== ' ' || event.ctrlKey || event.metaKey || event.altKey) return false
     const editor = editorRef.current
@@ -242,7 +275,9 @@ export default function LearningNoteModal({ sheetTitle, initialText, onSave, onC
     const offset = selection?.anchorOffset ?? 0
     if (!editor || !selection || !node || node.nodeType !== Node.TEXT_NODE || !editor.contains(node)) return false
     const prefix = node.textContent?.slice(0, offset) ?? ''
-    const isList = prefix === '-' || prefix === '*'
+    const isBullet = prefix === '-' || prefix === '*'
+    const isOrdered = /^\d+\.$/.test(prefix)   // "1." → 번호 목록
+    const isList = isBullet || isOrdered
     const isHeading = /^#{1,3}$/.test(prefix)
     if (!isList && !isHeading) return false
 
@@ -255,7 +290,7 @@ export default function LearningNoteModal({ sheetTitle, initialText, onSave, onC
     const nextSibling = isDirectText ? node.nextSibling : block?.nextSibling ?? null
     const marker = document.createTextNode('\uFEFF')
     const replacement = isList
-      ? document.createElement('ul')
+      ? document.createElement(isOrdered ? 'ol' : 'ul')
       : document.createElement(`h${prefix.length}`)
     const caretHost = isList ? document.createElement('li') : replacement
     caretHost.append(marker)
@@ -436,6 +471,7 @@ export default function LearningNoteModal({ sheetTitle, initialText, onSave, onC
                 }, 0)
               }}
               onKeyDown={event => {
+                if (wrapInlineCode(event)) return
                 if (applyMarkdownShortcut(event)) return
                 if (event.key === 'Escape' && slashOpen) {
                   event.preventDefault()
