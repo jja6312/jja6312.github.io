@@ -44,7 +44,7 @@ export function HelpOverlay() {
         <div className="krow"><span>현재 학습 마크다운 메모</span><span><kbd>g</kbd> <kbd>g</kbd></span></div>
         <div className="krow"><span>커맨드 팔레트</span><span><kbd>Ctrl</kbd> <kbd>K</kbd></span></div>
         <div className="krow"><span>다크/라이트 토글</span><kbd>d</kbd></div>
-        <div className="krow"><span>댓글 패널 토글</span><kbd>c</kbd></div>
+        <div className="krow"><span>댓글 패널 토글</span><kbd>b</kbd></div>
         <div className="krow"><span>다음/이전 단계</span><span><kbd>j</kbd> <kbd>k</kbd></span></div>
         <div className="krow"><span>이 가이드 열기·닫기</span><span><kbd>?</kbd> <kbd>Esc</kbd></span></div>
       </div>

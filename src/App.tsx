@@ -65,8 +65,10 @@ function Hotkeys() {
       }
       // target 이 Element 가 아닐 수 있음(window 등) — matches 가 없으면 입력창이 아니라고 본다
       const target = e.target as HTMLElement | null
-      if (target?.matches?.('input,textarea,select')) return
+      if (target?.matches?.('input,textarea,select') || target?.isContentEditable) return
       if (s.paletteOpen) return
+      // Ctrl/Cmd/Alt 조합(Ctrl+C 복사 등)은 단축키로 가로채지 않는다 — Ctrl+K 는 위에서 이미 처리
+      if (e.ctrlKey || e.metaKey || e.altKey) return
 
       if (gPending.current) {
         gPending.current = false
@@ -98,7 +100,7 @@ function Hotkeys() {
       }
       if (e.key === 'g') { gPending.current = true; setTimeout(() => { gPending.current = false }, 800); return }
       if (e.key === 'd') s.toggleTheme()
-      else if (e.key === 'c') s.setCmtOpen(!s.cmtOpen)
+      else if (e.key === 'b') s.setCmtOpen(!s.cmtOpen)
       else if (e.key === '?') s.setHelpOpen(!s.helpOpen)
       else if (e.key === 'Escape') { s.setHelpOpen(false); s.setPaletteOpen(false) }
       else if (e.key === 'j' || e.key === 'k') {
