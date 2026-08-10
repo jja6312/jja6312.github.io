@@ -1,4 +1,4 @@
-import { PROFILE, CERT_GROUPS, CONTRIBUTIONS } from '../data/profile'
+import { PROFILE, CAREER, PROFILE_HIGHLIGHTS, SKILL_SCOPES, EDUCATION, CERT_GROUPS, CONTRIBUTIONS } from '../data/profile'
 
 /* 근속 자동계산 — 입사일 기준 오늘까지. "N년 M개월 (D일)" */
 function tenure(hireDate: string): string {
@@ -72,6 +72,93 @@ function Contributions() {
   )
 }
 
+function Career() {
+  return (
+    <section className="prof-sec">
+      <div className="prof-h2-row">
+        <h2 className="prof-h2">경력</h2>
+        <span className="chip goal">검증된 사실 기준</span>
+      </div>
+      <p className="prof-desc">직함보다 실제로 맡은 범위와 결과를 적었습니다.</p>
+      <div className="career-list">
+        {CAREER.map(item => (
+          <article className="career-card" key={`${item.company}-${item.period}`}>
+            <div className="career-head">
+              <div>
+                <h3>{item.company}</h3>
+                <div className="career-role">{item.role}</div>
+              </div>
+              <span className="px career-period">{item.period}</span>
+            </div>
+            <p>{item.summary}</p>
+            <ul>{item.bullets.map(bullet => <li key={bullet}>{bullet}</li>)}</ul>
+            <div className="prof-tags">{item.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Highlights() {
+  return (
+    <section className="prof-sec">
+      <div className="prof-h2-row">
+        <h2 className="prof-h2">주요 경험</h2>
+        <span className="chip goal">{PROFILE_HIGHLIGHTS.length}개</span>
+      </div>
+      <p className="prof-desc">문제를 발견하고, 판단하고, 결과를 만든 흐름으로 정리했습니다.</p>
+      <div className="highlight-list">
+        {PROFILE_HIGHLIGHTS.map(item => (
+          <article className="highlight-card" key={item.title}>
+            <h3>{item.title}</h3>
+            <dl>
+              <div><dt>상황</dt><dd>{item.context}</dd></div>
+              <div><dt>행동</dt><dd>{item.action}</dd></div>
+              <div><dt>결과</dt><dd>{item.result}</dd></div>
+            </dl>
+            <div className="prof-tags">{item.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Skills() {
+  return (
+    <section className="prof-sec">
+      <h2 className="prof-h2">기술 범위</h2>
+      <p className="prof-desc">실무 경험과 학습 중인 기술을 섞지 않았습니다.</p>
+      <div className="skill-scope-grid">
+        {SKILL_SCOPES.map(scope => (
+          <article className="skill-scope-card" key={scope.label}>
+            <h3>{scope.label}</h3>
+            <p>{scope.description}</p>
+            <ul>{scope.items.map(item => <li key={item}>{item}</li>)}</ul>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Education() {
+  return (
+    <section className="prof-sec">
+      <h2 className="prof-h2">학력·교육</h2>
+      <div className="education-list">
+        {EDUCATION.map(item => (
+          <article key={item.name}>
+            <div><b>{item.name}</b><span className="px">{item.period}</span></div>
+            <p>{item.note}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default function ProfilePage() {
   const since = PROFILE.hireDate.replace(/-/g, '.')
   return (
@@ -82,10 +169,15 @@ export default function ProfilePage() {
         <div className="prof-role">{PROFILE.role}</div>
         <div className="prof-sub">{PROFILE.company} · {since} 입사 · OCI {tenure(PROFILE.hireDate)}</div>
         <p className="prof-tag">{PROFILE.tagline}</p>
+        <p className="prof-summary">{PROFILE.summary}</p>
         <a className="prof-gh" href={PROFILE.github} target="_blank" rel="noreferrer">{PROFILE.github.replace('https://', '')}</a>
       </header>
 
+      <Career />
+      <Highlights />
+      <Skills />
       <Contributions />
+      <Education />
       <Certs />
     </div>
   )
