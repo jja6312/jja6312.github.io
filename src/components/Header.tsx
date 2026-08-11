@@ -23,6 +23,7 @@ const tabs: Tab[] = [
       { to: '/knowledge/oci-cli', label: 'OCI CLI' },
       { to: '/knowledge/terraform', label: 'Terraform' },
       { to: '/knowledge/troubleshooting', label: '트러블슈팅' },
+      { to: '/knowledge/support-history', label: '지원이력' },
       { to: '/knowledge/quote', label: '견적' },
       { to: '/knowledge/provisioning', label: '프로비저닝 관리' },
       { to: '/knowledge/meetings', label: '회의록' },

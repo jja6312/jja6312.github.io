@@ -83,6 +83,13 @@ for (const level of [1, 2, 3]) {
   if (level >= 2 && !Object.hasOwn(bundle.schedule.goals, 'longTermGoal')) throw new Error(`L${level} 장기 목표 필드 누락`)
   if ((level >= 3) !== !!bundle.meetings) throw new Error(`L${level} meetings 범위 오류`)
   if ((level >= 3) !== !!bundle.provisioning) throw new Error(`L${level} provisioning 범위 오류`)
+  if ((level >= 3) !== !!bundle.supportHistory) throw new Error(`L${level} 지원이력 범위 오류`)
+  if (level >= 3) {
+    const fssCase = bundle.supportHistory.find(item => item.id === 'support-2026-08-11-fss-snapshot-backup')
+    if (!fssCase || fssCase.validation?.samples !== 882 || fssCase.validation?.failures !== 0) {
+      throw new Error(`L${level} FSS 지원이력 또는 검증 수치 누락`)
+    }
+  }
   console.log(`L${level} 복호화 OK · payload ${Object.keys(keys).length}개`)
 }
 

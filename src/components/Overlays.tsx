@@ -32,6 +32,7 @@ export function HelpOverlay() {
         <div className="krow"><span>피드백</span><span><kbd>g</kbd> <kbd>f</kbd></span></div>
         <div className="krow"><span>지식모음</span><span><kbd>g</kbd> <kbd>k</kbd></span></div>
         <div className="krow"><span>지식모음 — 트러블슈팅</span><span><kbd>g</kbd> <kbd>s</kbd></span></div>
+        <div className="krow"><span>지식모음 — 지원이력</span><span><kbd>g</kbd> <kbd>h</kbd></span></div>
         <div className="krow"><span>지식모음 — Announcement</span><span><kbd>g</kbd> <kbd>a</kbd></span></div>
         <div className="krow"><span>지식모음 — OCI CLI</span><span><kbd>g</kbd> <kbd>c</kbd></span></div>
         <div className="krow"><span>지식모음 — Terraform</span><span><kbd>g</kbd> <kbd>t</kbd></span></div>

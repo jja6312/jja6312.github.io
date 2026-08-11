@@ -4,6 +4,39 @@ import { getStoredPw, type Level } from './auth'
 import { useHub } from '../store'
 
 export interface ProtectedDoc { name: string; content: string }
+export interface SupportHistoryCase {
+  id: string
+  date: string
+  time?: string
+  customer: string
+  contact?: string
+  engineer: string
+  channel: string
+  status: string
+  title: string
+  summary: string
+  services: string[]
+  tags: string[]
+  request: string
+  conclusion: string[]
+  validation: {
+    environment: string
+    method: string
+    workload: string
+    samples: number
+    successes: number
+    failures: number
+    durationSeconds: number
+    latencyMs: { min: number; average: number; p50: number; p95: number; p99: number; max: number }
+    kernelObservation: string
+    result: string
+  }
+  cautions: string[]
+  evidence: { name: string; type: string; finding: string }[]
+  reusableChecklist: string[]
+  references: { label: string; url: string }[]
+  source: { mailbox: string; subject: string; sentAt: string; attachmentCount: number; privacy: string }
+}
 export interface ProtectedBundle {
   cliCatalog?: unknown
   cliVerified?: string[]
@@ -21,6 +54,7 @@ export interface ProtectedBundle {
     snapshots: ProtectedDoc[]
   }
   provisioning?: unknown
+  supportHistory?: SupportHistoryCase[]
 }
 
 interface ProtectedFile {

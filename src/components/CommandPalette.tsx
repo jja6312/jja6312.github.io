@@ -24,6 +24,7 @@ export default function CommandPalette() {
     { id: 'sched-todo', label: '일정관리 — TODO LIST', run: () => nav('/schedule/todo') },
     { id: 'sched-goals', label: '일정관리 — 목표', run: () => nav('/schedule/goals') },
     { id: 'ts', label: '지식모음 — 트러블슈팅', kbd: 'g s', run: () => nav('/knowledge/troubleshooting') },
+    { id: 'support-history', label: '지식모음 — 지원이력', kbd: 'g h', run: () => nav('/knowledge/support-history') },
     { id: 'ann', label: '지식모음 — Announcement', kbd: 'g a', run: () => nav('/knowledge/announcements') },
     { id: 'cli', label: '지식모음 — OCI CLI 레시피', kbd: 'g c', run: () => nav('/knowledge/oci-cli') },
     { id: 'tf', label: '지식모음 — Terraform', kbd: 'g t', run: () => nav('/knowledge/terraform') },

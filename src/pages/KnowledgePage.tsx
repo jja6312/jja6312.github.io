@@ -6,6 +6,7 @@ import CliBuilderPage from './CliBuilderPage'
 import QuotePage from './QuotePage'
 import MeetingsPage from './MeetingsPage'
 import ProvisioningPage from './ProvisioningPage'
+import SupportHistoryPage from './SupportHistoryPage'
 import Locks from '../components/Locks'
 import LockedNotice from '../components/LockedNotice'
 import { requiredLevel } from '../lib/auth'
@@ -16,6 +17,7 @@ const SECTIONS = [
   { id: 'oci-cli', label: 'OCI CLI', kbd: 'g c' },
   { id: 'terraform', label: 'Terraform', kbd: 'g t' },
   { id: 'troubleshooting', label: '트러블슈팅', kbd: 'g s' },
+  { id: 'support-history', label: '지원이력', kbd: 'g h', locked: true },
   { id: 'quote', label: '견적', kbd: 'g q', locked: true },
   { id: 'provisioning', label: '프로비저닝 관리', kbd: 'g v', locked: true },
   { id: 'meetings', label: '회의록', kbd: 'g m', locked: true },
@@ -50,6 +52,7 @@ export default function KnowledgePage() {
         </div>
       ) : <>
         {active === 'troubleshooting' && <TroubleshootingPage />}
+        {active === 'support-history' && <SupportHistoryPage />}
         {active === 'announcements' && <AnnouncementsPage />}
         {active === 'oci-cli' && <CliBuilderPage />}
         {active === 'terraform' && (
