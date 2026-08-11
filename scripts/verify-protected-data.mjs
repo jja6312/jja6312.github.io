@@ -101,26 +101,31 @@ for (const level of [1, 2, 3]) {
       throw new Error(`L${level} MySQL Backup optional field marked required: ${name}`)
     }
   }
-  const accountCategory = bundle.cliCatalog.categories.find(category => category.id === '01-account')
-  const subscriptionGroup = accountCategory?.groups.find(group => group.label === 'Subscriptions')
-  if (!subscriptionGroup?.resources.includes('subscription-balance')) {
-    throw new Error(`L${level} Subscription Balance menu missing`)
+  const governanceCategory = bundle.cliCatalog.categories.find(category => category.id === '07-governance')
+  const accountManagementGroup = governanceCategory?.groups.find(group => group.label === 'Account Management')
+  if (JSON.stringify(accountManagementGroup?.resources) !== JSON.stringify(['announcement'])) {
+    throw new Error(`L${level} Governance & Administration > Account Management menu invalid`)
+  }
+  const billingCategory = bundle.cliCatalog.categories.find(category => category.id === '08-billing')
+  const billingGroup = billingCategory?.groups.find(group => group.label === 'Billing')
+  if (JSON.stringify(billingGroup?.resources) !== JSON.stringify(['subscription-list', 'subscription-balance'])) {
+    throw new Error(`L${level} Billing & Cost Management > Billing menu invalid`)
   }
   const subscriptionBalance = bundle.cliCatalog.commands['subscription-balance']
-  if (subscriptionBalance?.preferredOperation !== 'list' || subscriptionBalance?.disableDynamic !== true) {
+  if (subscriptionBalance?.preferredOperation !== 'list' || subscriptionBalance?.rootTenancyLookup !== true) {
     throw new Error(`L${level} Subscription Balance default operation metadata invalid`)
   }
   if (JSON.stringify(Object.keys(subscriptionBalance.operations ?? {}).sort()) !== JSON.stringify(['list'])) {
     throw new Error(`L${level} Subscription Balance must expose LIST only`)
   }
-  const subscriptionList = subscriptionBalance.operations.list
-  if (subscriptionList.cmd !== 'oci onesubscription subscribed-service subscribed-service list') {
+  const balanceList = subscriptionBalance.operations.list
+  if (balanceList.cmd !== 'oci onesubscription subscribed-service subscribed-service list') {
     throw new Error(`L${level} Subscription Balance LIST command invalid`)
   }
-  if (JSON.stringify(requiredNames(subscriptionList)) !== JSON.stringify(['--compartment-id', '--subscription-id'])) {
+  if (JSON.stringify(requiredNames(balanceList)) !== JSON.stringify(['--compartment-id', '--subscription-id'])) {
     throw new Error(`L${level} Subscription Balance required fields invalid`)
   }
-  const subscriptionOptions = subscriptionList.sections.flatMap(section => section.options)
+  const subscriptionOptions = balanceList.sections.flatMap(section => section.options)
   const subscriptionOption = name => subscriptionOptions.find(option => option.name === name)
   if (!subscriptionOption('--all')?.flag || subscriptionOption('--all')?.defaultValue !== 'true'
     || subscriptionOption('--output')?.defaultValue !== 'table') {
@@ -131,14 +136,28 @@ for (const level of [1, 2, 3]) {
     if (!subscriptionQuery.includes(field)) throw new Error(`L${level} Subscription Balance query missing ${field}`)
   }
 
-  const announcementGroup = bundle.cliCatalog.categories
-    .flatMap(category => category.groups)
-    .find(group => group.label === 'Announcements')
-  if (!announcementGroup?.resources.includes('announcement')) {
-    throw new Error(`L${level} Announcements menu missing`)
+  const subscriptionList = bundle.cliCatalog.commands['subscription-list']
+  if (subscriptionList?.preferredOperation !== 'list' || subscriptionList?.rootTenancyLookup !== true
+    || JSON.stringify(Object.keys(subscriptionList.operations ?? {})) !== JSON.stringify(['list'])) {
+    throw new Error(`L${level} Subscription LIST metadata invalid`)
   }
+  if (subscriptionList.operations.list.cmd !== 'oci onesubscription organization-subscription organization-subscription list'
+    || JSON.stringify(requiredNames(subscriptionList.operations.list)) !== JSON.stringify(['--compartment-id'])) {
+    throw new Error(`L${level} Subscription LIST command or required fields invalid`)
+  }
+  const subscriptionListOptions = subscriptionList.operations.list.sections.flatMap(section => section.options)
+  const subscriptionListOption = name => subscriptionListOptions.find(option => option.name === name)
+  if (!subscriptionListOption('--all')?.flag || subscriptionListOption('--all')?.defaultValue !== 'true'
+    || subscriptionListOption('--output')?.defaultValue !== 'table') {
+    throw new Error(`L${level} Subscription LIST result defaults invalid`)
+  }
+  const listQuery = subscriptionListOption('--query')?.defaultValue ?? ''
+  for (const field of ['service-name', 'total-value', 'iso-code', 'time-start', 'time-end']) {
+    if (!listQuery.includes(field)) throw new Error(`L${level} Subscription LIST query missing ${field}`)
+  }
+
   const announcement = bundle.cliCatalog.commands.announcement
-  if (announcement?.preferredOperation !== 'list' || announcement?.disableDynamic !== true) {
+  if (announcement?.preferredOperation !== 'list' || announcement?.rootTenancyLookup !== true) {
     throw new Error(`L${level} Announcements default operation metadata invalid`)
   }
   if (JSON.stringify(Object.keys(announcement.operations ?? {}).sort()) !== JSON.stringify(['get', 'list'])) {
@@ -161,6 +180,16 @@ for (const level of [1, 2, 3]) {
   const announcementQuery = announcementOption('--query')?.defaultValue ?? ''
   for (const field of ['reference-ticket-number', 'announcement-type', 'affected-regions', 'time-one-value']) {
     if (!announcementQuery.includes(field)) throw new Error(`L${level} Announcements query missing ${field}`)
+  }
+  const allBalances = bundle.cliCatalog.commands['all-subscription-balances']
+  if (!allBalances?.allSubscriptionBalances
+    || allBalances.cmd !== 'oci onesubscription organization-subscription organization-subscription list') {
+    throw new Error(`L${level} all Subscription balances custom CLI missing`)
+  }
+  const allBalanceOptions = allBalances.sections.flatMap(section => section.options)
+  if (allBalanceOptions.find(option => option.name === '--profile')?.defaultValue !== 'DEFAULT'
+    || allBalanceOptions.find(option => option.name === '--region')?.defaultValue !== 'ap-seoul-1') {
+    throw new Error(`L${level} all Subscription balances execution defaults invalid`)
   }
   const cleanup = bundle.cliCatalog.commands['compartment-resource-cleansing']
   if (!cleanup?.compartmentCleanup) throw new Error(`L${level} compartment cleansing 메뉴 누락`)
@@ -195,6 +224,12 @@ for (const level of [1, 2, 3]) {
       throw new Error(`L${level} FSS 지원이력 또는 검증 수치 누락`)
     }
   }
+  for (const legacy of ['instance-maintenance-reboot', 'mysql', 'mysql-backup']) {
+    if (bundle.cliVerified.includes(legacy)) throw new Error(`L${level} legacy resource-level verification remains: ${legacy}`)
+  }
+  for (const operationKey of ['instance-maintenance-reboot:get', 'mysql:get', 'mysql-backup:create']) {
+    if (!bundle.cliVerified.includes(operationKey)) throw new Error(`L${level} CRUD verification migration missing: ${operationKey}`)
+  }
   console.log(`L${level} 복호화 OK · payload ${Object.keys(keys).length}개`)
 }
 
@@ -207,6 +242,20 @@ if (!cliBuilder.includes('oci bv boot-volume-backup create')) throw new Error('b
 if (!cliBuilder.includes('oci mysql backup create')) throw new Error('MySQL manual backup create missing')
 if (!cliBuilder.includes('command.preferredOperation')) throw new Error('preferred CRUD operation selection missing')
 if (!cliBuilder.includes('cmd?.disableDynamic')) throw new Error('direct tenancy input mode missing')
+if (!cliBuilder.includes('cmd.rootTenancyLookup')
+  || !cliBuilder.includes('function buildRootTenancyLookup')) {
+  throw new Error('profile-based root tenancy lookup missing')
+}
+if (!cliBuilder.includes('function buildAllSubscriptionBalances')
+  || !cliBuilder.includes('allSubscriptionBalances) return buildAllSubscriptionBalances')) {
+  throw new Error('all Subscription balances custom builder not connected')
+}
+if (!cliBuilder.includes('Custom CLI') || !cliBuilder.includes('setCustomOpen(open => !open)')) {
+  throw new Error('Custom CLI accordion missing')
+}
+if (!cliBuilder.includes('`${r}:${operation}`') || !cliBuilder.includes('isOperationVerified(active, operation.verb)')) {
+  throw new Error('CRUD-level verification controls missing')
+}
 if (!cliBuilder.includes('function buildMysqlBackupCreate')
   || !cliBuilder.includes("cmd.resource === 'mysql-backup' && operation === 'create'")) {
   throw new Error('MySQL Backup CREATE builder not connected to the Backup resource')
@@ -293,3 +342,34 @@ if (!context.dynamicGetScript.includes('oci mysql db-system list')
   || !context.dynamicGetScript.includes('DB_SYSTEM_COUNT')) {
   throw new Error('MySQL DB System GET name/OCID selection mode invalid')
 }
+
+const allBalancesStart = cliBuilder.indexOf('function buildAllSubscriptionBalances')
+const allBalancesEnd = cliBuilder.indexOf('\nfunction buildCli', allBalancesStart)
+if (allBalancesStart < 0 || allBalancesEnd < 0) throw new Error('all Subscription balances builder extraction failed')
+const allBalancesContext = {}
+vm.runInNewContext(ts.transpileModule(`
+${cliBuilder.slice(allBalancesStart, allBalancesEnd)}
+globalThis.script = buildAllSubscriptionBalances({'--profile': 'FINOPS', '--region': 'ap-seoul-1'})
+globalThis.rootScript = buildRootTenancyLookup({'--profile': 'FINOPS', '--region': 'ap-seoul-1'})
+`, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+}).outputText, allBalancesContext)
+const allBalancesScript = allBalancesContext.script
+for (const expected of [
+  'oci iam availability-domain list',
+  'oci onesubscription organization-subscription organization-subscription list',
+  'oci onesubscription subscribed-service subscribed-service list',
+  '"funded-allocation-value"', '"used-amount"', '"available-amount"',
+]) {
+  if (!allBalancesScript.includes(expected)) throw new Error(`all Subscription balances script missing: ${expected}`)
+}
+const allBalancesSyntax = spawnSync('C:\\Program Files\\Git\\bin\\bash.exe', ['-n'], { input: allBalancesScript, encoding: 'utf8' })
+if (allBalancesSyntax.status !== 0) throw new Error(`all Subscription balances bash syntax invalid: ${allBalancesSyntax.stderr}`)
+for (const expected of [
+  "PROFILE='FINOPS'", "REGION='ap-seoul-1'", 'oci iam availability-domain list',
+  '--query \'data[0]."compartment-id"\' --raw-output', '[[ "$TENANCY_ID" == ocid1.tenancy.* ]]',
+]) {
+  if (!allBalancesContext.rootScript.includes(expected)) throw new Error(`root tenancy lookup script missing: ${expected}`)
+}
+const rootLookupSyntax = spawnSync('C:\\Program Files\\Git\\bin\\bash.exe', ['-n'], { input: allBalancesContext.rootScript, encoding: 'utf8' })
+if (rootLookupSyntax.status !== 0) throw new Error(`root tenancy lookup bash syntax invalid: ${rootLookupSyntax.stderr}`)

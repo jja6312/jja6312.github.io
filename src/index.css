@@ -630,6 +630,11 @@ kbd {
   border-color: var(--crud-color); box-shadow: 0 0 0 2px color-mix(in srgb, var(--crud-color) 18%, transparent);
 }
 .cli-crud-op.selected .cli-crud-icon { background: var(--crud-color); color: var(--bg); }
+.cli-crud-op.verified { border-color: #3b82f6; box-shadow: inset 0 0 0 1px color-mix(in srgb, #3b82f6 45%, transparent); }
+.cli-crud-verified {
+  display: inline-grid; place-items: center; width: 17px; height: 17px; flex: 0 0 auto;
+  border-radius: 99px; background: #3b82f6; color: white; font: 800 10px/1 Consolas, monospace;
+}
 .cli-crud-op:focus-visible { outline: 2px solid var(--crud-color); outline-offset: 2px; }
 .cli-crud-op:disabled { opacity: .28; cursor: not-allowed; filter: grayscale(.35); }
 .cli-crud-op:disabled .cli-crud-icon { background: transparent; border: 1px dashed var(--crud-color); }
@@ -1169,6 +1174,7 @@ select.cli-input { cursor: pointer; }
 .cli-verified { color: #3b82f6 !important; }
 .cli-navitem.verified { color: #3b82f6; }
 .cli-vmark { margin-left: 6px; font-size: 11px; color: #3b82f6; }
+.cli-custom-cat .cli-group { margin-top: 0; }
 .cli-verify { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-dim); margin: 12px 0 4px; cursor: pointer; }
 .cli-verify input { cursor: pointer; flex-shrink: 0; }
 

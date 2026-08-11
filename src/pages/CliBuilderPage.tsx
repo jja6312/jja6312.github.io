@@ -31,6 +31,8 @@ interface CliCommand {
   cmd: string; help: string
   preferredOperation?: CrudVerb
   disableDynamic?: boolean
+  rootTenancyLookup?: boolean
+  allSubscriptionBalances?: boolean
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
   maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
   compartmentCleanup?: boolean // scoped resource cleanup PREVIEW/DELETE script
@@ -734,10 +736,69 @@ function buildCompartmentCleanup(values: Record<string, string>): string {
   ].join('\n')
 }
 
+function buildAllSubscriptionBalances(values: Record<string, string>): string {
+  const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
+  const profile = (values['--profile'] || '').trim() || 'DEFAULT'
+  const region = (values['--region'] || '').trim() || 'ap-seoul-1'
+  return [
+    '#!/usr/bin/env bash',
+    '# 모든 Subscription의 계약액 및 서비스 라인별 잔액 조회',
+    'set -euo pipefail',
+    '',
+    `PROFILE=${q(profile)}`,
+    `REGION=${q(region)}`,
+    'CTX=(--profile "$PROFILE" --region "$REGION")',
+    '',
+    'command -v jq >/dev/null 2>&1 || { echo "[ERROR] jq가 필요합니다. OCI Cloud Shell에는 기본 설치되어 있습니다." >&2; exit 2; }',
+    'TENANCY_ID=$(oci iam availability-domain list \\',
+    '  --query \'data[0]."compartment-id"\' --raw-output "${CTX[@]}")',
+    'if [[ ! "$TENANCY_ID" =~ ^ocid1\\.tenancy\\. ]]; then',
+    '  echo "[ERROR] 프로필에서 테넌시 OCID를 확인하지 못했습니다: $TENANCY_ID" >&2',
+    '  exit 2',
+    'fi',
+    '',
+    'SUBSCRIPTIONS_JSON=$(oci onesubscription organization-subscription organization-subscription list \\',
+    '  --compartment-id "$TENANCY_ID" --all --output json "${CTX[@]}")',
+    'SUBSCRIPTION_COUNT=$(jq -r \'.data | length\' <<<"$SUBSCRIPTIONS_JSON")',
+    'echo "=== tenancy=$TENANCY_ID / subscriptions=$SUBSCRIPTION_COUNT ==="',
+    'if [[ "$SUBSCRIPTION_COUNT" == "0" ]]; then',
+    '  echo "조회 가능한 Subscription이 없습니다."',
+    '  exit 0',
+    'fi',
+    '',
+    'while IFS=$\'\\t\' read -r SUBSCRIPTION_ID SERVICE_NAME STATUS TOTAL_VALUE CURRENCY; do',
+    '  echo',
+    '  echo "=== $SUBSCRIPTION_ID | $SERVICE_NAME | $STATUS | total=$TOTAL_VALUE $CURRENCY ==="',
+    '  oci onesubscription subscribed-service subscribed-service list \\',
+    '    --compartment-id "$TENANCY_ID" --subscription-id "$SUBSCRIPTION_ID" --all \\',
+    '    --query \'data.items[].{Product:product.name,Status:status,Funded:"funded-allocation-value",Used:"used-amount",Available:"available-amount",Start:"time-start",End:"time-end"}\' \\',
+    '    --output table "${CTX[@]}"',
+    'done < <(jq -r \'.data[] | [',
+    '  .id, (."service-name" // "-"), (.status // "-"),',
+    '  (."total-value" // "-"), (.currency."iso-code" // "-")',
+    '] | @tsv\' <<<"$SUBSCRIPTIONS_JSON")',
+  ].join('\n')
+}
+
+function buildRootTenancyLookup(values: Record<string, string>): string {
+  const quote = (raw: string) => `'${raw.replaceAll("'", "'\\''")}'`
+  const profile = (values['--profile'] || '').trim() || 'DEFAULT'
+  const region = (values['--region'] || '').trim() || 'ap-seoul-1'
+  return [
+    `PROFILE=${quote(profile)}`,
+    `REGION=${quote(region)}`,
+    'TENANCY_ID=$(oci iam availability-domain list \\',
+    '  --profile "$PROFILE" --region "$REGION" \\',
+    '  --query \'data[0]."compartment-id"\' --raw-output)',
+    '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 프로필에서 테넌시 OCID를 확인하지 못했습니다: $TENANCY_ID" >&2; exit 2; }',
+  ].join('\n')
+}
+
 function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>, operation: CrudVerb): string {
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
   if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get')
   if (cmd.compartmentCleanup) return buildCompartmentCleanup(values)
+  if (cmd.allSubscriptionBalances) return buildAllSubscriptionBalances(values)
   if (cmd.resource === 'mysql' && operation === 'get') return buildMysqlDbSystemGet(values, dyn)
   if (cmd.resource === 'mysql-backup' && operation === 'create') return buildMysqlBackupCreate(values, dyn)
   if (cmd.manualBackup) return buildManualBackup(cmd.manualBackup, values)
@@ -750,10 +811,13 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
   const compOption = allOptions(selected).find(o => o.name === '--compartment-id')
   const compStatic = (values['--compartment-id'] ?? '').trim()
   const compDynamic = !!compOption && isDynamic(dyn, '--compartment-id') && (compOption.required || !!compStatic)
+  const rootTenancyDynamic = compDynamic && !!cmd.rootTenancyLookup
   // 다른 동적 조회가 참조할 compartment 표현
-  const compRef = compDynamic ? '"$COMP"' : (compStatic ? compStatic : '<compartment-ocid>')
+  const compRef = rootTenancyDynamic ? '"$TENANCY_ID"' : compDynamic ? '"$COMP"' : (compStatic ? compStatic : '<compartment-ocid>')
 
-  if (compDynamic) {
+  if (rootTenancyDynamic) {
+    prelude.push(buildRootTenancyLookup(values))
+  } else if (compDynamic) {
     const name = compStatic || '<compartment-name>'
     prelude.push(
       `COMP=$(oci iam compartment list --compartment-id-in-subtree true --all \\\n` +
@@ -777,7 +841,8 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
     // 값 없는 선택 옵션은 동적 모드여도 생략 — 명령을 어지럽히지 않는다
     if (!o.required && !v) continue
     if (o.name === '--compartment-id') {
-      if (compDynamic) args.push(`  ${o.name} "$COMP"`)
+      if (rootTenancyDynamic) args.push(`  ${o.name} "$TENANCY_ID"`)
+      else if (compDynamic) args.push(`  ${o.name} "$COMP"`)
       else if (v) args.push(`  ${o.name} ${v}`)
       continue
     }
@@ -831,6 +896,7 @@ export default function CliBuilderPage() {
   const [crudOperation, setCrudOperation] = useState<CrudVerb>('create')
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
+  const [customOpen, setCustomOpen] = useState(false)
   // 딥링크로 들어온 자원의 카테고리는 펼쳐 둔다 (그 외는 닫힘)
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({})
 
@@ -839,6 +905,7 @@ export default function CliBuilderPage() {
     if (!rParam || !CAT.commands[rParam]) return
     const operation = defaultOperation(CAT.commands[rParam])
     setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setDyn({}); setShowOptional(false); setCrudOperation(operation)
+    if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances) setCustomOpen(true)
     const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
   }, [rParam, CAT])
@@ -856,11 +923,17 @@ export default function CliBuilderPage() {
       if (f) { vShaRef.current = f.sha; try { setVerified(JSON.parse(f.content).verified ?? []) } catch { /* keep */ } }
     }).catch(() => { /* 미생성/권한없음 → 빈 목록 */ })
   }, [pat])
-  const isVerified = (r: string) => verified.includes(r)
-  const toggleVerified = async (r: string) => {
+  const usesCrudVerification = (command: CliCommand | null | undefined) => !!command
+    && !command.crossCopy && !command.compartmentCleanup && !command.allSubscriptionBalances
+    && (!!command.maintenanceReboot || !!command.operations)
+  const verificationKey = (r: string, operation: CrudVerb) => usesCrudVerification(CAT.commands[r]) ? `${r}:${operation}` : r
+  const isOperationVerified = (r: string, operation: CrudVerb) => verified.includes(verificationKey(r, operation))
+  const isResourceVerified = (r: string) => verified.includes(r) || verified.some(key => key.startsWith(`${r}:`))
+  const toggleVerified = async (r: string, operation: CrudVerb) => {
     if (!pat) { showToast('검증 표시는 PAT 등록 후 가능'); return }
+    const key = verificationKey(r, operation)
     const prev = verified
-    const next = verified.includes(r) ? verified.filter(x => x !== r) : [...verified, r]
+    const next = verified.includes(key) ? verified.filter(x => x !== key) : [...verified, key]
     setVerified(next)
     try {
       vShaRef.current = await putFile(pat, 'knowledge/oci-cli/verified.json',
@@ -874,7 +947,7 @@ export default function CliBuilderPage() {
     ? cmd.sections.filter((_, index) => crudOperation === 'update' || index === 0)
     : selectedOperation?.sections ?? cmd?.sections ?? []
   const formAdvanced = selectedOperation?.advanced ?? cmd?.advanced ?? []
-  const hasCrud = !!cmd && !cmd.crossCopy && !cmd.compartmentCleanup && (!!cmd.maintenanceReboot || !!cmd.operations)
+  const hasCrud = usesCrudVerification(cmd)
   const isOperationAvailable = (operation: CrudVerb) => supportsOperation(cmd, operation)
   const operationHelp = cmd?.maintenanceReboot
     ? crudOperation === 'update'
@@ -938,11 +1011,14 @@ export default function CliBuilderPage() {
     const next = [...favs, fav]; setFavs(next); saveFavs(next); showToast('즐겨찾기 저장됨')
   }
   const loadFav = (f: Favorite) => {
-    if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci ') }
+    if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci '); setCustomOpen(true) }
     else {
       setActive(f.resource); setValues(f.values); setDyn(f.dyn ?? {}); setShowOptional(true)
       const favoriteCommand = CAT.commands[f.resource]
-      if (favoriteCommand) setCrudOperation(f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultOperation(favoriteCommand))
+      if (favoriteCommand) {
+        setCrudOperation(f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultOperation(favoriteCommand))
+        if (favoriteCommand.crossCopy || favoriteCommand.compartmentCleanup || favoriteCommand.allSubscriptionBalances) setCustomOpen(true)
+      }
     }
   }
   const delFav = (id: string) => { const n = favs.filter(f => f.id !== id); setFavs(n); saveFavs(n) }
@@ -951,13 +1027,14 @@ export default function CliBuilderPage() {
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
   const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup || cmd?.manualBackup)
-  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup)
+  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup || c.allSubscriptionBalances)
   const field = (o: CliOption, optional?: boolean) => {
     const mysqlBackupTarget = cmd?.resource === 'mysql-backup' && crudOperation === 'create'
     const mysqlDbSystemGet = cmd?.resource === 'mysql' && crudOperation === 'get'
     const dynamicAllowed = !noDyn && o.name in DYNAMIC && (o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
     return <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
       dynamic={dynamicAllowed && isDynamic(dyn, o.name)}
+      rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}
       onToggleDynamic={dynamicAllowed ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
       subVal={k => values[subKey(o.name, k)] || ''}
       onSub={(k, v) => setVal(subKey(o.name, k), v)} />
@@ -973,16 +1050,25 @@ export default function CliBuilderPage() {
     <div className="cli-layout">
       {/* 좌측 계층 네비 — 대분류 아코디언 (기본 닫힘) */}
       <aside className="cli-nav">
-        <button className={`cli-navitem custom${active === '__custom' ? ' on' : ''}`} onClick={() => setActive('__custom')}>
-          <span className="px">Custom</span>
-        </button>
-        {SPECIAL_COMMANDS.map(c => (
-          <button key={c.resource} className={`cli-navitem custom${active === c.resource ? ' on' : ''}${isVerified(c.resource) ? ' verified' : ''}`}
-            onClick={() => selectResource(c.resource)}>
-            <span className="px">{c.label}</span>
-            {isVerified(c.resource) && <span className="cli-vmark" title="검증됨">✓</span>}
+        <div className="cli-cat cli-custom-cat">
+          <button className="cli-cat-toggle" onClick={() => setCustomOpen(open => !open)}>
+            <span className={`caret${customOpen ? ' open' : ''}`}>▸</span> Custom CLI
           </button>
-        ))}
+          {customOpen && (
+            <div className="cli-group">
+              <button className={`cli-navitem${active === '__custom' ? ' on' : ''}`} onClick={() => setActive('__custom')}>
+                Custom Command
+              </button>
+              {SPECIAL_COMMANDS.map(c => (
+                <button key={c.resource} className={`cli-navitem${active === c.resource ? ' on' : ''}${isResourceVerified(c.resource) ? ' verified' : ''}`}
+                  onClick={() => selectResource(c.resource)}>
+                  {c.label}
+                  {isResourceVerified(c.resource) && <span className="cli-vmark" title="검증됨">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {CAT.categories.map(c => (
           <div key={c.id} className="cli-cat">
             <button className="cli-cat-toggle" onClick={() => toggleCat(c.id)}>
@@ -992,9 +1078,9 @@ export default function CliBuilderPage() {
               <div key={g.label} className="cli-group">
                 <div className="cli-group-label px">{g.label}</div>
                 {g.resources.map(r => (
-                  <button key={r} className={`cli-navitem${active === r ? ' on' : ''}${isVerified(r) ? ' verified' : ''}`} onClick={() => selectResource(r)}>
+                  <button key={r} className={`cli-navitem${active === r ? ' on' : ''}${isResourceVerified(r) ? ' verified' : ''}`} onClick={() => selectResource(r)}>
                     {CAT.commands[r].label}
-                    {isVerified(r) && <span className="cli-vmark" title="검증됨">✓</span>}
+                    {isResourceVerified(r) && <span className="cli-vmark" title="하나 이상의 명령 검증됨">✓</span>}
                   </button>
                 ))}
               </div>
@@ -1017,19 +1103,20 @@ export default function CliBuilderPage() {
       {/* 우측 폼 + 결과 */}
       <main className="cli-main">
         <div className="crumb"><span className="px">OCI CLI</span> / {cmd ? cmd.label : 'Custom'}</div>
-        <h1 className={`sheet-h1${cmd && isVerified(active) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
+        <h1 className={`sheet-h1${cmd && isOperationVerified(active, crudOperation) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
         {hasCrud && (
           <div className="cli-crud-strip" aria-label={`${cmd?.label} 명령 선택`}>
             {CRUD_OPERATIONS.map(operation => {
               const available = isOperationAvailable(operation.verb)
               return (
               <button type="button" key={operation.verb} disabled={!available}
-                className={`cli-crud-op verb-${operation.verb}${crudOperation === operation.verb ? ' selected' : ''}`}
+                className={`cli-crud-op verb-${operation.verb}${crudOperation === operation.verb ? ' selected' : ''}${available && isOperationVerified(active, operation.verb) ? ' verified' : ''}`}
                 aria-pressed={available ? crudOperation === operation.verb : undefined}
                 title={`${operation.verb.toUpperCase()}${available ? ' 명령 선택' : ' 명령 없음'}`}
                 onClick={() => selectOperation(operation.verb)}>
                 <span className="cli-crud-icon" aria-hidden="true">{operation.icon}</span>
                 <span className="cli-crud-verb">{operation.verb.toUpperCase()}</span>
+                {available && isOperationVerified(active, operation.verb) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
               </button>
               )
             })}
@@ -1040,8 +1127,8 @@ export default function CliBuilderPage() {
           : <p className="cli-help">자유 입력 — 직접 작성하거나, 왼쪽에서 자원을 골라 폼으로 만드세요. 저장하면 즐겨찾기로 재사용됩니다.</p>}
         {cmd && (
           <label className="cli-verify">
-            <input type="checkbox" checked={isVerified(active)} onChange={() => toggleVerified(active)} />
-            <span>내가 직접 실행해 확인함 — 확인 전 명령은 모두 의심 대상, 확인하면 <b className="cli-verified">파란색</b>으로 표시</span>
+            <input type="checkbox" checked={isOperationVerified(active, crudOperation)} onChange={() => toggleVerified(active, crudOperation)} />
+            <span>현재 <b>{hasCrud ? crudOperation.toUpperCase() : 'CUSTOM'}</b> 명령을 직접 실행해 확인함 — 확인한 동작만 <b className="cli-verified">파란색</b>으로 표시</span>
           </label>
         )}
 
@@ -1101,12 +1188,14 @@ export default function CliBuilderPage() {
   )
 }
 
-function Field({ o, value, onChange, optional, dynamic, onToggleDynamic, subVal, onSub }: {
+function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, subVal, onSub }: {
   o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean
-  dynamic: boolean; onToggleDynamic?: (on: boolean) => void
+  dynamic: boolean; rootTenancy?: boolean; onToggleDynamic?: (on: boolean) => void
   subVal: (key: string) => string; onSub: (key: string, v: string) => void
 }) {
-  const dynMeta = DYNAMIC[o.name]
+  const dynMeta = rootTenancy
+    ? { input: '프로필에서 자동 조회 — 입력 불필요', note: '선택한 OCI 프로필의 루트 테넌시 OCID를 자동 조회' }
+    : DYNAMIC[o.name]
   const label = (
     <label className={`cli-field-label${optional ? ' optional' : ''}`}>
       {o.lookupOnly ? <span>{o.displayLabel || o.name}</span> : <code>{o.name}</code>}

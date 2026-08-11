@@ -22,9 +22,6 @@ _parser_spec.loader.exec_module(_parser_module)
 parse_cli_file = _parser_module.parse_file
 
 STRUCTURE = [
-  ('01-account', 'Account & Billing', [
-    ('Subscriptions', ['subscription-balance']),
-  ]),
   ('02-compute', 'Compute', [
     ('Instances', ['instance', 'instance-boot-volume-backup', 'instance-maintenance-reboot', 'instance-configuration', 'instance-pool']),
     ('Dedicated Infrastructure', ['dedicated-vm-host', 'capacity-reservation', 'compute-cluster']),
@@ -50,7 +47,12 @@ STRUCTURE = [
   ('06-observability', 'Observability', [
     ('Monitoring', ['alarm']),
     ('Notifications', ['topic', 'subscription']),
-    ('Announcements', ['announcement']),
+  ]),
+  ('07-governance', 'Governance & Administration', [
+    ('Account Management', ['announcement']),
+  ]),
+  ('08-billing', 'Billing & Cost Management', [
+    ('Billing', ['subscription-list', 'subscription-balance']),
   ]),
 ]
 
@@ -66,7 +68,7 @@ RES_LABEL = {
   'public-ip': 'Public IP', 'load-balancer': 'Load Balancer', 'network-load-balancer': 'Network Load Balancer',
   'autonomous-database': 'Autonomous Database', 'base-db': 'Base Database System', 'mysql': 'MySQL DB System',
   'mysql-backup': 'MySQL Backup',
-  'subscription-balance': 'Subscription Balance',
+  'subscription-list': 'Subscriptions', 'subscription-balance': 'Subscription Balance',
   'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription', 'announcement': 'Announcements',
 }
 
@@ -430,7 +432,7 @@ for res, d in raw.items():
         'cmd': cmd, 'help': (d['primary'].get('help') or '').strip()[:200],
         'sections': sections, 'advanced': advanced, 'operations': operations,
     }
-    for metadata_key in ('preferredOperation', 'disableDynamic'):
+    for metadata_key in ('preferredOperation', 'disableDynamic', 'rootTenancyLookup'):
         if metadata_key in d:
             catalog_command[metadata_key] = d[metadata_key]
     catalog['commands'][res] = catalog_command
@@ -477,6 +479,23 @@ def _compartment_cleanup():
                 enabled('--cleanup-logging', 'Logging의 Log와 Log Group'),
                 enabled('--cleanup-log-analytics', 'Log Analytics entity와 해당 컴파트먼트 범위 저장 데이터'),
                 enabled('--cleanup-network', 'DRG 연결, LPG/RPC, Gateway, Subnet, NSG, DRG, VCN'),
+            ]},
+        ],
+        'advanced': [],
+    }
+
+def _all_subscription_balances():
+    return {
+        'resource': 'all-subscription-balances',
+        'label': 'All Subscription Balances',
+        'cmd': 'oci onesubscription organization-subscription organization-subscription list',
+        'allSubscriptionBalances': True,
+        'help': ('프로필에서 루트 테넌시 OCID를 자동 조회한 뒤, 테넌시의 모든 Subscription ID를 순회합니다. '
+                 '각 Subscription의 계약액과 서비스 라인별 Funded, Used, Available 금액을 통화별로 출력합니다.'),
+        'sections': [
+            {'label': '실행 환경', 'options': [
+                _co('--profile', True, 'OCI CLI 프로필 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT'),
+                _co('--region', True, 'OneSubscription API를 호출할 OCI 리전', 'ap-seoul-1', default='ap-seoul-1'),
             ]},
         ],
         'advanced': [],
@@ -558,6 +577,7 @@ def _instance_boot_volume_backup():
 
 EXTRA = {
     'compartment-resource-cleansing': _compartment_cleanup(),
+    'all-subscription-balances': _all_subscription_balances(),
     'instance-maintenance-reboot': _maintenance_reboot(),
     'instance-boot-volume-backup': _instance_boot_volume_backup(),
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
