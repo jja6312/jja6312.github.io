@@ -101,6 +101,67 @@ for (const level of [1, 2, 3]) {
       throw new Error(`L${level} MySQL Backup optional field marked required: ${name}`)
     }
   }
+  const accountCategory = bundle.cliCatalog.categories.find(category => category.id === '01-account')
+  const subscriptionGroup = accountCategory?.groups.find(group => group.label === 'Subscriptions')
+  if (!subscriptionGroup?.resources.includes('subscription-balance')) {
+    throw new Error(`L${level} Subscription Balance menu missing`)
+  }
+  const subscriptionBalance = bundle.cliCatalog.commands['subscription-balance']
+  if (subscriptionBalance?.preferredOperation !== 'list' || subscriptionBalance?.disableDynamic !== true) {
+    throw new Error(`L${level} Subscription Balance default operation metadata invalid`)
+  }
+  if (JSON.stringify(Object.keys(subscriptionBalance.operations ?? {}).sort()) !== JSON.stringify(['list'])) {
+    throw new Error(`L${level} Subscription Balance must expose LIST only`)
+  }
+  const subscriptionList = subscriptionBalance.operations.list
+  if (subscriptionList.cmd !== 'oci onesubscription subscribed-service subscribed-service list') {
+    throw new Error(`L${level} Subscription Balance LIST command invalid`)
+  }
+  if (JSON.stringify(requiredNames(subscriptionList)) !== JSON.stringify(['--compartment-id', '--subscription-id'])) {
+    throw new Error(`L${level} Subscription Balance required fields invalid`)
+  }
+  const subscriptionOptions = subscriptionList.sections.flatMap(section => section.options)
+  const subscriptionOption = name => subscriptionOptions.find(option => option.name === name)
+  if (!subscriptionOption('--all')?.flag || subscriptionOption('--all')?.defaultValue !== 'true'
+    || subscriptionOption('--output')?.defaultValue !== 'table') {
+    throw new Error(`L${level} Subscription Balance result defaults invalid`)
+  }
+  const subscriptionQuery = subscriptionOption('--query')?.defaultValue ?? ''
+  for (const field of ['funded-allocation-value', 'used-amount', 'available-amount']) {
+    if (!subscriptionQuery.includes(field)) throw new Error(`L${level} Subscription Balance query missing ${field}`)
+  }
+
+  const announcementGroup = bundle.cliCatalog.categories
+    .flatMap(category => category.groups)
+    .find(group => group.label === 'Announcements')
+  if (!announcementGroup?.resources.includes('announcement')) {
+    throw new Error(`L${level} Announcements menu missing`)
+  }
+  const announcement = bundle.cliCatalog.commands.announcement
+  if (announcement?.preferredOperation !== 'list' || announcement?.disableDynamic !== true) {
+    throw new Error(`L${level} Announcements default operation metadata invalid`)
+  }
+  if (JSON.stringify(Object.keys(announcement.operations ?? {}).sort()) !== JSON.stringify(['get', 'list'])) {
+    throw new Error(`L${level} Announcements must expose GET and LIST only`)
+  }
+  if (announcement.operations.get.cmd !== 'oci announce announcements get'
+    || announcement.operations.list.cmd !== 'oci announce announcements list') {
+    throw new Error(`L${level} Announcements command invalid`)
+  }
+  if (JSON.stringify(requiredNames(announcement.operations.get)) !== JSON.stringify(['--announcement-id'])
+    || JSON.stringify(requiredNames(announcement.operations.list)) !== JSON.stringify(['--compartment-id'])) {
+    throw new Error(`L${level} Announcements required fields invalid`)
+  }
+  const announcementOptions = announcement.operations.list.sections.flatMap(section => section.options)
+  const announcementOption = name => announcementOptions.find(option => option.name === name)
+  if (!announcementOption('--all')?.flag || announcementOption('--all')?.defaultValue !== 'true'
+    || announcementOption('--output')?.defaultValue !== 'table') {
+    throw new Error(`L${level} Announcements result defaults invalid`)
+  }
+  const announcementQuery = announcementOption('--query')?.defaultValue ?? ''
+  for (const field of ['reference-ticket-number', 'announcement-type', 'affected-regions', 'time-one-value']) {
+    if (!announcementQuery.includes(field)) throw new Error(`L${level} Announcements query missing ${field}`)
+  }
   const cleanup = bundle.cliCatalog.commands['compartment-resource-cleansing']
   if (!cleanup?.compartmentCleanup) throw new Error(`L${level} compartment cleansing 메뉴 누락`)
   const cleanupOptions = cleanup.sections.flatMap(section => section.options)
@@ -110,9 +171,10 @@ for (const level of [1, 2, 3]) {
   if (!cleanupOptions.find(option => option.name === '--cleanup-log-analytics')?.defaultValue) {
     throw new Error(`L${level} compartment cleansing Log Analytics 옵션 누락`)
   }
-  const crudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations)
-  if (crudCommands.length !== 38) throw new Error(`L${level} CRUD 자원 수 오류: ${crudCommands.length}`)
-  for (const command of crudCommands) {
+  const fullCrudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations
+    && ['get', 'list', 'create', 'update', 'delete'].every(operation => command.operations[operation]?.cmd))
+  if (fullCrudCommands.length !== 38) throw new Error(`L${level} full CRUD resource count invalid: ${fullCrudCommands.length}`)
+  for (const command of fullCrudCommands) {
     for (const operation of ['get', 'list', 'create', 'update', 'delete']) {
       if (!command.operations[operation]?.cmd) throw new Error(`L${level} ${command.resource} ${operation} 명령 누락`)
     }
@@ -143,6 +205,8 @@ if (!cliBuilder.includes('oci log-analytics storage purge-storage-data')) throw 
 if (!cliBuilder.includes('oci compute boot-volume-attachment list')) throw new Error('instance boot volume attachment lookup missing')
 if (!cliBuilder.includes('oci bv boot-volume-backup create')) throw new Error('boot volume manual backup create missing')
 if (!cliBuilder.includes('oci mysql backup create')) throw new Error('MySQL manual backup create missing')
+if (!cliBuilder.includes('command.preferredOperation')) throw new Error('preferred CRUD operation selection missing')
+if (!cliBuilder.includes('cmd?.disableDynamic')) throw new Error('direct tenancy input mode missing')
 if (!cliBuilder.includes('function buildMysqlBackupCreate')
   || !cliBuilder.includes("cmd.resource === 'mysql-backup' && operation === 'create'")) {
   throw new Error('MySQL Backup CREATE builder not connected to the Backup resource')

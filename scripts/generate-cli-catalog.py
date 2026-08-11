@@ -22,6 +22,9 @@ _parser_spec.loader.exec_module(_parser_module)
 parse_cli_file = _parser_module.parse_file
 
 STRUCTURE = [
+  ('01-account', 'Account & Billing', [
+    ('Subscriptions', ['subscription-balance']),
+  ]),
   ('02-compute', 'Compute', [
     ('Instances', ['instance', 'instance-boot-volume-backup', 'instance-maintenance-reboot', 'instance-configuration', 'instance-pool']),
     ('Dedicated Infrastructure', ['dedicated-vm-host', 'capacity-reservation', 'compute-cluster']),
@@ -47,6 +50,7 @@ STRUCTURE = [
   ('06-observability', 'Observability', [
     ('Monitoring', ['alarm']),
     ('Notifications', ['topic', 'subscription']),
+    ('Announcements', ['announcement']),
   ]),
 ]
 
@@ -62,7 +66,8 @@ RES_LABEL = {
   'public-ip': 'Public IP', 'load-balancer': 'Load Balancer', 'network-load-balancer': 'Network Load Balancer',
   'autonomous-database': 'Autonomous Database', 'base-db': 'Base Database System', 'mysql': 'MySQL DB System',
   'mysql-backup': 'MySQL Backup',
-  'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription',
+  'subscription-balance': 'Subscription Balance',
+  'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription', 'announcement': 'Announcements',
 }
 
 # 항상 '고급'으로 보내는 옵션 (콘솔에서도 고급/태그 영역)
@@ -222,7 +227,7 @@ raw = {}
 for f in glob.glob(os.path.join(DATA, '*.json')):
     d = json.load(open(f, encoding='utf-8'))
     if not d.get('primary') and d.get('commands'):
-        d['primary'] = next((command for command in d['commands'] if command.get('verb') == 'create'), None)
+        d['primary'] = next((command for command in d['commands'] if command.get('verb') == 'create'), d['commands'][0])
     if d.get('primary', {}).get('options'):
         raw[d['resource']] = d
 
@@ -287,7 +292,10 @@ def layout_command(res, command, curated=False):
 
 def find_operation(commands, group, operation):
     same_group = [command for command in commands if command.get('group') == group]
-    prefixes = {'get': ('get',), 'list': ('list',), 'update': ('update',), 'delete': ('delete', 'terminate')}[operation]
+    prefixes = {
+        'get': ('get',), 'list': ('list',), 'create': ('create',),
+        'update': ('update',), 'delete': ('delete', 'terminate'),
+    }[operation]
     for prefix in prefixes:
         exact = next((command for command in same_group if command.get('verb') == prefix), None)
         if exact:
@@ -332,7 +340,9 @@ for res, d in raw.items():
     prefix = cmd.rsplit(' ', 1)[0]
     operations = {}
     for operation in ('get', 'list', 'create', 'update', 'delete'):
-        operation_source = d['primary'] if operation == 'create' else find_operation(
+        primary_verb = d['primary'].get('verb')
+        primary_is_create = operation == 'create' and primary_verb not in ('get', 'list', 'update', 'delete', 'terminate')
+        operation_source = d['primary'] if primary_verb == operation or primary_is_create else find_operation(
             source_commands, d['primary'].get('group'), operation,
         )
         if not operation_source:
@@ -415,11 +425,15 @@ for res, d in raw.items():
             'sections': op_sections,
             'advanced': op_advanced,
         }
-    catalog['commands'][res] = {
+    catalog_command = {
         'resource': res, 'label': RES_LABEL.get(res, res),
         'cmd': cmd, 'help': (d['primary'].get('help') or '').strip()[:200],
         'sections': sections, 'advanced': advanced, 'operations': operations,
     }
+    for metadata_key in ('preferredOperation', 'disableDynamic'):
+        if metadata_key in d:
+            catalog_command[metadata_key] = d[metadata_key]
+    catalog['commands'][res] = catalog_command
 
 # ── 커스텀 레시피 (backbone 없음) ──
 # 여러 명령을 묶거나 별도 조립이 필요한 작업은 CliBuilderPage 의 전용 빌더가 최종 명령을 만든다.

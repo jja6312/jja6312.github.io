@@ -29,6 +29,8 @@ interface CliOperation {
 interface CliCommand {
   resource: string; label: string
   cmd: string; help: string
+  preferredOperation?: CrudVerb
+  disableDynamic?: boolean
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
   maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
   compartmentCleanup?: boolean // scoped resource cleanup PREVIEW/DELETE script
@@ -54,6 +56,7 @@ const CRUD_OPERATIONS: { verb: CrudVerb; icon: string }[] = [
 
 const defaultOperation = (command: CliCommand): CrudVerb => {
   if (command.maintenanceReboot) return 'get'
+  if (command.preferredOperation && command.operations?.[command.preferredOperation]) return command.preferredOperation
   if (command.operations?.create) return 'create'
   return CRUD_OPERATIONS.find(operation => command.operations?.[operation.verb])?.verb ?? 'create'
 }
@@ -947,7 +950,7 @@ export default function CliBuilderPage() {
 
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
-  const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup || cmd?.manualBackup)
+  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup || cmd?.manualBackup)
   const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup)
   const field = (o: CliOption, optional?: boolean) => {
     const mysqlBackupTarget = cmd?.resource === 'mysql-backup' && crudOperation === 'create'
