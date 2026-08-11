@@ -68,6 +68,17 @@ for (const level of [1, 2, 3]) {
   if (JSON.stringify(requiredNames(mysqlDbSystem.operations.get)) !== JSON.stringify(['--db-system-id'])) {
     throw new Error(`L${level} MySQL DB System GET required fields invalid`)
   }
+  const mysqlGetOptions = mysqlDbSystem.operations.get.sections.flatMap(section => section.options)
+  const mysqlGetOption = name => mysqlGetOptions.find(option => option.name === name)
+  if (mysqlGetOption('--lookup-compartment-id')?.required !== false
+    || mysqlGetOption('--lookup-compartment-id')?.lookupOnly !== true) {
+    throw new Error(`L${level} MySQL DB System GET lookup compartment metadata invalid`)
+  }
+  if (mysqlGetOption('--db-system-id')?.required !== true
+    || mysqlGetOption('--profile')?.defaultValue !== 'DEFAULT'
+    || mysqlGetOption('--region')?.defaultValue !== 'ap-seoul-1') {
+    throw new Error(`L${level} MySQL DB System GET dynamic lookup fields invalid`)
+  }
   if (JSON.stringify(requiredNames(mysqlDbSystem.operations.list)) !== JSON.stringify(['--compartment-id'])) {
     throw new Error(`L${level} MySQL DB System LIST required fields invalid`)
   }
@@ -136,6 +147,10 @@ if (!cliBuilder.includes('function buildMysqlBackupCreate')
   || !cliBuilder.includes("cmd.resource === 'mysql-backup' && operation === 'create'")) {
   throw new Error('MySQL Backup CREATE builder not connected to the Backup resource')
 }
+if (!cliBuilder.includes('function buildMysqlDbSystemGet')
+  || !cliBuilder.includes("cmd.resource === 'mysql' && operation === 'get'")) {
+  throw new Error('MySQL DB System GET dynamic builder not connected')
+}
 if (cliBuilder.includes('buildMysqlDbSystemOps') || cliBuilder.includes('mysqlDbSystemOps')) {
   throw new Error('mixed MySQL DB System/Backup builder must not return')
 }
@@ -162,6 +177,14 @@ globalThis.directScript = buildMysqlBackupCreate({
   '--lookup-compartment-id': '', '--db-system-id': 'ocid1.mysqldbsystem.oc1.ap-seoul-1.example',
   '--profile': '', '--region': '',
 }, {'--db-system-id': false})
+globalThis.dynamicGetScript = buildMysqlDbSystemGet({
+  '--lookup-compartment-id': 'prod', '--db-system-id': 'mysql-prod-01',
+  '--profile': 'DEFAULT', '--region': 'ap-seoul-1', '--if-none-match': '',
+}, {})
+globalThis.directGetScript = buildMysqlDbSystemGet({
+  '--lookup-compartment-id': '', '--db-system-id': 'ocid1.mysqldbsystem.oc1.ap-seoul-1.example',
+  '--profile': '', '--region': '', '--if-none-match': 'etag-example',
+}, {'--db-system-id': false})
 `
 const context = {}
 vm.runInNewContext(ts.transpileModule(builderHarness, {
@@ -180,4 +203,19 @@ for (const [mode, script] of Object.entries({ dynamic: context.dynamicScript, di
 }
 if (!context.dynamicScript.includes('oci mysql db-system list') || context.directScript.includes('oci mysql db-system list')) {
   throw new Error('MySQL Backup name/OCID selection mode invalid')
+}
+for (const [mode, script] of Object.entries({ dynamic: context.dynamicGetScript, direct: context.directGetScript })) {
+  if (!script.includes('oci mysql db-system get') || script.includes('--lookup-compartment-id')) {
+    throw new Error(`MySQL DB System GET ${mode} command/lookup field invalid`)
+  }
+  if (!script.includes('[[ -n "$IF_NONE_MATCH" ]] && GET_ARGS+=(--if-none-match "$IF_NONE_MATCH")')) {
+    throw new Error(`MySQL DB System GET ${mode} does not guard --if-none-match`)
+  }
+  const syntax = spawnSync('C:\\Program Files\\Git\\bin\\bash.exe', ['-n'], { input: script, encoding: 'utf8' })
+  if (syntax.status !== 0) throw new Error(`MySQL DB System GET ${mode} bash syntax invalid: ${syntax.stderr}`)
+}
+if (!context.dynamicGetScript.includes('oci mysql db-system list')
+  || context.directGetScript.includes('oci mysql db-system list')
+  || !context.dynamicGetScript.includes('DB_SYSTEM_COUNT')) {
+  throw new Error('MySQL DB System GET name/OCID selection mode invalid')
 }

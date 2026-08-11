@@ -367,7 +367,43 @@ for res, d in raw.items():
                     'flag': True, 'defaultValue': 'true',
                 },
             ])
+        if res == 'mysql' and operation == 'get':
+            operation_source = {**operation_source, 'options': [dict(option) for option in operation_source['options']]}
+            for option in operation_source['options']:
+                if option['name'] == '--db-system-id':
+                    option.update({
+                        'placeholder': 'mysql-prod-01',
+                        'shellQuote': True,
+                        'help': ('동적 조회 시 DB System display name, 해제 시 DB System OCID. '
+                                 'OCI GET의 실제 필수 인자는 이 항목 하나입니다.'),
+                    })
+            operation_source['options'].extend([
+                {
+                    'name': '--lookup-compartment-id', 'required': False, 'type': 'str', 'choices': None,
+                    'help': 'DB System 이름을 조회할 컴파트먼트. 최종 GET 명령에는 전달되지 않습니다.',
+                    'placeholder': 'prod', 'lookupOnly': True, 'displayLabel': '조회 범위 (compartment)',
+                },
+                {
+                    'name': '--profile', 'required': False, 'type': 'str', 'choices': None,
+                    'help': 'OCI CLI 프로파일 이름 (~/.oci/config)', 'placeholder': 'DEFAULT',
+                    'defaultValue': 'DEFAULT', 'shellQuote': True,
+                },
+                {
+                    'name': '--region', 'required': False, 'type': 'str', 'choices': None,
+                    'help': '대상 MySQL DB System 리전', 'placeholder': 'ap-seoul-1',
+                    'defaultValue': 'ap-seoul-1', 'shellQuote': True,
+                },
+            ])
         op_sections, op_advanced = layout_command(res, operation_source, curated=operation == 'create')
+        if res == 'mysql' and operation == 'get':
+            get_options = {option['name']: option for section in op_sections for option in section['options']}
+            op_sections = [
+                {'label': '대상 DB System', 'options': [
+                    get_options['--lookup-compartment-id'], get_options['--db-system-id'],
+                ]},
+                {'label': '조건부 조회', 'options': [get_options['--if-none-match']]},
+                {'label': '실행 환경', 'options': [get_options['--profile'], get_options['--region']]},
+            ]
         if operation == 'create':
             operation_cmd = cmd
         else:

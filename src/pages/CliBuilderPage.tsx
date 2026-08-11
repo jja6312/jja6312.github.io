@@ -488,6 +488,84 @@ function buildMysqlBackupCreate(values: Record<string, string>, dyn: Record<stri
   return lines.join('\n')
 }
 
+/* MySQL DB System GET의 필수 인자는 그대로 --db-system-id 하나이며,
+   동적 모드에서만 compartment + display name을 OCID로 안전하게 해석합니다. */
+function buildMysqlDbSystemGet(values: Record<string, string>, dyn: Record<string, boolean>): string {
+  const v = (key: string) => (values[key] || '').trim()
+  const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
+  const dynamicDbSystem = isDynamic(dyn, '--db-system-id')
+  const dynamicCompartment = isDynamic(dyn, '--lookup-compartment-id')
+  const lines = [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    '',
+    `PROFILE=${q(v('--profile'))}`,
+    `REGION=${q(v('--region'))}`,
+    'CTX=()',
+    '[[ -n "$PROFILE" ]] && CTX+=(--profile "$PROFILE")',
+    '[[ -n "$REGION" ]] && CTX+=(--region "$REGION")',
+    '',
+  ]
+
+  if (dynamicDbSystem) {
+    lines.push(
+      `DB_SYSTEM_NAME=${q(v('--db-system-id') || '<mysql-db-system-name>')}`,
+      `COMPARTMENT_INPUT=${q(v('--lookup-compartment-id') || (dynamicCompartment ? '<compartment-name>' : '<compartment-ocid>'))}`,
+      '',
+    )
+    if (dynamicCompartment) {
+      lines.push(
+        'COMPARTMENT_COUNT=$(oci iam compartment list \\',
+        '  --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE \\',
+        '  --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+        '  --query \'length(data)\' --raw-output "${CTX[@]}")',
+        'if [[ "$COMPARTMENT_COUNT" != "1" ]]; then',
+        '  echo "[ERROR] ACTIVE compartment 이름은 정확히 1개여야 합니다: $COMPARTMENT_INPUT (found=$COMPARTMENT_COUNT)" >&2',
+        '  oci iam compartment list --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+        '    --query \'data[].{name:name,id:id,parent:"compartment-id"}\' --output table "${CTX[@]}" >&2',
+        '  exit 1',
+        'fi',
+        'COMPARTMENT_ID=$(oci iam compartment list \\',
+        '  --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE \\',
+        '  --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+        '  --query \'data[0].id\' --raw-output "${CTX[@]}")',
+      )
+    } else {
+      lines.push('COMPARTMENT_ID="$COMPARTMENT_INPUT"')
+    }
+    lines.push(
+      '',
+      'DB_SYSTEM_COUNT=$(oci mysql db-system list \\',
+      '  --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --all \\',
+      '  --query \'length(data[?"lifecycle-state" != `DELETED`])\' --raw-output "${CTX[@]}")',
+      'if [[ "$DB_SYSTEM_COUNT" != "1" ]]; then',
+      '  echo "[ERROR] 삭제되지 않은 MySQL DB System 이름은 정확히 1개여야 합니다: $DB_SYSTEM_NAME (found=$DB_SYSTEM_COUNT)" >&2',
+      '  oci mysql db-system list --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --all \\',
+      '    --query \'data[].{name:"display-name",state:"lifecycle-state",id:id}\' --output table "${CTX[@]}" >&2',
+      '  exit 1',
+      'fi',
+      'DB_SYSTEM_ID=$(oci mysql db-system list \\',
+      '  --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --all \\',
+      '  --query \'data[?"lifecycle-state" != `DELETED`] | [0].id\' --raw-output "${CTX[@]}")',
+      '',
+      'echo "[RESOLVED] compartment=$COMPARTMENT_ID"',
+      'echo "[RESOLVED] mysql-db-system=$DB_SYSTEM_ID"',
+    )
+  } else {
+    lines.push(`DB_SYSTEM_ID=${q(v('--db-system-id') || '<mysql-db-system-ocid>')}`, '')
+  }
+
+  lines.push('GET_ARGS=()')
+  const ifNoneMatch = v('--if-none-match')
+  lines.push(`IF_NONE_MATCH=${q(ifNoneMatch)}`, '[[ -n "$IF_NONE_MATCH" ]] && GET_ARGS+=(--if-none-match "$IF_NONE_MATCH")')
+  lines.push(
+    '',
+    'oci mysql db-system get \\',
+    '  --db-system-id "$DB_SYSTEM_ID" "${GET_ARGS[@]}" "${CTX[@]}"',
+  )
+  return lines.join('\n')
+}
+
 /* Build a safety-gated Bash cleanup script for one exact compartment. */
 function buildCompartmentCleanup(values: Record<string, string>): string {
   const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
@@ -664,6 +742,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
   if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get')
   if (cmd.compartmentCleanup) return buildCompartmentCleanup(values)
+  if (cmd.resource === 'mysql' && operation === 'get') return buildMysqlDbSystemGet(values, dyn)
   if (cmd.resource === 'mysql-backup' && operation === 'create') return buildMysqlBackupCreate(values, dyn)
   if (cmd.manualBackup) return buildManualBackup(cmd.manualBackup, values)
 
@@ -879,7 +958,8 @@ export default function CliBuilderPage() {
   const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup)
   const field = (o: CliOption, optional?: boolean) => {
     const mysqlBackupTarget = cmd?.resource === 'mysql-backup' && crudOperation === 'create'
-    const dynamicAllowed = !noDyn && o.name in DYNAMIC && (o.name !== '--db-system-id' || mysqlBackupTarget)
+    const mysqlDbSystemGet = cmd?.resource === 'mysql' && crudOperation === 'get'
+    const dynamicAllowed = !noDyn && o.name in DYNAMIC && (o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
     return <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
       dynamic={dynamicAllowed && isDynamic(dyn, o.name)}
       onToggleDynamic={dynamicAllowed ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
