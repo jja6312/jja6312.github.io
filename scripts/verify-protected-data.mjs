@@ -169,8 +169,8 @@ ${cliBuilder.slice(builderStart, builderEnd)}
 globalThis.dynamicScript = buildMysqlBackupCreate({
   '--lookup-compartment-id': 'prod', '--db-system-id': 'mysql-prod-01',
   '--profile': 'DEFAULT', '--region': 'ap-seoul-1',
-  '--display-name': '', '--description': '', '--backup-type': '', '--retention-in-days': '',
-  '--soft-delete': '', '--freeform-tags': '', '--defined-tags': '', '--wait-for-state': '',
+  '--display-name': 'mysql-prod-01-manual', '--description': '', '--backup-type': 'FULL', '--retention-in-days': '7',
+  '--soft-delete': 'ENABLED', '--freeform-tags': '', '--defined-tags': '', '--wait-for-state': '',
   '--max-wait-seconds': '', '--wait-interval-seconds': '',
 }, {})
 globalThis.directScript = buildMysqlBackupCreate({
@@ -194,15 +194,25 @@ for (const [mode, script] of Object.entries({ dynamic: context.dynamicScript, di
   if (!script.includes('oci mysql backup create') || script.includes('--lookup-compartment-id')) {
     throw new Error(`MySQL Backup ${mode} script command/lookup field invalid`)
   }
-  if (!script.includes('[[ -n "$BACKUP_TYPE" ]] && EXTRA_ARGS+=(--backup-type "$BACKUP_TYPE")')
-    || !script.includes('[[ -n "$SOFT_DELETE" ]] && EXTRA_ARGS+=(--soft-delete "$SOFT_DELETE")')) {
-    throw new Error(`MySQL Backup ${mode} script does not guard optional fields`)
+  if (script.startsWith('#!/usr/bin/env bash') || script.includes('EXTRA_ARGS=')
+    || script.includes('oci mysql backup get')) {
+    throw new Error(`MySQL Backup ${mode} must end as a normal CREATE command, not a workflow wrapper`)
   }
   const syntax = spawnSync('C:\\Program Files\\Git\\bin\\bash.exe', ['-n'], { input: script, encoding: 'utf8' })
   if (syntax.status !== 0) throw new Error(`MySQL Backup ${mode} bash syntax invalid: ${syntax.stderr}`)
 }
 if (!context.dynamicScript.includes('oci mysql db-system list') || context.directScript.includes('oci mysql db-system list')) {
   throw new Error('MySQL Backup name/OCID selection mode invalid')
+}
+for (const expected of [
+  '--display-name "mysql-prod-01-manual"', '--backup-type "FULL"',
+  '--retention-in-days "7"', '--soft-delete "ENABLED"',
+]) {
+  if (!context.dynamicScript.includes(expected)) throw new Error(`MySQL Backup CREATE optional value missing: ${expected}`)
+}
+if (context.directScript.split('\n').length > 4
+  || !context.directScript.includes('--db-system-id "ocid1.mysqldbsystem.oc1.ap-seoul-1.example"')) {
+  throw new Error('MySQL Backup direct OCID mode must remain a short OCI command')
 }
 for (const [mode, script] of Object.entries({ dynamic: context.dynamicGetScript, direct: context.directGetScript })) {
   if (!script.includes('oci mysql db-system get') || script.includes('--lookup-compartment-id')) {

@@ -406,86 +406,79 @@ function buildMysqlBackupCreate(values: Record<string, string>, dyn: Record<stri
   const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
   const dynamicDbSystem = isDynamic(dyn, '--db-system-id')
   const dynamicCompartment = isDynamic(dyn, '--lookup-compartment-id')
-  const lines = [
-    '#!/usr/bin/env bash',
-    'set -euo pipefail',
-    '',
-    `PROFILE=${q(v('--profile'))}`,
-    `REGION=${q(v('--region'))}`,
-    'CTX=()',
-    '[[ -n "$PROFILE" ]] && CTX+=(--profile "$PROFILE")',
-    '[[ -n "$REGION" ]] && CTX+=(--region "$REGION")',
-    '',
-  ]
+  const contextArgs = [
+    v('--profile') ? `--profile ${q(v('--profile'))}` : '',
+    v('--region') ? `--region ${q(v('--region'))}` : '',
+  ].filter(Boolean)
+  const cliCommand = (command: string, args: string[]) => [command, ...args.map(arg => `  ${arg}`)].join(' \\\n')
+  const prelude: string[] = []
 
   if (dynamicDbSystem) {
-    lines.push(
+    prelude.push(
       `DB_SYSTEM_NAME=${q(v('--db-system-id') || '<mysql-db-system-name>')}`,
       `COMPARTMENT_INPUT=${q(v('--lookup-compartment-id') || (dynamicCompartment ? '<compartment-name>' : '<compartment-ocid>'))}`,
       '',
     )
     if (dynamicCompartment) {
-      lines.push(
-        'COMPARTMENT_COUNT=$(oci iam compartment list \\',
-        '  --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE \\',
-        '  --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
-        '  --query \'length(data)\' --raw-output "${CTX[@]}")',
+      const compartmentArgs = [
+        '--name "$COMPARTMENT_INPUT"', '--lifecycle-state ACTIVE',
+        '--compartment-id-in-subtree true', '--access-level ACCESSIBLE', '--all',
+        "--query 'length(data)'", '--raw-output', ...contextArgs,
+      ]
+      prelude.push(
+        `COMPARTMENT_COUNT=$(${cliCommand('oci iam compartment list', compartmentArgs)})`,
         'if [[ "$COMPARTMENT_COUNT" != "1" ]]; then',
         '  echo "[ERROR] ACTIVE compartment 이름은 정확히 1개여야 합니다: $COMPARTMENT_INPUT (found=$COMPARTMENT_COUNT)" >&2',
-        '  oci iam compartment list --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
-        '    --query \'data[].{name:name,id:id,parent:"compartment-id"}\' --output table "${CTX[@]}" >&2',
+        `${cliCommand('  oci iam compartment list', [
+          '--name "$COMPARTMENT_INPUT"', '--lifecycle-state ACTIVE',
+          '--compartment-id-in-subtree true', '--access-level ACCESSIBLE', '--all',
+          "--query 'data[].{name:name,id:id,parent:\"compartment-id\"}'", '--output table', ...contextArgs,
+        ])} >&2`,
         '  exit 1',
         'fi',
-        'COMPARTMENT_ID=$(oci iam compartment list \\',
-        '  --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE \\',
-        '  --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
-        '  --query \'data[0].id\' --raw-output "${CTX[@]}")',
+        `COMPARTMENT_ID=$(${cliCommand('oci iam compartment list', [
+          '--name "$COMPARTMENT_INPUT"', '--lifecycle-state ACTIVE',
+          '--compartment-id-in-subtree true', '--access-level ACCESSIBLE', '--all',
+          "--query 'data[0].id'", '--raw-output', ...contextArgs,
+        ])})`,
       )
     } else {
-      lines.push('COMPARTMENT_ID="$COMPARTMENT_INPUT"')
+      prelude.push('COMPARTMENT_ID="$COMPARTMENT_INPUT"')
     }
-    lines.push(
+    const dbSystemArgs = [
+      '--compartment-id "$COMPARTMENT_ID"', '--display-name "$DB_SYSTEM_NAME"',
+      '--lifecycle-state ACTIVE', '--all', "--query 'length(data)'", '--raw-output', ...contextArgs,
+    ]
+    prelude.push(
       '',
-      'DB_SYSTEM_COUNT=$(oci mysql db-system list \\',
-      '  --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --lifecycle-state ACTIVE --all \\',
-      '  --query \'length(data)\' --raw-output "${CTX[@]}")',
+      `DB_SYSTEM_COUNT=$(${cliCommand('oci mysql db-system list', dbSystemArgs)})`,
       'if [[ "$DB_SYSTEM_COUNT" != "1" ]]; then',
       '  echo "[ERROR] ACTIVE MySQL DB System 이름은 정확히 1개여야 합니다: $DB_SYSTEM_NAME (found=$DB_SYSTEM_COUNT)" >&2',
-      '  oci mysql db-system list --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --all \\',
-      '    --query \'data[].{name:"display-name",state:"lifecycle-state",id:id}\' --output table "${CTX[@]}" >&2',
+      `${cliCommand('  oci mysql db-system list', [
+        '--compartment-id "$COMPARTMENT_ID"', '--display-name "$DB_SYSTEM_NAME"', '--all',
+        "--query 'data[].{name:\"display-name\",state:\"lifecycle-state\",id:id}'", '--output table', ...contextArgs,
+      ])} >&2`,
       '  exit 1',
       'fi',
-      'DB_SYSTEM_ID=$(oci mysql db-system list \\',
-      '  --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --lifecycle-state ACTIVE --all \\',
-      '  --query \'data[0].id\' --raw-output "${CTX[@]}")',
+      `DB_SYSTEM_ID=$(${cliCommand('oci mysql db-system list', [
+        '--compartment-id "$COMPARTMENT_ID"', '--display-name "$DB_SYSTEM_NAME"',
+        '--lifecycle-state ACTIVE', '--all', "--query 'data[0].id'", '--raw-output', ...contextArgs,
+      ])})`,
     )
-  } else {
-    lines.push(`DB_SYSTEM_ID=${q(v('--db-system-id') || '<mysql-db-system-ocid>')}`)
   }
 
-  const optional = [
-    ['--display-name', 'DISPLAY_NAME'], ['--description', 'DESCRIPTION'], ['--backup-type', 'BACKUP_TYPE'],
-    ['--retention-in-days', 'RETENTION_DAYS'], ['--soft-delete', 'SOFT_DELETE'],
-    ['--freeform-tags', 'FREEFORM_TAGS'], ['--defined-tags', 'DEFINED_TAGS'],
-    ['--wait-for-state', 'WAIT_FOR_STATE'], ['--max-wait-seconds', 'MAX_WAIT_SECONDS'],
-    ['--wait-interval-seconds', 'WAIT_INTERVAL_SECONDS'],
-  ] as const
-  lines.push('', 'EXTRA_ARGS=()')
-  for (const [option, variable] of optional) {
-    lines.push(`${variable}=${q(v(option))}`, `[[ -n "$${variable}" ]] && EXTRA_ARGS+=(${option} "$${variable}")`)
+  const createArgs = [
+    `--db-system-id ${dynamicDbSystem ? '"$DB_SYSTEM_ID"' : q(v('--db-system-id') || '<mysql-db-system-ocid>')}`,
+  ]
+  for (const option of [
+    '--display-name', '--description', '--backup-type', '--retention-in-days', '--soft-delete',
+    '--freeform-tags', '--defined-tags', '--wait-for-state', '--max-wait-seconds', '--wait-interval-seconds',
+  ]) {
+    if (v(option)) createArgs.push(`${option} ${q(v(option))}`)
   }
-  lines.push(
-    '',
-    'echo "[RESOLVED] mysql-db-system=$DB_SYSTEM_ID"',
-    'MYSQL_BACKUP_ID=$(oci mysql backup create \\',
-    '  --db-system-id "$DB_SYSTEM_ID" "${EXTRA_ARGS[@]}" \\',
-    '  --query \'data.id\' --raw-output "${CTX[@]}")',
-    'echo "[CREATED] mysql-backup=$MYSQL_BACKUP_ID"',
-    'oci mysql backup get --backup-id "$MYSQL_BACKUP_ID" \\',
-    '  --query \'data.{name:"display-name",type:"backup-type",state:"lifecycle-state",retentionDays:"retention-in-days",created:"time-created",id:id}\' \\',
-    '  --output table "${CTX[@]}"',
-  )
-  return lines.join('\n')
+  createArgs.push(...contextArgs)
+  const createCommand = cliCommand('oci mysql backup create', createArgs)
+  return prelude.length ? `${prelude.join('\n')}\n\n${createCommand}` : createCommand
 }
 
 /* MySQL DB System GET의 필수 인자는 그대로 --db-system-id 하나이며,
