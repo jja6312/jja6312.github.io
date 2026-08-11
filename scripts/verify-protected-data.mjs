@@ -2,6 +2,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { webcrypto } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
+import vm from 'node:vm'
+import ts from 'typescript'
 
 const file = JSON.parse(readFileSync(resolve('public/protected-data.json'), 'utf8'))
 const verifiers = JSON.parse(readFileSync(resolve('src/data/authVerifiers.json'), 'utf8'))
@@ -52,25 +55,40 @@ for (const level of [1, 2, 3]) {
   const mysqlGroup = bundle.cliCatalog.categories
     .flatMap(category => category.groups)
     .find(group => group.label === 'MySQL HeatWave')
-  if (!mysqlGroup?.resources.includes('mysql-manual-backup')) {
-    throw new Error(`L${level} MySQL DB System operation menu missing`)
+  if (JSON.stringify(mysqlGroup?.resources) !== JSON.stringify(['mysql', 'mysql-backup'])) {
+    throw new Error(`L${level} MySQL resource boundary invalid: ${JSON.stringify(mysqlGroup?.resources)}`)
   }
-  const mysqlOps = bundle.cliCatalog.commands['mysql-manual-backup']
-  if (!mysqlOps?.mysqlDbSystemOps || mysqlOps.defaultOperation !== 'list') {
-    throw new Error(`L${level} MySQL DB System operation metadata invalid`)
+  const mysqlDbSystem = bundle.cliCatalog.commands.mysql
+  if (mysqlDbSystem.operations?.get?.cmd !== 'oci mysql db-system get'
+    || mysqlDbSystem.operations?.list?.cmd !== 'oci mysql db-system list') {
+    throw new Error(`L${level} existing MySQL DB System GET/LIST changed`)
   }
-  const expectedMysqlCommands = {
-    get: 'oci mysql db-system get',
-    list: 'oci mysql db-system list',
-    create: 'oci mysql backup create',
+  const requiredNames = operation => operation.sections.flatMap(section => section.options)
+    .filter(option => option.required && !option.lookupOnly).map(option => option.name).sort()
+  if (JSON.stringify(requiredNames(mysqlDbSystem.operations.get)) !== JSON.stringify(['--db-system-id'])) {
+    throw new Error(`L${level} MySQL DB System GET required fields invalid`)
   }
-  for (const [operation, command] of Object.entries(expectedMysqlCommands)) {
-    if (mysqlOps.operations?.[operation]?.cmd !== command) {
-      throw new Error(`L${level} MySQL ${operation} command invalid`)
+  if (JSON.stringify(requiredNames(mysqlDbSystem.operations.list)) !== JSON.stringify(['--compartment-id'])) {
+    throw new Error(`L${level} MySQL DB System LIST required fields invalid`)
+  }
+  const mysqlBackup = bundle.cliCatalog.commands['mysql-backup']
+  const expectedBackupCommands = {
+    get: 'oci mysql backup get', list: 'oci mysql backup list', create: 'oci mysql backup create',
+    update: 'oci mysql backup update', delete: 'oci mysql backup delete',
+  }
+  for (const [operation, command] of Object.entries(expectedBackupCommands)) {
+    if (mysqlBackup?.operations?.[operation]?.cmd !== command) {
+      throw new Error(`L${level} MySQL Backup ${operation} command invalid`)
     }
   }
-  if (mysqlOps.operations?.update || mysqlOps.operations?.delete) {
-    throw new Error(`L${level} unsupported MySQL operations must stay disabled`)
+  const backupCreateOptions = mysqlBackup.operations.create.sections.flatMap(section => section.options)
+  if (JSON.stringify(requiredNames(mysqlBackup.operations.create)) !== JSON.stringify(['--db-system-id'])) {
+    throw new Error(`L${level} MySQL Backup CREATE must require only --db-system-id`)
+  }
+  for (const name of ['--backup-type', '--description', '--display-name', '--retention-in-days', '--soft-delete', '--profile', '--region']) {
+    if (backupCreateOptions.find(option => option.name === name)?.required !== false) {
+      throw new Error(`L${level} MySQL Backup optional field marked required: ${name}`)
+    }
   }
   const cleanup = bundle.cliCatalog.commands['compartment-resource-cleansing']
   if (!cleanup?.compartmentCleanup) throw new Error(`L${level} compartment cleansing 메뉴 누락`)
@@ -84,7 +102,6 @@ for (const level of [1, 2, 3]) {
   const crudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations)
   if (crudCommands.length !== 38) throw new Error(`L${level} CRUD 자원 수 오류: ${crudCommands.length}`)
   for (const command of crudCommands) {
-    if (command.resource === 'mysql-manual-backup') continue
     for (const operation of ['get', 'list', 'create', 'update', 'delete']) {
       if (!command.operations[operation]?.cmd) throw new Error(`L${level} ${command.resource} ${operation} 명령 누락`)
     }
@@ -115,6 +132,52 @@ if (!cliBuilder.includes('oci log-analytics storage purge-storage-data')) throw 
 if (!cliBuilder.includes('oci compute boot-volume-attachment list')) throw new Error('instance boot volume attachment lookup missing')
 if (!cliBuilder.includes('oci bv boot-volume-backup create')) throw new Error('boot volume manual backup create missing')
 if (!cliBuilder.includes('oci mysql backup create')) throw new Error('MySQL manual backup create missing')
+if (!cliBuilder.includes('function buildMysqlBackupCreate')
+  || !cliBuilder.includes("cmd.resource === 'mysql-backup' && operation === 'create'")) {
+  throw new Error('MySQL Backup CREATE builder not connected to the Backup resource')
+}
+if (cliBuilder.includes('buildMysqlDbSystemOps') || cliBuilder.includes('mysqlDbSystemOps')) {
+  throw new Error('mixed MySQL DB System/Backup builder must not return')
+}
+if (!cliBuilder.includes('if (o.lookupOnly) continue')) throw new Error('lookup-only field leaks into OCI command')
 if (!cliBuilder.includes('COMPARTMENT_COUNT') || !cliBuilder.includes('INSTANCE_COUNT') || !cliBuilder.includes('DB_SYSTEM_COUNT')) {
   throw new Error('manual backup duplicate-name guards missing')
+}
+
+const builderStart = cliBuilder.indexOf('function buildMysqlBackupCreate')
+const builderEnd = cliBuilder.indexOf('/* Build a safety-gated Bash cleanup script', builderStart)
+if (builderStart < 0 || builderEnd < 0) throw new Error('MySQL Backup builder source extraction failed')
+const builderHarness = `
+const DYNAMIC = {'--lookup-compartment-id': {}, '--db-system-id': {}}
+const isDynamic = (dyn, name) => name in DYNAMIC ? (dyn[name] ?? true) : false
+${cliBuilder.slice(builderStart, builderEnd)}
+globalThis.dynamicScript = buildMysqlBackupCreate({
+  '--lookup-compartment-id': 'prod', '--db-system-id': 'mysql-prod-01',
+  '--profile': 'DEFAULT', '--region': 'ap-seoul-1',
+  '--display-name': '', '--description': '', '--backup-type': '', '--retention-in-days': '',
+  '--soft-delete': '', '--freeform-tags': '', '--defined-tags': '', '--wait-for-state': '',
+  '--max-wait-seconds': '', '--wait-interval-seconds': '',
+}, {})
+globalThis.directScript = buildMysqlBackupCreate({
+  '--lookup-compartment-id': '', '--db-system-id': 'ocid1.mysqldbsystem.oc1.ap-seoul-1.example',
+  '--profile': '', '--region': '',
+}, {'--db-system-id': false})
+`
+const context = {}
+vm.runInNewContext(ts.transpileModule(builderHarness, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+}).outputText, context)
+for (const [mode, script] of Object.entries({ dynamic: context.dynamicScript, direct: context.directScript })) {
+  if (!script.includes('oci mysql backup create') || script.includes('--lookup-compartment-id')) {
+    throw new Error(`MySQL Backup ${mode} script command/lookup field invalid`)
+  }
+  if (!script.includes('[[ -n "$BACKUP_TYPE" ]] && EXTRA_ARGS+=(--backup-type "$BACKUP_TYPE")')
+    || !script.includes('[[ -n "$SOFT_DELETE" ]] && EXTRA_ARGS+=(--soft-delete "$SOFT_DELETE")')) {
+    throw new Error(`MySQL Backup ${mode} script does not guard optional fields`)
+  }
+  const syntax = spawnSync('C:\\Program Files\\Git\\bin\\bash.exe', ['-n'], { input: script, encoding: 'utf8' })
+  if (syntax.status !== 0) throw new Error(`MySQL Backup ${mode} bash syntax invalid: ${syntax.stderr}`)
+}
+if (!context.dynamicScript.includes('oci mysql db-system list') || context.directScript.includes('oci mysql db-system list')) {
+  throw new Error('MySQL Backup name/OCID selection mode invalid')
 }

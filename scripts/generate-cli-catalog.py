@@ -42,7 +42,7 @@ STRUCTURE = [
   ('05-database', 'Database', [
     ('Autonomous Database', ['autonomous-database']),
     ('Oracle Base Database', ['base-db']),
-    ('MySQL HeatWave', ['mysql', 'mysql-manual-backup']),
+    ('MySQL HeatWave', ['mysql', 'mysql-backup']),
   ]),
   ('06-observability', 'Observability', [
     ('Monitoring', ['alarm']),
@@ -61,6 +61,7 @@ RES_LABEL = {
   'local-peering-gateway': 'Local Peering Gateway', 'remote-peering-connection': 'Remote Peering Connection',
   'public-ip': 'Public IP', 'load-balancer': 'Load Balancer', 'network-load-balancer': 'Network Load Balancer',
   'autonomous-database': 'Autonomous Database', 'base-db': 'Base Database System', 'mysql': 'MySQL DB System',
+  'mysql-backup': 'MySQL Backup',
   'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription',
 }
 
@@ -120,6 +121,14 @@ CURATION = {
       ('관리자 자격', ['--admin-username', '--admin-password']),
       ('네트워크', ['--subnet-id', '--availability-domain', '--fault-domain', '--hostname-label', '--ip-address', '--port', '--port-x']),
       ('백업·유지보수', ['--backup-policy', '--maintenance', '--deletion-policy', '--crash-recovery']),
+    ],
+  },
+  'mysql-backup': {
+    'promote': [],
+    'sections': [
+      ('대상 DB System', ['--lookup-compartment-id', '--db-system-id']),
+      ('백업 정보', ['--display-name', '--description', '--backup-type', '--retention-in-days', '--soft-delete']),
+      ('실행 환경', ['--profile', '--region']),
     ],
   },
   'base-db': {
@@ -212,6 +221,8 @@ def placeholder(name, typ):
 raw = {}
 for f in glob.glob(os.path.join(DATA, '*.json')):
     d = json.load(open(f, encoding='utf-8'))
+    if not d.get('primary') and d.get('commands'):
+        d['primary'] = next((command for command in d['commands'] if command.get('verb') == 'create'), None)
     if d.get('primary', {}).get('options'):
         raw[d['resource']] = d
 
@@ -226,7 +237,7 @@ def build_option(o):
         'help': (o.get('help') or '').strip()[:140],
         'placeholder': placeholder(o['name'], 'json' if o.get('json') else typ),
     }
-    for key in ('flag', 'defaultValue', 'suggestions', 'shellQuote'):
+    for key in ('flag', 'defaultValue', 'suggestions', 'shellQuote', 'lookupOnly', 'displayLabel'):
         if key in o:
             option[key] = o[key]
     if o.get('placeholder'):
@@ -290,7 +301,7 @@ def find_operation(commands, group, operation):
     return None
 
 catalog = {'categories': [], 'commands': {}}
-MANUAL_CATEGORY_RESOURCES = {'instance-maintenance-reboot', 'instance-boot-volume-backup', 'mysql-manual-backup'}
+MANUAL_CATEGORY_RESOURCES = {'instance-maintenance-reboot', 'instance-boot-volume-backup'}
 placed = set()
 for cat_id, cat_label, groups in STRUCTURE:
     cat = {'id': cat_id, 'label': cat_label, 'groups': []}
@@ -305,12 +316,14 @@ source_cache = {}
 for res, d in raw.items():
     if res not in placed:
         continue
-    cmd = recipe_cmd(res)
+    cmd = d.get('command') or recipe_cmd(res)
     if not cmd:
         continue
     sections, advanced = layout_command(res, d['primary'], curated=True)
     source_file = d.get('source_file')
-    if source_file and os.path.exists(source_file):
+    if d.get('commands'):
+        source_commands = d['commands']
+    elif source_file and os.path.exists(source_file):
         if source_file not in source_cache:
             source_cache[source_file] = parse_cli_file(source_file)
         source_commands = source_cache[source_file]
@@ -493,73 +506,10 @@ def _instance_boot_volume_backup():
         'advanced': [],
     }
 
-def _mysql_manual_backup():
-    target_options = [
-        _co('--compartment-name', False, '테넌시 전체에서 정확히 일치하는 컴파트먼트 이름. 컴파트먼트 OCID를 직접 넣으면 생략 가능', 'prod'),
-        _co('--compartment-id', False, '이름 조회를 건너뛸 컴파트먼트 OCID', 'ocid1.compartment.oc1..xxxx'),
-        _co('--db-system-name', False, '컴파트먼트에서 정확히 일치하는 MySQL DB System display name. DB System OCID를 직접 넣으면 생략 가능', 'mysql-prod-01'),
-        _co('--db-system-id', False, '이름 조회를 건너뛸 MySQL DB System OCID', 'ocid1.mysqldbsystem.oc1.ap-seoul-1.xxxx'),
-        _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT'),
-        _co('--region', True, '대상 MySQL DB System 리전', 'ap-seoul-1', default='ap-seoul-1'),
-    ]
-    list_options = [
-        _co('--compartment-name', False, '테넌시 전체에서 정확히 일치하는 컴파트먼트 이름. 컴파트먼트 OCID를 직접 넣으면 생략 가능', 'prod'),
-        _co('--compartment-id', False, '이름 조회를 건너뛸 컴파트먼트 OCID', 'ocid1.compartment.oc1..xxxx'),
-        _co('--display-name', False, '특정 DB System 이름만 조회할 때 입력', 'mysql-prod-01'),
-        _co('--lifecycle-state', True, 'ALL은 전체 상태, 나머지는 해당 상태만 조회', choices=['ALL', 'ACTIVE', 'CREATING', 'DELETED', 'DELETING', 'FAILED', 'INACTIVE', 'UPDATING'], default='ALL'),
-        _co('--output-mode', True, 'SUMMARY는 핵심 필드를 표로, FULL은 OCI 원본 JSON 전체를 출력', choices=['SUMMARY', 'FULL'], default='SUMMARY'),
-        _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT'),
-        _co('--region', True, '조회 리전', 'ap-seoul-1', default='ap-seoul-1'),
-    ]
-    get_options = target_options + [
-        _co('--output-mode', True, 'SUMMARY는 핵심 필드를 표로, FULL은 OCI 원본 JSON 전체를 출력', choices=['SUMMARY', 'FULL'], default='SUMMARY'),
-    ]
-    create_options = target_options + [
-        _co('--backup-display-name', False, '백업 이름. 비우면 <mysql>-manual-UTC시각', 'mysql-prod-01-manual-20260811-150000'),
-        _co('--backup-type', True, 'FULL은 전체 백업, INCREMENTAL은 직전 백업 이후 변경분', choices=['FULL', 'INCREMENTAL'], default='FULL'),
-        _co('--retention-in-days', True, '백업 보존 일수', '7', default='7'),
-        _co('--soft-delete', True, '보존 만료 후 7일간 DELETE SCHEDULED 상태로 유지할지 선택', choices=['ENABLED', 'DISABLED'], default='ENABLED'),
-        _co('--description', False, '백업 설명', '정기점검 전 수동 백업'),
-        _co('--max-wait-seconds', True, '백업 생성 Work Request를 기다릴 최대 시간(초)', '7200', default='7200'),
-    ]
-    return {
-        'resource': 'mysql-manual-backup',
-        'label': 'MySQL DB System — 조회·수동 백업',
-        'cmd': 'oci mysql db-system list',
-        'mysqlDbSystemOps': True,
-        'defaultOperation': 'list',
-        'help': ('LIST는 컴파트먼트의 DB System을 조회하고, GET은 이름 또는 OCID로 한 대를 조회하며, '
-                 'CREATE는 선택한 ACTIVE DB System의 수동 백업을 생성합니다. 이름이 중복되면 임의 선택하지 않습니다.'),
-        'operations': {
-            'get': {
-                'cmd': 'oci mysql db-system get',
-                'help': 'DB System 이름을 정확한 OCID로 해석하거나 OCID를 직접 사용해 상세 정보를 조회합니다.',
-                'sections': [{'label': '조회 대상', 'options': get_options}], 'advanced': [],
-            },
-            'list': {
-                'cmd': 'oci mysql db-system list',
-                'help': '컴파트먼트의 MySQL DB System 목록을 상태와 이름으로 필터링해 조회합니다.',
-                'sections': [{'label': '목록 조회', 'options': list_options}], 'advanced': [],
-            },
-            'create': {
-                'cmd': 'oci mysql backup create',
-                'help': 'ACTIVE DB System을 이름 또는 OCID로 선택한 뒤 수동 백업을 만들고 완료 결과를 검증합니다.',
-                'sections': [
-                    {'label': '백업 대상', 'options': target_options},
-                    {'label': '수동 백업 설정', 'options': create_options[len(target_options):]},
-                ],
-                'advanced': [],
-            },
-        },
-        'sections': [{'label': '목록 조회', 'options': list_options}],
-        'advanced': [],
-    }
-
 EXTRA = {
     'compartment-resource-cleansing': _compartment_cleanup(),
     'instance-maintenance-reboot': _maintenance_reboot(),
     'instance-boot-volume-backup': _instance_boot_volume_backup(),
-    'mysql-manual-backup': _mysql_manual_backup(),
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
     'block-volume-cross-copy': _cross('volume', '--source-volume-id', 'Block Volume', 'ocid1.volume.oc1.ap-seoul-1.xxxx'),
 }

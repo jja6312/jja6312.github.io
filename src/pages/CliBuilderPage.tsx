@@ -17,6 +17,8 @@ interface CliOption {
   defaultValue?: string
   suggestions?: string[]
   shellQuote?: boolean
+  lookupOnly?: boolean       // 이름 조회에만 사용하고 최종 OCI 명령에는 전달하지 않음
+  displayLabel?: string
 }
 interface CliSection { label: string; options: CliOption[] }
 type CrudVerb = 'get' | 'list' | 'create' | 'update' | 'delete'
@@ -31,8 +33,6 @@ interface CliCommand {
   maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
   compartmentCleanup?: boolean // scoped resource cleanup PREVIEW/DELETE script
   manualBackup?: 'instance-boot-volume' | 'mysql'
-  mysqlDbSystemOps?: boolean // MySQL DB System LIST/GET + manual backup CREATE
-  defaultOperation?: CrudVerb
   operations?: Partial<Record<CrudVerb, CliOperation>>
   sections: CliSection[]; advanced: CliOption[]
 }
@@ -53,7 +53,6 @@ const CRUD_OPERATIONS: { verb: CrudVerb; icon: string }[] = [
 ] as const
 
 const defaultOperation = (command: CliCommand): CrudVerb => {
-  if (command.defaultOperation && command.operations?.[command.defaultOperation]) return command.defaultOperation
   if (command.maintenanceReboot) return 'get'
   if (command.operations?.create) return 'create'
   return CRUD_OPERATIONS.find(operation => command.operations?.[operation.verb])?.verb ?? 'create'
@@ -75,6 +74,8 @@ const DYNAMIC: Record<string, { input: string; note: string }> = {
   '--availability-domain': { input: 'AD 번호 1~3 (기본 1)', note: '번호로 AD 이름 자동 조회' },
   '--vcn-id': { input: 'VCN 이름', note: '이름으로 OCID 자동 조회 (compartment 기준)' },
   '--subnet-id': { input: 'Subnet 이름', note: '이름으로 OCID 자동 조회 (compartment 기준)' },
+  '--lookup-compartment-id': { input: 'compartment 이름 (예: prod)', note: 'DB System 이름 조회에만 사용할 compartment' },
+  '--db-system-id': { input: 'MySQL DB System 이름', note: 'compartment 안에서 정확한 이름으로 OCID 조회' },
 }
 
 /* ── JSON 옵션 서브필드 스키마 — 사용자는 값만 넣고 {} 는 자동 조립 ── */
@@ -399,142 +400,92 @@ function buildManualBackup(kind: 'instance-boot-volume' | 'mysql', values: Recor
   ].join('\n')
 }
 
-/* MySQL DB System은 LIST/GET은 DB System 명령, CREATE는 수동 백업 명령으로 연결합니다. */
-function buildMysqlDbSystemOps(values: Record<string, string>, operation: CrudVerb): string {
-  const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
+/* MySQL Backup CREATE는 정상 Backup 리소스 안에서 DB System 이름 조회만 보조합니다. */
+function buildMysqlBackupCreate(values: Record<string, string>, dyn: Record<string, boolean>): string {
+  const v = (key: string) => (values[key] || '').trim()
   const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
-  const common = [
+  const dynamicDbSystem = isDynamic(dyn, '--db-system-id')
+  const dynamicCompartment = isDynamic(dyn, '--lookup-compartment-id')
+  const lines = [
     '#!/usr/bin/env bash',
     'set -euo pipefail',
     '',
-    `PROFILE=${q(v('--profile', 'DEFAULT'))}`,
-    `REGION=${q(v('--region', 'ap-seoul-1'))}`,
-    `COMPARTMENT_NAME=${q(v('--compartment-name'))}`,
-    `COMPARTMENT_ID_INPUT=${q(v('--compartment-id'))}`,
-    'CTX=(--profile "$PROFILE" --region "$REGION")',
+    `PROFILE=${q(v('--profile'))}`,
+    `REGION=${q(v('--region'))}`,
+    'CTX=()',
+    '[[ -n "$PROFILE" ]] && CTX+=(--profile "$PROFILE")',
+    '[[ -n "$REGION" ]] && CTX+=(--region "$REGION")',
     '',
-  ]
-  const resolveCompartment = [
-    'if [[ -n "$COMPARTMENT_ID_INPUT" ]]; then',
-    '  COMPARTMENT_ID="$COMPARTMENT_ID_INPUT"',
-    'else',
-    '  [[ -n "$COMPARTMENT_NAME" ]] || { echo "[ERROR] compartment 이름 또는 OCID가 필요합니다." >&2; exit 2; }',
-    '  COMPARTMENT_COUNT=$(oci iam compartment list \\',
-    '    --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE \\',
-    '    --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
-    '    --query \'length(data)\' --raw-output "${CTX[@]}")',
-    '  if [[ "$COMPARTMENT_COUNT" != "1" ]]; then',
-    '    echo "[ERROR] ACTIVE compartment 이름은 정확히 1개여야 합니다: $COMPARTMENT_NAME (found=$COMPARTMENT_COUNT)" >&2',
-    '    oci iam compartment list --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
-    '      --query \'data[].{name:name,id:id,parent:"compartment-id"}\' --output table "${CTX[@]}" >&2',
-    '    exit 1',
-    '  fi',
-    '  COMPARTMENT_ID=$(oci iam compartment list \\',
-    '    --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE \\',
-    '    --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
-    '    --query \'data[0].id\' --raw-output "${CTX[@]}")',
-    'fi',
-    '',
-    'echo "[RESOLVED] compartment=$COMPARTMENT_ID"',
   ]
 
-  if (operation === 'list') {
-    return [
-      ...common,
-      `DISPLAY_NAME=${q(v('--display-name'))}`,
-      `LIFECYCLE_STATE=${q(v('--lifecycle-state', 'ALL').toUpperCase())}`,
-      `OUTPUT_MODE=${q(v('--output-mode', 'SUMMARY').toUpperCase())}`,
+  if (dynamicDbSystem) {
+    lines.push(
+      `DB_SYSTEM_NAME=${q(v('--db-system-id') || '<mysql-db-system-name>')}`,
+      `COMPARTMENT_INPUT=${q(v('--lookup-compartment-id') || (dynamicCompartment ? '<compartment-name>' : '<compartment-ocid>'))}`,
       '',
-      '[[ "$OUTPUT_MODE" == "SUMMARY" || "$OUTPUT_MODE" == "FULL" ]] || { echo "[ERROR] output mode는 SUMMARY 또는 FULL이어야 합니다." >&2; exit 2; }',
-      ...resolveCompartment,
-      'LIST_ARGS=(--compartment-id "$COMPARTMENT_ID" --all)',
-      '[[ -n "$DISPLAY_NAME" ]] && LIST_ARGS+=(--display-name "$DISPLAY_NAME")',
-      '[[ "$LIFECYCLE_STATE" != "ALL" ]] && LIST_ARGS+=(--lifecycle-state "$LIFECYCLE_STATE")',
+    )
+    if (dynamicCompartment) {
+      lines.push(
+        'COMPARTMENT_COUNT=$(oci iam compartment list \\',
+        '  --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE \\',
+        '  --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+        '  --query \'length(data)\' --raw-output "${CTX[@]}")',
+        'if [[ "$COMPARTMENT_COUNT" != "1" ]]; then',
+        '  echo "[ERROR] ACTIVE compartment 이름은 정확히 1개여야 합니다: $COMPARTMENT_INPUT (found=$COMPARTMENT_COUNT)" >&2',
+        '  oci iam compartment list --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+        '    --query \'data[].{name:name,id:id,parent:"compartment-id"}\' --output table "${CTX[@]}" >&2',
+        '  exit 1',
+        'fi',
+        'COMPARTMENT_ID=$(oci iam compartment list \\',
+        '  --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE \\',
+        '  --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+        '  --query \'data[0].id\' --raw-output "${CTX[@]}")',
+      )
+    } else {
+      lines.push('COMPARTMENT_ID="$COMPARTMENT_INPUT"')
+    }
+    lines.push(
       '',
-      'if [[ "$OUTPUT_MODE" == "FULL" ]]; then',
-      '  oci mysql db-system list "${LIST_ARGS[@]}" "${CTX[@]}"',
-      'else',
-      '  oci mysql db-system list "${LIST_ARGS[@]}" \\',
-      '    --query \'data[].{name:"display-name",state:"lifecycle-state",version:"mysql-version",shape:"shape-name",ha:"is-highly-available",ip:"ip-address",created:"time-created",id:id}\' \\',
-      '    --output table "${CTX[@]}"',
+      'DB_SYSTEM_COUNT=$(oci mysql db-system list \\',
+      '  --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --lifecycle-state ACTIVE --all \\',
+      '  --query \'length(data)\' --raw-output "${CTX[@]}")',
+      'if [[ "$DB_SYSTEM_COUNT" != "1" ]]; then',
+      '  echo "[ERROR] ACTIVE MySQL DB System 이름은 정확히 1개여야 합니다: $DB_SYSTEM_NAME (found=$DB_SYSTEM_COUNT)" >&2',
+      '  oci mysql db-system list --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --all \\',
+      '    --query \'data[].{name:"display-name",state:"lifecycle-state",id:id}\' --output table "${CTX[@]}" >&2',
+      '  exit 1',
       'fi',
-    ].join('\n')
+      'DB_SYSTEM_ID=$(oci mysql db-system list \\',
+      '  --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --lifecycle-state ACTIVE --all \\',
+      '  --query \'data[0].id\' --raw-output "${CTX[@]}")',
+    )
+  } else {
+    lines.push(`DB_SYSTEM_ID=${q(v('--db-system-id') || '<mysql-db-system-ocid>')}`)
   }
 
-  const dbTarget = [
-    `DB_SYSTEM_NAME=${q(v('--db-system-name'))}`,
-    `DB_SYSTEM_ID_INPUT=${q(v('--db-system-id'))}`,
-    '',
-    'if [[ -n "$DB_SYSTEM_ID_INPUT" ]]; then',
-    '  DB_SYSTEM_ID="$DB_SYSTEM_ID_INPUT"',
-    'else',
-    ...resolveCompartment.map(line => `  ${line}`),
-    '  [[ -n "$DB_SYSTEM_NAME" ]] || { echo "[ERROR] DB System 이름 또는 OCID가 필요합니다." >&2; exit 2; }',
-    `  DB_SYSTEM_COUNT=$(oci mysql db-system list --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --all \\
-    --query '${operation === 'create' ? 'length(data[?"lifecycle-state" == `ACTIVE`])' : 'length(data[?"lifecycle-state" != `DELETED`])'}' --raw-output "\${CTX[@]}")`,
-    '  if [[ "$DB_SYSTEM_COUNT" != "1" ]]; then',
-    `    echo "[ERROR] ${operation === 'create' ? 'ACTIVE ' : ''}MySQL DB System 이름은 정확히 1개여야 합니다: $DB_SYSTEM_NAME (found=$DB_SYSTEM_COUNT)" >&2`,
-    '    oci mysql db-system list --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --all \\',
-    '      --query \'data[].{name:"display-name",state:"lifecycle-state",id:id}\' --output table "${CTX[@]}" >&2',
-    '    exit 1',
-    '  fi',
-    `  DB_SYSTEM_ID=$(oci mysql db-system list --compartment-id "$COMPARTMENT_ID" --display-name "$DB_SYSTEM_NAME" --all \\
-    --query 'data[?"lifecycle-state" ${operation === 'create' ? '==' : '!='} \`${operation === 'create' ? 'ACTIVE' : 'DELETED'}\`] | [0].id' --raw-output "\${CTX[@]}")`,
-    'fi',
+  const optional = [
+    ['--display-name', 'DISPLAY_NAME'], ['--description', 'DESCRIPTION'], ['--backup-type', 'BACKUP_TYPE'],
+    ['--retention-in-days', 'RETENTION_DAYS'], ['--soft-delete', 'SOFT_DELETE'],
+    ['--freeform-tags', 'FREEFORM_TAGS'], ['--defined-tags', 'DEFINED_TAGS'],
+    ['--wait-for-state', 'WAIT_FOR_STATE'], ['--max-wait-seconds', 'MAX_WAIT_SECONDS'],
+    ['--wait-interval-seconds', 'WAIT_INTERVAL_SECONDS'],
+  ] as const
+  lines.push('', 'EXTRA_ARGS=()')
+  for (const [option, variable] of optional) {
+    lines.push(`${variable}=${q(v(option))}`, `[[ -n "$${variable}" ]] && EXTRA_ARGS+=(${option} "$${variable}")`)
+  }
+  lines.push(
     '',
     'echo "[RESOLVED] mysql-db-system=$DB_SYSTEM_ID"',
-  ]
-
-  if (operation === 'get') {
-    return [
-      ...common,
-      ...dbTarget,
-      `OUTPUT_MODE=${q(v('--output-mode', 'SUMMARY').toUpperCase())}`,
-      '[[ "$OUTPUT_MODE" == "SUMMARY" || "$OUTPUT_MODE" == "FULL" ]] || { echo "[ERROR] output mode는 SUMMARY 또는 FULL이어야 합니다." >&2; exit 2; }',
-      '',
-      'if [[ "$OUTPUT_MODE" == "FULL" ]]; then',
-      '  oci mysql db-system get --db-system-id "$DB_SYSTEM_ID" "${CTX[@]}"',
-      'else',
-      '  oci mysql db-system get --db-system-id "$DB_SYSTEM_ID" \\',
-      '    --query \'data.{name:"display-name",state:"lifecycle-state",version:"mysql-version",shape:"shape-name",ha:"is-highly-available",ad:"availability-domain",fd:"fault-domain",ip:"ip-address",port:port,storageGB:"data-storage-size-in-gbs",created:"time-created",id:id}\' \\',
-      '    --output table "${CTX[@]}"',
-      'fi',
-    ].join('\n')
-  }
-
-  return [
-    ...common,
-    ...dbTarget,
-    `BACKUP_DISPLAY_NAME_INPUT=${q(v('--backup-display-name'))}`,
-    `BACKUP_TYPE=${q(v('--backup-type', 'FULL').toUpperCase())}`,
-    `RETENTION_DAYS=${q(v('--retention-in-days', '7'))}`,
-    `SOFT_DELETE=${q(v('--soft-delete', 'ENABLED').toUpperCase())}`,
-    `DESCRIPTION=${q(v('--description'))}`,
-    `MAX_WAIT_SECONDS=${q(v('--max-wait-seconds', '7200'))}`,
-    '',
-    'DB_SYSTEM_STATE=$(oci mysql db-system get --db-system-id "$DB_SYSTEM_ID" --query \'data."lifecycle-state"\' --raw-output "${CTX[@]}")',
-    '[[ "$DB_SYSTEM_STATE" == "ACTIVE" ]] || { echo "[ERROR] 수동 백업 대상은 ACTIVE 상태여야 합니다. current=$DB_SYSTEM_STATE" >&2; exit 2; }',
-    'if [[ -z "$DB_SYSTEM_NAME" ]]; then',
-    '  DB_SYSTEM_NAME=$(oci mysql db-system get --db-system-id "$DB_SYSTEM_ID" --query \'data."display-name"\' --raw-output "${CTX[@]}")',
-    'fi',
-    '[[ "$BACKUP_TYPE" == "FULL" || "$BACKUP_TYPE" == "INCREMENTAL" ]] || { echo "[ERROR] backup type은 FULL 또는 INCREMENTAL이어야 합니다." >&2; exit 2; }',
-    '[[ "$SOFT_DELETE" == "ENABLED" || "$SOFT_DELETE" == "DISABLED" ]] || { echo "[ERROR] soft delete는 ENABLED 또는 DISABLED여야 합니다." >&2; exit 2; }',
-    '[[ "$RETENTION_DAYS" =~ ^[0-9]+$ ]] || { echo "[ERROR] retention days는 숫자여야 합니다." >&2; exit 2; }',
-    '[[ "$MAX_WAIT_SECONDS" =~ ^[0-9]+$ ]] || { echo "[ERROR] max wait seconds는 숫자여야 합니다." >&2; exit 2; }',
-    'BACKUP_DISPLAY_NAME="${BACKUP_DISPLAY_NAME_INPUT:-${DB_SYSTEM_NAME}-manual-$(date -u +%Y%m%d-%H%M%S)}"',
-    'DESCRIPTION_ARGS=()',
-    '[[ -n "$DESCRIPTION" ]] && DESCRIPTION_ARGS=(--description "$DESCRIPTION")',
-    '',
     'MYSQL_BACKUP_ID=$(oci mysql backup create \\',
-    '  --db-system-id "$DB_SYSTEM_ID" --display-name "$BACKUP_DISPLAY_NAME" --backup-type "$BACKUP_TYPE" \\',
-    '  --retention-in-days "$RETENTION_DAYS" --soft-delete "$SOFT_DELETE" "${DESCRIPTION_ARGS[@]}" \\',
-    '  --wait-for-state SUCCEEDED --max-wait-seconds "$MAX_WAIT_SECONDS" \\',
+    '  --db-system-id "$DB_SYSTEM_ID" "${EXTRA_ARGS[@]}" \\',
     '  --query \'data.id\' --raw-output "${CTX[@]}")',
-    '',
     'echo "[CREATED] mysql-backup=$MYSQL_BACKUP_ID"',
     'oci mysql backup get --backup-id "$MYSQL_BACKUP_ID" \\',
-    '  --query \'data.{name:"display-name",type:"backup-type",state:"lifecycle-state",retentionDays:"retention-in-days",created:"time-created",id:id}\' --output table "${CTX[@]}"',
-  ].join('\n')
+    '  --query \'data.{name:"display-name",type:"backup-type",state:"lifecycle-state",retentionDays:"retention-in-days",created:"time-created",id:id}\' \\',
+    '  --output table "${CTX[@]}"',
+  )
+  return lines.join('\n')
 }
 
 /* Build a safety-gated Bash cleanup script for one exact compartment. */
@@ -713,7 +664,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
   if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get')
   if (cmd.compartmentCleanup) return buildCompartmentCleanup(values)
-  if (cmd.mysqlDbSystemOps) return buildMysqlDbSystemOps(values, operation)
+  if (cmd.resource === 'mysql-backup' && operation === 'create') return buildMysqlBackupCreate(values, dyn)
   if (cmd.manualBackup) return buildManualBackup(cmd.manualBackup, values)
 
   const selected = cmd.operations?.[operation] ?? cmd
@@ -737,6 +688,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
 
   for (const o of allOptions(selected)) {
     const v = (values[o.name] ?? '').trim()
+    if (o.lookupOnly) continue
     if (o.flag) {
       if (v === 'true') args.push(`  ${o.name}`)
       continue
@@ -923,15 +875,17 @@ export default function CliBuilderPage() {
 
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
-  const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup || cmd?.mysqlDbSystemOps || cmd?.manualBackup)
+  const noDyn = !!(cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup || cmd?.manualBackup)
   const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup)
-  const field = (o: CliOption, optional?: boolean) => (
-    <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
-      dynamic={!noDyn && isDynamic(dyn, o.name)}
-      onToggleDynamic={!noDyn && o.name in DYNAMIC ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
+  const field = (o: CliOption, optional?: boolean) => {
+    const mysqlBackupTarget = cmd?.resource === 'mysql-backup' && crudOperation === 'create'
+    const dynamicAllowed = !noDyn && o.name in DYNAMIC && (o.name !== '--db-system-id' || mysqlBackupTarget)
+    return <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
+      dynamic={dynamicAllowed && isDynamic(dyn, o.name)}
+      onToggleDynamic={dynamicAllowed ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
       subVal={k => values[subKey(o.name, k)] || ''}
       onSub={(k, v) => setVal(subKey(o.name, k), v)} />
-  )
+  }
 
   if (!protectedState.data) return (
     <div className="cli-main">
@@ -1079,7 +1033,7 @@ function Field({ o, value, onChange, optional, dynamic, onToggleDynamic, subVal,
   const dynMeta = DYNAMIC[o.name]
   const label = (
     <label className={`cli-field-label${optional ? ' optional' : ''}`}>
-      <code>{o.name}</code>
+      {o.lookupOnly ? <span>{o.displayLabel || o.name}</span> : <code>{o.name}</code>}
       {o.required && <span className="req">*</span>}
       {o.console && <span className="cli-console-req px">필수</span>}
       {onToggleDynamic && (
