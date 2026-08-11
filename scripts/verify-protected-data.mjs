@@ -53,10 +53,24 @@ for (const level of [1, 2, 3]) {
     .flatMap(category => category.groups)
     .find(group => group.label === 'MySQL HeatWave')
   if (!mysqlGroup?.resources.includes('mysql-manual-backup')) {
-    throw new Error(`L${level} MySQL manual backup menu missing`)
+    throw new Error(`L${level} MySQL DB System operation menu missing`)
   }
-  if (bundle.cliCatalog.commands['mysql-manual-backup']?.manualBackup !== 'mysql') {
-    throw new Error(`L${level} MySQL manual backup metadata invalid`)
+  const mysqlOps = bundle.cliCatalog.commands['mysql-manual-backup']
+  if (!mysqlOps?.mysqlDbSystemOps || mysqlOps.defaultOperation !== 'list') {
+    throw new Error(`L${level} MySQL DB System operation metadata invalid`)
+  }
+  const expectedMysqlCommands = {
+    get: 'oci mysql db-system get',
+    list: 'oci mysql db-system list',
+    create: 'oci mysql backup create',
+  }
+  for (const [operation, command] of Object.entries(expectedMysqlCommands)) {
+    if (mysqlOps.operations?.[operation]?.cmd !== command) {
+      throw new Error(`L${level} MySQL ${operation} command invalid`)
+    }
+  }
+  if (mysqlOps.operations?.update || mysqlOps.operations?.delete) {
+    throw new Error(`L${level} unsupported MySQL operations must stay disabled`)
   }
   const cleanup = bundle.cliCatalog.commands['compartment-resource-cleansing']
   if (!cleanup?.compartmentCleanup) throw new Error(`L${level} compartment cleansing 메뉴 누락`)
@@ -68,8 +82,9 @@ for (const level of [1, 2, 3]) {
     throw new Error(`L${level} compartment cleansing Log Analytics 옵션 누락`)
   }
   const crudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations)
-  if (crudCommands.length !== 37) throw new Error(`L${level} CRUD 자원 수 오류: ${crudCommands.length}`)
+  if (crudCommands.length !== 38) throw new Error(`L${level} CRUD 자원 수 오류: ${crudCommands.length}`)
   for (const command of crudCommands) {
+    if (command.resource === 'mysql-manual-backup') continue
     for (const operation of ['get', 'list', 'create', 'update', 'delete']) {
       if (!command.operations[operation]?.cmd) throw new Error(`L${level} ${command.resource} ${operation} 명령 누락`)
     }
