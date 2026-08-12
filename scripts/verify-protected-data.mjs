@@ -132,6 +132,9 @@ for (const level of [1, 2, 3]) {
     throw new Error(`L${level} Subscription Balance result defaults invalid`)
   }
   const subscriptionQuery = subscriptionOption('--query')?.defaultValue ?? ''
+  if (!subscriptionQuery.startsWith('data[].{') || subscriptionQuery.includes('data.items')) {
+    throw new Error(`L${level} Subscription Balance query must target the top-level data array`)
+  }
   for (const field of ['funded-allocation-value', 'used-amount', 'available-amount']) {
     if (!subscriptionQuery.includes(field)) throw new Error(`L${level} Subscription Balance query missing ${field}`)
   }
@@ -360,6 +363,10 @@ globalThis.rootScript = buildRootTenancyLookup({'--profile': 'FINOPS', '--region
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
 }).outputText, allBalancesContext)
 const allBalancesScript = allBalancesContext.script
+if (!allBalancesScript.includes(`--query 'data[].{Product:product.name`)
+  || allBalancesScript.includes(`--query 'data.items[].{Product:product.name`)) {
+  throw new Error('All Subscription Balances must query the top-level data array')
+}
 for (const expected of [
   'oci iam availability-domain list',
   'oci onesubscription organization-subscription organization-subscription list',

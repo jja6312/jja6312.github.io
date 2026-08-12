@@ -773,7 +773,7 @@ function buildAllSubscriptionBalances(values: Record<string, string>): string {
     '  echo "=== $SUBSCRIPTION_ID | $SERVICE_NAME | $STATUS | total=$TOTAL_VALUE $CURRENCY ==="',
     '  oci onesubscription subscribed-service subscribed-service list \\',
     '    --compartment-id "$TENANCY_ID" --subscription-id "$SUBSCRIPTION_ID" --all \\',
-    '    --query \'data.items[].{Product:product.name,Status:status,Funded:"funded-allocation-value",Used:"used-amount",Available:"available-amount",Start:"time-start",End:"time-end"}\' \\',
+    '    --query \'data[].{Product:product.name,Status:status,Funded:"funded-allocation-value",Used:"used-amount",Available:"available-amount",Start:"time-start",End:"time-end"}\' \\',
     '    --output table "${CTX[@]}"',
     'done < <(jq -r \'.data[] | [',
     '  .id, (."service-name" // "-"), (.status // "-"),',
