@@ -1,10 +1,11 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { curricula, sheets, findCurriculum } from '../data'
 import { useHub } from '../store'
+import { useVisibleLearningProgress } from '../lib/useLearningProgress'
 import type { Curriculum } from '../types'
 
 function SprintCard({ cur }: { cur: Curriculum }) {
-  const { steps, completedSheets } = useHub()
+  const { steps, completedSheets } = useVisibleLearningProgress()
   return (
     <div className="card" style={{ marginBottom: 20 }}>
       <div className="course-hd" style={{ padding: '16px 20px 12px' }}>
@@ -40,7 +41,7 @@ function SprintCard({ cur }: { cur: Curriculum }) {
 }
 
 function CategoryCard({ cur }: { cur: Curriculum }) {
-  const { completedSheets, steps } = useHub()
+  const { completedSheets, steps } = useVisibleLearningProgress()
   return (
     <div className="card" style={{ marginBottom: 20 }}>
       <div className="course-hd" style={{ padding: '16px 20px 12px' }}>
@@ -92,7 +93,7 @@ function CategoryCard({ cur }: { cur: Curriculum }) {
 
 // 진행 중인 학습지 — 최근 학습 순 (스프린트·주제별 구분 없이)
 function RecentSection() {
-  const { lastActivity, steps, completedSheets } = useHub()
+  const { lastActivity, steps, completedSheets } = useVisibleLearningProgress()
 
   const recent = Object.entries(lastActivity)
     .sort((a, b) => b[1] - a[1])
@@ -157,10 +158,24 @@ const MODES = [
 export default function LearningHome() {
   const nav = useNavigate()
   const { section } = useParams()
+  const { canManage, steps, completedSheets, updatedAt } = useVisibleLearningProgress()
+  const syncStatus = useHub(state => state.learningProgressSync)
+  const syncError = useHub(state => state.learningProgressError)
+  const openAuth = useHub(state => state.openAuth)
   const active = MODES.find(m => m.id === section)?.id ?? 'all'
   const sprints = curricula.filter(c => (c.mode ?? 'sprint') === 'sprint')
   const categories = curricula.filter(c => c.mode === 'category')
   const mode = MODES.find(m => m.id === active)!
+  const startedSheets = new Set(Object.keys(steps).filter(key => steps[key]).map(key => key.split(':')[0]))
+  const inProgress = [...startedSheets].filter(sheet => !completedSheets.includes(sheet)).length
+  const updatedLabel = updatedAt
+    ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(updatedAt))
+    : '아직 공개된 진도가 없습니다'
+  const syncLabel = syncStatus === 'saving' ? '공개 진도 저장 중…'
+    : syncStatus === 'synced' ? '공개 진도 자동 동기화'
+      : syncStatus === 'local' ? '이 브라우저에 저장 중 · 공개 동기화 연결 필요'
+        : syncStatus === 'error' ? syncError
+          : canManage ? '자물쇠3 관리자' : '공개 읽기 전용'
 
   return (
     <div>
@@ -179,6 +194,17 @@ export default function LearningHome() {
           {mode.hint}. 학습지 = 개념 → 실전 구축 → 시나리오 → 채점.
           Claude Code에 "OOO 학습지 만들어줘"라고 하면 여기에 추가된다.
         </p>
+
+        <div className="card learning-owner-progress">
+          <div>
+            <div className="px learning-owner-kicker">{canManage ? 'OWNER PROGRESS · ADMIN' : 'OWNER PROGRESS · PUBLIC'}</div>
+            <div className="learning-owner-title">정지안의 학습 진도</div>
+            <div className="learning-owner-meta">완주 {completedSheets.length}개 · 진행 중 {inProgress}개 · {updatedLabel}</div>
+            <div className={`learning-owner-sync${syncStatus === 'error' ? ' error' : ''}`}>{syncLabel}</div>
+          </div>
+          {!canManage && <button className="submitbtn" onClick={() => openAuth(3)}>자물쇠3으로 관리</button>}
+          {canManage && syncStatus === 'local' && <button className="iconbtn" onClick={() => nav('/feedback')}>공개 동기화 연결</button>}
+        </div>
 
         {active === 'all' && <>
           <RecentSection />

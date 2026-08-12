@@ -10,6 +10,20 @@ const UI_SCALE_MIN = 0.85
 const UI_SCALE_MAX = 1.6
 const HUB_STORAGE_VERSION = 2
 
+export interface LearningProgressSnapshot {
+  version: 1
+  updatedAt: string | null
+  steps: Record<string, boolean>
+  completedSheets: string[]
+  lastActivity: Record<string, number>
+  xp: number
+  level: number
+  totalXp: number
+  streak: number
+}
+
+export type LearningProgressSyncStatus = 'idle' | 'loading' | 'public' | 'saving' | 'synced' | 'local' | 'error'
+
 interface HubState {
   theme: 'dark' | 'light'
   xp: number
@@ -33,9 +47,13 @@ interface HubState {
   paletteOpen: boolean
   cmtTarget: string
   authLevel: number          // 0~3 현재 권한 (PAT=3, 비번=1~2) — 파생값(비영속)
+  authReady: boolean         // 저장된 자물쇠 판정 완료 여부
   uiScale: number            // 화면 배율 (영속)
   authModalOpen: boolean
   authWant: number           // 로그인 모달이 안내할 요구 레벨 (0=일반 로그인)
+  publicLearningProgress: LearningProgressSnapshot | null
+  learningProgressSync: LearningProgressSyncStatus
+  learningProgressError: string
 
   toggleTheme: () => void
   addXP: (n: number, reason?: string) => void
@@ -52,6 +70,9 @@ interface HubState {
   setCmtTarget: (v: string) => void
   toggleSidebar: () => void
   setAuthLevel: (n: number) => void
+  setPublicLearningProgress: (snapshot: LearningProgressSnapshot) => void
+  mergeLearningProgress: (snapshot: LearningProgressSnapshot) => void
+  setLearningProgressSync: (status: LearningProgressSyncStatus, error?: string) => void
   openAuth: (want?: number) => void
   adjustUiScale: (dir: number) => void
   closeAuth: () => void
@@ -67,7 +88,8 @@ export const useHub = create<HubState>()(
       activityAwards: {}, activityDays: [],
       sidebarCollapsed: false,
       toast: null, levelFx: 0, cmtOpen: false, helpOpen: false, paletteOpen: false, cmtTarget: '전체',
-      authLevel: 0, authModalOpen: false, authWant: 0,
+      authLevel: 0, authReady: false, authModalOpen: false, authWant: 0,
+      publicLearningProgress: null, learningProgressSync: 'idle', learningProgressError: '',
       uiScale: 1,
 
       toggleTheme: () => {
@@ -187,7 +209,27 @@ export const useHub = create<HubState>()(
       setPaletteOpen: (v) => set({ paletteOpen: v }),
       setCmtTarget: (v) => set({ cmtTarget: v }),
       toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
-      setAuthLevel: (n) => set({ authLevel: n }),
+      setAuthLevel: (n) => set({ authLevel: n, authReady: true }),
+      setPublicLearningProgress: (snapshot) => set({ publicLearningProgress: snapshot }),
+      mergeLearningProgress: (snapshot) => {
+        const local = get()
+        const steps = { ...snapshot.steps, ...local.steps }
+        const completedSheets = [...new Set([...snapshot.completedSheets, ...local.completedSheets])]
+        const lastActivity = { ...snapshot.lastActivity }
+        for (const [sheet, timestamp] of Object.entries(local.lastActivity)) {
+          lastActivity[sheet] = Math.max(lastActivity[sheet] ?? 0, timestamp)
+        }
+        set({
+          steps,
+          completedSheets,
+          lastActivity,
+          xp: Math.max(local.xp, snapshot.xp),
+          level: Math.max(local.level, snapshot.level),
+          totalXp: Math.max(local.totalXp, snapshot.totalXp),
+          streak: Math.max(local.streak, snapshot.streak),
+        })
+      },
+      setLearningProgressSync: (status, error = '') => set({ learningProgressSync: status, learningProgressError: error }),
       openAuth: (want = 0) => set({ authModalOpen: true, authWant: want }),
       adjustUiScale: (dir) => set({ uiScale: Math.round(Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, get().uiScale + dir * 0.05)) * 100) / 100 }),
       closeAuth: () => set({ authModalOpen: false, authWant: 0 }),

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { findCurriculum, sheets } from '../data'
 import { useHub } from '../store'
 import type { Scenario, Verdict } from '../types'
+import { useVisibleLearningProgress } from '../lib/useLearningProgress'
 
 interface PoolItem { sheet: string; sheetTitle: string; scen: Scenario; firstVerdict?: Verdict }
 
@@ -124,6 +125,7 @@ function ReviewCard({ item, onGraded }: { item: PoolItem; onGraded: (v: Verdict)
 export default function ReviewPage() {
   const navTab = useNavigate()
   const { results, addXP, showToast } = useHub()
+  const { canManage } = useVisibleLearningProgress()
   const [phase, setPhase] = useState<'select' | 'run' | 'done'>('select')
   const [selected, setSelected] = useState<string[]>([])
   const [count, setCount] = useState(5)
@@ -178,6 +180,20 @@ export default function ReviewPage() {
   const d = verdicts.filter(v => v === '△').length
   const improved = quiz.filter((q, i) =>
     (q.firstVerdict === 'X' || q.firstVerdict === '△') && verdicts[i] === 'O').length
+
+  if (!canManage) {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px 120px' }}>
+        <div className="crumb"><span className="px">LEARNING</span> / 복습</div>
+        <h1 className="sheet-h1">복습 퀴즈</h1>
+        <div className="card" style={{ padding: '28px 24px', color: 'var(--text-dim)', lineHeight: 1.7 }}>
+          공개 방문자는 학습 목록에서 자물쇠3 사용자의 진도를 읽을 수 있습니다.<br />
+          답안 제출과 복습 기록 관리는 자물쇠3 사용자에게만 열립니다.
+          <div style={{ marginTop: 16 }}><button className="submitbtn" onClick={() => useHub.getState().openAuth(3)}>자물쇠3으로 관리</button></div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px 120px' }}>

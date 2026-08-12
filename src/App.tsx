@@ -4,6 +4,7 @@ import Header from './components/Header'
 import { Toast, LevelFx, HelpOverlay } from './components/Overlays'
 import CommandPalette from './components/CommandPalette'
 import AuthModal from './components/AuthModal'
+import LearningProgressSync from './components/LearningProgressSync'
 import { currentLevel, requiredLevel } from './lib/auth'
 import LearningHome from './pages/LearningHome'
 import LearningRequestPage from './pages/LearningRequestPage'
@@ -157,6 +158,7 @@ function Shell() {
     <>
       <Hotkeys />
       <SystemXpTracker />
+      <LearningProgressSync />
       <Header />
       <Routes>
         <Route path="/" element={<Navigate to="/learning" replace />} />

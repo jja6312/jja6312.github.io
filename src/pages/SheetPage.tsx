@@ -4,6 +4,7 @@ import { findCurriculum, sheets } from '../data'
 import { useHub } from '../store'
 import type { Scenario, Verdict } from '../types'
 import CommentDock from '../components/CommentDock'
+import { useVisibleLearningProgress } from '../lib/useLearningProgress'
 
 const norm = (s: string) => s.trim().replace(/\s+/g, ' ')
 const tokSort = (s: string) => norm(s).split(' ').sort().join(' ')
@@ -16,8 +17,9 @@ const typeLabel: Record<Scenario['type'], string> = { ox: 'OX', choice: '객관�
 
 function ScenarioCard({ sheet, scen }: { sheet: string; scen: Scenario }) {
   const { results, answers, setResult, addXP } = useHub()
+  const { canManage } = useVisibleLearningProgress()
   const key = `${sheet}:${scen.id}`
-  const verdict = results[key]
+  const verdict = canManage ? results[key] : undefined
   const graded = !!verdict
   const [input, setInput] = useState('')
   const [rubricOpen, setRubricOpen] = useState(false)
@@ -53,7 +55,7 @@ function ScenarioCard({ sheet, scen }: { sheet: string; scen: Scenario }) {
             const picked = graded && answers[key] === pick
             const cls = picked ? (isAnswer ? ' sel-right' : ' sel-wrong') : ''
             return (
-              <button key={pick} disabled={graded} className={`opt px${cls}`} style={{ fontSize: 17.5, padding: '9px 26px' }}
+              <button key={pick} disabled={graded || !canManage} className={`opt px${cls}`} style={{ fontSize: 17.5, padding: '9px 26px' }}
                 onClick={() => grade(isAnswer ? 'O' : 'X', pick)}>{pick}</button>
             )
           })}
@@ -69,7 +71,7 @@ function ScenarioCard({ sheet, scen }: { sheet: string; scen: Scenario }) {
             const revealCorrect = graded && verdict === 'X' && isAnswer
             const cls = picked ? (isAnswer ? ' sel-right' : ' sel-wrong') : revealCorrect ? ' reveal' : ''
             return (
-              <button key={n} disabled={graded} className={`opt${cls}`}
+              <button key={n} disabled={graded || !canManage} className={`opt${cls}`}
                 onClick={() => grade(isAnswer ? 'O' : 'X', n)}>
                 <span className="mono">{n}</span>&nbsp; {c}
               </button>
@@ -80,7 +82,7 @@ function ScenarioCard({ sheet, scen }: { sheet: string; scen: Scenario }) {
 
       {scen.type === 'command' && (
         <div className="cmdrow">
-          <input className="cmdinput" disabled={graded}
+          <input className="cmdinput" disabled={graded || !canManage}
             value={graded ? answers[key] : input}
             placeholder={scen.match === 'normalize-flags' ? '$ 명령어 입력 (플래그 순서 관용)' : '$ 명령어 입력'}
             onChange={e => setInput(e.target.value)}
@@ -91,7 +93,7 @@ function ScenarioCard({ sheet, scen }: { sheet: string; scen: Scenario }) {
               grade(ok ? 'O' : 'X', input)
             }}
           />
-          <button className="submitbtn" disabled={graded} onClick={() => {
+          <button className="submitbtn" disabled={graded || !canManage} onClick={() => {
             if (!input.trim()) return
             let ok = scen.answers.some(a => norm(a) === norm(input))
             if (!ok && scen.match === 'normalize-flags') ok = scen.answers.some(a => tokSort(a) === tokSort(input))
@@ -102,11 +104,11 @@ function ScenarioCard({ sheet, scen }: { sheet: string; scen: Scenario }) {
 
       {scen.type === 'essay' && (
         <>
-          <textarea className="cmdinput" disabled={graded || rubricOpen}
+          <textarea className="cmdinput" disabled={graded || rubricOpen || !canManage}
             value={graded ? answers[key] : input}
             placeholder="자유 서술 → 제출하면 정답·채점 기준이 공개되고 스스로 채점"
             onChange={e => setInput(e.target.value)} />
-          {!rubricOpen && !graded && (
+          {!rubricOpen && !graded && canManage && (
             <div style={{ marginTop: 10, textAlign: 'right' }}>
               <button className="submitbtn" onClick={() => { if (input.trim()) setRubricOpen(true) }}>제출 → 채점 기준 보기</button>
             </div>
@@ -147,7 +149,8 @@ export default function SheetPage() {
   const { curriculumId, sheetId } = useParams()
   const sheet = sheets[sheetId ?? '']
   const cur = findCurriculum(curriculumId) ?? findCurriculum(sheet?.curriculum)
-  const { steps, results, markStep, addXP, showToast, completedSheets, completeSheet, sidebarCollapsed, toggleSidebar } = useHub()
+  const { results, markStep, addXP, showToast, completeSheet, sidebarCollapsed, toggleSidebar } = useHub()
+  const { steps, completedSheets, canManage } = useVisibleLearningProgress()
   const bonusRef = useRef(false)
 
   const stepIds = useMemo(
@@ -165,12 +168,12 @@ export default function SheetPage() {
 
   // 전 단계 완료 → 완주 보너스 1회
   useEffect(() => {
-    if (!sheet || !allDone || bonusRef.current) return
+    if (!sheet || !allDone || !canManage || bonusRef.current) return
     if (completedSheets.includes(sheet.sheet)) return
     bonusRef.current = true
     completeSheet(sheet.sheet)
     setTimeout(() => { addXP(100 * sheet.difficulty); showToast('완주 보너스!') }, 400)
-  }, [allDone, sheet, completedSheets, completeSheet, addXP, showToast])
+  }, [allDone, canManage, sheet, completedSheets, completeSheet, addXP, showToast])
 
   if (!sheet || !cur) {
     return <div className="placeholder"><div className="big px">404</div><h2>학습지를 찾을 수 없습니다</h2>
@@ -249,6 +252,11 @@ export default function SheetPage() {
             {sheet.level && <span className="chip px" style={{ fontSize: 11 }}>Lv.{sheet.level}</span>}
             {sheet.tags.map(t => <span key={t} className="chip">#{t}</span>)}
           </div>
+          {!canManage && (
+            <div className="cross-note" style={{ marginBottom: 18 }}>
+              공개된 자물쇠3 사용자의 학습 진도를 보고 있습니다. 완료 처리·답안 제출은 자물쇠3 사용자만 할 수 있습니다.
+            </div>
+          )}
 
           {/* 모바일: 사이드바 대신 가로 스크롤 진도 스트립 */}
           <div className="mobile-lab">
@@ -286,9 +294,9 @@ export default function SheetPage() {
                 </h2>
                 <div className="diagram" dangerouslySetInnerHTML={{ __html: c.diagram }} />
                 {c.body && <div className="concept-body" dangerouslySetInnerHTML={{ __html: c.body }} />}
-                <button className={`donebtn${done ? ' checked' : ''}`} disabled={done}
+                <button className={`donebtn${done ? ' checked' : ''}`} disabled={done || !canManage}
                   onClick={() => { markStep(sheet.sheet, c.id); showToast(`진도 저장 ${doneCount + 1}/${stepIds.length}`) }}>
-                  {done ? '✓ 완료됨' : `✓ 개념 ${i + 1} 이해 완료`}
+                  {done ? '✓ 완료됨' : canManage ? `✓ 개념 ${i + 1} 이해 완료` : '공개 진도 · 읽기 전용'}
                 </button>
               </section>
             )
@@ -322,9 +330,9 @@ export default function SheetPage() {
                       }}>+ 댓글</button>
                     </h2>
                     <div className="concept-body" dangerouslySetInnerHTML={{ __html: l.body }} />
-                    <button className={`donebtn${done ? ' checked' : ''}`} disabled={done}
+                    <button className={`donebtn${done ? ' checked' : ''}`} disabled={done || !canManage}
                       onClick={() => { markStep(sheet.sheet, l.id); showToast(`진도 저장 ${doneCount + 1}/${stepIds.length}`) }}>
-                      {done ? '✓ 완료됨' : `✓ 단계 ${i + 1} 완료`}
+                      {done ? '✓ 완료됨' : canManage ? `✓ 단계 ${i + 1} 완료` : '공개 진도 · 읽기 전용'}
                     </button>
                   </section>
                 )
@@ -351,7 +359,7 @@ export default function SheetPage() {
         </main>
       </div>
       <div className="footer-note">
-        ⓘ 진도·답안·점수·댓글은 현재 이 브라우저(localStorage)에 저장 — blog-db 연동(Phase 2)에서 commit 동기화로 전환 예정.
+        ⓘ 완료 단계·완주 여부·최근 학습 시각은 공개 진도로 공유됩니다. 답안·메모 내용은 공개 진도에 포함되지 않습니다.
       </div>
       <CommentDock sheetId={sheet.sheet} sheetTitle={sheet.title} />
     </>

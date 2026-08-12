@@ -5,7 +5,11 @@ const REPO = 'jja6312/blog-db'
 const API = `https://api.github.com/repos/${REPO}/contents`
 
 export const getPat = () => localStorage.getItem('hub-pat') || ''
-export const setPat = (v: string) => v ? localStorage.setItem('hub-pat', v) : localStorage.removeItem('hub-pat')
+export const setPat = (v: string) => {
+  if (v) localStorage.setItem('hub-pat', v)
+  else localStorage.removeItem('hub-pat')
+  window.dispatchEvent(new Event('hub-pat-changed'))
+}
 
 const headers = (pat: string) => ({
   Authorization: `Bearer ${pat}`,
