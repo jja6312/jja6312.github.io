@@ -108,7 +108,7 @@ export const SKILL_SCOPES: SkillScope[] = [
   {
     label: '프로젝트에서 경험',
     description: '참여 범위와 깊이를 구분해 설명하는 기술',
-    items: ['AWS→OCI 마이그레이션', 'Terraform 기반 프로비저닝', 'HPC Pack·Windows AD', 'Palo Alto·WAF', 'OpenStack·openstacksdk', 'GitHub·Gerrit 코드리뷰'],
+    items: ['AWS→OCI 마이그레이션', 'Terraform 기반 프로비저닝', 'HPC Pack·Windows AD', 'Palo Alto·WAF', 'GitHub·Gerrit 코드리뷰'],
   },
   {
     label: '학습·보강 중',
