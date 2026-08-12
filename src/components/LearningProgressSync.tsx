@@ -36,6 +36,7 @@ export default function LearningProgressSync() {
         if (authLevel === 3) mergeProgress(snapshot)
         loaded.current = true
         setSync(authLevel === 3 ? (getPat() ? 'synced' : 'local') : 'public')
+        if (authLevel === 3 && getPat()) setPatVersion(value => value + 1)
       })
       .catch(error => {
         if (!alive) return
