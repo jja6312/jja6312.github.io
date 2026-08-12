@@ -244,7 +244,7 @@ def build_option(o):
         'help': (o.get('help') or '').strip()[:140],
         'placeholder': placeholder(o['name'], 'json' if o.get('json') else typ),
     }
-    for key in ('flag', 'defaultValue', 'suggestions', 'shellQuote', 'lookupOnly', 'displayLabel'):
+    for key in ('flag', 'checkbox', 'checkboxLabel', 'defaultValue', 'suggestions', 'shellQuote', 'lookupOnly', 'displayLabel'):
         if key in o:
             option[key] = o[key]
     if o.get('placeholder'):

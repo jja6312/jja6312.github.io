@@ -14,6 +14,8 @@ interface CliOption {
   help: string
   placeholder: string
   flag?: boolean
+  checkbox?: boolean        // 고정된 옵션 값을 자유 입력 대신 체크박스로 켜고 끔
+  checkboxLabel?: string
   defaultValue?: string
   suggestions?: string[]
   shellQuote?: boolean
@@ -1217,6 +1219,18 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
         <label className="cli-flag-control">
           <input type="checkbox" checked={value === 'true'} onChange={e => onChange(e.target.checked ? 'true' : '')} />
           <span>{value === 'true' ? '사용' : '사용 안 함'}</span>
+        </label>
+      </div>
+    )
+  }
+  if (o.checkbox) {
+    return (
+      <div className="cli-field">
+        {label}
+        <label className="cli-flag-control">
+          <input type="checkbox" checked={value !== ''}
+            onChange={e => onChange(e.target.checked ? (o.defaultValue ?? '') : '')} />
+          <span>{o.checkboxLabel || (value !== '' ? '사용' : '사용 안 함')}</span>
         </label>
       </div>
     )

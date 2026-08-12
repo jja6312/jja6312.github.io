@@ -178,6 +178,10 @@ for (const level of [1, 2, 3]) {
     throw new Error(`L${level} Announcements result defaults invalid`)
   }
   const announcementQuery = announcementOption('--query')?.defaultValue ?? ''
+  if (announcementOption('--query')?.checkbox !== true
+    || announcementOption('--query')?.checkboxLabel !== '운영에 필요한 주요 컬럼만 표시') {
+    throw new Error(`L${level} Announcements query must use the curated checkbox control`)
+  }
   for (const field of ['reference-ticket-number', 'announcement-type', 'affected-regions', 'time-one-value']) {
     if (!announcementQuery.includes(field)) throw new Error(`L${level} Announcements query missing ${field}`)
   }
@@ -234,6 +238,7 @@ for (const level of [1, 2, 3]) {
 }
 
 if (!cliBuilder.includes(`--query 'data."time-maintenance-reboot-due-max"'`)) throw new Error('최대 연장 시각 query 누락')
+if (!cliBuilder.includes('if (o.checkbox)')) throw new Error('고정 query 체크박스 UI 누락')
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')
 if (!cliBuilder.includes('confirm compartment OCID')) throw new Error('컴파트먼트 정리 이중 확인 가드 누락')
 if (!cliBuilder.includes('oci log-analytics storage purge-storage-data')) throw new Error('Log Analytics compartment purge 누락')
