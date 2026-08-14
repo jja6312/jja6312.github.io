@@ -244,7 +244,8 @@ def build_option(o):
         'help': (o.get('help') or '').strip()[:140],
         'placeholder': placeholder(o['name'], 'json' if o.get('json') else typ),
     }
-    for key in ('flag', 'checkbox', 'checkboxLabel', 'defaultValue', 'suggestions', 'shellQuote', 'lookupOnly', 'displayLabel'):
+    for key in ('flag', 'checkbox', 'checkboxLabel', 'defaultValue', 'suggestions', 'multiSelect',
+                'suggestionLabels', 'shellQuote', 'lookupOnly', 'displayLabel'):
         if key in o:
             option[key] = o[key]
     if o.get('placeholder'):
@@ -365,13 +366,25 @@ for res, d in raw.items():
                 },
                 {
                     'name': '--query', 'required': False, 'type': 'str', 'choices': None,
-                    'help': 'JMESPath 조회식 — 자주 쓰는 항목을 선택하거나 직접 입력',
-                    'placeholder': 'data."time-maintenance-reboot-due"',
-                    'defaultValue': 'data."time-maintenance-reboot-due"', 'shellQuote': True,
+                    'help': 'JMESPath 조회식 — 필요한 항목을 여러 개 선택하거나 직접 입력',
+                    'placeholder': '선택하지 않으면 전체 응답 조회',
+                    'shellQuote': True, 'multiSelect': True,
                     'suggestions': [
                         'data."time-maintenance-reboot-due"', 'data."display-name"',
-                        'data."lifecycle-state"', 'data.shape', 'data."availability-domain"', 'data.id',
+                        'data."lifecycle-state"', 'data.shape', 'data."availability-domain"',
+                        'data."fault-domain"', 'data.region', 'data."time-created"', 'data.id',
                     ],
+                    'suggestionLabels': {
+                        'data."time-maintenance-reboot-due"': '유지보수 재부팅 예정 시각',
+                        'data."display-name"': '인스턴스 이름',
+                        'data."lifecycle-state"': '상태',
+                        'data.shape': 'Shape',
+                        'data."availability-domain"': 'Availability Domain',
+                        'data."fault-domain"': 'Fault Domain',
+                        'data.region': 'Region',
+                        'data."time-created"': '생성 시각',
+                        'data.id': 'Instance OCID',
+                    },
                 },
                 {
                     'name': '--raw-output', 'required': False, 'type': 'bool', 'choices': None,

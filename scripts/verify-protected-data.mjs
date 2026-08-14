@@ -218,7 +218,10 @@ for (const level of [1, 2, 3]) {
   const instanceGetOptions = bundle.cliCatalog.commands.instance.operations.get.sections.flatMap(section => section.options)
   const queryOption = instanceGetOptions.find(option => option.name === '--query')
   const rawOption = instanceGetOptions.find(option => option.name === '--raw-output')
-  if (queryOption?.defaultValue !== 'data."time-maintenance-reboot-due"') throw new Error(`L${level} Instance GET query 기본값 오류`)
+  if (queryOption?.defaultValue !== undefined) throw new Error(`L${level} Instance GET query 기본값은 빈 값이어야 함`)
+  if (!queryOption?.multiSelect || queryOption.suggestions?.length < 2) {
+    throw new Error(`L${level} Instance GET query 복수 선택 설정 누락`)
+  }
   if (!rawOption?.flag || rawOption.defaultValue !== 'true') throw new Error(`L${level} Instance GET raw-output 플래그 오류`)
   if ((level >= 2) !== !!bundle.schedule) throw new Error(`L${level} schedule 범위 오류`)
   if (level >= 2 && !Object.hasOwn(bundle.schedule.goals, 'longTermGoal')) throw new Error(`L${level} 장기 목표 필드 누락`)
@@ -241,6 +244,7 @@ for (const level of [1, 2, 3]) {
 }
 
 if (!cliBuilder.includes(`--query 'data."time-maintenance-reboot-due-max"'`)) throw new Error('최대 연장 시각 query 누락')
+if (!cliBuilder.includes('function buildMultiSelectQuery')) throw new Error('Instance GET 복수 query 조합기 누락')
 if (!cliBuilder.includes('if (o.checkbox)')) throw new Error('고정 query 체크박스 UI 누락')
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')
 if (!cliBuilder.includes('confirm compartment OCID')) throw new Error('컴파트먼트 정리 이중 확인 가드 누락')

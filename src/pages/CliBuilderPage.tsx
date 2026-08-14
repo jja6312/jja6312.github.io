@@ -18,6 +18,8 @@ interface CliOption {
   checkboxLabel?: string
   defaultValue?: string
   suggestions?: string[]
+  multiSelect?: boolean
+  suggestionLabels?: Record<string, string>
   shellQuote?: boolean
   lookupOnly?: boolean       // 이름 조회에만 사용하고 최종 OCI 명령에는 전달하지 않음
   displayLabel?: string
@@ -132,6 +134,21 @@ function buildJsonValue(optName: string, values: Record<string, string>): string
       : v
   }
   return Object.keys(obj).length ? JSON.stringify(obj) : ''
+}
+
+function buildMultiSelectQuery(value: string): string {
+  const fields = value.split('\n').map(item => item.trim()).filter(Boolean)
+  if (fields.length <= 1) return fields[0] ?? ''
+  const entries = fields.map(expression => {
+    const match = expression.match(/^data\.(?:"([^"]+)"|([A-Za-z0-9_-]+))$/)
+    if (!match) return null
+    const field = match[1] ?? match[2]
+    const alias = field.split('-').filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('')
+    const selector = match[1] ? `"${field}"` : field
+    return `${alias}:${selector}`
+  })
+  return entries.every(Boolean) ? `data.{${entries.join(',')}}` : fields[0]
 }
 
 interface Favorite {
@@ -828,8 +845,12 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
   }
 
   for (const o of allOptions(selected)) {
-    const v = (values[o.name] ?? '').trim()
+    let v = (values[o.name] ?? '').trim()
     if (o.lookupOnly) continue
+    if (o.multiSelect && o.name === '--query') {
+      const customQuery = (values[subKey(o.name, 'custom')] ?? '').trim()
+      v = customQuery || buildMultiSelectQuery(v)
+    }
     if (o.flag) {
       if (v === 'true') args.push(`  ${o.name}`)
       continue
@@ -1242,6 +1263,38 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
         <textarea className="cli-input cli-json" value={value} rows={4}
           placeholder={`${o.placeholder}\n… 여러 개는 줄바꿈 또는 콤마로 구분 (각각 for 루프로 복사)`}
           onChange={e => onChange(e.target.value)} />
+      </div>
+    )
+  }
+  if (o.multiSelect && o.suggestions?.length) {
+    const selected = value.split('\n').map(item => item.trim()).filter(Boolean)
+    const selectedSet = new Set(selected)
+    const customQuery = subVal('custom')
+    const toggle = (suggestion: string, checked: boolean) => {
+      const next = checked
+        ? [...selected, suggestion]
+        : selected.filter(item => item !== suggestion)
+      onChange([...new Set(next)].join('\n'))
+    }
+    return (
+      <div className="cli-field">
+        {label}
+        <div className="cli-query-picker" role="group" aria-label="조회할 인스턴스 필드 복수 선택">
+          {o.suggestions.map(suggestion => (
+            <label key={suggestion} className="cli-query-choice">
+              <input type="checkbox" checked={selectedSet.has(suggestion)}
+                disabled={customQuery.trim() !== ''}
+                onChange={event => toggle(suggestion, event.target.checked)} />
+              <span>{o.suggestionLabels?.[suggestion] ?? suggestion}</span>
+              <code>{suggestion}</code>
+            </label>
+          ))}
+        </div>
+        <div className="cli-query-custom">
+          <span className="cli-sublabel">직접 JMESPath 입력 <small>(입력 시 위 선택보다 우선)</small></span>
+          <input className="cli-input" value={customQuery} placeholder="예: data.shapeConfig.ocpus"
+            onChange={event => onSub('custom', event.target.value)} />
+        </div>
       </div>
     )
   }
