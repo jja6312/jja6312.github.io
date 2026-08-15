@@ -15,6 +15,21 @@ const module = { exports: {} }
 vm.runInNewContext(compiled, { module, exports: module.exports }, { filename: 'cliOptionModel.js' })
 const { validateCliOptions } = module.exports
 
+const jsonHelperStart = pageSource.indexOf('const isJsonRecord')
+const jsonHelperEnd = pageSource.indexOf('\nfunction buildMultiSelectQuery', jsonHelperStart)
+if (jsonHelperStart < 0 || jsonHelperEnd < 0) throw new Error('Structured JSON helper extraction failed')
+const jsonHelperHarness = `
+const isCliOptionValueActive = ${module.exports.isCliOptionValueActive.toString()}
+${pageSource.slice(jsonHelperStart, jsonHelperEnd)}
+globalThis.validateJsonInputs = validateJsonInputs
+globalThis.parseImageCatalog = parseImageCatalog
+`
+const jsonHelperContext = {}
+vm.runInNewContext(ts.transpileModule(jsonHelperHarness, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+}).outputText, jsonHelperContext)
+const { validateJsonInputs, parseImageCatalog } = jsonHelperContext
+
 const fail = message => { throw new Error(message) }
 const optionsOf = command => [
   ...(command?.sections ?? []).flatMap(section => section.options),
@@ -24,6 +39,8 @@ const codesOf = result => result.issues.map(issue => issue.code)
 
 const instance = catalog.commands.instance.operations.create
 const instanceOptions = optionsOf(instance)
+const instanceSourceDetails = instanceOptions.find(option => option.name === '--source-details')
+const instanceImageId = instanceOptions.find(option => option.name === '--image-id')
 const baseValues = {
   '--compartment-id': 'ocid1.compartment.oc1..example',
   '--availability-domain': 'Uocm:AP-SEOUL-1-AD-1',
@@ -57,6 +74,56 @@ if (missingDependency.valid || !codesOf(missingDependency).includes('requires'))
   fail('Boot volume size without --image-id must fail its dependency rule')
 }
 
+const allSurfaces = Object.values(catalog.commands).flatMap(command => [
+  command,
+  ...Object.values(command.operations ?? {}),
+  ...Object.values(command.actions ?? {}),
+])
+const jsonOptions = allSurfaces.flatMap(surface => optionsOf(surface)
+  .filter(option => option.type === 'json')
+  .map(option => ({ command: surface.cmd, option })))
+const unstructuredJson = jsonOptions.filter(({ option }) => !option.jsonTemplateCommand)
+const braceOnlyExamples = jsonOptions.filter(({ option }) => /^\{\s*\}$/.test(option.placeholder ?? ''))
+if (unstructuredJson.length) fail(`JSON options without schema command: ${JSON.stringify(unstructuredJson.slice(0, 5))}`)
+if (braceOnlyExamples.length) fail(`Bare {} JSON examples remain: ${JSON.stringify(braceOnlyExamples.slice(0, 5))}`)
+if (instanceSourceDetails?.jsonTemplateCommand !== 'oci compute instance launch --generate-param-json-input source-details'
+  || !Array.isArray(instanceSourceDetails.jsonTemplate)
+  || instanceSourceDetails.jsonTemplate.length !== 3
+  || instanceSourceDetails.jsonRules?.discriminator !== 'sourceType') {
+  fail('Instance source-details needs the pinned official variants and structured validation rules')
+}
+if (instanceImageId?.imagePicker?.listCommand !== 'oci compute image list'
+  || instanceImageId.imagePicker.shapeOption !== '--shape'
+  || instanceImageId.dynamicLookup
+  || instanceImageId.dynamicLookupImplementedBy !== 'dedicated-builder') {
+  fail('Instance image-id must use the shape-aware dedicated image picker')
+}
+const sourceDetailChecks = [
+  ['{', 'invalid-json'],
+  ['{}', 'json-discriminator'],
+  ['{"sourceType":"bootVolume"}', 'json-required'],
+  ['{"sourceType":"image"}', 'json-one-of'],
+]
+for (const [value, expected] of sourceDetailChecks) {
+  const issues = validateJsonInputs([instanceSourceDetails], { '--source-details': value })
+  if (!issues.some(issue => issue.code === expected)) fail(`source-details did not report ${expected}: ${JSON.stringify(issues)}`)
+}
+if (validateJsonInputs([instanceSourceDetails], {
+  '--source-details': '{"sourceType":"image","imageId":"ocid1.image.oc1.ap-seoul-1.example"}',
+}).length) fail('Valid image source-details failed structured validation')
+const parsedImages = parseImageCatalog(JSON.stringify({ data: [{
+  id: 'ocid1.image.oc1.ap-seoul-1.example',
+  'display-name': 'Oracle-Linux-9.6-2026.08.01-0',
+  'operating-system': 'Oracle Linux',
+  'operating-system-version': '9',
+  'lifecycle-state': 'AVAILABLE',
+  'time-created': '2026-08-01T00:00:00Z',
+}] }))
+if (parsedImages.error || parsedImages.entries.length !== 1
+  || parsedImages.entries[0].operatingSystem !== 'Oracle Linux') {
+  fail(`OCI image list response was not normalized: ${JSON.stringify(parsedImages)}`)
+}
+
 const allLimitOperation = Object.values(catalog.commands).flatMap(command => Object.values(command.operations ?? {}))
   .find(operation => {
     const names = new Set(optionsOf(operation).map(option => option.name))
@@ -83,6 +150,16 @@ for (const marker of [
   "role=\"separator\"",
   "resizeSidebarWithKeyboard",
   "saveCliSidebarWidth",
+  "validateJsonInputs(formOptions, validationValues)",
+  "function JsonNodeEditor",
+  "isJsonMapTemplate",
+  "+ 키·값 추가",
+  "function JsonOptionField",
+  "function ImageOptionField",
+  "function buildImageDiscoveryCommand",
+  "parseImageCatalog",
+  "jsonTemplateCommand",
+  "--shape",
   "필수 입력을 완료해야 복사할 수 있습니다.",
   "필수 입력을 완료해야 저장할 수 있습니다.",
 ]) {
@@ -109,4 +186,8 @@ console.log(JSON.stringify({
   validationPanelPlacement: 'right-sidebar',
   validationFieldFocus: true,
   resizableSidebars: true,
+  structuredJsonOptions: jsonOptions.length,
+  bareJsonExamples: braceOnlyExamples.length,
+  instanceSourceVariants: instanceSourceDetails.jsonTemplate.length - 1,
+  imagePicker: 'shape-aware-paste-to-select',
 }))

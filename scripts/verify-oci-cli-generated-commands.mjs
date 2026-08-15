@@ -38,13 +38,16 @@ const subKey = (option, key) => option + '::' + key
 const buildMultiSelectQuery = value => value
 ${page.slice(builderStart, builderEnd)}
 globalThis.buildCli = buildCli
+globalThis.buildImageDiscoveryCommand = buildImageDiscoveryCommand
 `
 const builderContext = {}
 vm.runInNewContext(ts.transpileModule(harness, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText, builderContext)
 const buildCli = builderContext.buildCli
+const buildImageDiscoveryCommand = builderContext.buildImageDiscoveryCommand
 if (typeof buildCli !== 'function') fail('OCI CLI buildCli harness did not compile')
+if (typeof buildImageDiscoveryCommand !== 'function') fail('OCI image discovery harness did not compile')
 
 const allOptions = surface => [
   ...(surface.lookupInputs ?? []),
@@ -174,6 +177,20 @@ const syntaxBatch = [...scripts.entries()]
 const syntax = spawnSync(bash, ['-n'], { input: syntaxBatch, encoding: 'utf8' })
 if (syntax.status !== 0) fail(`Generated command Bash syntax invalid: ${syntax.stderr}`)
 
+const imageDiscovery = buildImageDiscoveryCommand({
+  '--compartment-id': 'production',
+  '--shape': 'VM.Standard.E5.Flex',
+}, { '--compartment-id': true }, ["--profile 'DEFAULT'", "--region 'ap-seoul-1'"])
+for (const marker of [
+  'oci compute image list', '--lifecycle-state AVAILABLE', '--sort-by TIMECREATED',
+  'IMAGE_ARGS+=(--shape', 'VM.Standard.E5.Flex', 'IMAGE_COMPARTMENT_COUNT', 'found=$IMAGE_COMPARTMENT_COUNT',
+  '--profile \'DEFAULT\'', '--region \'ap-seoul-1\'',
+]) {
+  if (!imageDiscovery.includes(marker)) fail(`Instance image discovery missing marker: ${marker}`)
+}
+const imageSyntax = spawnSync(bash, ['-n'], { input: imageDiscovery, encoding: 'utf8' })
+if (imageSyntax.status !== 0) fail(`Instance image discovery Bash syntax invalid: ${imageSyntax.stderr}`)
+
 let dynamicLookups = 0
 const dynamicScripts = []
 const dynamicScriptMap = new Map()
@@ -273,4 +290,5 @@ console.log(JSON.stringify({
   mutuallyExclusive: true,
   dangerConfirmations: 2,
   dynamicLookups,
+  imageDiscoveryBash: true,
 }))

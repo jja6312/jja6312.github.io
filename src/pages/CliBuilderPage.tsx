@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
@@ -42,7 +42,14 @@ interface CliOption {
   dynamicLookup?: CliDynamicLookup
   dynamicLookupImplementedBy?: 'dedicated-builder'
   directLookupReason?: string
+  jsonTemplate?: unknown
+  jsonTemplateCommand?: string
+  jsonRules?: CliJsonRules
+  imagePicker?: CliImagePicker
 }
+interface CliJsonVariantRule { required?: string[]; requiredOneOf?: string[][] }
+interface CliJsonRules { discriminator?: string; variants?: Record<string, CliJsonVariantRule> }
+interface CliImagePicker { listCommand: string; shapeOption: string; docs: string; note: string }
 interface CliSection { label: string; options: CliOption[] }
 interface CliOptionRule {
   id: string
@@ -219,6 +226,111 @@ function buildJsonValue(optName: string, values: Record<string, string>): string
       : v
   }
   return Object.keys(obj).length ? JSON.stringify(obj) : ''
+}
+
+type JsonRecord = Record<string, unknown>
+interface JsonTemplateVariant { label: string; value: JsonRecord }
+interface ImageCatalogEntry {
+  id: string
+  name: string
+  operatingSystem: string
+  operatingSystemVersion: string
+  lifecycleState: string
+  timeCreated: string
+}
+
+const isJsonRecord = (value: unknown): value is JsonRecord => !!value && typeof value === 'object' && !Array.isArray(value)
+const parseJsonValue = (raw: string): unknown | undefined => {
+  if (!raw.trim()) return undefined
+  try { return JSON.parse(raw) as unknown } catch { return undefined }
+}
+const isTemplateUnion = (value: unknown): value is [string, ...JsonRecord[]] => Array.isArray(value)
+  && typeof value[0] === 'string'
+  && value[0].includes('pick one of the following object variants')
+  && value.slice(1).every(isJsonRecord)
+const jsonVariantLabel = (variant: JsonRecord, index: number) => {
+  const discriminator = variant.sourceType ?? variant.type
+  if (discriminator === 'image') return 'Image'
+  if (discriminator === 'bootVolume') return 'Boot Volume'
+  return typeof discriminator === 'string' && discriminator !== 'string' ? discriminator : `유형 ${index + 1}`
+}
+const jsonTemplateVariants = (template: unknown): JsonTemplateVariant[] => isTemplateUnion(template)
+  ? (template.slice(1) as JsonRecord[]).map((value, index) => ({ label: jsonVariantLabel(value, index), value }))
+  : []
+const fixedJsonTemplateValues = (template: unknown): unknown => {
+  if (Array.isArray(template)) return []
+  if (!isJsonRecord(template)) return undefined
+  return Object.fromEntries(Object.entries(template).filter(([key, value]) =>
+    /type$/i.test(key) && typeof value === 'string' && value !== 'string'))
+}
+const jsonPathValue = (value: unknown, path: string) => path.split('.').reduce<unknown>((current, key) =>
+  isJsonRecord(current) ? current[key] : undefined, value)
+const hasJsonValue = (value: unknown) => typeof value === 'string'
+  ? value.trim().length > 0
+  : Array.isArray(value)
+    ? value.length > 0
+    : isJsonRecord(value)
+      ? Object.keys(value).length > 0
+      : value !== undefined && value !== null
+
+function validateJsonInputs(options: CliOption[], values: Record<string, string>) {
+  return options.flatMap(option => {
+    if (option.type !== 'json' || !isCliOptionValueActive(option, values[option.name] ?? '')) return []
+    const raw = (values[option.name] ?? '').trim()
+    let parsed: unknown
+    try { parsed = JSON.parse(raw) as unknown } catch {
+      return [{ code: 'invalid-json', message: `${option.name} 값이 올바른 JSON이 아닙니다.`, options: [option.name] }]
+    }
+    if (!isJsonRecord(parsed) && !Array.isArray(parsed)) {
+      return [{ code: 'invalid-json-shape', message: `${option.name}에는 JSON object 또는 array가 필요합니다.`, options: [option.name] }]
+    }
+    const rules = option.jsonRules
+    if (!rules?.discriminator || !rules.variants || !isJsonRecord(parsed)) return []
+    const variantName = parsed[rules.discriminator]
+    const variant = typeof variantName === 'string' ? rules.variants[variantName] : undefined
+    if (!variant) {
+      return [{
+        code: 'json-discriminator',
+        message: `${option.name}의 ${rules.discriminator} 유형을 선택하세요.`,
+        options: [option.name],
+      }]
+    }
+    const issues: { code: string; message: string; options: string[] }[] = []
+    for (const path of variant.required ?? []) {
+      if (!hasJsonValue(jsonPathValue(parsed, path))) issues.push({
+        code: 'json-required', message: `${option.name} (${String(variantName)})에는 ${path} 값이 필요합니다.`, options: [option.name],
+      })
+    }
+    for (const paths of variant.requiredOneOf ?? []) {
+      if (!paths.some(path => hasJsonValue(jsonPathValue(parsed, path)))) issues.push({
+        code: 'json-one-of', message: `${option.name} (${String(variantName)})에는 ${paths.join(' 또는 ')} 중 하나가 필요합니다.`, options: [option.name],
+      })
+    }
+    return issues
+  })
+}
+
+function parseImageCatalog(raw: string): { entries: ImageCatalogEntry[]; error: string } {
+  if (!raw.trim()) return { entries: [], error: '' }
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) as unknown } catch { return { entries: [], error: '붙여넣은 결과가 올바른 JSON이 아닙니다.' } }
+  const rows = Array.isArray(parsed) ? parsed : isJsonRecord(parsed) && Array.isArray(parsed.data) ? parsed.data : null
+  if (!rows) return { entries: [], error: 'JSON 배열 또는 OCI 응답의 data 배열이 필요합니다.' }
+  const entries = rows.flatMap(row => {
+    if (!isJsonRecord(row)) return []
+    const id = String(row.id ?? '')
+    if (!id.startsWith('ocid1.image.')) return []
+    return [{
+      id,
+      name: String(row.name ?? row['display-name'] ?? id),
+      operatingSystem: String(row.os ?? row['operating-system'] ?? '기타/Custom'),
+      operatingSystemVersion: String(row.version ?? row['operating-system-version'] ?? '-'),
+      lifecycleState: String(row.state ?? row['lifecycle-state'] ?? ''),
+      timeCreated: String(row.timeCreated ?? row['time-created'] ?? ''),
+    }]
+  })
+  if (!entries.length) return { entries: [], error: 'image OCID가 포함된 항목을 찾지 못했습니다.' }
+  return { entries, error: '' }
 }
 
 function buildMultiSelectQuery(value: string): string {
@@ -957,6 +1069,62 @@ function buildRootTenancyLookup(requestContext: string[] = []): string {
   ].join('\n')
 }
 
+function buildImageDiscoveryCommand(
+  values: Record<string, string>,
+  dyn: Record<string, boolean>,
+  requestContext: string[] = [],
+): string {
+  const compartmentInput = (values['--compartment-id'] ?? '').trim() || '<compartment-name-or-ocid>'
+  const shape = (values['--shape'] ?? '').trim()
+  const dynamicCompartment = isDynamic(dyn, '--compartment-id')
+  const lines = [
+    '# 현재 리전·컴파트먼트의 최신 platform/custom image 조회',
+    '# Shape를 입력했다면 호환 image만 반환',
+    'set -euo pipefail',
+    `CTX=(${requestContext.join(' ')})`,
+    `COMPARTMENT_INPUT=${quoteCliValue(compartmentInput, true)}`,
+  ]
+  if (dynamicCompartment) {
+    lines.push(
+      'TENANCY_ID=$(oci iam availability-domain list --query \'data[0]."compartment-id"\' --raw-output "${CTX[@]}")',
+      '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 프로필에서 tenancy OCID를 얻지 못했습니다." >&2; exit 2; }',
+      'if [[ "$COMPARTMENT_INPUT" == "ROOT" || "$COMPARTMENT_INPUT" == ocid1.tenancy.* ]]; then',
+      '  IMAGE_COMPARTMENT_ID="$TENANCY_ID"',
+      'elif [[ "$COMPARTMENT_INPUT" == ocid1.compartment.* ]]; then',
+      '  IMAGE_COMPARTMENT_ID="$COMPARTMENT_INPUT"',
+      'else',
+      '  IMAGE_COMPARTMENT_COUNT=$(oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" \\',
+      '    --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+      '    --query \'length(data)\' --raw-output "${CTX[@]}")',
+      '  if [[ "$IMAGE_COMPARTMENT_COUNT" != "1" ]]; then',
+      '    echo "[ERROR] ACTIVE compartment 이름은 tenancy 전체에서 정확히 1개여야 합니다: $COMPARTMENT_INPUT (found=$IMAGE_COMPARTMENT_COUNT)" >&2',
+      '    oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" --all \\',
+      '      --query \'data[].{name:name,state:"lifecycle-state",id:id,parent:"compartment-id"}\' --output table "${CTX[@]}" >&2 || true',
+      '    exit 1',
+      '  fi',
+      '  IMAGE_COMPARTMENT_ID=$(oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" \\',
+      '    --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+      '    --query \'data[0].id\' --raw-output "${CTX[@]}")',
+      'fi',
+    )
+  } else {
+    lines.push(
+      'IMAGE_COMPARTMENT_ID="$COMPARTMENT_INPUT"',
+      '[[ "$IMAGE_COMPARTMENT_ID" == ocid1.compartment.* || "$IMAGE_COMPARTMENT_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 직접 입력 모드에는 compartment/tenancy OCID가 필요합니다." >&2; exit 2; }',
+    )
+  }
+  lines.push(
+    'IMAGE_ARGS=(--compartment-id "$IMAGE_COMPARTMENT_ID" --all --lifecycle-state AVAILABLE --sort-by TIMECREATED --sort-order DESC)',
+  )
+  if (shape) lines.push(`IMAGE_ARGS+=(--shape ${quoteCliValue(shape, true)})`)
+  lines.push(
+    'oci compute image list "${IMAGE_ARGS[@]}" \\',
+    '  --query \'data[].{id:id,name:"display-name",os:"operating-system",version:"operating-system-version",state:"lifecycle-state",timeCreated:"time-created"}\' \\',
+    '  --output json "${CTX[@]}"',
+  )
+  return lines.join('\n')
+}
+
 function buildIamCommand(
   cmd: CliCommand,
   selected: CliOperation,
@@ -1558,6 +1726,7 @@ export default function CliBuilderPage() {
   const baseCommandValidation = cmd
     ? validateCliOptions(formOptions, validationValues, formRules)
     : { valid: true, issues: [], missing: [] }
+  const jsonIssues = validateJsonInputs(formOptions, validationValues)
   const lookupIssues = formOptions.flatMap(option => {
     const lookup = option.dynamicLookup
     if (!lookup || !isDynamic(dyn, option.name, true) || lookup.kind !== 'exactName') return []
@@ -1574,9 +1743,13 @@ export default function CliBuilderPage() {
       }))
   })
   const commandValidation = {
-    valid: baseCommandValidation.valid && lookupIssues.length === 0,
-    issues: [...baseCommandValidation.issues, ...lookupIssues],
-    missing: [...new Set([...baseCommandValidation.missing, ...lookupIssues.flatMap(issue => issue.options)])],
+    valid: baseCommandValidation.valid && lookupIssues.length === 0 && jsonIssues.length === 0,
+    issues: [...baseCommandValidation.issues, ...lookupIssues, ...jsonIssues],
+    missing: [...new Set([
+      ...baseCommandValidation.missing,
+      ...lookupIssues.flatMap(issue => issue.options),
+      ...jsonIssues.flatMap(issue => issue.options),
+    ])],
   }
   const commandReady = commandValidation.valid
   const setVal = (name: string, v: string) => setValues(current => {
@@ -1687,6 +1860,7 @@ export default function CliBuilderPage() {
       dynamic={dynamicAllowed && isDynamic(dyn, o.name, true)}
       rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}
       onToggleDynamic={dynamicAllowed ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
+      imageDiscoveryCommand={o.imagePicker ? buildImageDiscoveryCommand(effectiveValues, dyn, requestContextArguments) : undefined}
       subVal={k => values[subKey(o.name, k)] || ''}
       onSub={(k, v) => setVal(subKey(o.name, k), v)} />
   }
@@ -1996,9 +2170,298 @@ export default function CliBuilderPage() {
   )
 }
 
-function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, subVal, onSub }: {
+const jsonFieldLabel = (key: string) => key
+  .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+  .replace(/^./, value => value.toUpperCase())
+const isJsonExampleString = (value: string) => value === 'string'
+  || value === '2017-01-01'
+  || value === '2017-01-01T00:00:00+00:00'
+const jsonVariantIdentity = (variant: JsonRecord) => Object.entries(variant)
+  .find(([key, value]) => /type$/i.test(key) && typeof value === 'string' && value !== 'string')
+const isJsonMapTemplate = (template: JsonRecord) => {
+  const keys = Object.keys(template)
+  return keys.length > 0 && keys.every(key => /^string\d*$/.test(key))
+}
+
+function JsonNodeEditor({ template, value, onChange, fieldKey, depth = 0 }: {
+  template: unknown
+  value: unknown
+  onChange: (value: unknown | undefined) => void
+  fieldKey?: string
+  depth?: number
+}) {
+  const variants = jsonTemplateVariants(template)
+  if (variants.length) {
+    const selected = variants.find(variant => {
+      const identity = jsonVariantIdentity(variant.value)
+      return identity && isJsonRecord(value) && value[identity[0]] === identity[1]
+    })
+    return (
+      <div className="cli-json-variants">
+        <div className="cli-json-variant-tabs" role="radiogroup" aria-label={`${fieldKey ?? 'JSON'} 유형 선택`}>
+          {variants.map(variant => {
+            const identity = jsonVariantIdentity(variant.value)
+            const active = !!identity && isJsonRecord(value) && value[identity[0]] === identity[1]
+            return <button type="button" role="radio" aria-checked={active} key={variant.label}
+              className={active ? 'selected' : ''} onClick={() => onChange(fixedJsonTemplateValues(variant.value))}>
+              {variant.label}
+            </button>
+          })}
+        </div>
+        {selected
+          ? <JsonNodeEditor template={selected.value} value={value} onChange={onChange} depth={depth + 1} />
+          : <p className="cli-json-empty">먼저 JSON 유형을 선택하세요. 유형에 맞는 필드만 표시됩니다.</p>}
+      </div>
+    )
+  }
+
+  if (Array.isArray(template)) {
+    const itemTemplate = template[0]
+    const current = Array.isArray(value) ? value : []
+    if (isJsonRecord(itemTemplate) || Array.isArray(itemTemplate)) {
+      return (
+        <div className="cli-json-array">
+          {current.map((item, index) => (
+            <div className="cli-json-array-item" key={index}>
+              <div className="cli-json-array-head"><span>항목 {index + 1}</span>
+                <button type="button" onClick={() => onChange(current.filter((_, itemIndex) => itemIndex !== index))}>삭제</button>
+              </div>
+              <JsonNodeEditor template={itemTemplate} value={item} depth={depth + 1}
+                onChange={next => {
+                  const copy = [...current]
+                  if (next === undefined) copy.splice(index, 1)
+                  else copy[index] = next
+                  onChange(copy.length ? copy : undefined)
+                }} />
+            </div>
+          ))}
+          <button type="button" className="cli-json-add" onClick={() => onChange([...current, fixedJsonTemplateValues(itemTemplate) ?? {}])}>
+            + 항목 추가
+          </button>
+        </div>
+      )
+    }
+    const lines = current.map(item => String(item)).join('\n')
+    return <textarea className="cli-input cli-json cli-json-list" value={lines} rows={Math.max(3, current.length)}
+      placeholder="항목마다 한 줄씩 입력"
+      onChange={event => {
+        const items = event.target.value.split(/\r?\n/).map(item => item.trim()).filter(Boolean)
+          .map(item => typeof itemTemplate === 'number' ? Number(item) : typeof itemTemplate === 'boolean' ? item === 'true' : item)
+        onChange(items.length ? items : undefined)
+      }} />
+  }
+
+  if (isJsonRecord(template)) {
+    const current = isJsonRecord(value) ? value : {}
+    if (isJsonMapTemplate(template)) {
+      const itemTemplate = Object.values(template)[0]
+      const entries = Object.entries(current)
+      const renameKey = (oldKey: string, requestedKey: string) => {
+        const newKey = requestedKey.trim()
+        if (!newKey || newKey === oldKey || Object.prototype.hasOwnProperty.call(current, newKey)) return false
+        const next = Object.fromEntries(entries.map(([key, item]) => key === oldKey ? [newKey, item] : [key, item]))
+        onChange(next)
+        return true
+      }
+      const addKey = () => {
+        let index = entries.length + 1
+        let key = 'key'
+        while (Object.prototype.hasOwnProperty.call(current, key)) key = `key${index++}`
+        onChange({ ...current, [key]: fixedJsonTemplateValues(itemTemplate) ?? '' })
+      }
+      return (
+        <div className="cli-json-map">
+          {entries.map(([key, item]) => <div className="cli-json-map-item" key={key}>
+            <div className="cli-json-map-key">
+              <input className="cli-input" defaultValue={key} aria-label="JSON key"
+                onBlur={event => { if (!renameKey(key, event.target.value)) event.target.value = key }} />
+              <button type="button" onClick={() => {
+                const next = { ...current }; delete next[key]
+                onChange(Object.keys(next).length ? next : undefined)
+              }}>삭제</button>
+            </div>
+            <JsonNodeEditor fieldKey={key} template={itemTemplate} value={item} depth={depth + 1}
+              onChange={nextValue => {
+                const next = { ...current }
+                if (nextValue === undefined) delete next[key]
+                else next[key] = nextValue
+                onChange(Object.keys(next).length ? next : undefined)
+              }} />
+          </div>)}
+          <button type="button" className="cli-json-add" onClick={addKey}>+ 키·값 추가</button>
+        </div>
+      )
+    }
+    const fixed = fixedJsonTemplateValues(template)
+    const fixedValues = isJsonRecord(fixed) ? fixed : {}
+    return (
+      <div className={`cli-json-object depth-${Math.min(depth, 3)}`}>
+        {Object.entries(template).map(([key, childTemplate]) => {
+          const nested = isJsonRecord(childTemplate) || Array.isArray(childTemplate)
+          return <div className={`cli-json-property${nested ? ' nested' : ''}`} key={key}>
+            <div className="cli-json-property-label"><code>{key}</code><span>{jsonFieldLabel(key)}</span></div>
+            <JsonNodeEditor fieldKey={key} template={childTemplate} value={current[key]} depth={depth + 1}
+              onChange={nextValue => {
+                const next = { ...fixedValues, ...current }
+                if (nextValue === undefined || nextValue === '') delete next[key]
+                else next[key] = nextValue
+                onChange(Object.keys(next).length ? next : undefined)
+              }} />
+          </div>
+        })}
+      </div>
+    )
+  }
+
+  if (typeof template === 'boolean') {
+    const selected = typeof value === 'boolean' ? String(value) : ''
+    return <select className="cli-input" value={selected} onChange={event =>
+      onChange(event.target.value ? event.target.value === 'true' : undefined)}>
+      <option value="">(미설정)</option><option value="true">true</option><option value="false">false</option>
+    </select>
+  }
+  if (typeof template === 'number') {
+    return <input className="cli-input" inputMode="decimal" type="number"
+      value={typeof value === 'number' ? value : ''} placeholder={String(template)}
+      onChange={event => onChange(event.target.value === '' ? undefined : Number(event.target.value))} />
+  }
+  if (typeof template === 'string' && fieldKey && /type$/i.test(fieldKey) && !isJsonExampleString(template)) {
+    return <div className="cli-json-fixed"><span>자동 고정</span><code>{template}</code></div>
+  }
+  const current = typeof value === 'string' ? value : ''
+  const placeholder = typeof template === 'string' ? (isJsonExampleString(template) ? '값 입력' : template) : '값 입력'
+  return <input className="cli-input" value={current} placeholder={placeholder}
+    onChange={event => onChange(event.target.value || undefined)} />
+}
+
+function JsonOptionField({ fieldId, option, label, value, onChange, subVal, onSub }: {
+  fieldId: string
+  option: CliOption
+  label: ReactNode
+  value: string
+  onChange: (value: string) => void
+  subVal: (key: string) => string
+  onSub: (key: string, value: string) => void
+}) {
+  const savedTemplate = parseJsonValue(subVal('__template'))
+  const template = option.jsonTemplate ?? savedTemplate
+  const mode = subVal('__mode') || (template ? 'structured' : 'raw')
+  const parsedValue = parseJsonValue(value)
+  const rawInvalid = !!value.trim() && parsedValue === undefined
+  const templateInput = subVal('__template-input')
+  const templateError = subVal('__template-error')
+  const applyTemplate = () => {
+    const parsed = parseJsonValue(templateInput)
+    if (!isJsonRecord(parsed) && !Array.isArray(parsed)) {
+      onSub('__template-error', 'JSON object 또는 array 형태의 OCI 예시가 필요합니다.')
+      return
+    }
+    onSub('__template', JSON.stringify(parsed))
+    onSub('__template-error', '')
+    onSub('__mode', 'structured')
+  }
+  return (
+    <div id={fieldId} className="cli-field cli-structured-json" data-cli-option={option.name}>
+      {label}
+      <div className="cli-json-toolbar">
+        <button type="button" className={mode === 'structured' ? 'selected' : ''} disabled={!template}
+          onClick={() => onSub('__mode', 'structured')}>필드로 입력</button>
+        <button type="button" className={mode === 'raw' ? 'selected' : ''} onClick={() => onSub('__mode', 'raw')}>JSON 직접 입력</button>
+      </div>
+      {option.jsonTemplateCommand && (
+        <details className="cli-json-schema" open={!template}>
+          <summary>공식 JSON 필드 구조 불러오기</summary>
+          <p>아래 명령은 API를 호출하지 않고 현재 OCI CLI 버전의 필드 예시를 출력합니다. 실행 결과를 붙여넣으면 입력칸으로 변환됩니다.</p>
+          <div className="cli-inline-command"><code>{option.jsonTemplateCommand}</code>
+            <button type="button" onClick={() => void navigator.clipboard.writeText(option.jsonTemplateCommand ?? '')}>명령 복사</button>
+          </div>
+          {!option.jsonTemplate && <>
+            <textarea className="cli-input cli-json" rows={5} value={templateInput}
+              placeholder="위 명령의 JSON 출력 전체를 붙여넣으세요."
+              onChange={event => { onSub('__template-input', event.target.value); onSub('__template-error', '') }} />
+            <button type="button" className="cli-json-apply" onClick={applyTemplate}>필드 구조 적용</button>
+            {templateError && <p className="cli-json-error">{templateError}</p>}
+          </>}
+        </details>
+      )}
+      {mode === 'structured' && template ? (
+        <div className="cli-json-editor">
+          <p className="cli-json-editor-note">입력한 필드만 JSON에 포함됩니다. 비어 있는 선택 필드는 자동으로 제외됩니다.</p>
+          {rawInvalid
+            ? <p className="cli-json-error">현재 값이 올바른 JSON이 아닙니다. JSON 직접 입력에서 수정하세요.</p>
+            : <JsonNodeEditor template={template} value={parsedValue}
+                onChange={next => onChange(next === undefined ? '' : JSON.stringify(next))} />}
+        </div>
+      ) : (
+        <textarea className="cli-input cli-json" value={value} rows={6}
+          placeholder={template ? '올바른 JSON object 또는 array 입력' : '먼저 공식 필드 구조를 불러오거나 JSON을 직접 입력하세요.'}
+          onChange={event => onChange(event.target.value)} />
+      )}
+    </div>
+  )
+}
+
+function ImageOptionField({ fieldId, option, label, value, onChange, discoveryCommand, subVal, onSub }: {
+  fieldId: string
+  option: CliOption
+  label: ReactNode
+  value: string
+  onChange: (value: string) => void
+  discoveryCommand: string
+  subVal: (key: string) => string
+  onSub: (key: string, value: string) => void
+}) {
+  const catalogRaw = subVal('__image-catalog')
+  const catalog = parseImageCatalog(catalogRaw)
+  const selectedEntry = catalog.entries.find(entry => entry.id === value)
+  const systems = [...new Set(catalog.entries.map(entry => entry.operatingSystem))]
+  const selectedSystem = subVal('__image-os') || selectedEntry?.operatingSystem || systems[0] || ''
+  const versions = catalog.entries.filter(entry => entry.operatingSystem === selectedSystem)
+  return (
+    <div id={fieldId} className="cli-field cli-image-picker" data-cli-option={option.name}>
+      {label}
+      <div className="cli-image-guide">
+        <div><b>1. 현재 이미지 조회</b><span>{option.imagePicker?.note}</span></div>
+        <div className="cli-inline-command cli-image-command"><pre>{discoveryCommand}</pre>
+          <button type="button" onClick={() => void navigator.clipboard.writeText(discoveryCommand)}>조회 명령 복사</button>
+        </div>
+        <label className="cli-image-paste"><span><b>2. 실행 결과 붙여넣기</b> JSON 배열 또는 원본 <code>data</code> 응답</span>
+          <textarea className="cli-input cli-json" rows={5} value={catalogRaw}
+            placeholder='[{"id":"ocid1.image...","name":"Oracle-Linux-9...","os":"Oracle Linux","version":"9"}]'
+            onChange={event => onSub('__image-catalog', event.target.value)} />
+        </label>
+        {catalog.error && <p className="cli-json-error">{catalog.error}</p>}
+      </div>
+      {catalog.entries.length > 0 && <div className="cli-image-selection">
+        <div className="cli-image-step"><b>3. 운영체제 선택</b><span>{catalog.entries.length}개 이미지</span></div>
+        <div className="cli-image-os-grid" role="radiogroup" aria-label="운영체제 선택">
+          {systems.map(system => <button type="button" role="radio" aria-checked={selectedSystem === system}
+            className={selectedSystem === system ? 'selected' : ''} key={system}
+            onClick={() => onSub('__image-os', system)}>
+            <strong>{system}</strong><span>{catalog.entries.filter(entry => entry.operatingSystem === system).length}개 버전</span>
+          </button>)}
+        </div>
+        <div className="cli-image-versions" role="radiogroup" aria-label={`${selectedSystem} 이미지 버전 선택`}>
+          {versions.map(entry => <label key={entry.id} className={value === entry.id ? 'selected' : ''}>
+            <input type="radio" name={`${fieldId}-version`} checked={value === entry.id} onChange={() => onChange(entry.id)} />
+            <span><strong>{entry.operatingSystemVersion}</strong><small>{entry.name}</small></span>
+            <code>{entry.id}</code>
+          </label>)}
+        </div>
+      </div>}
+      <label className="cli-image-direct"><span>Image OCID 직접 입력</span>
+        <input className="cli-input" value={value} placeholder="ocid1.image.oc1.ap-seoul-1..."
+          onChange={event => onChange(event.target.value)} />
+      </label>
+      {option.imagePicker?.docs && <a className="cli-image-docs" href={option.imagePicker.docs} target="_blank" rel="noreferrer">Oracle Image LIST 공식 문서 ↗</a>}
+    </div>
+  )
+}
+
+function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, imageDiscoveryCommand, subVal, onSub }: {
   o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean
   dynamic: boolean; rootTenancy?: boolean; onToggleDynamic?: (on: boolean) => void
+  imageDiscoveryCommand?: string
   subVal: (key: string) => string; onSub: (key: string, v: string) => void
 }) {
   const fieldId = cliFieldAnchorId(o.name)
@@ -2052,6 +2515,10 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
         </label>
       </div>
     )
+  }
+  if (o.imagePicker && imageDiscoveryCommand) {
+    return <ImageOptionField fieldId={fieldId} option={o} label={label} value={value} onChange={onChange}
+      discoveryCommand={imageDiscoveryCommand} subVal={subVal} onSub={onSub} />
   }
   if (o.multi) {
     return (
@@ -2186,12 +2653,8 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
     )
   }
   if (!dynamic && o.type === 'json') {
-    return (
-      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
-        {label}
-        <textarea className="cli-input cli-json" value={value} placeholder={o.placeholder || '{ }'} onChange={e => onChange(e.target.value)} />
-      </div>
-    )
+    return <JsonOptionField fieldId={fieldId} option={o} label={label} value={value}
+      onChange={onChange} subVal={subVal} onSub={onSub} />
   }
   if (o.suggestions?.length) {
     const listId = `cli-suggestions-${o.name.replaceAll('-', '')}`

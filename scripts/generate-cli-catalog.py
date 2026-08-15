@@ -388,6 +388,82 @@ OPTION_NOTICES_BY_COMMAND = {
     ],
 }
 
+# OCI CLI v3.90.2 `oci compute instance launch --generate-param-json-input
+# source-details`의 공식 출력. sourceType별 object variant를 UI가 구조화 입력으로
+# 렌더링한다. 일반 JSON 옵션은 아래 annotate_json_inputs()가 같은 공식 skeleton
+# 생성 명령을 제공하므로 새 옵션도 `{ }` textarea로 퇴행하지 않는다.
+INSTANCE_SOURCE_DETAILS_TEMPLATE = [
+    'This parameter should actually be a JSON object rather than an array - pick one of the following object variants to use',
+    {
+        'bootVolumeId': 'string',
+        'sourceType': 'bootVolume',
+    },
+    {
+        'bootVolumeSizeInGBs': 0,
+        'bootVolumeVpusPerGB': 0,
+        'imageId': 'string',
+        'instanceSourceImageFilterDetails': {
+            'compartmentId': 'string',
+            'definedTagsFilter': {
+                'string1': {
+                    'string1': {'string1': 'string', 'string2': 'string'},
+                    'string2': {'string1': 'string', 'string2': 'string'},
+                },
+                'string2': {
+                    'string1': {'string1': 'string', 'string2': 'string'},
+                    'string2': {'string1': 'string', 'string2': 'string'},
+                },
+            },
+            'operatingSystem': 'string',
+            'operatingSystemVersion': 'string',
+        },
+        'kmsKeyId': 'string',
+        'sourceType': 'image',
+    },
+]
+
+def annotate_json_inputs(command):
+    """Give every complex option an actionable schema path, never a bare `{ }`."""
+    command_path = command.get('cmd')
+    if not command_path:
+        return
+    options = [
+        option
+        for section in command.get('sections', [])
+        for option in section.get('options', [])
+    ] + list(command.get('advanced', []))
+    for option in options:
+        if option.get('type') == 'json':
+            option['placeholder'] = '구조화 입력기로 JSON 필드를 구성하세요.'
+            option['jsonTemplateCommand'] = '%s --generate-param-json-input %s' % (
+                command_path, option['name'].removeprefix('--'),
+            )
+        if command_path == 'oci compute instance launch' and option['name'] == '--source-details':
+            option['jsonTemplate'] = INSTANCE_SOURCE_DETAILS_TEMPLATE
+            option['jsonRules'] = {
+                'discriminator': 'sourceType',
+                'variants': {
+                    'bootVolume': {
+                        'required': ['bootVolumeId'],
+                    },
+                    'image': {
+                        'requiredOneOf': [['imageId', 'instanceSourceImageFilterDetails']],
+                    },
+                },
+            }
+        if command_path == 'oci compute instance launch' and option['name'] == '--image-id':
+            # 일반 exact-name 조회기는 platform image의 OS/버전/shape 선택을 표현하지
+            # 못한다. 전용 조회 결과 picker가 최종 OCID를 확정하므로 본 명령에는 그대로 전달한다.
+            option.pop('dynamicLookup', None)
+            option['dynamicLookupImplementedBy'] = 'dedicated-builder'
+            option['imagePicker'] = {
+                'listCommand': 'oci compute image list',
+                'shapeOption': '--shape',
+                'docs': 'https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/compute/image/list.html',
+                'note': ('현재 리전의 platform/custom image를 조회합니다. Shape를 먼저 입력하면 '
+                         '호환 이미지로 제한합니다.'),
+            }
+
 DEPRECATED_REPLACEMENTS = {
     ('oci bv volume create', '--size-in-mbs'): ['--size-in-gbs'],
     ('oci network vcn create', '--cidr-block'): ['--cidr-blocks'],
@@ -1229,6 +1305,11 @@ for resource, command in catalog['commands'].items():
     for action in command.get('actions', {}).values():
         annotate_dynamic_lookups(resource, action)
         annotate_option_relationships(action)
+    annotate_json_inputs(command)
+    for operation in command.get('operations', {}).values():
+        annotate_json_inputs(operation)
+    for action in command.get('actions', {}).values():
+        annotate_json_inputs(action)
     lift_execution_context(command)
     for operation in command.get('operations', {}).values():
         lift_execution_context(operation)

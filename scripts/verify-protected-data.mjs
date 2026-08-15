@@ -121,6 +121,25 @@ for (const level of [1, 2, 3]) {
   if (bootRule?.kind !== 'oneOf' || JSON.stringify(bootRule.options) !== JSON.stringify(bootSources)) {
     throw new Error(`L${level} Instance boot source one-of rule missing`)
   }
+  const sourceDetails = instanceCreateOptions.find(option => option.name === '--source-details')
+  const imageId = instanceCreateOptions.find(option => option.name === '--image-id')
+  if (!Array.isArray(sourceDetails?.jsonTemplate) || sourceDetails.jsonTemplate.length !== 3
+    || sourceDetails.jsonRules?.discriminator !== 'sourceType'
+    || sourceDetails.jsonTemplateCommand !== 'oci compute instance launch --generate-param-json-input source-details') {
+    throw new Error(`L${level} Instance source-details structured schema missing`)
+  }
+  if (imageId?.imagePicker?.listCommand !== 'oci compute image list'
+    || imageId.imagePicker.shapeOption !== '--shape'
+    || imageId.dynamicLookup
+    || imageId.dynamicLookupImplementedBy !== 'dedicated-builder') {
+    throw new Error(`L${level} Instance image picker metadata invalid`)
+  }
+  const jsonOptions = catalogOperations.flatMap(operation => [
+    ...operation.sections.flatMap(section => section.options), ...operation.advanced,
+  ]).filter(option => option.type === 'json')
+  if (jsonOptions.some(option => !option.jsonTemplateCommand || /^\{\s*\}$/.test(option.placeholder ?? ''))) {
+    throw new Error(`L${level} JSON option regressed to an unexplained raw placeholder`)
+  }
   if (instanceCreateOptions.some(option => option.name === '--create-vnic-details')
     || !instanceCreate.optionNotices?.some(notice => notice.option === '--create-vnic-details'
       && notice.replacements.includes('--subnet-id'))) {
