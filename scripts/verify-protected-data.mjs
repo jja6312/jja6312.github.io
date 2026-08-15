@@ -20,6 +20,9 @@ for (const key of ['repository', 'releaseUrl', 'tag', 'version', 'commit', 'tree
     throw new Error(`OCI CLI catalog source provenance mismatch: ${key}`)
   }
 }
+if (generatedCliCatalog.source?.metadataCollector !== 'final-click-tree') {
+  throw new Error('OCI CLI catalog must use the final Click-tree metadata collector')
+}
 for (const [resource, command] of Object.entries(generatedCliCatalog.commands)) {
   if (command.source?.tag !== cliSourceLock.tag || command.source?.version !== cliSourceLock.version
     || command.source?.commit !== cliSourceLock.commit
@@ -54,6 +57,21 @@ for (const level of [1, 2, 3]) {
   const parts = await Promise.all(Object.entries(keys).map(([part, key]) => rawDecrypt(key, file.payloads[part])))
   const bundle = Object.assign({}, ...parts)
   if (!bundle.cliCatalog || Object.keys(bundle.cliCatalog.commands).length < 1) throw new Error(`L${level} CLI 누락`)
+  if (bundle.cliCatalog.source?.metadataCollector !== 'final-click-tree') {
+    throw new Error(`L${level} final Click-tree provenance 누락`)
+  }
+  const publicOptionNames = operation => new Set([
+    ...operation.sections.flatMap(section => section.options),
+    ...operation.advanced,
+  ].map(option => option.name))
+  const alarmCreateNames = publicOptionNames(bundle.cliCatalog.commands.alarm.operations.create)
+  if (!alarmCreateNames.has('--query-text') || alarmCreateNames.has('--query-parameterconflict')) {
+    throw new Error(`L${level} Alarm 공개 query 옵션 오류`)
+  }
+  const onsCreateNames = publicOptionNames(bundle.cliCatalog.commands.subscription.operations.create)
+  if (!onsCreateNames.has('--subscription-endpoint') || onsCreateNames.has('--endpoint-parameterconflict')) {
+    throw new Error(`L${level} ONS Subscription 공개 endpoint 옵션 오류`)
+  }
   const instanceGroup = bundle.cliCatalog.categories
     .flatMap(category => category.groups)
     .find(group => group.label === 'Instances')

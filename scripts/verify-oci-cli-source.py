@@ -50,6 +50,8 @@ def main() -> None:
     for key in ("repository", "releaseUrl", "tag", "version", "commit", "publishedAt", "collectedAt"):
         if provenance.get(key) != lock.get(key):
             fail(f"Catalog source provenance mismatch: {key}")
+    if provenance.get("metadataCollector") != "final-click-tree":
+        fail("Catalog metadata was not collected from the final OCI CLI Click tree")
     for resource, command in catalog.get("commands", {}).items():
         command_source = command.get("source", {})
         if command_source.get("tag") != lock["tag"] or command_source.get("commit") != lock["commit"]:

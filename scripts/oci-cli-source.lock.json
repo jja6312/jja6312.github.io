@@ -14,6 +14,41 @@
     "bytes": 184497661,
     "sha256": "c76d0b1e14a19fa1df976be4eefaa9ca183f41e569b9392220d02b756af5e497"
   },
+  "clickTree": {
+    "schemaVersion": 1,
+    "wheel": {
+      "name": "oci_cli-3.90.2-py3-none-any.whl",
+      "bytes": 66093870,
+      "sha256": "b97d3ae64e8e0b3e3e40f54b07e8764511987ab0b461841c8f47a45eb27cffad"
+    },
+    "services": [
+      "compute",
+      "bv",
+      "compute-management",
+      "network",
+      "db",
+      "fs",
+      "lb",
+      "monitoring",
+      "mysql",
+      "nlb",
+      "os",
+      "ons"
+    ],
+    "servicePackages": [
+      "core",
+      "database",
+      "file_storage",
+      "identity",
+      "load_balancer",
+      "monitoring",
+      "mysql",
+      "network_load_balancer",
+      "object_storage",
+      "ons"
+    ],
+    "pythonRequirements": "oci-cli-runtime-requirements.txt"
+  },
   "updatePolicy": "Pin the latest stable release. Compare immutable source files first, review the generated catalog diff, then update this lock explicitly.",
   "sources": [
     {

@@ -13,6 +13,7 @@ OCI CLI changes in this repository must follow these rules before implementation
 9. Add protected-data regression assertions for menu placement, operation availability, required fields, default queries, dynamic lookup, and prerequisite/related commands. Validate generated Bash workflows with `bash -n`.
 10. Run protected-data generation and verification, lint, and build. Deploy automatically and confirm the live JavaScript, CSS, and protected data match the local final artifacts.
 11. Treat `scripts/oci-cli-source.lock.json` as the only OCI CLI generated-source authority. Never read an installed OCI CLI path or silently mix stored metadata from another version. Check the latest release with `npm run check:oci-source`, review the source/catalog diff, and then update the lock explicitly.
+12. Collect public command and option names from the pinned release's final Click tree after generated and `*_extended.py` modules are loaded. `scripts/parse-oci-cli.py` is legacy audit material only and must never drive catalog generation.
 
 ## OCI CLI completion plan
 

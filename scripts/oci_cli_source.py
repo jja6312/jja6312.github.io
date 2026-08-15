@@ -15,13 +15,14 @@ from pathlib import Path, PurePosixPath
 SITE = Path(__file__).resolve().parent.parent
 LOCK_PATH = Path(__file__).resolve().with_name("oci-cli-source.lock.json")
 CACHE_ROOT = SITE / ".protected-cache" / "oci-cli-source"
+RUNTIME_CACHE_ROOT = SITE / ".protected-cache" / "oci-cli-runtime"
 
 
 def load_lock() -> dict:
     lock = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
     required = {
         "schemaVersion", "repository", "releaseUrl", "rawBaseUrl", "tag", "version",
-        "commit", "tree", "publishedAt", "collectedAt", "sources",
+        "commit", "tree", "publishedAt", "collectedAt", "releaseAsset", "sources",
     }
     missing = sorted(required - lock.keys())
     if missing:
@@ -32,6 +33,11 @@ def load_lock() -> dict:
         raise RuntimeError("OCI CLI source lock tag/version mismatch")
     if not re.fullmatch(r"[0-9a-f]{40}", lock["commit"]):
         raise RuntimeError("OCI CLI source lock commit must be a full 40-character SHA")
+    release_asset = lock["releaseAsset"]
+    if not all(key in release_asset for key in ("name", "bytes", "sha256")):
+        raise RuntimeError("OCI CLI source lock releaseAsset is incomplete")
+    if not re.fullmatch(r"[0-9a-f]{64}", release_asset["sha256"]):
+        raise RuntimeError("OCI CLI release asset SHA must be a full SHA-256")
     return lock
 
 
@@ -88,6 +94,36 @@ def _download(lock: dict, entry: dict, target: Path) -> None:
         os.replace(temporary, target)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def ensure_release_asset() -> Path:
+    """Download and verify Oracle's immutable release bundle."""
+    lock = load_lock()
+    entry = lock["releaseAsset"]
+    target = RUNTIME_CACHE_ROOT / lock["tag"] / entry["name"]
+    if _validate(target, entry):
+        return target
+    if os.environ.get("OCI_CLI_SOURCE_OFFLINE") == "1":
+        raise RuntimeError(f"Pinned OCI CLI release asset is not cached in offline mode: {entry['name']}")
+    repository = lock["repository"].rstrip("/")
+    url = f"{repository}/releases/download/{urllib.parse.quote(lock['tag'], safe='')}/{urllib.parse.quote(entry['name'])}"
+    request = urllib.request.Request(url, headers={"User-Agent": "jja6312-oci-cli-catalog/1"})
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with urllib.request.urlopen(request, timeout=180) as response, tempfile.NamedTemporaryFile(
+        dir=target.parent, prefix=".release-", delete=False
+    ) as handle:
+        while chunk := response.read(1024 * 1024):
+            handle.write(chunk)
+        temporary = Path(handle.name)
+    try:
+        if not _validate(temporary, entry):
+            raise RuntimeError(f"Pinned OCI CLI release asset checksum mismatch: {entry['name']}")
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    if not _validate(target, entry):
+        raise RuntimeError(f"Pinned OCI CLI release asset verification failed: {entry['name']}")
+    return target
 
 
 def ensure_source(paths: list[str] | None = None) -> Path:

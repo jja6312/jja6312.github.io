@@ -7,10 +7,11 @@ v3: 콘솔 생성 마법사와 같은 경험 —
   - advanced: tags·wait 등은 '고급'으로 접힘
 실행: python scripts/generate-cli-catalog.py  (cc3/jja6312.github.io 에서)
 """
-import json, re, glob, os, sys, io, importlib.util
+import json, re, glob, os, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-from oci_cli_source import ensure_source, load_lock, resolve_source_path
+from oci_cli_click import load_click_tree
+from oci_cli_source import ensure_source, load_lock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SITE = os.path.dirname(HERE)
@@ -18,13 +19,10 @@ DATA = os.path.join(SITE, '..', 'blog-db', 'knowledge', 'oci-cli', '_data')
 RECIPE = os.path.join(SITE, '..', 'blog-db', 'knowledge', 'oci-cli')
 OUT = os.path.join(SITE, '.protected-cache', 'cliCatalog.json')
 
-_parser_spec = importlib.util.spec_from_file_location('parse_oci_cli', os.path.join(HERE, 'parse-oci-cli.py'))
-_parser_module = importlib.util.module_from_spec(_parser_spec)
-_parser_spec.loader.exec_module(_parser_module)
-parse_cli_file = _parser_module.parse_file
-
 SOURCE_LOCK = load_lock()
-SOURCE_ROOT = ensure_source()
+ensure_source()
+CLICK_TREE = load_click_tree()
+CLICK_COMMANDS = CLICK_TREE['commands']
 
 STRUCTURE = [
   ('02-compute', 'Compute', [
@@ -326,17 +324,6 @@ def find_operation(commands, group, operation):
             return prefixed[0]
     return None
 
-def find_primary(commands, specification):
-    """Resolve the resource's curated command identity against the pinned source."""
-    same_group = [command for command in commands if command.get('group') == specification.get('group')]
-    for key in ('func', 'verb', 'override'):
-        value = specification.get(key)
-        if value:
-            exact = next((command for command in same_group if command.get(key) == value), None)
-            if exact:
-                return exact
-    return None
-
 catalog = {
     'source': {
         key: SOURCE_LOCK[key]
@@ -345,6 +332,12 @@ catalog = {
     'categories': [],
     'commands': {},
 }
+catalog['source'].update({
+    'metadataCollector': 'final-click-tree',
+    'click': CLICK_TREE['click'],
+    'ociSdk': CLICK_TREE['ociSdk'],
+    'publicCommands': len(CLICK_COMMANDS),
+})
 MANUAL_CATEGORY_RESOURCES = {
     'instance-maintenance-reboot', 'instance-boot-volume-backup',
     'iam-user', 'iam-group', 'iam-policy',
@@ -359,7 +352,6 @@ for cat_id, cat_label, groups in STRUCTURE:
             placed.update(rs)
     catalog['categories'].append(cat)
 
-source_cache = {}
 for res, d in raw.items():
     if res not in placed:
         continue
@@ -370,15 +362,13 @@ for res, d in raw.items():
     if d.get('source_kind') == 'generated':
         if not source_file:
             raise RuntimeError('%s: generated resource is missing source_file' % res)
-        resolved_source = str(resolve_source_path(source_file, SOURCE_ROOT))
-        if source_file not in source_cache:
-            source_cache[source_file] = parse_cli_file(resolved_source)
-        source_commands = source_cache[source_file]
-        primary = find_primary(source_commands, d['primary'])
+        primary = CLICK_COMMANDS.get(cmd)
         if not primary:
-            raise RuntimeError('%s: primary command %s/%s not found in pinned %s' % (
-                res, d['primary'].get('group'), d['primary'].get('verb'), source_file,
-            ))
+            raise RuntimeError('%s: public command %s not found in the pinned final Click tree' % (res, cmd))
+        source_commands = [
+            command for command in CLICK_COMMANDS.values()
+            if command.get('group') == primary.get('group')
+        ]
     elif d.get('commands'):
         source_commands = d['commands']
         primary = d['primary']
@@ -474,7 +464,9 @@ for res, d in raw.items():
                 {'label': '조건부 조회', 'options': [get_options['--if-none-match']]},
                 {'label': '실행 환경', 'options': [get_options['--profile'], get_options['--region']]},
             ]
-        if operation == 'create':
+        if d.get('source_kind') == 'generated':
+            operation_cmd = operation_source['path']
+        elif operation == 'create':
             operation_cmd = cmd
         else:
             actual_verb = 'terminate' if operation == 'delete' and operation_source['verb'].startswith('terminate') else operation
