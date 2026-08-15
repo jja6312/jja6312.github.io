@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
-import { isCliOptionValueActive, serializeCliOption } from '../lib/cliOptionModel'
+import { isCliOptionValueActive, serializeCliOption, validateCliOptions } from '../lib/cliOptionModel'
 
 interface CliOption {
   name: string
@@ -1092,6 +1092,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
     if (JSONSPEC[o.name]) {
       const j = buildJsonValue(o.name, values)
       if (j) args.push(`  ${o.name} '${j}'`)
+      else if (o.required) args.push(`  ${o.name} '<required-json>'`)
       continue
     }
     // 값 없는 선택 옵션은 동적 모드여도 생략 — 명령을 어지럽히지 않는다
@@ -1100,6 +1101,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
       if (rootTenancyDynamic) args.push(`  ${o.name} "$TENANCY_ID"`)
       else if (compDynamic) args.push(`  ${o.name} "$COMP"`)
       else if (v) args.push(`  ${o.name} ${v}`)
+      else if (o.required) args.push(`  ${o.name} <required:compartment-id>`)
       continue
     }
     if (o.name === '--availability-domain' && isDynamic(dyn, o.name)) {
@@ -1125,7 +1127,10 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
       args.push(`  ${o.name} "$SUBNET"`)
       continue
     }
-    if (!v) continue
+    if (!v) {
+      if (o.required) args.push(`  ${o.name} <required:${o.name.slice(2)}>`)
+      continue
+    }
     for (const argument of serializeCliOption(o, v)) args.push(`  ${argument}`)
   }
 
@@ -1244,6 +1249,20 @@ export default function CliBuilderPage() {
   }
   const formOptions = [...formSections.flatMap(section => section.options), ...formAdvanced]
   const formOptionsByName = new Map(formOptions.map(option => [option.name, option]))
+  const validationValues = { ...values }
+  for (const option of formOptions) {
+    if (JSONSPEC[option.name]) validationValues[option.name] = buildJsonValue(option.name, values)
+  }
+  if (cmd?.rootTenancyLookup && isDynamic(dyn, '--compartment-id')) {
+    validationValues['--compartment-id'] = '__root-tenancy-from-profile__'
+  }
+  if (formOptionsByName.has('--availability-domain') && isDynamic(dyn, '--availability-domain')) {
+    validationValues['--availability-domain'] = values['--availability-domain']?.trim() || '1'
+  }
+  const commandValidation = cmd
+    ? validateCliOptions(formOptions, validationValues, formRules)
+    : { valid: true, issues: [], missing: [] }
+  const commandReady = commandValidation.valid
   const setVal = (name: string, v: string) => setValues(current => {
     const next = { ...current, [name]: v }
     const option = formOptionsByName.get(name)
@@ -1255,13 +1274,17 @@ export default function CliBuilderPage() {
   const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
 
   const copy = useCallback(async () => {
+    if (!commandReady) {
+      showToast(`미완성 명령: ${commandValidation.issues[0]?.message ?? '필수 입력을 확인하세요.'}`)
+      return
+    }
     try {
       await navigator.clipboard.writeText(cli)
       const rewarded = rewardActivity(`cli-copy:${active}`, 5, 'OCI CLI 명령 복사')
       if (!rewarded) showToast('클립보드에 복사됨')
     }
     catch { showToast('복사 실패 — 수동 선택') }
-  }, [active, cli, rewardActivity, showToast])
+  }, [active, cli, commandReady, commandValidation.issues, rewardActivity, showToast])
 
   const toggleOutput = useCallback(() => {
     if (!outOpen) setOutUncapped(true)
@@ -1282,6 +1305,10 @@ export default function CliBuilderPage() {
   }, [copy, toggleOutput])
 
   const addFav = () => {
+    if (!commandReady) {
+      showToast(`미완성 명령: ${commandValidation.issues[0]?.message ?? '필수 입력을 확인하세요.'}`)
+      return
+    }
     const name = prompt('즐겨찾기 이름', cmd ? `${cmd.label} ${values['--display-name'] || ''}`.trim() : 'custom')
     if (!name) return
     const fav: Favorite = {
@@ -1503,19 +1530,38 @@ export default function CliBuilderPage() {
             placeholder="oci compute instance launch --compartment-id ... " />
         )}
 
-        <div className="cli-result">
+        <div className={`cli-result${commandReady ? '' : ' incomplete'}`}>
+          {!commandReady && (
+            <div className="cli-validation-panel" role="alert" aria-label="미완성 OCI CLI 입력">
+              <div className="cli-validation-title">실행 전 입력 확인</div>
+              <div>아래 항목을 해결하면 복사와 즐겨찾기 저장이 활성화됩니다.</div>
+              <ul>
+                {commandValidation.issues.map((issue, index) => (
+                  <li key={`${issue.code}:${issue.options.join(':')}:${index}`}>
+                    <span>{issue.message}</span>
+                    {issue.options.length > 0 && <span className="cli-validation-options">
+                      {issue.options.map(name => <code key={name}>{name}</code>)}
+                    </span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="cli-result-hd">
             <button className="cli-out-toggle" aria-expanded={outOpen} aria-keyshortcuts="Alt+O"
-              title="최종 명령 접기/펼치기 (Alt+O)" onClick={toggleOutput}>
+              title={`${commandReady ? '최종 명령' : '미완성 명령 미리보기'} 접기/펼치기 (Alt+O)`} onClick={toggleOutput}>
               <span className="cli-out-caret" aria-hidden="true">{outOpen ? '▾' : '▸'}</span>
-              <span>최종 명령</span>
+              <span>{commandReady ? '최종 명령' : '미완성 명령 미리보기'}</span>
               <kbd className="cli-shortcut">Alt+O</kbd>
             </button>
             <div className="cli-result-actions">
-              <button className="submitbtn cli-copybtn" aria-keyshortcuts="Alt+C" title="최종 명령 복사 (Alt+C)" onClick={copy}>
+              <button className="submitbtn cli-copybtn" aria-keyshortcuts="Alt+C" aria-disabled={!commandReady} disabled={!commandReady}
+                title={commandReady ? '최종 명령 복사 (Alt+C)' : '필수 입력을 완료해야 복사할 수 있습니다.'} onClick={copy}>
                 복사 <kbd className="cli-shortcut">Alt+C</kbd>
               </button>
-              <button className="donebtn" style={{ marginTop: 0 }} onClick={addFav}>즐겨찾기 저장</button>
+              <button className="donebtn" style={{ marginTop: 0 }} aria-disabled={!commandReady} disabled={!commandReady}
+                title={commandReady ? '실행 가능한 명령을 즐겨찾기에 저장' : '필수 입력을 완료해야 저장할 수 있습니다.'}
+                onClick={addFav}>즐겨찾기 저장</button>
             </div>
           </div>
           {outOpen && <pre className={`cli-output${outUncapped ? '' : ' initial'}`}>{cli}</pre>}

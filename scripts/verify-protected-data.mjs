@@ -380,6 +380,12 @@ if (!cliBuilder.includes('visibleFormSections') || !cliBuilder.includes('showDep
   || !cliBuilder.includes('cli-rule-panel') || !cliBuilder.includes('조건부 필수')) {
   throw new Error('OCI CLI required/conditional/deprecated UI 누락')
 }
+if (!cliBuilder.includes('validateCliOptions(formOptions, validationValues, formRules)')
+  || !cliBuilder.includes('미완성 명령 미리보기')
+  || !cliBuilder.includes('disabled={!commandReady}')
+  || !cliBuilder.includes('cli-validation-panel')) {
+  throw new Error('OCI CLI incomplete-command validation guard 누락')
+}
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')
 if (!cliBuilder.includes('confirm compartment OCID')) throw new Error('컴파트먼트 정리 이중 확인 가드 누락')
 if (!cliBuilder.includes('oci log-analytics storage purge-storage-data')) throw new Error('Log Analytics compartment purge 누락')

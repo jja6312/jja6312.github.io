@@ -16,6 +16,7 @@ OCI CLI changes in this repository must follow these rules before implementation
 12. Collect public command and option names from the pinned release's final Click tree after generated and `*_extended.py` modules are loaded. `scripts/parse-oci-cli.py` is legacy audit material only and must never drive catalog generation.
 13. Presentation curation may reorder or group options, but it must never promote a Click-optional option to required because the Console usually asks for it. Preserve `required` exactly and model one-of, conditional, dependency, and mutual-exclusion semantics separately.
 14. Hide deprecated options from the default form. Keep them in an explicit deprecated section with official deprecation text and a replacement when one is known. If the final public Click command removes a generated option, do not reintroduce it; record the supported public alternatives instead.
+15. Treat incomplete structured commands as previews, never as executable final commands. List every unresolved required, one-of, mutually exclusive, and dependency rule in the UI, and keep copy and favorite-save disabled until validation passes. A dynamic lookup only satisfies a blank required value when it can actually resolve without another user-supplied name or OCID.
 
 ## OCI CLI completion plan
 
