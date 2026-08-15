@@ -215,6 +215,9 @@
   - 상태: 진행 중
   - 2026-08-15 부분 구현: 실행 전 입력 확인을 독립적인 우측 sticky 사이드바로 분리하고, 누락 옵션을 클릭하면 접힌 영역을 펼친 뒤 해당 입력칸으로 스크롤·포커스·강조
   - 2026-08-15 부분 구현: 좌·우 사이드바 폭을 포인터 드래그·방향키로 각각 조절하고 브라우저에 저장; 더블클릭 기본 폭 복원과 좁은 화면 자동 접힘 유지
+  - 2026-08-15 부분 구현: 전 CRUD·Action에 노출되는 JSON 옵션 508회에 공식 `--generate-param-json-input` 경로를 부여하고, object·array·boolean·number·variant·자유 키 map을 입력칸으로 조립하는 범용 구조화 편집기와 JSON 유효성 차단 적용 (`b45e378`)
+  - 2026-08-15 부분 구현: Instance CREATE `source-details`를 Image/Boot Volume 유형별 필드로 분리하고, 현재 profile·region·compartment·shape로 Image LIST를 조회한 결과를 OS 카드와 버전 radio로 선택해 Image OCID를 확정하는 흐름 구축 (`b45e378`)
+  - 2026-08-15 회귀 보호: 빈 `{}` 예시 0건, JSON schema 경로 누락 0건, source variant 필수 규칙, image 조회의 0/1/N compartment 가드와 생성 Bash `bash -n`을 보호 데이터 생성 전에 자동 검사
 - [ ] `P2-04` Console 대분류·그룹 맵 분리
   - CLI namespace와 Console 메뉴 구조를 별도 데이터로 관리
   - `Observability`를 공식 `Observability & Management` 명칭으로 교정
@@ -403,6 +406,7 @@
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-15 | P2-03 부분 구현 — 범용 JSON 구조화 입력·유효성 검사, Instance 부팅 소스 variant, 현재 컨텍스트 기반 Image 조회·OS/버전 선택 흐름과 회귀 게이트 구축 | `b45e378` | Codex |
 | 2026-08-15 | P2-02 완료 — 필수 OCID 232회 전수 분류, 220회 안전 동적 조회·12회 사유 있는 직접 입력, 0/1/N 중단 및 생성 Bash 회귀 구축 | `346d110` | Codex |
 | 2026-08-15 | P2-01 완료 — 44개 CRUD 리소스 LIST 기본 진입, 유지보수 GET 기본 진입, 공통 안전 정책·회귀 게이트 구축 | `4c54320` | Codex |
 | 2026-08-15 | P1-08 및 Phase 1 완료 — 219개 최종 명령·Bash 전수 검사, 직렬화 회귀, shell quoting 결함 교정 | `e45fe7d` | Codex |
