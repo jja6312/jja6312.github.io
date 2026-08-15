@@ -48,11 +48,20 @@ interface CliOption {
   jsonFieldChoices?: Record<string, CliJsonFieldChoice[]>
   jsonNotice?: string
   imagePicker?: CliImagePicker
+  shapePicker?: CliShapePicker
 }
 interface CliJsonFieldChoice { value: string; label: string }
 interface CliJsonVariantRule { required?: string[]; requiredOneOf?: string[][] }
 interface CliJsonRules { discriminator?: string; variants?: Record<string, CliJsonVariantRule> }
 interface CliImagePicker { listCommand: string; shapeOption: string; docs: string; note: string }
+interface CliShapePicker { listCommand: string; docs: string; note: string }
+interface CliInstanceLaunchPreflight {
+  schema: 'oci-instance-launch-preflight/v1'
+  shapeListCommand: string
+  imageListCommand: string
+  shapeDocs: string
+  imageDocs: string
+}
 interface CliSection { label: string; options: CliOption[] }
 interface CliOptionRule {
   id: string
@@ -96,6 +105,7 @@ interface CliOperation {
   rules?: CliOptionRule[]
   optionNotices?: CliOptionNotice[]
   contextOverrides?: ExecutionContextOverrides
+  instanceLaunchPreflight?: CliInstanceLaunchPreflight
 }
 interface CliAction extends CliOperation {
   label: string
@@ -119,6 +129,7 @@ interface CliCommand {
   operations?: Partial<Record<CrudVerb, CliOperation>>
   actions?: Record<string, CliAction>
   contextOverrides?: ExecutionContextOverrides
+  instanceLaunchPreflight?: CliInstanceLaunchPreflight
   sections: CliSection[]; advanced: CliOption[]
   lookupInputs?: CliOption[]
 }
@@ -249,6 +260,33 @@ interface ImageCatalogEntry {
   lifecycleState: string
   timeCreated: string
 }
+type ShapeVendor = 'AMD' | 'Intel' | 'Ampere' | 'Other'
+interface ShapeCatalogEntry {
+  shape: string
+  vendor: ShapeVendor
+  processorDescription: string
+  ocpus: number | null
+  memoryInGBs: number | null
+  isFlexible: boolean
+  baselineOcpuUtilizations: string[]
+  gpuDescription: string
+  billingType: string
+  networkingBandwidthInGbps: number | null
+}
+interface InstanceLaunchPreflightBundle {
+  schema: 'oci-instance-launch-preflight/v1'
+  generatedAt: string
+  context: {
+    profile: string
+    region: string
+    compartmentInput: string
+    compartmentId: string
+    availabilityDomain: string
+  }
+  selectedShape: string
+  shapes: ShapeCatalogEntry[]
+  images: ImageCatalogEntry[]
+}
 
 const isJsonRecord = (value: unknown): value is JsonRecord => !!value && typeof value === 'object' && !Array.isArray(value)
 const parseJsonValue = (raw: string): unknown | undefined => {
@@ -334,14 +372,94 @@ function parseImageCatalog(raw: string): { entries: ImageCatalogEntry[]; error: 
     return [{
       id,
       name: String(row.name ?? row['display-name'] ?? id),
-      operatingSystem: String(row.os ?? row['operating-system'] ?? '기타/Custom'),
-      operatingSystemVersion: String(row.version ?? row['operating-system-version'] ?? '-'),
-      lifecycleState: String(row.state ?? row['lifecycle-state'] ?? ''),
+      operatingSystem: String(row.operatingSystem ?? row.os ?? row['operating-system'] ?? '기타/Custom'),
+      operatingSystemVersion: String(row.operatingSystemVersion ?? row.version ?? row['operating-system-version'] ?? '-'),
+      lifecycleState: String(row.lifecycleState ?? row.state ?? row['lifecycle-state'] ?? ''),
       timeCreated: String(row.timeCreated ?? row['time-created'] ?? ''),
     }]
   })
   if (!entries.length) return { entries: [], error: 'image OCID가 포함된 항목을 찾지 못했습니다.' }
   return { entries, error: '' }
+}
+
+const shapeVendor = (description: string, shape = ''): ShapeVendor => {
+  const searchable = `${description} ${shape}`.toLowerCase()
+  if (searchable.includes('amd') || searchable.includes('epyc')) return 'AMD'
+  if (searchable.includes('intel') || searchable.includes('xeon')) return 'Intel'
+  if (searchable.includes('ampere') || searchable.includes('altra') || /\.a\d+\./i.test(shape)) return 'Ampere'
+  return 'Other'
+}
+
+function normalizeShapeCatalog(rows: unknown[]): ShapeCatalogEntry[] {
+  return rows.flatMap(row => {
+    if (!isJsonRecord(row)) return []
+    const shape = String(row.shape ?? row.name ?? '')
+    if (!shape) return []
+    const processorDescription = String(row.processorDescription ?? row['processor-description'] ?? '')
+    const numberOrNull = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null
+    const baselines = row.baselineOcpuUtilizations ?? row['baseline-ocpu-utilizations']
+    return [{
+      shape,
+      vendor: ['AMD', 'Intel', 'Ampere', 'Other'].includes(String(row.vendor))
+        ? String(row.vendor) as ShapeVendor
+        : shapeVendor(processorDescription, shape),
+      processorDescription,
+      ocpus: numberOrNull(row.ocpus),
+      memoryInGBs: numberOrNull(row.memoryInGBs ?? row['memory-in-gbs']),
+      isFlexible: Boolean(row.isFlexible ?? row['is-flexible']),
+      baselineOcpuUtilizations: Array.isArray(baselines) ? baselines.map(String) : [],
+      gpuDescription: String(row.gpuDescription ?? row['gpu-description'] ?? ''),
+      billingType: String(row.billingType ?? row['billing-type'] ?? ''),
+      networkingBandwidthInGbps: numberOrNull(row.networkingBandwidthInGbps ?? row['networking-bandwidth-in-gbps']),
+    }]
+  })
+}
+
+function parseShapeCatalog(raw: string): { entries: ShapeCatalogEntry[]; error: string } {
+  if (!raw.trim()) return { entries: [], error: '' }
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) as unknown } catch { return { entries: [], error: 'Shape 결과가 올바른 JSON이 아닙니다.' } }
+  const rows = Array.isArray(parsed) ? parsed : isJsonRecord(parsed) && Array.isArray(parsed.data) ? parsed.data : null
+  if (!rows) return { entries: [], error: 'Shape JSON 배열 또는 OCI 응답의 data 배열이 필요합니다.' }
+  const entries = normalizeShapeCatalog(rows)
+  return entries.length ? { entries, error: '' } : { entries: [], error: '선택 가능한 Shape 항목을 찾지 못했습니다.' }
+}
+
+function parseInstanceLaunchPreflight(raw: string): { bundle?: InstanceLaunchPreflightBundle; error: string } {
+  if (!raw.trim()) return { error: '' }
+  const marked = raw.match(/-----BEGIN OCI INSTANCE PREFLIGHT JSON-----\s*([\s\S]*?)\s*-----END OCI INSTANCE PREFLIGHT JSON-----/)
+  const json = marked?.[1] ?? raw.trim()
+  let parsed: unknown
+  try { parsed = JSON.parse(json) as unknown } catch { return { error: '사전조회 결과에서 올바른 JSON을 찾지 못했습니다.' } }
+  if (!isJsonRecord(parsed) || parsed.schema !== 'oci-instance-launch-preflight/v1') {
+    return { error: '지원하지 않는 사전조회 형식입니다. 화면의 최신 조회 명령을 다시 실행하세요.' }
+  }
+  const context = isJsonRecord(parsed.context) ? parsed.context : null
+  const shapes = Array.isArray(parsed.shapes) ? normalizeShapeCatalog(parsed.shapes) : []
+  const images = Array.isArray(parsed.images) ? parseImageCatalog(JSON.stringify(parsed.images)).entries : []
+  const selectedShape = String(parsed.selectedShape ?? '')
+  if (!context || !String(context.compartmentId ?? '').match(/^ocid1\.(compartment|tenancy)\./)
+    || !String(context.availabilityDomain ?? '') || !selectedShape || !shapes.some(entry => entry.shape === selectedShape)) {
+    return { error: '사전조회 결과에 컴파트먼트, Availability Domain 또는 선택 Shape가 빠졌습니다.' }
+  }
+  if (!images.length) return { error: '선택한 Shape와 호환되는 AVAILABLE 이미지를 찾지 못했습니다.' }
+  return {
+    bundle: {
+      schema: 'oci-instance-launch-preflight/v1',
+      generatedAt: String(parsed.generatedAt ?? ''),
+      context: {
+        profile: String(context.profile ?? ''),
+        region: String(context.region ?? ''),
+        compartmentInput: String(context.compartmentInput ?? ''),
+        compartmentId: String(context.compartmentId ?? ''),
+        availabilityDomain: String(context.availabilityDomain ?? ''),
+      },
+      selectedShape,
+      shapes,
+      images,
+    },
+    error: '',
+  }
 }
 
 function buildMultiSelectQuery(value: string): string {
@@ -1136,6 +1254,117 @@ function buildImageDiscoveryCommand(
   return lines.join('\n')
 }
 
+function buildInstanceLaunchPreflightCommand(
+  values: Record<string, string>,
+  dyn: Record<string, boolean>,
+  requestContext: string[] = [],
+  executionValues: Record<string, string> = {},
+): string {
+  const compartmentInput = (values['--compartment-id'] ?? '').trim() || '<compartment-name-or-ocid>'
+  const availabilityDomainInput = (values['--availability-domain'] ?? '').trim() || '1'
+  const dynamicCompartment = isDynamic(dyn, '--compartment-id')
+  const dynamicAvailabilityDomain = isDynamic(dyn, '--availability-domain')
+  const lines = [
+    '#!/usr/bin/env bash',
+    '# Instance Create 사전조회: Shape 선택 → 호환 Image 조회 → 단일 JSON 번들 출력',
+    'set -euo pipefail',
+    '',
+    'command -v jq >/dev/null 2>&1 || { echo "[ERROR] jq가 필요합니다. OCI Cloud Shell에는 기본 설치되어 있습니다." >&2; exit 2; }',
+    `CTX=(${requestContext.join(' ')})`,
+    `PROFILE_VALUE=${quoteCliValue((executionValues['--profile'] ?? '').trim(), true)}`,
+    `REGION_VALUE=${quoteCliValue((executionValues['--region'] ?? '').trim(), true)}`,
+    `COMPARTMENT_INPUT=${quoteCliValue(compartmentInput, true)}`,
+    `AD_INPUT=${quoteCliValue(availabilityDomainInput, true)}`,
+    '',
+    'TENANCY_ID=$(oci iam availability-domain list --query \'data[0]."compartment-id"\' --raw-output "${CTX[@]}")',
+    '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 프로필에서 tenancy OCID를 얻지 못했습니다: $TENANCY_ID" >&2; exit 2; }',
+  ]
+  if (dynamicCompartment) {
+    lines.push(
+      'if [[ "$COMPARTMENT_INPUT" == "ROOT" || "$COMPARTMENT_INPUT" == ocid1.tenancy.* ]]; then',
+      '  COMPARTMENT_ID="$TENANCY_ID"',
+      'elif [[ "$COMPARTMENT_INPUT" == ocid1.compartment.* ]]; then',
+      '  COMPARTMENT_ID="$COMPARTMENT_INPUT"',
+      'else',
+      '  COMPARTMENT_JSON=$(oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" \\',
+      '    --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --output json "${CTX[@]}")',
+      '  COMPARTMENT_COUNT=$(jq -r \'.data | length\' <<<"$COMPARTMENT_JSON")',
+      '  if [[ "$COMPARTMENT_COUNT" != "1" ]]; then',
+      '    echo "[ERROR] ACTIVE compartment 이름은 tenancy 전체에서 정확히 1개여야 합니다: $COMPARTMENT_INPUT (found=$COMPARTMENT_COUNT)" >&2',
+      '    jq -r \'.data[] | [.name, ."lifecycle-state", .id, ."compartment-id"] | @tsv\' <<<"$COMPARTMENT_JSON" >&2 || true',
+      '    exit 1',
+      '  fi',
+      '  COMPARTMENT_ID=$(jq -r \'.data[0].id\' <<<"$COMPARTMENT_JSON")',
+      'fi',
+    )
+  } else {
+    lines.push(
+      'COMPARTMENT_ID="$COMPARTMENT_INPUT"',
+      '[[ "$COMPARTMENT_ID" == ocid1.compartment.* || "$COMPARTMENT_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 직접 입력 모드에는 compartment/tenancy OCID가 필요합니다." >&2; exit 2; }',
+    )
+  }
+  lines.push(
+    '',
+    'AD_JSON=$(oci iam availability-domain list --compartment-id "$TENANCY_ID" --all --output json "${CTX[@]}")',
+  )
+  if (dynamicAvailabilityDomain) {
+    lines.push(
+      '[[ "$AD_INPUT" =~ ^[0-9]+$ ]] || { echo "[ERROR] 동적 조회 AD는 1부터 시작하는 번호여야 합니다: $AD_INPUT" >&2; exit 2; }',
+      'AD_NAME=$(jq -r --argjson index "$((AD_INPUT - 1))" \'.data[$index].name // empty\' <<<"$AD_JSON")',
+      '[[ -n "$AD_NAME" ]] || { echo "[ERROR] AD 번호를 찾지 못했습니다: $AD_INPUT" >&2; jq -r \'.data[].name\' <<<"$AD_JSON" >&2; exit 1; }',
+    )
+  } else {
+    lines.push(
+      'AD_NAME="$AD_INPUT"',
+      'AD_MATCH_COUNT=$(jq -r --arg name "$AD_NAME" \'[.data[] | select(.name == $name)] | length\' <<<"$AD_JSON")',
+      '[[ "$AD_MATCH_COUNT" == "1" ]] || { echo "[ERROR] 프로필 tenancy에서 정확한 AD 이름을 찾지 못했습니다: $AD_NAME" >&2; jq -r \'.data[].name\' <<<"$AD_JSON" >&2; exit 1; }',
+    )
+  }
+  lines.push(
+    '',
+    'SHAPES_RESPONSE=$(oci compute shape list --compartment-id "$COMPARTMENT_ID" --availability-domain "$AD_NAME" --all --output json "${CTX[@]}")',
+    'SHAPES=$(jq -c \'[.data[] | {',
+    '  shape: .shape,',
+    '  vendor: (if ((."processor-description" // "") | ascii_downcase | test("amd|epyc")) then "AMD"',
+    '    elif ((."processor-description" // "") | ascii_downcase | test("intel|xeon")) then "Intel"',
+    '    elif (((."processor-description" // "") + " " + (.shape // "")) | ascii_downcase | test("ampere|altra|\\\\.a[0-9]+\\\\.")) then "Ampere"',
+    '    else "Other" end),',
+    '  processorDescription: (."processor-description" // ""),',
+    '  ocpus: (.ocpus // null), memoryInGBs: (."memory-in-gbs" // null),',
+    '  isFlexible: (."is-flexible" // false), baselineOcpuUtilizations: (."baseline-ocpu-utilizations" // []),',
+    '  gpuDescription: (."gpu-description" // ""), billingType: (."billing-type" // ""),',
+    '  networkingBandwidthInGbps: (."networking-bandwidth-in-gbps" // null)',
+    '}] | sort_by((if .vendor == "AMD" then 0 elif .vendor == "Intel" then 1 elif .vendor == "Ampere" then 2 else 3 end), .shape)\' <<<"$SHAPES_RESPONSE")',
+    'SHAPE_COUNT=$(jq -r \'length\' <<<"$SHAPES")',
+    '[[ "$SHAPE_COUNT" != "0" ]] || { echo "[ERROR] 이 AD에서 사용 가능한 Shape가 없습니다." >&2; exit 1; }',
+    '',
+    'echo "=== 사용 가능한 Shape: compartment=$COMPARTMENT_ID / AD=$AD_NAME ===" >&2',
+    'jq -r \'to_entries[] | [(.key + 1), .value.vendor, .value.shape, (.value.processorDescription // "-"), (if .value.isFlexible then "Flex" else "Fixed" end)] | @tsv\' <<<"$SHAPES" \\',
+    '  | while IFS=$\'\\t\' read -r INDEX VENDOR SHAPE PROCESSOR FLEX; do printf "[%3s] %-7s %-34s %-5s %s\\n" "$INDEX" "$VENDOR" "$SHAPE" "$FLEX" "$PROCESSOR" >&2; done',
+    'SHAPE_INDEX=${OCI_SHAPE_INDEX:-}',
+    'if [[ -z "$SHAPE_INDEX" ]]; then read -r -p "사용할 Shape 번호: " SHAPE_INDEX </dev/tty; fi',
+    '[[ "$SHAPE_INDEX" =~ ^[0-9]+$ ]] && (( SHAPE_INDEX >= 1 && SHAPE_INDEX <= SHAPE_COUNT )) || { echo "[ERROR] Shape 번호 범위는 1..$SHAPE_COUNT 입니다: $SHAPE_INDEX" >&2; exit 2; }',
+    'SELECTED_SHAPE=$(jq -r --argjson index "$((SHAPE_INDEX - 1))" \'.[$index].shape\' <<<"$SHAPES")',
+    '',
+    'IMAGES_RESPONSE=$(oci compute image list --compartment-id "$COMPARTMENT_ID" --shape "$SELECTED_SHAPE" --all \\',
+    '  --lifecycle-state AVAILABLE --sort-by TIMECREATED --sort-order DESC --output json "${CTX[@]}")',
+    'IMAGES=$(jq -c \'[.data[] | {id: .id, name: ."display-name", os: ."operating-system", version: ."operating-system-version", state: ."lifecycle-state", timeCreated: ."time-created"}]\' <<<"$IMAGES_RESPONSE")',
+    'IMAGE_COUNT=$(jq -r \'length\' <<<"$IMAGES")',
+    '[[ "$IMAGE_COUNT" != "0" ]] || { echo "[ERROR] Shape $SELECTED_SHAPE 와 호환되는 AVAILABLE 이미지가 없습니다." >&2; exit 1; }',
+    '',
+    'echo "-----BEGIN OCI INSTANCE PREFLIGHT JSON-----"',
+    'jq -n --arg generatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg profile "$PROFILE_VALUE" --arg region "$REGION_VALUE" \\',
+    '  --arg compartmentInput "$COMPARTMENT_INPUT" --arg compartmentId "$COMPARTMENT_ID" --arg availabilityDomain "$AD_NAME" \\',
+    '  --arg selectedShape "$SELECTED_SHAPE" --argjson shapes "$SHAPES" --argjson images "$IMAGES" \'{',
+    '    schema: "oci-instance-launch-preflight/v1", generatedAt: $generatedAt,',
+    '    context: {profile: $profile, region: $region, compartmentInput: $compartmentInput, compartmentId: $compartmentId, availabilityDomain: $availabilityDomain},',
+    '    selectedShape: $selectedShape, shapes: $shapes, images: $images',
+    '  }\'',
+    'echo "-----END OCI INSTANCE PREFLIGHT JSON-----"',
+  )
+  return lines.join('\n')
+}
+
 function buildIamCommand(
   cmd: CliCommand,
   selected: CliOperation,
@@ -1561,6 +1790,8 @@ export default function CliBuilderPage() {
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
   const [customOpen, setCustomOpen] = useState(false)
+  const [instancePreflightInput, setInstancePreflightInput] = useState('')
+  const [instancePreflightError, setInstancePreflightError] = useState('')
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => loadCliSidebarWidth('left'))
   const [rightSidebarWidth, setRightSidebarWidth] = useState(() => loadCliSidebarWidth('right'))
   const sidebarResizeRef = useRef<{
@@ -1707,7 +1938,7 @@ export default function CliBuilderPage() {
 
   const selectResource = (res: string) => {
     const next = CAT.commands[res]
-    setActive(res); setDyn({}); setShowOptional(false); setShowDeprecated(false); setSelectedAction(null)
+    setActive(res); setDyn({}); setShowOptional(false); setShowDeprecated(false); setSelectedAction(null); setInstancePreflightInput(''); setInstancePreflightError('')
     if (next) {
       const operation = defaultCliOperation(next)
       const surface = selectedSurface(next, operation)
@@ -1717,11 +1948,11 @@ export default function CliBuilderPage() {
   const selectOperation = (operation: CrudVerb) => {
     if (!isOperationAvailable(operation)) return
     const surface = cmd ? selectedSurface(cmd, operation) : undefined
-    setCrudOperation(operation); setSelectedAction(null); setValues(cmd ? operationDefaults(cmd, operation) : {}); setExecutionValues(surface ? executionContextDefaults(CAT.executionContext, surface.contextOverrides) : {}); setDyn({}); setShowOptional(false); setShowDeprecated(false)
+    setCrudOperation(operation); setSelectedAction(null); setValues(cmd ? operationDefaults(cmd, operation) : {}); setExecutionValues(surface ? executionContextDefaults(CAT.executionContext, surface.contextOverrides) : {}); setDyn({}); setShowOptional(false); setShowDeprecated(false); setInstancePreflightInput(''); setInstancePreflightError('')
   }
   const selectAction = (action: string) => {
     if (!cmd?.actions?.[action]) return
-    setSelectedAction(action); setValues(actionDefaults(cmd, action)); setExecutionValues(executionContextDefaults(CAT.executionContext, cmd.actions[action].contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false)
+    setSelectedAction(action); setValues(actionDefaults(cmd, action)); setExecutionValues(executionContextDefaults(CAT.executionContext, cmd.actions[action].contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setInstancePreflightInput(''); setInstancePreflightError('')
   }
   const formOptions = [...formSections.flatMap(section => section.options), ...formAdvanced]
   const formOptionsByName = new Map(formOptions.map(option => [option.name, option]))
@@ -1773,6 +2004,44 @@ export default function CliBuilderPage() {
     }
     return next
   })
+  const setFormVal = (option: CliOption, value: string) => {
+    if (option.name !== '--shape') { setVal(option.name, value); return }
+    setValues(current => ({
+      ...current,
+      '--shape': value,
+      '--image-id': '',
+      [subKey('--image-id', '__image-os')]: '',
+    }))
+  }
+  const preflightMeta = executionSurface?.instanceLaunchPreflight
+  const instancePreflightCommand = preflightMeta
+    ? buildInstanceLaunchPreflightCommand(values, dyn, requestContextArguments, executionValues)
+    : ''
+  const applyInstanceLaunchPreflight = () => {
+    const parsed = parseInstanceLaunchPreflight(instancePreflightInput)
+    if (!parsed.bundle) { setInstancePreflightError(parsed.error || '사전조회 JSON을 붙여넣으세요.'); return }
+    const bundle = parsed.bundle
+    setValues(current => ({
+      ...current,
+      '--compartment-id': bundle.context.compartmentId,
+      '--availability-domain': bundle.context.availabilityDomain,
+      '--shape': bundle.selectedShape,
+      '--image-id': '',
+      [subKey('--shape', '__shape-catalog')]: JSON.stringify(bundle.shapes),
+      [subKey('--shape', '__shape-vendor')]: bundle.shapes.find(entry => entry.shape === bundle.selectedShape)?.vendor ?? '',
+      [subKey('--image-id', '__image-catalog')]: JSON.stringify(bundle.images),
+      [subKey('--image-id', '__image-shape')]: bundle.selectedShape,
+      [subKey('--image-id', '__image-os')]: '',
+    }))
+    setExecutionValues(current => ({
+      ...current,
+      ...(bundle.context.profile ? { '--profile': bundle.context.profile } : {}),
+      ...(bundle.context.region ? { '--region': bundle.context.region } : {}),
+    }))
+    setDyn(current => ({ ...current, '--compartment-id': false, '--availability-domain': false }))
+    setInstancePreflightError('')
+    showToast(`사전조회 적용됨 · Shape ${bundle.selectedShape} · 호환 이미지 ${bundle.images.length}개`)
+  }
   const focusValidationField = (name: string) => {
     const option = formOptionsByName.get(name)
     if (option?.deprecated) setShowDeprecated(true)
@@ -1869,11 +2138,12 @@ export default function CliBuilderPage() {
     const catalogDynamic = !!o.dynamicLookup
     const legacyDynamic = o.name in DYNAMIC && (iamDynamic || o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
     const dynamicAllowed = !noDyn && (catalogDynamic || legacyDynamic)
-    return <Field key={o.name} o={o} value={o.name === '--shape-config' ? (effectiveValues[o.name] || '') : (values[o.name] || '')} onChange={v => setVal(o.name, v)} optional={optional}
+    return <Field key={o.name} o={o} value={o.name === '--shape-config' ? (effectiveValues[o.name] || '') : (values[o.name] || '')} onChange={v => setFormVal(o, v)} optional={optional}
       dynamic={dynamicAllowed && isDynamic(dyn, o.name, true)}
       rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}
       onToggleDynamic={dynamicAllowed ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
       imageDiscoveryCommand={o.imagePicker ? buildImageDiscoveryCommand(effectiveValues, dyn, requestContextArguments) : undefined}
+      currentShape={values['--shape'] || ''}
       subVal={k => values[subKey(o.name, k)] || ''}
       onSub={(k, v) => setVal(subKey(o.name, k), v)} />
   }
@@ -2084,9 +2354,40 @@ export default function CliBuilderPage() {
               </div>
             )}
             {visibleFormSections.map(sec => (
-              <div key={sec.label} className="cli-sec">
-                <div className="cli-section-label px">{sec.label}</div>
-                {sec.options.map(o => field(o, o.requirement === 'optional'))}
+              <div key={sec.label} className="cli-form-section-group">
+                <div className="cli-sec">
+                  <div className="cli-section-label px">{sec.label}</div>
+                  {sec.options.map(o => field(o, o.requirement === 'optional'))}
+                </div>
+                {preflightMeta && sec.options.some(option => option.name === '--availability-domain') && (
+                  <section className="cli-instance-preflight" aria-label="Instance Create 실시간 사전조회">
+                    <div className="cli-preflight-head">
+                      <div><span className="px">LIVE PREFLIGHT</span><h2>Shape부터 고르고, 호환 이미지만 불러오기</h2></div>
+                      <span className="cli-live-badge">OCI 실시간 조회</span>
+                    </div>
+                    <p>위 컴파트먼트와 AD를 먼저 입력하세요. 한 번 실행하면 현재 환경의 Shape를 조회하고, 터미널에서 Shape를 고른 뒤 호환 이미지까지 한 JSON으로 만듭니다.</p>
+                    <details className="cli-preflight-command">
+                      <summary>사전조회 Bash 열기</summary>
+                      <div className="cli-inline-command"><pre>{instancePreflightCommand}</pre>
+                        <button type="button" onClick={() => void navigator.clipboard.writeText(instancePreflightCommand)}>전체 명령 복사</button>
+                      </div>
+                    </details>
+                    <label className="cli-preflight-paste"><span><b>실행 결과 전체 붙여넣기</b> BEGIN/END 줄을 포함해도 자동으로 JSON만 읽습니다.</span>
+                      <textarea className="cli-input cli-json" rows={7} value={instancePreflightInput}
+                        placeholder="-----BEGIN OCI INSTANCE PREFLIGHT JSON-----&#10;{ ... }&#10;-----END OCI INSTANCE PREFLIGHT JSON-----"
+                        onChange={event => { setInstancePreflightInput(event.target.value); setInstancePreflightError('') }} />
+                    </label>
+                    <div className="cli-preflight-actions">
+                      <button type="button" className="cli-json-apply" onClick={applyInstanceLaunchPreflight}>Shape·이미지 목록 한 번에 적용</button>
+                      <span>적용 후 Shape 카드 → Image 카드 순으로 최종 선택</span>
+                    </div>
+                    {instancePreflightError && <p className="cli-json-error">{instancePreflightError}</p>}
+                    <div className="cli-preflight-docs">
+                      <a href={preflightMeta.shapeDocs} target="_blank" rel="noreferrer">Oracle Shape LIST 공식 문서 ↗</a>
+                      <a href={preflightMeta.imageDocs} target="_blank" rel="noreferrer">Oracle Image LIST 공식 문서 ↗</a>
+                    </div>
+                  </section>
+                )}
               </div>
             ))}
             {visibleFormAdvanced.length > 0 && <>
@@ -2431,25 +2732,94 @@ function JsonOptionField({ fieldId, option, label, value, onChange, subVal, onSu
   )
 }
 
-function ImageOptionField({ fieldId, option, label, value, onChange, discoveryCommand, subVal, onSub }: {
+const SHAPE_VENDOR_LABELS: Record<ShapeVendor, string> = {
+  AMD: 'AMD', Intel: 'Intel', Ampere: 'Ampere ARM', Other: '기타',
+}
+
+function ShapeOptionField({ fieldId, option, label, value, onChange, subVal, onSub }: {
+  fieldId: string
+  option: CliOption
+  label: ReactNode
+  value: string
+  onChange: (value: string) => void
+  subVal: (key: string) => string
+  onSub: (key: string, value: string) => void
+}) {
+  const catalog = parseShapeCatalog(subVal('__shape-catalog'))
+  const selectedEntry = catalog.entries.find(entry => entry.shape === value)
+  const vendors = (['AMD', 'Intel', 'Ampere', 'Other'] as ShapeVendor[])
+    .filter(vendor => catalog.entries.some(entry => entry.vendor === vendor))
+  const selectedVendor = (subVal('__shape-vendor') as ShapeVendor) || selectedEntry?.vendor || vendors[0] || 'Other'
+  const entries = catalog.entries.filter(entry => entry.vendor === selectedVendor)
+  return (
+    <div id={fieldId} className="cli-field cli-shape-picker" data-cli-option={option.name}>
+      {label}
+      {!catalog.entries.length && !catalog.error && (
+        <p className="cli-picker-empty">위 <b>LIVE PREFLIGHT</b> 결과를 적용하면 현재 AD에서 사용 가능한 Shape가 CPU 계열별로 표시됩니다.</p>
+      )}
+      {catalog.error && <p className="cli-json-error">{catalog.error}</p>}
+      {catalog.entries.length > 0 && <>
+        <div className="cli-image-step"><b>1. CPU 계열 선택</b><span>실시간 조회 Shape {catalog.entries.length}개</span></div>
+        <div className="cli-shape-vendors" role="radiogroup" aria-label="Shape CPU 계열 선택">
+          {vendors.map(vendor => <button type="button" role="radio" aria-checked={selectedVendor === vendor}
+            className={selectedVendor === vendor ? 'selected' : ''} key={vendor}
+            onClick={() => onSub('__shape-vendor', vendor)}>
+            <strong>{SHAPE_VENDOR_LABELS[vendor]}</strong>
+            <span>{catalog.entries.filter(entry => entry.vendor === vendor).length}개 Shape</span>
+          </button>)}
+        </div>
+        <div className="cli-image-step"><b>2. Shape 선택</b><span>선택 후 이미지는 이 Shape 호환 목록만 표시</span></div>
+        <div className="cli-shape-grid" role="radiogroup" aria-label={`${SHAPE_VENDOR_LABELS[selectedVendor]} Shape 선택`}>
+          {entries.map(entry => <button type="button" role="radio" aria-checked={value === entry.shape}
+            className={value === entry.shape ? 'selected' : ''} key={entry.shape} onClick={() => onChange(entry.shape)}>
+            <span className="cli-shape-card-head"><strong>{entry.shape}</strong>{entry.isFlexible && <em>Flex</em>}</span>
+            <small>{entry.processorDescription || SHAPE_VENDOR_LABELS[entry.vendor]}</small>
+            <span className="cli-shape-specs">
+              {entry.ocpus !== null && <code>{entry.ocpus} OCPU</code>}
+              {entry.memoryInGBs !== null && <code>{entry.memoryInGBs} GB</code>}
+              {entry.networkingBandwidthInGbps !== null && <code>{entry.networkingBandwidthInGbps} Gbps</code>}
+              {entry.gpuDescription && <code>{entry.gpuDescription}</code>}
+            </span>
+          </button>)}
+        </div>
+      </>}
+      <label className="cli-image-direct"><span>Shape 이름 직접 입력</span>
+        <input className="cli-input" value={value} placeholder="예: VM.Standard.E5.Flex"
+          onChange={event => onChange(event.target.value)} />
+      </label>
+      {option.shapePicker?.docs && <a className="cli-image-docs" href={option.shapePicker.docs} target="_blank" rel="noreferrer">Oracle Shape LIST 공식 문서 ↗</a>}
+    </div>
+  )
+}
+
+function ImageOptionField({ fieldId, option, label, value, onChange, discoveryCommand, currentShape, subVal, onSub }: {
   fieldId: string
   option: CliOption
   label: ReactNode
   value: string
   onChange: (value: string) => void
   discoveryCommand: string
+  currentShape: string
   subVal: (key: string) => string
   onSub: (key: string, value: string) => void
 }) {
   const catalogRaw = subVal('__image-catalog')
   const catalog = parseImageCatalog(catalogRaw)
-  const selectedEntry = catalog.entries.find(entry => entry.id === value)
-  const systems = [...new Set(catalog.entries.map(entry => entry.operatingSystem))]
+  const catalogShape = subVal('__image-shape')
+  const shapeReady = !!currentShape.trim()
+  const catalogCompatible = shapeReady && catalogShape === currentShape
+  const visibleEntries = catalogCompatible ? catalog.entries : []
+  const selectedEntry = visibleEntries.find(entry => entry.id === value)
+  const systems = [...new Set(visibleEntries.map(entry => entry.operatingSystem))]
   const selectedSystem = subVal('__image-os') || selectedEntry?.operatingSystem || systems[0] || ''
-  const versions = catalog.entries.filter(entry => entry.operatingSystem === selectedSystem)
+  const versions = visibleEntries.filter(entry => entry.operatingSystem === selectedSystem)
   return (
     <div id={fieldId} className="cli-field cli-image-picker" data-cli-option={option.name}>
       {label}
+      {!shapeReady && <p className="cli-picker-empty warning"><b>먼저 Shape를 선택하세요.</b> Image LIST의 <code>--shape</code> 필터로 호환 이미지만 조회합니다.</p>}
+      {shapeReady && catalog.entries.length > 0 && !catalogCompatible && (
+        <p className="cli-picker-empty warning">Shape이 <code>{catalogShape || '미지정'}</code> → <code>{currentShape}</code>로 바뀌었습니다. 아래 조회 명령을 다시 실행해 이미지 목록을 갱신하세요.</p>
+      )}
       <div className="cli-image-guide">
         <div><b>1. 현재 이미지 조회</b><span>{option.imagePicker?.note}</span></div>
         <div className="cli-inline-command cli-image-command"><pre>{discoveryCommand}</pre>
@@ -2458,17 +2828,18 @@ function ImageOptionField({ fieldId, option, label, value, onChange, discoveryCo
         <label className="cli-image-paste"><span><b>2. 실행 결과 붙여넣기</b> JSON 배열 또는 원본 <code>data</code> 응답</span>
           <textarea className="cli-input cli-json" rows={5} value={catalogRaw}
             placeholder='[{"id":"ocid1.image...","name":"Oracle-Linux-9...","os":"Oracle Linux","version":"9"}]'
-            onChange={event => onSub('__image-catalog', event.target.value)} />
+            disabled={!shapeReady}
+            onChange={event => { onSub('__image-catalog', event.target.value); onSub('__image-shape', currentShape) }} />
         </label>
         {catalog.error && <p className="cli-json-error">{catalog.error}</p>}
       </div>
-      {catalog.entries.length > 0 && <div className="cli-image-selection">
-        <div className="cli-image-step"><b>3. 운영체제 선택</b><span>{catalog.entries.length}개 이미지</span></div>
+      {visibleEntries.length > 0 && <div className="cli-image-selection">
+        <div className="cli-image-step"><b>3. 운영체제 선택</b><span>{visibleEntries.length}개 호환 이미지</span></div>
         <div className="cli-image-os-grid" role="radiogroup" aria-label="운영체제 선택">
           {systems.map(system => <button type="button" role="radio" aria-checked={selectedSystem === system}
             className={selectedSystem === system ? 'selected' : ''} key={system}
             onClick={() => onSub('__image-os', system)}>
-            <strong>{system}</strong><span>{catalog.entries.filter(entry => entry.operatingSystem === system).length}개 버전</span>
+            <strong>{system}</strong><span>{visibleEntries.filter(entry => entry.operatingSystem === system).length}개 버전</span>
           </button>)}
         </div>
         <div className="cli-image-versions" role="radiogroup" aria-label={`${selectedSystem} 이미지 버전 선택`}>
@@ -2488,10 +2859,11 @@ function ImageOptionField({ fieldId, option, label, value, onChange, discoveryCo
   )
 }
 
-function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, imageDiscoveryCommand, subVal, onSub }: {
+function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, imageDiscoveryCommand, currentShape = '', subVal, onSub }: {
   o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean
   dynamic: boolean; rootTenancy?: boolean; onToggleDynamic?: (on: boolean) => void
   imageDiscoveryCommand?: string
+  currentShape?: string
   subVal: (key: string) => string; onSub: (key: string, v: string) => void
 }) {
   const fieldId = cliFieldAnchorId(o.name)
@@ -2546,9 +2918,13 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
       </div>
     )
   }
+  if (o.shapePicker) {
+    return <ShapeOptionField fieldId={fieldId} option={o} label={label} value={value} onChange={onChange}
+      subVal={subVal} onSub={onSub} />
+  }
   if (o.imagePicker && imageDiscoveryCommand) {
     return <ImageOptionField fieldId={fieldId} option={o} label={label} value={value} onChange={onChange}
-      discoveryCommand={imageDiscoveryCommand} subVal={subVal} onSub={onSub} />
+      discoveryCommand={imageDiscoveryCommand} currentShape={currentShape} subVal={subVal} onSub={onSub} />
   }
   if (o.multi) {
     return (

@@ -123,6 +123,7 @@ for (const level of [1, 2, 3]) {
   }
   const sourceDetails = instanceCreateOptions.find(option => option.name === '--source-details')
   const imageId = instanceCreateOptions.find(option => option.name === '--image-id')
+  const shape = instanceCreateOptions.find(option => option.name === '--shape')
   const createShapeConfig = instanceCreateOptions.find(option => option.name === '--shape-config')
   const instanceUpdateOptions = [
     ...bundle.cliCatalog.commands.instance.operations.update.sections.flatMap(section => section.options),
@@ -139,6 +140,14 @@ for (const level of [1, 2, 3]) {
     || imageId.dynamicLookup
     || imageId.dynamicLookupImplementedBy !== 'dedicated-builder') {
     throw new Error(`L${level} Instance image picker metadata invalid`)
+  }
+  const launchOrder = instanceCreate.sections.flatMap(section => section.options.map(option => option.name))
+  if (launchOrder.indexOf('--shape') < 0 || launchOrder.indexOf('--shape') > launchOrder.indexOf('--image-id')
+    || shape?.shapePicker?.listCommand !== 'oci compute shape list'
+    || instanceCreate.instanceLaunchPreflight?.schema !== 'oci-instance-launch-preflight/v1'
+    || instanceCreate.instanceLaunchPreflight.shapeListCommand !== 'oci compute shape list'
+    || instanceCreate.instanceLaunchPreflight.imageListCommand !== 'oci compute image list') {
+    throw new Error(`L${level} Instance Shape-first live preflight metadata missing`)
   }
   for (const [operation, shapeConfig] of [['CREATE', createShapeConfig], ['UPDATE', updateShapeConfig]]) {
     if (!shapeConfig?.jsonTemplate?.baselineOcpuUtilization
@@ -433,6 +442,12 @@ if (!cliBuilder.includes('validateCliOptions(formOptions, validationValues, form
 if (!cliBuilder.includes('cli-context-panel') || !cliBuilder.includes('requestContextArguments')
   || !cliBuilder.includes('responseContextArguments') || !cliBuilder.includes('buildRootTenancyLookup(requestContext)')) {
   throw new Error('OCI CLI common execution context layer 누락')
+}
+if (!cliBuilder.includes('function buildInstanceLaunchPreflightCommand')
+  || !cliBuilder.includes('function ShapeOptionField')
+  || !cliBuilder.includes('parseInstanceLaunchPreflight')
+  || !cliBuilder.includes('cli-instance-preflight')) {
+  throw new Error('Instance CREATE Shape-first live preflight UI 누락')
 }
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')
 if (!cliBuilder.includes('confirm compartment OCID')) throw new Error('컴파트먼트 정리 이중 확인 가드 누락')

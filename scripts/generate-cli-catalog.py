@@ -89,7 +89,7 @@ CURATION = {
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('Placement', ['--availability-domain', '--fault-domain', '--capacity-reservation-id', '--dedicated-vm-host-id', '--compute-cluster-id', '--cluster-placement-group-id']),
-      ('부팅 소스와 Shape', ['--image-id', '--source-details', '--source-boot-volume-id', '--boot-volume-size-in-gbs', '--shape', '--shape-config']),
+      ('Shape와 부팅 소스', ['--shape', '--shape-config', '--image-id', '--source-details', '--source-boot-volume-id', '--boot-volume-size-in-gbs']),
       ('네트워킹 (VNIC)', ['--subnet-id', '--create-vnic-details', '--hostname-label']),
       ('SSH 키 (metadata.ssh_authorized_keys)', ['--metadata']),
       ('부트 볼륨·연결', ['--launch-volume-attachments', '--is-pv-encryption-in-transit-enabled']),
@@ -450,6 +450,14 @@ def annotate_json_inputs(command):
     command_path = command.get('cmd')
     if not command_path:
         return
+    if command_path == 'oci compute instance launch':
+        command['instanceLaunchPreflight'] = {
+            'schema': 'oci-instance-launch-preflight/v1',
+            'shapeListCommand': 'oci compute shape list',
+            'imageListCommand': 'oci compute image list',
+            'shapeDocs': 'https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/compute/shape/list.html',
+            'imageDocs': 'https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/compute/image/list.html',
+        }
     options = [
         option
         for section in command.get('sections', [])
@@ -493,6 +501,13 @@ def annotate_json_inputs(command):
                 'docs': 'https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/compute/image/list.html',
                 'note': ('현재 리전의 platform/custom image를 조회합니다. Shape를 먼저 입력하면 '
                          '호환 이미지로 제한합니다.'),
+            }
+        if command_path == 'oci compute instance launch' and option['name'] == '--shape':
+            option['shapePicker'] = {
+                'listCommand': 'oci compute shape list',
+                'docs': 'https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/compute/shape/list.html',
+                'note': ('Availability Domain에서 실제 사용 가능한 Shape를 조회하고 '
+                         'AMD, Intel, Ampere 계열별 카드로 선택합니다.'),
             }
 
 DEPRECATED_REPLACEMENTS = {

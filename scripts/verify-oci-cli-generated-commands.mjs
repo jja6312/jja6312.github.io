@@ -39,6 +39,7 @@ const buildMultiSelectQuery = value => value
 ${page.slice(builderStart, builderEnd)}
 globalThis.buildCli = buildCli
 globalThis.buildImageDiscoveryCommand = buildImageDiscoveryCommand
+globalThis.buildInstanceLaunchPreflightCommand = buildInstanceLaunchPreflightCommand
 `
 const builderContext = {}
 vm.runInNewContext(ts.transpileModule(harness, {
@@ -46,8 +47,10 @@ vm.runInNewContext(ts.transpileModule(harness, {
 }).outputText, builderContext)
 const buildCli = builderContext.buildCli
 const buildImageDiscoveryCommand = builderContext.buildImageDiscoveryCommand
+const buildInstanceLaunchPreflightCommand = builderContext.buildInstanceLaunchPreflightCommand
 if (typeof buildCli !== 'function') fail('OCI CLI buildCli harness did not compile')
 if (typeof buildImageDiscoveryCommand !== 'function') fail('OCI image discovery harness did not compile')
+if (typeof buildInstanceLaunchPreflightCommand !== 'function') fail('OCI Instance preflight harness did not compile')
 
 const allOptions = surface => [
   ...(surface.lookupInputs ?? []),
@@ -191,6 +194,36 @@ for (const marker of [
 const imageSyntax = spawnSync(bash, ['-n'], { input: imageDiscovery, encoding: 'utf8' })
 if (imageSyntax.status !== 0) fail(`Instance image discovery Bash syntax invalid: ${imageSyntax.stderr}`)
 
+const instancePreflight = buildInstanceLaunchPreflightCommand({
+  '--compartment-id': 'production', '--availability-domain': '1',
+}, { '--compartment-id': true, '--availability-domain': true },
+["--profile 'DEFAULT'", "--region 'ap-seoul-1'"], { '--profile': 'DEFAULT', '--region': 'ap-seoul-1' })
+for (const marker of [
+  'oci compute shape list', '--availability-domain "$AD_NAME"', 'SHAPE_COUNT=', 'OCI_SHAPE_INDEX',
+  'oci compute image list', '--shape "$SELECTED_SHAPE"', 'oci-instance-launch-preflight/v1',
+  'COMPARTMENT_COUNT=', 'found=$COMPARTMENT_COUNT', '-----BEGIN OCI INSTANCE PREFLIGHT JSON-----',
+  '--profile \'DEFAULT\'', '--region \'ap-seoul-1\'',
+]) {
+  if (!instancePreflight.includes(marker)) fail(`Instance launch preflight missing marker: ${marker}`)
+}
+const preflightSyntax = spawnSync(bash, ['-n'], { input: instancePreflight, encoding: 'utf8' })
+if (preflightSyntax.status !== 0) fail(`Instance launch preflight Bash syntax invalid: ${preflightSyntax.stderr}`)
+const shapeFilter = instancePreflight.match(/SHAPES=\$\(jq -c '([\s\S]*?)' <<<"\$SHAPES_RESPONSE"\)/)?.[1]
+if (!shapeFilter) fail('Instance launch preflight Shape jq filter extraction failed')
+const shapeFilterResult = spawnSync('jq', ['-c', shapeFilter], {
+  input: JSON.stringify({ data: [
+    { shape: 'VM.Standard3.Flex', 'processor-description': 'Intel Xeon', 'is-flexible': true },
+    { shape: 'VM.Standard.A1.Flex', 'processor-description': 'Ampere Altra', 'is-flexible': true },
+    { shape: 'VM.Standard.E5.Flex', 'processor-description': 'AMD EPYC', 'is-flexible': true },
+  ] }),
+  encoding: 'utf8',
+})
+if (shapeFilterResult.status !== 0) fail(`Instance launch preflight Shape jq invalid: ${shapeFilterResult.stderr}`)
+const normalizedShapes = JSON.parse(shapeFilterResult.stdout)
+if (JSON.stringify(normalizedShapes.map(shape => [shape.vendor, shape.shape])) !== JSON.stringify([
+  ['AMD', 'VM.Standard.E5.Flex'], ['Intel', 'VM.Standard3.Flex'], ['Ampere', 'VM.Standard.A1.Flex'],
+])) fail(`Instance launch preflight Shape classification/order invalid: ${shapeFilterResult.stdout}`)
+
 let dynamicLookups = 0
 const dynamicScripts = []
 const dynamicScriptMap = new Map()
@@ -291,4 +324,5 @@ console.log(JSON.stringify({
   dangerConfirmations: 2,
   dynamicLookups,
   imageDiscoveryBash: true,
+  instancePreflightBash: true,
 }))

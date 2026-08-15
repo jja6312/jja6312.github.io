@@ -23,12 +23,14 @@ const isCliOptionValueActive = ${module.exports.isCliOptionValueActive.toString(
 ${pageSource.slice(jsonHelperStart, jsonHelperEnd)}
 globalThis.validateJsonInputs = validateJsonInputs
 globalThis.parseImageCatalog = parseImageCatalog
+globalThis.parseShapeCatalog = parseShapeCatalog
+globalThis.parseInstanceLaunchPreflight = parseInstanceLaunchPreflight
 `
 const jsonHelperContext = {}
 vm.runInNewContext(ts.transpileModule(jsonHelperHarness, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText, jsonHelperContext)
-const { validateJsonInputs, parseImageCatalog } = jsonHelperContext
+const { validateJsonInputs, parseImageCatalog, parseShapeCatalog, parseInstanceLaunchPreflight } = jsonHelperContext
 
 const fail = message => { throw new Error(message) }
 const optionsOf = command => [
@@ -43,6 +45,7 @@ const instanceOptions = optionsOf(instance)
 const instanceUpdateOptions = optionsOf(instanceUpdate)
 const instanceSourceDetails = instanceOptions.find(option => option.name === '--source-details')
 const instanceImageId = instanceOptions.find(option => option.name === '--image-id')
+const instanceShape = instanceOptions.find(option => option.name === '--shape')
 const launchShapeConfig = instanceOptions.find(option => option.name === '--shape-config')
 const updateShapeConfig = instanceUpdateOptions.find(option => option.name === '--shape-config')
 const baseValues = {
@@ -102,6 +105,18 @@ if (instanceImageId?.imagePicker?.listCommand !== 'oci compute image list'
   || instanceImageId.dynamicLookupImplementedBy !== 'dedicated-builder') {
   fail('Instance image-id must use the shape-aware dedicated image picker')
 }
+const launchOrder = instance.sections.flatMap(section => section.options.map(option => option.name))
+if (launchOrder.indexOf('--shape') < 0 || launchOrder.indexOf('--image-id') < 0
+  || launchOrder.indexOf('--shape') > launchOrder.indexOf('--image-id')) {
+  fail('Instance launch must render Shape before Image')
+}
+if (instanceShape?.shapePicker?.listCommand !== 'oci compute shape list'
+  || !instanceShape.shapePicker.note.includes('AMD, Intel, Ampere')
+  || instance.instanceLaunchPreflight?.schema !== 'oci-instance-launch-preflight/v1'
+  || instance.instanceLaunchPreflight.shapeListCommand !== 'oci compute shape list'
+  || instance.instanceLaunchPreflight.imageListCommand !== 'oci compute image list') {
+  fail('Instance launch needs live Shape-first preflight metadata')
+}
 const shapeFields = ['baselineOcpuUtilization', 'localVolumeSizeInGBs', 'memoryInGBs', 'nvmes', 'ocpus', 'resourceManagement', 'vcpus']
 for (const [operation, shapeConfig] of [['launch', launchShapeConfig], ['update', updateShapeConfig]]) {
   if (JSON.stringify(Object.keys(shapeConfig?.jsonTemplate ?? {})) !== JSON.stringify(shapeFields)
@@ -147,6 +162,28 @@ if (parsedImages.error || parsedImages.entries.length !== 1
   || parsedImages.entries[0].operatingSystem !== 'Oracle Linux') {
   fail(`OCI image list response was not normalized: ${JSON.stringify(parsedImages)}`)
 }
+const parsedShapes = parseShapeCatalog(JSON.stringify({ data: [{
+  shape: 'VM.Standard.E5.Flex',
+  'processor-description': 'AMD EPYC 9J14',
+  'is-flexible': true,
+  ocpus: 1,
+  'memory-in-gbs': 16,
+}] }))
+if (parsedShapes.error || parsedShapes.entries[0]?.vendor !== 'AMD' || !parsedShapes.entries[0]?.isFlexible) {
+  fail(`OCI Shape list response was not normalized: ${JSON.stringify(parsedShapes)}`)
+}
+const parsedPreflight = parseInstanceLaunchPreflight(`terminal noise
+-----BEGIN OCI INSTANCE PREFLIGHT JSON-----
+${JSON.stringify({
+  schema: 'oci-instance-launch-preflight/v1', generatedAt: '2026-08-15T00:00:00Z',
+  context: { profile: 'DEFAULT', region: 'ap-seoul-1', compartmentInput: 'prod', compartmentId: 'ocid1.compartment.oc1..example', availabilityDomain: 'Uocm:AP-SEOUL-1-AD-1' },
+  selectedShape: 'VM.Standard.E5.Flex', shapes: parsedShapes.entries, images: parsedImages.entries,
+})}
+-----END OCI INSTANCE PREFLIGHT JSON-----`)
+if (parsedPreflight.error || parsedPreflight.bundle?.selectedShape !== 'VM.Standard.E5.Flex'
+  || parsedPreflight.bundle.images.length !== 1) {
+  fail(`Instance launch preflight bundle was not parsed: ${JSON.stringify(parsedPreflight)}`)
+}
 
 const allLimitOperation = Object.values(catalog.commands).flatMap(command => Object.values(command.operations ?? {}))
   .find(operation => {
@@ -182,7 +219,13 @@ for (const marker of [
   "legacyShapeConfigValue",
   "function JsonOptionField",
   "function ImageOptionField",
+  "function ShapeOptionField",
   "function buildImageDiscoveryCommand",
+  "function buildInstanceLaunchPreflightCommand",
+  "parseInstanceLaunchPreflight",
+  "cli-instance-preflight",
+  "cli-shape-vendors",
+  "Shape이",
   "parseImageCatalog",
   "jsonTemplateCommand",
   "--shape",
@@ -216,5 +259,6 @@ console.log(JSON.stringify({
   bareJsonExamples: braceOnlyExamples.length,
   instanceSourceVariants: instanceSourceDetails.jsonTemplate.length - 1,
   imagePicker: 'shape-aware-paste-to-select',
+  launchPreflight: 'live-shape-then-compatible-image',
   burstableUpdate: burstableArguments.join(''),
 }))
