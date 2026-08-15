@@ -87,11 +87,20 @@
   - 재현성: 네트워크 차단 cache 모드에서 카탈로그 SHA-256 `D6AB00143889C00333B3821D6032C9B180C4CE6B72519B6895B181C23DE824FE` 재생성 일치
   - 사이트 커밋: `6f2b547`
   - 배포: GitHub Pages run `31870060396` 성공, 라이브 JavaScript·CSS·보호 데이터가 로컬 최종 산출물과 일치
-- [ ] `P1-02` 최종 Click 명령 트리 기반 메타데이터 수집기로 교체
+- [x] `P1-02` 최종 Click 명령 트리 기반 메타데이터 수집기로 교체
   - generated 파일만 보는 AST 파서 의존 제거 또는 보조 수단으로 격하
   - `*_extended.py`가 바꾼 실제 공개 명령명·옵션명까지 수집
   - 우선 회귀 대상: Monitoring Alarm `--query-text`, ONS Subscription `--subscription-endpoint`
   - 완료 기준: 공식 `oci --help`/cmdref와 생성 명령·옵션 이름이 일치
+  - 완료: 2026-08-15
+  - 고정 런타임: Oracle 공식 `oci-cli-3.90.2.zip` SHA-256 `c76d0b1e14a19fa1df976be4eefaa9ca183f41e569b9392220d02b756af5e497`, 내부 wheel SHA-256 `b97d3ae64e8e0b3e3e40f54b07e8764511987ab0b461841c8f47a45eb27cffad`
+  - 수집: Click 8.4.2·OCI SDK 2.184.1 격리 런타임에서 generated 뒤 `*_extended.py`까지 로드해 12개 서비스·공개 leaf 명령 1,373개 수집
+  - 교체 결과: `generate-cli-catalog.py`의 AST 파서 의존 제거, `parse-oci-cli.py`는 legacy audit 용도로만 유지; 기존 AST 대비 공개 옵션 이름 +111/-28, 메타데이터 81건을 최종 트리 기준으로 교정
+  - 공식 회귀: 릴리스 cmdref와 최종 Click 트리에서 Alarm `--query-text`, ONS Subscription `--subscription-endpoint` 일치 및 내부 `*-parameterconflict` 이름 미노출 확인
+  - 재현성: 네트워크 차단 cache 모드에서 카탈로그 SHA-256 `4E05E661E25C4785A037A6901284722AEA2840CCDC3FB40AA9495F1D15C57D45` 2회 재생성 일치
+  - 검증: generated 리소스 37개의 모든 제공 CRUD 경로가 최종 Click 트리에 존재, 보호 데이터 L1/L2/L3 복호화 회귀·lint·build 통과
+  - 사이트 커밋: `7d9f9e6`
+  - 배포: GitHub Pages run `31872360969` 성공; 라이브 `assets/index-DYEnip1d.js`, `assets/index-D2IOEbCJ.css`, 보호 데이터 SHA-256 `73EFEEA14645C9A56B5B3A6BB9F0274E38C97C06F7B90D873EC5D87D7271B1C5`가 로컬과 일치
 - [ ] `P1-03` 옵션 타입 모델 교정
   - 값 없는 flag, boolean value, multiple, choices, JSON, file, datetime을 구분
   - `--all`, `--force`, `--raw-output` 등은 체크박스로 표현
@@ -322,11 +331,12 @@
 
 ## 5. 다음 작업
 
-다음 착수 항목은 `P1-02 최종 Click 명령 트리 기반 메타데이터 수집기로 교체`다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
+다음 착수 항목은 `P1-03 옵션 타입 모델 교정`이다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
 
 ## 6. 변경 이력
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-15 | P1-02 완료 — 공식 릴리스의 최종 Click 트리로 전환, extended 공개 이름·cmdref 회귀·오프라인 재현성 검증 | `7d9f9e6` | Codex |
 | 2026-08-15 | P1-01 완료 — 공식 OCI CLI v3.90.2 단일 원천 잠금, 절대 경로·혼합 버전 제거, 재현성 검증 | 사이트 `6f2b547` / blog-db `600de31` | Codex |
 | 2026-08-15 | 최초 전수검수 결과를 실행 가능한 단계별 계획으로 고정, 완료된 IAM·Instance query 작업 반영 | — | Codex |
