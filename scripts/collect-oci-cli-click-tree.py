@@ -48,13 +48,16 @@ def option_metadata(parameter) -> dict | None:
         choices = list(choices)
     type_class = type(parameter.type).__name__
     type_name = getattr(parameter.type, "name", "") or ""
+    is_flag = bool(parameter.is_flag)
     is_json = type_class == "CliComplexType" or type_name == "complex type"
     if is_json:
         type_label = "json"
     elif choices is not None:
         type_label = "choice"
-    elif parameter.is_flag or type_name == "boolean":
+    elif is_flag or type_name == "boolean":
         type_label = "bool"
+    elif type_class == "CliDatetime" or "datetime" in type_name.lower():
+        type_label = "datetime"
     elif type_name == "integer":
         type_label = "int"
     elif type_name == "float":
@@ -68,7 +71,10 @@ def option_metadata(parameter) -> dict | None:
         "required": required,
         "json": is_json,
         "type": type_label,
+        "typeClass": type_class,
+        "typeName": type_name,
         "choices": choices,
+        "flag": is_flag,
         "multiple": bool(parameter.multiple),
         "help": first_sentence(help_text),
     }

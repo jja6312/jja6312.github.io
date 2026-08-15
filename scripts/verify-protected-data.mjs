@@ -72,6 +72,27 @@ for (const level of [1, 2, 3]) {
   if (!onsCreateNames.has('--subscription-endpoint') || onsCreateNames.has('--endpoint-parameterconflict')) {
     throw new Error(`L${level} ONS Subscription 공개 endpoint 옵션 오류`)
   }
+  const catalogOperations = Object.values(bundle.cliCatalog.commands)
+    .flatMap(command => Object.values(command.operations ?? {}))
+  const catalogOptions = catalogOperations.flatMap(operation => [
+    ...operation.sections.flatMap(section => section.options), ...operation.advanced,
+  ])
+  for (const type of ['json', 'file', 'datetime']) {
+    if (!catalogOptions.some(option => option.type === type)) throw new Error(`L${level} ${type} option type missing`)
+  }
+  if (!catalogOptions.some(option => option.flag)
+    || !catalogOptions.some(option => option.type === 'bool' && !option.flag)
+    || !catalogOptions.some(option => option.multiple && option.choices?.length)) {
+    throw new Error(`L${level} flag/boolean/multiple option model missing`)
+  }
+  for (const operation of catalogOperations) {
+    const options = [...operation.sections.flatMap(section => section.options), ...operation.advanced]
+    const all = options.find(option => option.name === '--all')
+    const limit = options.find(option => option.name === '--limit')
+    if (all && limit && (!all.conflictsWith?.includes('--limit') || !limit.conflictsWith?.includes('--all'))) {
+      throw new Error(`L${level} --all/--limit conflict metadata missing: ${operation.cmd}`)
+    }
+  }
   const instanceGroup = bundle.cliCatalog.categories
     .flatMap(category => category.groups)
     .find(group => group.label === 'Instances')
@@ -325,6 +346,8 @@ for (const level of [1, 2, 3]) {
 if (!cliBuilder.includes(`--query 'data."time-maintenance-reboot-due-max"'`)) throw new Error('최대 연장 시각 query 누락')
 if (!cliBuilder.includes('function buildMultiSelectQuery')) throw new Error('Instance GET 복수 query 조합기 누락')
 if (!cliBuilder.includes('if (o.checkbox)')) throw new Error('고정 query 체크박스 UI 누락')
+if (!cliBuilder.includes('if (o.multiple)')) throw new Error('Click multiple 옵션 UI 누락')
+if (!cliBuilder.includes('conflictsWith')) throw new Error('OCI CLI 옵션 충돌 UI 누락')
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')
 if (!cliBuilder.includes('confirm compartment OCID')) throw new Error('컴파트먼트 정리 이중 확인 가드 누락')
 if (!cliBuilder.includes('oci log-analytics storage purge-storage-data')) throw new Error('Log Analytics compartment purge 누락')

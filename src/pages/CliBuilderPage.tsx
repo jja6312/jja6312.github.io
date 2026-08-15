@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
+import { isCliOptionValueActive, serializeCliOption } from '../lib/cliOptionModel'
 
 interface CliOption {
   name: string
@@ -14,6 +15,8 @@ interface CliOption {
   help: string
   placeholder: string
   flag?: boolean
+  multiple?: boolean        // Click multiple=True: 같은 옵션을 값마다 반복해 전달
+  conflictsWith?: string[]  // 같은 명령에서 동시에 사용할 수 없는 옵션
   checkbox?: boolean        // 고정된 옵션 값을 자유 입력 대신 체크박스로 켜고 끔
   checkboxLabel?: string
   defaultValue?: string
@@ -1048,15 +1051,22 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
     )
   }
 
-  for (const o of allOptions(selected)) {
+  const selectedOptions = allOptions(selected)
+  const activeOptionNames = new Set(selectedOptions
+    .filter(option => isCliOptionValueActive(option, values[option.name] ?? ''))
+    .map(option => option.name))
+
+  for (const o of selectedOptions) {
     let v = (values[o.name] ?? '').trim()
     if (o.lookupOnly) continue
+    // 즐겨찾기 등 이전 저장값에 충돌 옵션이 함께 남아 있어도 결정적으로 하나만 직렬화한다.
+    if (o.conflictsWith?.some(name => activeOptionNames.has(name) && name.localeCompare(o.name) < 0)) continue
     if (o.multiSelect && o.name === '--query') {
       const customQuery = (values[subKey(o.name, 'custom')] ?? '').trim()
       v = customQuery || buildMultiSelectQuery(v)
     }
     if (o.flag) {
-      if (v === 'true') args.push(`  ${o.name}`)
+      for (const argument of serializeCliOption(o, v)) args.push(`  ${argument}`)
       continue
     }
     // JSON 서브필드 스펙 — 값이 조립되면 넣고, 비면 생략
@@ -1097,8 +1107,7 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
       continue
     }
     if (!v) continue
-    const quoted = o.shellQuote || /\s|[{}$]/.test(v) ? `'${v.replaceAll("'", "'\\''")}'` : v
-    args.push(`  ${o.name} ${quoted}`)
+    for (const argument of serializeCliOption(o, v)) args.push(`  ${argument}`)
   }
 
   const main = [selected.cmd, ...args].join(' \\\n')
@@ -1205,7 +1214,16 @@ export default function CliBuilderPage() {
     if (!cmd?.actions?.[action]) return
     setSelectedAction(action); setValues(actionDefaults(cmd, action)); setDyn({}); setShowOptional(false)
   }
-  const setVal = (name: string, v: string) => setValues(s => ({ ...s, [name]: v }))
+  const formOptions = [...formSections.flatMap(section => section.options), ...formAdvanced]
+  const formOptionsByName = new Map(formOptions.map(option => [option.name, option]))
+  const setVal = (name: string, v: string) => setValues(current => {
+    const next = { ...current, [name]: v }
+    const option = formOptionsByName.get(name)
+    if (isCliOptionValueActive(option, v)) {
+      for (const conflict of option?.conflictsWith ?? []) next[conflict] = ''
+    }
+    return next
+  })
   const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
 
   const copy = useCallback(async () => {
@@ -1459,6 +1477,9 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
       {o.lookupOnly ? <span>{o.displayLabel || o.name}</span> : <code>{o.name}</code>}
       {o.required && <span className="req">*</span>}
       {o.console && <span className="cli-console-req px">필수</span>}
+      {o.multiple && <span className="cli-type-tag">여러 값</span>}
+      {['json', 'file', 'datetime'].includes(o.type) && <span className="cli-type-tag">{o.type.toUpperCase()}</span>}
+      {o.conflictsWith?.length && <span className="cli-conflict-note">{o.conflictsWith.join(', ')}와 동시 사용 불가</span>}
       {onToggleDynamic && (
         <span className="cli-dyn-toggle" title={dynMeta.note}>
           <input type="checkbox" checked={dynamic} onChange={e => onToggleDynamic(e.target.checked)} />
@@ -1498,6 +1519,38 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
         <textarea className="cli-input cli-json" value={value} rows={4}
           placeholder={`${o.placeholder}\n… 여러 개는 줄바꿈 또는 콤마로 구분 (각각 for 루프로 복사)`}
           onChange={e => onChange(e.target.value)} />
+      </div>
+    )
+  }
+  if (o.multiple) {
+    const selected = value.split(/\r?\n/).map(item => item.trim()).filter(Boolean)
+    const selectedSet = new Set(selected)
+    if (o.choices?.length) {
+      const toggle = (choice: string, checked: boolean) => {
+        const next = checked ? [...selected, choice] : selected.filter(item => item !== choice)
+        onChange([...new Set(next)].join('\n'))
+      }
+      return (
+        <div className="cli-field">
+          {label}
+          <div className="cli-multiple-choices" role="group" aria-label={`${o.name} 복수 값 선택`}>
+            {o.choices.map(choice => (
+              <label key={choice} className="cli-multiple-choice">
+                <input type="checkbox" checked={selectedSet.has(choice)}
+                  onChange={event => toggle(choice, event.target.checked)} />
+                <span>{choice}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div className="cli-field">
+        {label}
+        <textarea className="cli-input cli-json" value={value} rows={4}
+          placeholder={`${o.placeholder || 'value'}\n값마다 한 줄씩 입력하면 같은 옵션을 반복합니다.`}
+          onChange={event => onChange(event.target.value)} />
       </div>
     )
   }
@@ -1616,6 +1669,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
     <div className="cli-field">
       {label}
       <input className="cli-input" value={value}
+        inputMode={o.type === 'int' || o.type === 'float' ? 'decimal' : undefined}
         placeholder={dynamic && dynMeta ? dynMeta.input : o.placeholder}
         onChange={e => onChange(e.target.value)} />
     </div>

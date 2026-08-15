@@ -11,10 +11,11 @@
     "test:oci-msp": "node scripts/verify-oci-msp-learning.mjs",
     "test:oci-source": "python scripts/verify-oci-cli-source.py",
     "test:oci-click": "python scripts/verify-oci-cli-click.py",
+    "test:oci-options": "node scripts/verify-oci-cli-option-model.mjs",
     "check:oci-source": "python scripts/check-oci-cli-source-update.py",
     "normalize:oci-source": "python scripts/normalize-oci-cli-source-metadata.py",
     "test:protected": "node scripts/verify-protected-data.mjs",
-    "gen:protected": "python scripts/generate-cli-catalog.py && python scripts/verify-oci-cli-source.py && python scripts/verify-oci-cli-click.py && node scripts/generate-protected-data.mjs",
+    "gen:protected": "python scripts/generate-cli-catalog.py && python scripts/verify-oci-cli-source.py && python scripts/verify-oci-cli-click.py && node scripts/verify-oci-cli-option-model.mjs && node scripts/generate-protected-data.mjs",
     "preview": "vite preview",
     "gen": "node scripts/generate-data.mjs"
   },

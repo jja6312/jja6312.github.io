@@ -226,6 +226,10 @@ def placeholder(name, typ):
         return 'my-resource'
     if typ == 'json':
         return '{ }'
+    if typ == 'file':
+        return './path/to/file'
+    if typ == 'datetime':
+        return '2026-08-30T23:18:00Z'
     if 'cidr' in n:
         return '10.0.0.0/16'
     if 'shape' in n:
@@ -249,7 +253,9 @@ for f in glob.glob(os.path.join(DATA, '*.json')):
 def build_option(o):
     typ = o.get('type', 'str')
     choices = o.get('choices')
-    if typ == 'bool' or (choices and set(map(str.lower, map(str, choices))) == {'true', 'false'}):
+    if o.get('flag'):
+        choices = None
+    elif typ == 'bool' or (choices and set(map(str.lower, map(str, choices))) == {'true', 'false'}):
         choices = ['true', 'false']
     option = {
         'name': o['name'], 'required': bool(o.get('required')),
@@ -257,13 +263,28 @@ def build_option(o):
         'help': (o.get('help') or '').strip()[:140],
         'placeholder': placeholder(o['name'], 'json' if o.get('json') else typ),
     }
-    for key in ('flag', 'checkbox', 'checkboxLabel', 'defaultValue', 'suggestions', 'multiSelect',
-                'suggestionLabels', 'shellQuote', 'lookupOnly', 'displayLabel'):
+    for key in ('checkbox', 'checkboxLabel', 'defaultValue', 'suggestions', 'multiSelect',
+                'suggestionLabels', 'shellQuote', 'lookupOnly', 'displayLabel', 'conflictsWith'):
         if key in o:
             option[key] = o[key]
+    if o.get('flag'):
+        option['flag'] = True
+    if o.get('multiple'):
+        option['multiple'] = True
     if o.get('placeholder'):
         option['placeholder'] = o['placeholder']
     return option
+
+def annotate_option_relationships(command):
+    options = {
+        option['name']: option
+        for section in command.get('sections', [])
+        for option in section.get('options', [])
+    }
+    options.update({option['name']: option for option in command.get('advanced', [])})
+    if '--all' in options and '--limit' in options:
+        options['--all']['conflictsWith'] = ['--limit']
+        options['--limit']['conflictsWith'] = ['--all']
 
 def layout_command(res, command, curated=False):
     opts = {o['name']: build_option(o) for o in command['options']}
@@ -489,8 +510,8 @@ for res, d in raw.items():
 
 # ── 커스텀 레시피 (backbone 없음) ──
 # 여러 명령을 묶거나 별도 조립이 필요한 작업은 CliBuilderPage 의 전용 빌더가 최종 명령을 만든다.
-def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=False):
-    o = {'name': name, 'required': req, 'type': 'str', 'choices': None, 'help': help, 'placeholder': ph}
+def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=False, typ='str'):
+    o = {'name': name, 'required': req, 'type': 'bool' if flag else typ, 'choices': None, 'help': help, 'placeholder': ph}
     if multi:
         o['multi'] = True
     if default is not None:
@@ -592,7 +613,7 @@ def _iam_user():
                 'RSA PEM 공개키를 API signing key로 등록합니다. Compute SSH 공개키가 아니며 User당 최대 3개입니다.',
                 [{'label': '대상 User', 'options': [user_id]}, {'label': '공개키', 'options': [
                     _io('--key-source', True, '공개키 파일 경로 또는 PEM 원문 중 하나를 선택', choices=['KEY_FILE', 'PEM_TEXT'], default='KEY_FILE', lookupOnly=True, displayLabel='공개키 입력 방식'),
-                    _io('--key-file', False, 'Cloud Shell 또는 실행 호스트의 RSA PEM 공개키 파일 경로', '/home/opc/.oci/oci_api_key_public.pem', shellQuote=True),
+                    _io('--key-file', False, 'Cloud Shell 또는 실행 호스트의 RSA PEM 공개키 파일 경로', '/home/opc/.oci/oci_api_key_public.pem', type='file', shellQuote=True),
                     _io('--key', False, 'RSA PEM 공개키 원문. KEY_FILE 대신 사용할 때만 입력합니다.', '-----BEGIN PUBLIC KEY-----', type='json', shellQuote=True),
                 ]}, {'label': '실행 환경', 'options': _iam_env()}],
                 label='API Key 발행', icon='⌘', tone='create',
@@ -810,7 +831,7 @@ def _maintenance_reboot():
             ]},
             {'label': '재부팅 달력 업데이트', 'options': [
                 _co('--time-maintenance-reboot-due', True,
-                    '변경할 UTC 시각 (RFC 3339 / ISO 8601 형식)', '2026-08-30T23:18:00Z'),
+                    '변경할 UTC 시각 (RFC 3339 / ISO 8601 형식)', '2026-08-30T23:18:00Z', typ='datetime'),
             ]},
         ],
         'advanced': [],
@@ -856,6 +877,11 @@ EXTRA = {
 catalog['commands'].update(EXTRA)
 
 for resource, command in catalog['commands'].items():
+    annotate_option_relationships(command)
+    for operation in command.get('operations', {}).values():
+        annotate_option_relationships(operation)
+    for action in command.get('actions', {}).values():
+        annotate_option_relationships(action)
     specification = raw.get(resource, {})
     provenance = {
         'kind': specification.get('source_kind', 'manual-curation'),
