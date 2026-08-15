@@ -585,6 +585,73 @@ def _io(name, req, help, ph='', **metadata):
     option.update(metadata)
     return option
 
+def _execution_context():
+    """OCI CLI v3.90.2 root/global options shared by every service command."""
+    return {
+        'source': {
+            'kind': 'final-click-root',
+            'tag': SOURCE_LOCK['tag'],
+            'version': SOURCE_LOCK['version'],
+            'commit': SOURCE_LOCK['commit'],
+            'runtimeFile': 'oci_cli/cli_root.py',
+        },
+        'request': [
+            _io('--profile', False, 'OCI config에서 사용할 프로필. 비우면 DEFAULT 또는 OCI_CLI_PROFILE을 사용합니다.',
+                'DEFAULT', default='DEFAULT', shellQuote=True),
+            _io('--region', False, '요청 리전. 비우면 선택한 프로필이나 OCI_CLI_REGION 값을 사용합니다.',
+                'ap-seoul-1', shellQuote=True),
+            _io('--auth', False, 'API 요청 인증 방식. 비우면 config의 API key 인증을 사용합니다.', choices=[
+                'api_key', 'instance_principal', 'security_token', 'instance_obo_user',
+                'resource_principal', 'oke_workload_identity',
+            ]),
+            _io('--endpoint', False, '서비스 endpoint 전체 URL. 지정하면 기본 리전 endpoint보다 우선합니다.',
+                'https://iaas.ap-seoul-1.oraclecloud.com/20160918', shellQuote=True),
+        ],
+        'response': [
+            _io('--output', False, '응답 출력 형식. 비우면 OCI CLI 기본 JSON을 사용합니다.', choices=['json', 'table']),
+            _io('--query', False, '응답 JSON에 적용할 JMESPath query. 비우면 전체 응답을 표시합니다.',
+                'data[].{Name:"display-name",Id:id}', shellQuote=True),
+            _io('--raw-output', False, '단일 문자열 query 결과의 바깥 따옴표를 제거합니다.', flag=True),
+        ],
+    }
+
+COMMON_CONTEXT_NAMES = {
+    option['name']
+    for group in ('request', 'response')
+    for option in _execution_context()[group]
+}
+
+def lift_execution_context(surface):
+    """Move global/root options out of resource forms while preserving curated defaults and controls."""
+    overrides = {}
+    sections = []
+    for section in surface.get('sections', []):
+        local_options = []
+        for option in section.get('options', []):
+            if option['name'] not in COMMON_CONTEXT_NAMES:
+                local_options.append(option)
+                continue
+            lifted = dict(option)
+            lifted['required'] = False
+            lifted['requirement'] = 'optional'
+            overrides[option['name']] = lifted
+        if local_options:
+            sections.append({**section, 'options': local_options})
+    surface['sections'] = sections
+
+    local_advanced = []
+    for option in surface.get('advanced', []):
+        if option['name'] not in COMMON_CONTEXT_NAMES:
+            local_advanced.append(option)
+            continue
+        lifted = dict(option)
+        lifted['required'] = False
+        lifted['requirement'] = 'optional'
+        overrides[option['name']] = lifted
+    surface['advanced'] = local_advanced
+    if overrides:
+        surface['contextOverrides'] = overrides
+
 def _iam_env():
     return [
         _io('--profile', False, 'OCI CLI 프로필 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT', shellQuote=True),
@@ -876,7 +943,7 @@ def _maintenance_reboot():
         'help': ('GET 탭에서는 유지보수 재부팅을 연장할 수 있는 최대 시각을 조회하고, '
                  'UPDATE 탭에서는 실제 재부팅 달력을 변경합니다.'),
         'sections': [
-            {'label': '인스턴스 · 실행 환경', 'options': [
+            {'label': '대상 인스턴스', 'options': [
                 _co('--instance-id', True, '대상 Compute 인스턴스 OCID', 'ocid1.instance.oc1.ap-seoul-1.xxxx'),
                 _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT'),
                 _co('--region', True, '대상 인스턴스 리전', 'ap-seoul-1'),
@@ -927,6 +994,7 @@ EXTRA = {
 }
 # cross-copy는 최상위 레벨, maintenance reboot는 Compute > Instances에 렌더
 catalog['commands'].update(EXTRA)
+catalog['executionContext'] = _execution_context()
 
 for resource, command in catalog['commands'].items():
     annotate_option_relationships(command)
@@ -934,6 +1002,11 @@ for resource, command in catalog['commands'].items():
         annotate_option_relationships(operation)
     for action in command.get('actions', {}).values():
         annotate_option_relationships(action)
+    lift_execution_context(command)
+    for operation in command.get('operations', {}).values():
+        lift_execution_context(operation)
+    for action in command.get('actions', {}).values():
+        lift_execution_context(action)
     specification = raw.get(resource, {})
     provenance = {
         'kind': specification.get('source_kind', 'manual-curation'),

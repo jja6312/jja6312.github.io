@@ -64,6 +64,15 @@ for (const level of [1, 2, 3]) {
     ...operation.sections.flatMap(section => section.options),
     ...operation.advanced,
   ].map(option => option.name))
+  const contextOption = (surface, name) => surface.contextOverrides?.[name]
+    ?? [...bundle.cliCatalog.executionContext.request, ...bundle.cliCatalog.executionContext.response]
+      .find(option => option.name === name)
+  const requestContextNames = bundle.cliCatalog.executionContext?.request?.map(option => option.name)
+  const responseContextNames = bundle.cliCatalog.executionContext?.response?.map(option => option.name)
+  if (JSON.stringify(requestContextNames) !== JSON.stringify(['--profile', '--region', '--auth', '--endpoint'])
+    || JSON.stringify(responseContextNames) !== JSON.stringify(['--output', '--query', '--raw-output'])) {
+    throw new Error(`L${level} OCI CLI common execution context schema missing`)
+  }
   const alarmCreateNames = publicOptionNames(bundle.cliCatalog.commands.alarm.operations.create)
   if (!alarmCreateNames.has('--query-text') || alarmCreateNames.has('--query-parameterconflict')) {
     throw new Error(`L${level} Alarm 공개 query 옵션 오류`)
@@ -151,7 +160,7 @@ for (const level of [1, 2, 3]) {
     throw new Error(`L${level} MySQL DB System GET required fields invalid`)
   }
   const mysqlGetOptions = mysqlDbSystem.operations.get.sections.flatMap(section => section.options)
-  const mysqlGetOption = name => mysqlGetOptions.find(option => option.name === name)
+  const mysqlGetOption = name => mysqlGetOptions.find(option => option.name === name) ?? contextOption(mysqlDbSystem.operations.get, name)
   if (mysqlGetOption('--lookup-compartment-id')?.required !== false
     || mysqlGetOption('--lookup-compartment-id')?.lookupOnly !== true) {
     throw new Error(`L${level} MySQL DB System GET lookup compartment metadata invalid`)
@@ -179,7 +188,7 @@ for (const level of [1, 2, 3]) {
     throw new Error(`L${level} MySQL Backup CREATE must require only --db-system-id`)
   }
   for (const name of ['--backup-type', '--description', '--display-name', '--retention-in-days', '--soft-delete', '--profile', '--region']) {
-    if (backupCreateOptions.find(option => option.name === name)?.required !== false) {
+    if ((backupCreateOptions.find(option => option.name === name) ?? contextOption(mysqlBackup.operations.create, name))?.required !== false) {
       throw new Error(`L${level} MySQL Backup optional field marked required: ${name}`)
     }
   }
@@ -208,7 +217,7 @@ for (const level of [1, 2, 3]) {
     throw new Error(`L${level} Subscription Balance required fields invalid`)
   }
   const subscriptionOptions = balanceList.sections.flatMap(section => section.options)
-  const subscriptionOption = name => subscriptionOptions.find(option => option.name === name)
+  const subscriptionOption = name => subscriptionOptions.find(option => option.name === name) ?? contextOption(balanceList, name)
   if (!subscriptionOption('--all')?.flag || subscriptionOption('--all')?.defaultValue !== 'true'
     || subscriptionOption('--output')?.defaultValue !== 'table') {
     throw new Error(`L${level} Subscription Balance result defaults invalid`)
@@ -231,7 +240,7 @@ for (const level of [1, 2, 3]) {
     throw new Error(`L${level} Subscription LIST command or required fields invalid`)
   }
   const subscriptionListOptions = subscriptionList.operations.list.sections.flatMap(section => section.options)
-  const subscriptionListOption = name => subscriptionListOptions.find(option => option.name === name)
+  const subscriptionListOption = name => subscriptionListOptions.find(option => option.name === name) ?? contextOption(subscriptionList.operations.list, name)
   if (!subscriptionListOption('--all')?.flag || subscriptionListOption('--all')?.defaultValue !== 'true'
     || subscriptionListOption('--output')?.defaultValue !== 'table') {
     throw new Error(`L${level} Subscription LIST result defaults invalid`)
@@ -257,7 +266,7 @@ for (const level of [1, 2, 3]) {
     throw new Error(`L${level} Announcements required fields invalid`)
   }
   const announcementOptions = announcement.operations.list.sections.flatMap(section => section.options)
-  const announcementOption = name => announcementOptions.find(option => option.name === name)
+  const announcementOption = name => announcementOptions.find(option => option.name === name) ?? contextOption(announcement.operations.list, name)
   if (!announcementOption('--all')?.flag || announcementOption('--all')?.defaultValue !== 'true'
     || announcementOption('--output')?.defaultValue !== 'table') {
     throw new Error(`L${level} Announcements result defaults invalid`)
@@ -321,9 +330,8 @@ for (const level of [1, 2, 3]) {
     || allBalances.cmd !== 'oci onesubscription organization-subscription organization-subscription list') {
     throw new Error(`L${level} all Subscription balances custom CLI missing`)
   }
-  const allBalanceOptions = allBalances.sections.flatMap(section => section.options)
-  if (allBalanceOptions.find(option => option.name === '--profile')?.defaultValue !== 'DEFAULT'
-    || allBalanceOptions.find(option => option.name === '--region')?.defaultValue !== 'ap-seoul-1') {
+  if (contextOption(allBalances, '--profile')?.defaultValue !== 'DEFAULT'
+    || contextOption(allBalances, '--region')?.defaultValue !== 'ap-seoul-1') {
     throw new Error(`L${level} all Subscription balances execution defaults invalid`)
   }
   const cleanup = bundle.cliCatalog.commands['compartment-resource-cleansing']
@@ -343,9 +351,9 @@ for (const level of [1, 2, 3]) {
       if (!command.operations[operation]?.cmd) throw new Error(`L${level} ${command.resource} ${operation} 명령 누락`)
     }
   }
-  const instanceGetOptions = bundle.cliCatalog.commands.instance.operations.get.sections.flatMap(section => section.options)
-  const queryOption = instanceGetOptions.find(option => option.name === '--query')
-  const rawOption = instanceGetOptions.find(option => option.name === '--raw-output')
+  const instanceGet = bundle.cliCatalog.commands.instance.operations.get
+  const queryOption = contextOption(instanceGet, '--query')
+  const rawOption = contextOption(instanceGet, '--raw-output')
   if (queryOption?.defaultValue !== undefined) throw new Error(`L${level} Instance GET query 기본값은 빈 값이어야 함`)
   if (!queryOption?.multiSelect || queryOption.suggestions?.length < 2) {
     throw new Error(`L${level} Instance GET query 복수 선택 설정 누락`)
@@ -385,6 +393,10 @@ if (!cliBuilder.includes('validateCliOptions(formOptions, validationValues, form
   || !cliBuilder.includes('disabled={!commandReady}')
   || !cliBuilder.includes('cli-validation-panel')) {
   throw new Error('OCI CLI incomplete-command validation guard 누락')
+}
+if (!cliBuilder.includes('cli-context-panel') || !cliBuilder.includes('requestContextArguments')
+  || !cliBuilder.includes('responseContextArguments') || !cliBuilder.includes('buildRootTenancyLookup(requestContext)')) {
+  throw new Error('OCI CLI common execution context layer 누락')
 }
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')
 if (!cliBuilder.includes('confirm compartment OCID')) throw new Error('컴파트먼트 정리 이중 확인 가드 누락')
@@ -446,19 +458,19 @@ globalThis.dynamicScript = buildMysqlBackupCreate({
   '--display-name': 'mysql-prod-01-manual', '--description': '', '--backup-type': 'FULL', '--retention-in-days': '7',
   '--soft-delete': 'ENABLED', '--freeform-tags': '', '--defined-tags': '', '--wait-for-state': '',
   '--max-wait-seconds': '', '--wait-interval-seconds': '',
-}, {})
+}, {}, ["--profile 'DEFAULT'", "--region 'ap-seoul-1'", '--auth instance_principal', "--endpoint 'https://mysql.example.test'"])
 globalThis.directScript = buildMysqlBackupCreate({
   '--lookup-compartment-id': '', '--db-system-id': 'ocid1.mysqldbsystem.oc1.ap-seoul-1.example',
   '--profile': '', '--region': '',
-}, {'--db-system-id': false})
+}, {'--db-system-id': false}, ["--profile 'DEFAULT'"])
 globalThis.dynamicGetScript = buildMysqlDbSystemGet({
   '--lookup-compartment-id': 'prod', '--db-system-id': 'mysql-prod-01',
   '--profile': 'DEFAULT', '--region': 'ap-seoul-1', '--if-none-match': '',
-}, {})
+}, {}, ["--profile 'DEFAULT'", "--region 'ap-seoul-1'", '--auth instance_principal'], ["--query 'data.id'", '--raw-output'])
 globalThis.directGetScript = buildMysqlDbSystemGet({
   '--lookup-compartment-id': '', '--db-system-id': 'ocid1.mysqldbsystem.oc1.ap-seoul-1.example',
   '--profile': '', '--region': '', '--if-none-match': 'etag-example',
-}, {'--db-system-id': false})
+}, {'--db-system-id': false}, ["--profile 'DEFAULT'"], ['--output table'])
 `
 const context = {}
 vm.runInNewContext(ts.transpileModule(builderHarness, {
@@ -477,6 +489,12 @@ for (const [mode, script] of Object.entries({ dynamic: context.dynamicScript, di
 }
 if (!context.dynamicScript.includes('oci mysql db-system list') || context.directScript.includes('oci mysql db-system list')) {
   throw new Error('MySQL Backup name/OCID selection mode invalid')
+}
+for (const expected of ["--profile 'DEFAULT'", "--region 'ap-seoul-1'", '--auth instance_principal', "--endpoint 'https://mysql.example.test'"]) {
+  if (!context.dynamicScript.includes(expected)) throw new Error(`MySQL dynamic lookup/main context missing: ${expected}`)
+}
+for (const expected of ["--query 'data.id'", '--raw-output']) {
+  if (!context.dynamicGetScript.includes(expected)) throw new Error(`MySQL GET response context missing: ${expected}`)
 }
 for (const expected of [
   '--display-name "mysql-prod-01-manual"', '--backup-type "FULL"',
@@ -519,30 +537,30 @@ const policyCommand = ${JSON.stringify(iamPolicyCatalog)}
 globalThis.userCreate = buildIamCommand(userCommand, userCommand.operations.create, {
   '--name': 'ops.user@example.com', '--description': 'OCI operations', '--email': 'ops.user@example.com',
   '--profile': 'ADMIN', '--region': 'ap-seoul-1',
-}, {})
+}, {}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'], ['--output table'])
 globalThis.passwordReset = buildIamCommand(userCommand, userCommand.actions['reset-password'], {
   '--user-id': 'ops.user@example.com', '--profile': 'ADMIN', '--region': 'ap-seoul-1',
-}, {})
+}, {}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
 globalThis.groupAssign = buildIamCommand(userCommand, userCommand.actions['assign-group'], {
   '--user-id': 'ops.user@example.com', '--group-id': 'OCI-Operators', '--profile': 'ADMIN', '--region': 'ap-seoul-1',
-}, {})
+}, {}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
 globalThis.apiKeyUpload = buildIamCommand(userCommand, userCommand.actions['upload-api-key'], {
   '--user-id': 'ocid1.user.oc1..example', '--key-source': 'KEY_FILE', '--key-file': '/home/opc/.oci/oci_api_key_public.pem',
   '--profile': 'ADMIN', '--region': 'ap-seoul-1',
-}, {'--user-id': false})
+}, {'--user-id': false}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
 globalThis.policyCreate = buildIamCommand(policyCommand, policyCommand.operations.create, {
   '--compartment-id': 'ROOT', '--name': 'OCI-Operators-Policy', '--description': 'OCI operators permissions',
   '--statements': '["Allow group OCI-Operators to inspect all-resources in tenancy"]',
   '--profile': 'ADMIN', '--region': 'ap-seoul-1',
-}, {})
+}, {}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
 globalThis.mfaPreview = buildIamMfaReset({
   '--user-lookup': 'NAME', '--user-id': 'ops.user@example.com', '--mode': 'PREVIEW',
   '--profile': 'ADMIN', '--region': 'ap-seoul-1',
-})
+}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
 globalThis.mfaReset = buildIamMfaReset({
   '--user-lookup': 'NAME', '--user-id': 'ops.user@example.com', '--mode': 'RESET',
   '--confirm-user-name': 'ops.user@example.com', '--profile': 'ADMIN', '--region': 'ap-seoul-1',
-})
+}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
 `
 const iamContext = {}
 vm.runInNewContext(ts.transpileModule(iamHarness, {
@@ -569,6 +587,11 @@ for (const [name, expected] of Object.entries({
   policyCreate: 'oci iam policy create',
 })) {
   if (!iamScripts[name].includes(expected)) throw new Error(`IAM ${name} command missing: ${expected}`)
+}
+for (const script of [iamContext.userCreate, iamContext.passwordReset, iamContext.groupAssign, iamContext.policyCreate]) {
+  for (const expected of ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token']) {
+    if (!script.includes(expected)) throw new Error(`IAM request context missing: ${expected}`)
+  }
 }
 if (!iamContext.passwordReset.includes('USER_ID_COUNT=$(oci iam user list')
   || !iamContext.groupAssign.includes('GROUP_ID_COUNT=$(oci iam group list')
@@ -601,8 +624,8 @@ if (allBalancesStart < 0 || allBalancesEnd < 0) throw new Error('all Subscriptio
 const allBalancesContext = {}
 vm.runInNewContext(ts.transpileModule(`
 ${cliBuilder.slice(allBalancesStart, allBalancesEnd)}
-globalThis.script = buildAllSubscriptionBalances({'--profile': 'FINOPS', '--region': 'ap-seoul-1'})
-globalThis.rootScript = buildRootTenancyLookup({'--profile': 'FINOPS', '--region': 'ap-seoul-1'})
+globalThis.script = buildAllSubscriptionBalances({}, ["--profile 'FINOPS'", "--region 'ap-seoul-1'", '--auth instance_principal'])
+globalThis.rootScript = buildRootTenancyLookup(["--profile 'FINOPS'", "--region 'ap-seoul-1'", '--auth instance_principal'])
 `, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
 }).outputText, allBalancesContext)
@@ -622,7 +645,7 @@ for (const expected of [
 const allBalancesSyntax = spawnSync('C:\\Program Files\\Git\\bin\\bash.exe', ['-n'], { input: allBalancesScript, encoding: 'utf8' })
 if (allBalancesSyntax.status !== 0) throw new Error(`all Subscription balances bash syntax invalid: ${allBalancesSyntax.stderr}`)
 for (const expected of [
-  "PROFILE='FINOPS'", "REGION='ap-seoul-1'", 'oci iam availability-domain list',
+  "OCI_REQUEST_CONTEXT=(--profile 'FINOPS' --region 'ap-seoul-1' --auth instance_principal)", 'oci iam availability-domain list',
   '--query \'data[0]."compartment-id"\' --raw-output', '[[ "$TENANCY_ID" == ocid1.tenancy.* ]]',
 ]) {
   if (!allBalancesContext.rootScript.includes(expected)) throw new Error(`root tenancy lookup script missing: ${expected}`)

@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
 import { isCliOptionValueActive, serializeCliOption, validateCliOptions } from '../lib/cliOptionModel'
+import {
+  executionContextDefaults,
+  executionContextOptions,
+  isExecutionContextName,
+  serializeExecutionContext,
+  splitLegacyExecutionContext,
+  type ExecutionContextOverrides,
+  type ExecutionContextSchema,
+} from '../lib/cliExecutionContext'
 
 interface CliOption {
   name: string
@@ -51,6 +60,7 @@ interface CliOperation {
   sections: CliSection[]; advanced: CliOption[]
   rules?: CliOptionRule[]
   optionNotices?: CliOptionNotice[]
+  contextOverrides?: ExecutionContextOverrides
 }
 interface CliAction extends CliOperation {
   label: string
@@ -73,15 +83,20 @@ interface CliCommand {
   manualBackup?: 'instance-boot-volume' | 'mysql'
   operations?: Partial<Record<CrudVerb, CliOperation>>
   actions?: Record<string, CliAction>
+  contextOverrides?: ExecutionContextOverrides
   sections: CliSection[]; advanced: CliOption[]
 }
 // 조립·검색용 평탄화 — 섹션 순서(콘솔 마법사 순서)를 그대로 유지
 const allOptions = (c: Pick<CliCommand, 'sections' | 'advanced'>): CliOption[] => [...c.sections.flatMap(s => s.options), ...c.advanced]
 interface Catalog {
+  executionContext: ExecutionContextSchema
   categories: { id: string; label: string; groups: { label: string; resources: string[] }[] }[]
   commands: Record<string, CliCommand>
 }
-const EMPTY_CATALOG: Catalog = { categories: [], commands: {} }
+const EMPTY_CATALOG: Catalog = {
+  executionContext: { source: { kind: 'final-click-root', tag: '', version: '', commit: '', runtimeFile: '' }, request: [], response: [] },
+  categories: [], commands: {},
+}
 
 const CRUD_OPERATIONS: { verb: CrudVerb; icon: string }[] = [
   { verb: 'get', icon: '↓' },
@@ -103,15 +118,22 @@ const supportsOperation = (command: CliCommand | null | undefined, operation: Cr
 const operationDefaults = (command: CliCommand, operation: CrudVerb): Record<string, string> => {
   const selected = command.operations?.[operation] ?? command
   return Object.fromEntries(allOptions(selected)
+    .filter(option => !isExecutionContextName(option.name))
     .filter(option => option.defaultValue !== undefined)
     .map(option => [option.name, option.defaultValue as string]))
 }
 const actionDefaults = (command: CliCommand, action: string): Record<string, string> => {
   const selected = command.actions?.[action]
   return selected ? Object.fromEntries(allOptions(selected)
+    .filter(option => !isExecutionContextName(option.name))
     .filter(option => option.defaultValue !== undefined)
     .map(option => [option.name, option.defaultValue as string])) : {}
 }
+const selectedSurface = (command: CliCommand, operation: CrudVerb, action?: string | null): CliOperation =>
+  (action ? command.actions?.[action] : command.operations?.[operation]) ?? command
+const supportsResponseContext = (command: CliCommand | null | undefined) => !!command
+  && !command.crossCopy && !command.maintenanceReboot && !command.compartmentCleanup
+  && !command.allSubscriptionBalances && !command.iamMfaReset && !command.manualBackup
 
 /* ── 동적 조회 지원 옵션 — 이름만 넣으면 $()/변수로 OCID를 찾아준다 ──
    기본값 = 동적. 체크 해제 시 OCID 직접 입력. */
@@ -193,6 +215,7 @@ function buildMultiSelectQuery(value: string): string {
 
 interface Favorite {
   id: string; name: string; resource: string; values: Record<string, string>
+  context?: Record<string, string>
   dyn?: Record<string, boolean>; operation?: CrudVerb; action?: string
 }
 const FAV_KEY = 'hub-cli-favorites'
@@ -202,9 +225,13 @@ const saveFavs = (f: Favorite[]) => localStorage.setItem(FAV_KEY, JSON.stringify
 const isDynamic = (dyn: Record<string, boolean>, name: string) =>
   name in DYNAMIC ? (dyn[name] ?? true) : false
 
+const formatCliCommand = (command: string, args: string[]) => [command, ...args.map(argument => `  ${argument}`)].join(' \\\n')
+const withoutContext = (args: string[], ...names: string[]) => args
+  .filter(argument => !names.some(name => argument === name || argument.startsWith(`${name} `)))
+
 /* cross-tenancy 볼륨 복사 — 여러 원본 OCID 를 for 루프로 복사하고 원본 display name 을 유지.
    get(원본 이름) → create(대상 테넌시로 복사) → update(복사본 이름=원본). Admit/Endorse policy 전제. */
-function buildCrossCopy(kind: string, values: Record<string, string>): string {
+function buildCrossCopy(kind: string, values: Record<string, string>, requestContext: string[] = []): string {
   const boot = kind === 'boot-volume'
   const srcOpt = boot ? '--source-boot-volume-id' : '--source-volume-id'
   const idOpt = boot ? '--boot-volume-id' : '--volume-id'
@@ -213,7 +240,7 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
   const CONT = ' \\'                                  // 줄 끝 백슬래시(명령 이어짐)
 
   const profile = v('--profile', 'DEFAULT')
-  const region = v('--region', '<region>')
+  const region = v('--region', '')
   const comp = v('--compartment-id', '<dest-compartment-ocid>')
   const srcProfile = v('--source-profile', '<source-profile>')
   const srcTenancy = v('--source-tenancy-id', '<source-tenancy-ocid>')
@@ -221,6 +248,9 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
   const targetGroupId = v('--target-group-id', '<target-group-ocid>')
   const destTenancy = v('--dest-tenancy-id', '<dest-tenancy-ocid>')
   const pname = v('--policy-name', 'cross-tenancy-volume')
+  const requestExtras = withoutContext(requestContext, '--profile', '--region')
+  const targetContext = [`--profile "$PROFILE"`, ...(region ? [`--region "$REGION"`] : []), ...requestExtras].join(' ')
+  const sourceContext = [`--profile "$SRC_PROFILE"`, ...(region ? [`--region "$REGION"`] : []), ...requestExtras].join(' ')
 
   const srcs = (values[srcOpt] || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean)
   const list = srcs.length ? srcs : ['<source-ocid-1>', '<source-ocid-2>']
@@ -259,7 +289,7 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
     `  --name ${pname}-endorse` + CONT,
     '  --description "cross-tenancy volume copy - endorse"' + CONT,
     '  --statements file:///tmp/endorse-stmts.json' + CONT,
-    '  --profile "$PROFILE"',
+    `  ${targetContext}`,
     '',
     '#############################################',
     '# 2) 원본 테넌시 — Admit policy (최초 1회)',
@@ -277,7 +307,7 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
     `  --name ${pname}-admit` + CONT,
     '  --description "cross-tenancy volume copy - admit"' + CONT,
     '  --statements file:///tmp/admit-stmts.json' + CONT,
-    '  --profile "$SRC_PROFILE"',
+    `  ${sourceContext}`,
     '',
     '# policy 전파에 수 분 걸릴 수 있다 — 3) 에서 NotAuthorized 면 잠시 후 재시도',
     '',
@@ -290,65 +320,60 @@ function buildCrossCopy(kind: string, values: Record<string, string>): string {
     '',
     'for SRC in "${SOURCES[@]}"; do',
     '  # 3-1) 원본 display name 조회 (Endorse/Admit 의 Get 권한 사용)',
-    `  NAME=$(oci ${resCmd} get ${idOpt} "$SRC" --profile "$PROFILE" --region "$REGION"` + CONT,
+    `  NAME=$(oci ${resCmd} get ${idOpt} "$SRC" ${targetContext}` + CONT,
     `    --query 'data."display-name"' --raw-output)`,
     '  # 3-2) 대상 테넌시로 복사',
-    `  NEW=$(oci ${resCmd} create --profile "$PROFILE" --region "$REGION"` + CONT,
+    `  NEW=$(oci ${resCmd} create ${targetContext}` + CONT,
     `    ${srcOpt} "$SRC" --compartment-id "$COMPARTMENT"` + CONT,
     `    --wait-for-state AVAILABLE --query 'data.id' --raw-output)`,
     '  # 3-3) 복사본 이름을 원본과 동일하게',
     `  oci ${resCmd} update ${idOpt} "$NEW" --display-name "$NAME"` + CONT,
-    '    --profile "$PROFILE" --region "$REGION"',
+    `    ${targetContext}`,
     '  echo "copied $SRC -> $NEW ($NAME)"',
     'done',
   ].join('\n')
 }
 
 /* 인스턴스 유지보수 재부팅 예정 시각 — 선택한 GET 또는 UPDATE 명령 생성 */
-function buildMaintenanceReboot(values: Record<string, string>, operation: 'get' | 'update'): string {
+function buildMaintenanceReboot(values: Record<string, string>, operation: 'get' | 'update', requestContext: string[] = []): string {
   const v = (key: string, fallback: string) => (values[key] || '').trim() || fallback
   const instanceId = v('--instance-id', '<instanceid>')
-  const profile = v('--profile', '<profile>')
-  const region = v('--region', '<region>')
   const rebootDue = v('--time-maintenance-reboot-due', '<YYYY-MM-DDTHH:mm:ssZ>')
-  const CONT = ' \\'
 
   if (operation === 'get') {
     return [
       '# 유지보수 재부팅을 연장할 수 있는 최대 시각 조회',
-      'oci compute instance-maintenance-reboot get' + CONT,
-      `  --instance-id "${instanceId}"` + CONT,
-      `  --profile "${profile}"` + CONT,
-      `  --region "${region}"` + CONT,
-      `  --query 'data."time-maintenance-reboot-due-max"'` + CONT,
-      '  --raw-output',
+      formatCliCommand('oci compute instance-maintenance-reboot get', [
+        `--instance-id "${instanceId}"`,
+        ...requestContext,
+        `--query 'data."time-maintenance-reboot-due-max"'`,
+        '--raw-output',
+      ]),
     ].join('\n')
   }
 
   return [
     '# 인스턴스 유지보수 재부팅 달력 업데이트',
-    'oci compute instance update' + CONT,
-    `  --instance-id "${instanceId}"` + CONT,
-    `  --time-maintenance-reboot-due "${rebootDue}"` + CONT,
-    `  --profile "${profile}"` + CONT,
-    `  --region "${region}"` + CONT,
-    '  --force',
+    formatCliCommand('oci compute instance update', [
+      `--instance-id "${instanceId}"`,
+      `--time-maintenance-reboot-due "${rebootDue}"`,
+      ...requestContext,
+      '--force',
+    ]),
   ].join('\n')
 }
 
 /* 최종 명령 조립 — 동적 옵션은 변수 선언(prelude) + 참조로 */
 /* Resolve exact resource names safely, then create and verify one manual backup. */
-function buildManualBackup(kind: 'instance-boot-volume' | 'mysql', values: Record<string, string>): string {
+function buildManualBackup(kind: 'instance-boot-volume' | 'mysql', values: Record<string, string>, requestContext: string[] = []): string {
   const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
   const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
   const common = [
     '#!/usr/bin/env bash',
     'set -euo pipefail',
     '',
-    `PROFILE=${q(v('--profile', 'DEFAULT'))}`,
-    `REGION=${q(v('--region', 'ap-seoul-1'))}`,
     `COMPARTMENT_NAME=${q(v('--compartment-name', '<compartment-name>'))}`,
-    'CTX=(--profile "$PROFILE" --region "$REGION")',
+    `CTX=(${requestContext.join(' ')})`,
     '',
     '# 이름이 중복되면 임의의 첫 번째 OCID를 사용하지 않고 안전하게 중단합니다.',
     'COMPARTMENT_COUNT=$(oci iam compartment list \\',
@@ -465,15 +490,17 @@ function buildManualBackup(kind: 'instance-boot-volume' | 'mysql', values: Recor
 }
 
 /* MySQL Backup CREATE는 정상 Backup 리소스 안에서 DB System 이름 조회만 보조합니다. */
-function buildMysqlBackupCreate(values: Record<string, string>, dyn: Record<string, boolean>): string {
+function buildMysqlBackupCreate(
+  values: Record<string, string>,
+  dyn: Record<string, boolean>,
+  requestContext: string[] = [],
+  responseContext: string[] = [],
+): string {
   const v = (key: string) => (values[key] || '').trim()
   const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
   const dynamicDbSystem = isDynamic(dyn, '--db-system-id')
   const dynamicCompartment = isDynamic(dyn, '--lookup-compartment-id')
-  const contextArgs = [
-    v('--profile') ? `--profile ${q(v('--profile'))}` : '',
-    v('--region') ? `--region ${q(v('--region'))}` : '',
-  ].filter(Boolean)
+  const contextArgs = requestContext
   const cliCommand = (command: string, args: string[]) => [command, ...args.map(arg => `  ${arg}`)].join(' \\\n')
   const prelude: string[] = []
 
@@ -540,14 +567,19 @@ function buildMysqlBackupCreate(values: Record<string, string>, dyn: Record<stri
   ]) {
     if (v(option)) createArgs.push(`${option} ${q(v(option))}`)
   }
-  createArgs.push(...contextArgs)
+  createArgs.push(...contextArgs, ...responseContext)
   const createCommand = cliCommand('oci mysql backup create', createArgs)
   return prelude.length ? `${prelude.join('\n')}\n\n${createCommand}` : createCommand
 }
 
 /* MySQL DB System GET의 필수 인자는 그대로 --db-system-id 하나이며,
    동적 모드에서만 compartment + display name을 OCID로 안전하게 해석합니다. */
-function buildMysqlDbSystemGet(values: Record<string, string>, dyn: Record<string, boolean>): string {
+function buildMysqlDbSystemGet(
+  values: Record<string, string>,
+  dyn: Record<string, boolean>,
+  requestContext: string[] = [],
+  responseContext: string[] = [],
+): string {
   const v = (key: string) => (values[key] || '').trim()
   const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
   const dynamicDbSystem = isDynamic(dyn, '--db-system-id')
@@ -556,11 +588,8 @@ function buildMysqlDbSystemGet(values: Record<string, string>, dyn: Record<strin
     '#!/usr/bin/env bash',
     'set -euo pipefail',
     '',
-    `PROFILE=${q(v('--profile'))}`,
-    `REGION=${q(v('--region'))}`,
-    'CTX=()',
-    '[[ -n "$PROFILE" ]] && CTX+=(--profile "$PROFILE")',
-    '[[ -n "$REGION" ]] && CTX+=(--region "$REGION")',
+    `CTX=(${requestContext.join(' ')})`,
+    `RESULT_CTX=(${responseContext.join(' ')})`,
     '',
   ]
 
@@ -618,13 +647,13 @@ function buildMysqlDbSystemGet(values: Record<string, string>, dyn: Record<strin
   lines.push(
     '',
     'oci mysql db-system get \\',
-    '  --db-system-id "$DB_SYSTEM_ID" "${GET_ARGS[@]}" "${CTX[@]}"',
+    '  --db-system-id "$DB_SYSTEM_ID" "${GET_ARGS[@]}" "${CTX[@]}" "${RESULT_CTX[@]}"',
   )
   return lines.join('\n')
 }
 
 /* Build a safety-gated Bash cleanup script for one exact compartment. */
-function buildCompartmentCleanup(values: Record<string, string>): string {
+function buildCompartmentCleanup(values: Record<string, string>, requestContext: string[] = []): string {
   const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
   const enabled = (key: string) => values[key] === 'true' ? 'true' : 'false'
   const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
@@ -635,8 +664,6 @@ function buildCompartmentCleanup(values: Record<string, string>): string {
     '# 기본값은 PREVIEW입니다. DELETE는 동일한 compartment OCID를 한 번 더 확인합니다.',
     'set -uo pipefail',
     '',
-    `PROFILE=${q(v('--profile', 'DEFAULT'))}`,
-    `REGION=${q(v('--region', 'ap-seoul-1'))}`,
     `COMPARTMENT=${q(v('--compartment-id', '<compartment-ocid>'))}`,
     `MODE=${q(v('--mode', 'PREVIEW').toUpperCase())}`,
     `CONFIRM_COMPARTMENT=${q(v('--confirm-compartment-id'))}`,
@@ -650,7 +677,7 @@ function buildCompartmentCleanup(values: Record<string, string>): string {
     `CLEAN_LOGGING=${enabled('--cleanup-logging')}`,
     `CLEAN_LOG_ANALYTICS=${enabled('--cleanup-log-analytics')}`,
     `CLEAN_NETWORK=${enabled('--cleanup-network')}`,
-    'CTX=(--profile "$PROFILE" --region "$REGION")',
+    `CTX=(${requestContext.join(' ')})`,
     '',
     'if [[ ! "$COMPARTMENT" =~ ^ocid1\\.compartment\\. ]]; then',
     '  echo "[ABORT] --compartment-id에는 컴파트먼트 OCID만 허용됩니다. 테넌시 OCID는 사용할 수 없습니다." >&2',
@@ -795,18 +822,13 @@ function buildCompartmentCleanup(values: Record<string, string>): string {
   ].join('\n')
 }
 
-function buildAllSubscriptionBalances(values: Record<string, string>): string {
-  const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
-  const profile = (values['--profile'] || '').trim() || 'DEFAULT'
-  const region = (values['--region'] || '').trim() || 'ap-seoul-1'
+function buildAllSubscriptionBalances(_values: Record<string, string>, requestContext: string[] = []): string {
   return [
     '#!/usr/bin/env bash',
     '# 모든 Subscription의 계약액 및 서비스 라인별 잔액 조회',
     'set -euo pipefail',
     '',
-    `PROFILE=${q(profile)}`,
-    `REGION=${q(region)}`,
-    'CTX=(--profile "$PROFILE" --region "$REGION")',
+    `CTX=(${requestContext.join(' ')})`,
     '',
     'command -v jq >/dev/null 2>&1 || { echo "[ERROR] jq가 필요합니다. OCI Cloud Shell에는 기본 설치되어 있습니다." >&2; exit 2; }',
     'TENANCY_ID=$(oci iam availability-domain list \\',
@@ -839,16 +861,11 @@ function buildAllSubscriptionBalances(values: Record<string, string>): string {
   ].join('\n')
 }
 
-function buildRootTenancyLookup(values: Record<string, string>): string {
-  const quote = (raw: string) => `'${raw.replaceAll("'", "'\\''")}'`
-  const profile = (values['--profile'] || '').trim() || 'DEFAULT'
-  const region = (values['--region'] || '').trim() || 'ap-seoul-1'
+function buildRootTenancyLookup(requestContext: string[] = []): string {
   return [
-    `PROFILE=${quote(profile)}`,
-    `REGION=${quote(region)}`,
+    `OCI_REQUEST_CONTEXT=(${requestContext.join(' ')})`,
     'TENANCY_ID=$(oci iam availability-domain list \\',
-    '  --profile "$PROFILE" --region "$REGION" \\',
-    '  --query \'data[0]."compartment-id"\' --raw-output)',
+    '  --query \'data[0]."compartment-id"\' --raw-output "${OCI_REQUEST_CONTEXT[@]}")',
     '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 프로필에서 테넌시 OCID를 확인하지 못했습니다: $TENANCY_ID" >&2; exit 2; }',
   ].join('\n')
 }
@@ -858,21 +875,19 @@ function buildIamCommand(
   selected: CliOperation,
   values: Record<string, string>,
   dyn: Record<string, boolean>,
+  requestContext: string[] = [],
+  responseContext: string[] = [],
 ): string {
   if (!cmd.iamResource) return selected.cmd
   const v = (key: string) => (values[key] || '').trim()
   const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
-  const profile = v('--profile') || 'DEFAULT'
-  const region = v('--region') || 'ap-seoul-1'
   const prelude: string[] = []
   const resolved = new Map<string, string>()
   let tenancyReady = false
   const ensureTenancy = () => {
     if (tenancyReady) return
     prelude.push(
-      `PROFILE=${q(profile)}`,
-      `REGION=${q(region)}`,
-      'CTX=(--profile "$PROFILE" --region "$REGION")',
+      `CTX=(${requestContext.join(' ')})`,
       'TENANCY_ID=$(oci iam availability-domain list \\',
       '  --query \'data[0]."compartment-id"\' --raw-output "${CTX[@]}")',
       '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 프로필에서 테넌시 OCID를 확인하지 못했습니다: $TENANCY_ID" >&2; exit 2; }',
@@ -977,11 +992,12 @@ function buildIamCommand(
     if (!value) continue
     args.push(`  ${option.name} ${q(value)}`)
   }
+  args.push(...requestContext.map(argument => `  ${argument}`), ...responseContext.map(argument => `  ${argument}`))
   const main = [selected.cmd, ...args].join(' \\\n')
   return prelude.length ? ['#!/usr/bin/env bash', 'set -euo pipefail', '', ...prelude, '', main].join('\n') : main
 }
 
-function buildIamMfaReset(values: Record<string, string>): string {
+function buildIamMfaReset(values: Record<string, string>, requestContext: string[] = []): string {
   const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
   const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
   return [
@@ -989,13 +1005,11 @@ function buildIamMfaReset(values: Record<string, string>): string {
     '# IAM User MFA TOTP reset — PREVIEW 기본, RESET은 이름 이중 확인 후 모든 등록 장치 삭제',
     'set -euo pipefail',
     '',
-    `PROFILE=${q(v('--profile', 'DEFAULT'))}`,
-    `REGION=${q(v('--region', 'ap-seoul-1'))}`,
     `USER_LOOKUP=${q(v('--user-lookup', 'NAME').toUpperCase())}`,
     `USER_INPUT=${q(v('--user-id', '<user-name-or-ocid>'))}`,
     `MODE=${q(v('--mode', 'PREVIEW').toUpperCase())}`,
     `CONFIRM_USER_NAME=${q(v('--confirm-user-name'))}`,
-    'CTX=(--profile "$PROFILE" --region "$REGION")',
+    `CTX=(${requestContext.join(' ')})`,
     'command -v jq >/dev/null 2>&1 || { echo "[ERROR] jq가 필요합니다. OCI Cloud Shell에는 기본 설치되어 있습니다." >&2; exit 2; }',
     '',
     '[[ "$USER_LOOKUP" == "NAME" || "$USER_LOOKUP" == "OCID" ]] || { echo "[ERROR] USER_LOOKUP은 NAME 또는 OCID여야 합니다." >&2; exit 2; }',
@@ -1037,18 +1051,26 @@ function buildIamMfaReset(values: Record<string, string>): string {
   ].join('\n')
 }
 
-function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>, operation: CrudVerb, action?: string): string {
-  if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
-  if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get')
-  if (cmd.compartmentCleanup) return buildCompartmentCleanup(values)
-  if (cmd.allSubscriptionBalances) return buildAllSubscriptionBalances(values)
-  if (cmd.iamMfaReset) return buildIamMfaReset(values)
-  if (cmd.resource === 'mysql' && operation === 'get') return buildMysqlDbSystemGet(values, dyn)
-  if (cmd.resource === 'mysql-backup' && operation === 'create') return buildMysqlBackupCreate(values, dyn)
-  if (cmd.manualBackup) return buildManualBackup(cmd.manualBackup, values)
+function buildCli(
+  cmd: CliCommand,
+  values: Record<string, string>,
+  dyn: Record<string, boolean>,
+  operation: CrudVerb,
+  action?: string,
+  requestContext: string[] = [],
+  responseContext: string[] = [],
+): string {
+  if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values, requestContext)
+  if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get', requestContext)
+  if (cmd.compartmentCleanup) return buildCompartmentCleanup(values, requestContext)
+  if (cmd.allSubscriptionBalances) return buildAllSubscriptionBalances(values, requestContext)
+  if (cmd.iamMfaReset) return buildIamMfaReset(values, requestContext)
+  if (cmd.resource === 'mysql' && operation === 'get') return buildMysqlDbSystemGet(values, dyn, requestContext, responseContext)
+  if (cmd.resource === 'mysql-backup' && operation === 'create') return buildMysqlBackupCreate(values, dyn, requestContext, responseContext)
+  if (cmd.manualBackup) return buildManualBackup(cmd.manualBackup, values, requestContext)
 
   const selected = (action ? cmd.actions?.[action] : cmd.operations?.[operation]) ?? cmd
-  if (cmd.iamResource) return buildIamCommand(cmd, selected, values, dyn)
+  if (cmd.iamResource) return buildIamCommand(cmd, selected, values, dyn, requestContext, responseContext)
 
   const prelude: string[] = []
   const args: string[] = []
@@ -1061,16 +1083,16 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
   const compRef = rootTenancyDynamic ? '"$TENANCY_ID"' : compDynamic ? '"$COMP"' : (compStatic ? compStatic : '<compartment-ocid>')
 
   if (rootTenancyDynamic) {
-    prelude.push(buildRootTenancyLookup(values))
+    prelude.push(buildRootTenancyLookup(requestContext))
   } else if (compDynamic) {
     const name = compStatic || '<compartment-name>'
-    prelude.push(
-      `COMP=$(oci iam compartment list --compartment-id-in-subtree true --all \\\n` +
-      `  --query "data[?name=='${name}'].id | [0]" --raw-output)`,
-    )
+    prelude.push(`COMP=$(${formatCliCommand('oci iam compartment list', [
+      '--compartment-id-in-subtree true', '--all',
+      `--query "data[?name=='${name}'].id | [0]"`, '--raw-output', ...requestContext,
+    ])})`)
   }
 
-  const selectedOptions = allOptions(selected)
+  const selectedOptions = allOptions(selected).filter(option => !isExecutionContextName(option.name))
   const activeOptionNames = new Set(selectedOptions
     .filter(option => isCliOptionValueActive(option, values[option.name] ?? ''))
     .map(option => option.name))
@@ -1106,24 +1128,24 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
     }
     if (o.name === '--availability-domain' && isDynamic(dyn, o.name)) {
       const n = Math.max(1, parseInt(v || '1', 10) || 1)
-      args.push(`  ${o.name} $(oci iam availability-domain list --compartment-id ${compRef} --query "data[${n - 1}].name" --raw-output)`)
+      args.push(`  ${o.name} $(${formatCliCommand('oci iam availability-domain list', [
+        `--compartment-id ${compRef}`, `--query "data[${n - 1}].name"`, '--raw-output', ...requestContext,
+      ])})`)
       continue
     }
     if (o.name === '--vcn-id' && isDynamic(dyn, o.name)) {
       const name = v || '<vcn-name>'
-      prelude.push(
-        `VCN=$(oci network vcn list --compartment-id ${compRef} \\\n` +
-        `  --query "data[?\\"display-name\\"=='${name}'].id | [0]" --raw-output)`,
-      )
+      prelude.push(`VCN=$(${formatCliCommand('oci network vcn list', [
+        `--compartment-id ${compRef}`, `--query "data[?\\"display-name\\"=='${name}'].id | [0]"`, '--raw-output', ...requestContext,
+      ])})`)
       args.push(`  ${o.name} "$VCN"`)
       continue
     }
     if (o.name === '--subnet-id' && isDynamic(dyn, o.name)) {
       const name = v || '<subnet-name>'
-      prelude.push(
-        `SUBNET=$(oci network subnet list --compartment-id ${compRef} \\\n` +
-        `  --query "data[?\\"display-name\\"=='${name}'].id | [0]" --raw-output)`,
-      )
+      prelude.push(`SUBNET=$(${formatCliCommand('oci network subnet list', [
+        `--compartment-id ${compRef}`, `--query "data[?\\"display-name\\"=='${name}'].id | [0]"`, '--raw-output', ...requestContext,
+      ])})`)
       args.push(`  ${o.name} "$SUBNET"`)
       continue
     }
@@ -1133,6 +1155,8 @@ function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<s
     }
     for (const argument of serializeCliOption(o, v)) args.push(`  ${argument}`)
   }
+
+  args.push(...requestContext.map(argument => `  ${argument}`), ...responseContext.map(argument => `  ${argument}`))
 
   const main = [selected.cmd, ...args].join(' \\\n')
   return prelude.length ? prelude.join('\n\n') + '\n\n' + main : main
@@ -1149,11 +1173,13 @@ export default function CliBuilderPage() {
   const rParam = sp.get('r')                                  // Ctrl+K 딥링크: ?r=<resource>
   const [active, setActive] = useState<string>('__custom')
   const [values, setValues] = useState<Record<string, string>>({})
+  const [executionValues, setExecutionValues] = useState<Record<string, string>>({})
   const [dyn, setDyn] = useState<Record<string, boolean>>({})
   const [customText, setCustomText] = useState('oci ')
   const [favs, setFavs] = useState<Favorite[]>(loadFavs())
   const [showOptional, setShowOptional] = useState(false)
   const [showDeprecated, setShowDeprecated] = useState(false)
+  const [contextOpen, setContextOpen] = useState(true)
   const [crudOperation, setCrudOperation] = useState<CrudVerb>('create')
   const [selectedAction, setSelectedAction] = useState<string | null>(null)
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
@@ -1166,7 +1192,8 @@ export default function CliBuilderPage() {
   useEffect(() => {
     if (!rParam || !CAT.commands[rParam]) return
     const operation = defaultOperation(CAT.commands[rParam])
-    setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setCrudOperation(operation); setSelectedAction(null)
+    const surface = selectedSurface(CAT.commands[rParam], operation)
+    setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setCrudOperation(operation); setSelectedAction(null)
     if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances || CAT.commands[rParam].iamMfaReset) setCustomOpen(true)
     const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
@@ -1206,10 +1233,14 @@ export default function CliBuilderPage() {
   const cmd = active !== '__custom' ? CAT.commands[active] : null
   const selectedActionMeta = selectedAction ? cmd?.actions?.[selectedAction] : undefined
   const selectedOperation = selectedActionMeta ?? cmd?.operations?.[crudOperation]
-  const formSections = cmd?.maintenanceReboot
+  const rawFormSections = cmd?.maintenanceReboot
     ? cmd.sections.filter((_, index) => crudOperation === 'update' || index === 0)
     : selectedOperation?.sections ?? cmd?.sections ?? []
-  const formAdvanced = selectedOperation?.advanced ?? cmd?.advanced ?? []
+  const formSections = rawFormSections
+    .map(section => ({ ...section, options: section.options.filter(option => !isExecutionContextName(option.name)) }))
+    .filter(section => section.options.length > 0)
+  const formAdvanced = (selectedOperation?.advanced ?? cmd?.advanced ?? [])
+    .filter(option => !isExecutionContextName(option.name))
   const formRules = selectedOperation?.rules ?? []
   const formOptionNotices = selectedOperation?.optionNotices ?? []
   const formDeprecated = [...formSections.flatMap(section => section.options), ...formAdvanced]
@@ -1226,29 +1257,47 @@ export default function CliBuilderPage() {
       ? '인스턴스 유지보수 재부팅 예정 시각을 변경합니다.'
       : '유지보수 재부팅을 연장할 수 있는 최대 시각을 조회합니다.'
     : selectedOperation?.help || cmd?.help
-  const cli = useMemo(
-    () => cmd ? buildCli(cmd, values, dyn, crudOperation, selectedAction ?? undefined) : customText,
-    [cmd, values, dyn, crudOperation, selectedAction, customText],
-  )
+  const executionSurface = selectedOperation ?? cmd
+  const contextOverrides = executionSurface?.contextOverrides ?? {}
+  const requestContextOptions = executionContextOptions(CAT.executionContext, contextOverrides, 'request')
+  const responseContextOptions = executionContextOptions(CAT.executionContext, contextOverrides, 'response')
+  const responseContextEnabled = supportsResponseContext(cmd)
+  const resolvedExecutionValues = { ...executionValues }
+  const queryContextOption = responseContextOptions.find(option => option.name === '--query')
+  if (queryContextOption?.multiSelect) {
+    const customQuery = (executionValues[subKey('--query', 'custom')] ?? '').trim()
+    resolvedExecutionValues['--query'] = customQuery || buildMultiSelectQuery(executionValues['--query'] ?? '')
+  }
+  const requestContextArguments = serializeExecutionContext(CAT.executionContext, contextOverrides, resolvedExecutionValues, 'request')
+  const responseContextArguments = responseContextEnabled
+    ? serializeExecutionContext(CAT.executionContext, contextOverrides, resolvedExecutionValues, 'response')
+    : []
+  const effectiveValues = { ...values, ...resolvedExecutionValues }
+  const cli = cmd
+    ? buildCli(cmd, effectiveValues, dyn, crudOperation, selectedAction ?? undefined, requestContextArguments, responseContextArguments)
+    : customText
 
   const selectResource = (res: string) => {
     const next = CAT.commands[res]
     setActive(res); setDyn({}); setShowOptional(false); setShowDeprecated(false); setSelectedAction(null)
     if (next) {
       const operation = defaultOperation(next)
-      setCrudOperation(operation); setValues(operationDefaults(next, operation))
-    } else setValues({})
+      const surface = selectedSurface(next, operation)
+      setCrudOperation(operation); setValues(operationDefaults(next, operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides))
+    } else { setValues({}); setExecutionValues({}) }
   }
   const selectOperation = (operation: CrudVerb) => {
     if (!isOperationAvailable(operation)) return
-    setCrudOperation(operation); setSelectedAction(null); setValues(cmd ? operationDefaults(cmd, operation) : {}); setDyn({}); setShowOptional(false); setShowDeprecated(false)
+    const surface = cmd ? selectedSurface(cmd, operation) : undefined
+    setCrudOperation(operation); setSelectedAction(null); setValues(cmd ? operationDefaults(cmd, operation) : {}); setExecutionValues(surface ? executionContextDefaults(CAT.executionContext, surface.contextOverrides) : {}); setDyn({}); setShowOptional(false); setShowDeprecated(false)
   }
   const selectAction = (action: string) => {
     if (!cmd?.actions?.[action]) return
-    setSelectedAction(action); setValues(actionDefaults(cmd, action)); setDyn({}); setShowOptional(false); setShowDeprecated(false)
+    setSelectedAction(action); setValues(actionDefaults(cmd, action)); setExecutionValues(executionContextDefaults(CAT.executionContext, cmd.actions[action].contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false)
   }
   const formOptions = [...formSections.flatMap(section => section.options), ...formAdvanced]
   const formOptionsByName = new Map(formOptions.map(option => [option.name, option]))
+  const setExecutionVal = (name: string, value: string) => setExecutionValues(current => ({ ...current, [name]: value }))
   const validationValues = { ...values }
   for (const option of formOptions) {
     if (JSONSPEC[option.name]) validationValues[option.name] = buildJsonValue(option.name, values)
@@ -1313,21 +1362,28 @@ export default function CliBuilderPage() {
     if (!name) return
     const fav: Favorite = {
       id: `fav-${favs.length}-${name}`, name, resource: active,
-      values: active === '__custom' ? { __custom: customText } : values, dyn, operation: crudOperation, action: selectedAction ?? undefined,
+      values: active === '__custom' ? { __custom: customText } : values,
+      context: active === '__custom' ? undefined : executionValues,
+      dyn, operation: crudOperation, action: selectedAction ?? undefined,
     }
     const next = [...favs, fav]; setFavs(next); saveFavs(next); showToast('즐겨찾기 저장됨')
   }
   const loadFav = (f: Favorite) => {
-    if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci '); setCustomOpen(true) }
+    if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci '); setExecutionValues({}); setCustomOpen(true) }
     else {
-      setActive(f.resource); setValues(f.values); setDyn(f.dyn ?? {}); setShowOptional(true); setShowDeprecated(false); setSelectedAction(null)
+      const legacy = splitLegacyExecutionContext(f.values)
+      setActive(f.resource); setValues(legacy.resource); setDyn(f.dyn ?? {}); setShowOptional(true); setShowDeprecated(false); setSelectedAction(null)
       const favoriteCommand = CAT.commands[f.resource]
       if (favoriteCommand) {
         const operation = f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultOperation(favoriteCommand)
         setCrudOperation(operation)
         if (f.action && favoriteCommand.actions?.[f.action]) setSelectedAction(f.action)
         const favoriteOperation = (f.action ? favoriteCommand.actions?.[f.action] : favoriteCommand.operations?.[operation]) ?? favoriteCommand
-        setShowDeprecated(allOptions(favoriteOperation).some(option => option.deprecated && isCliOptionValueActive(option, f.values[option.name] ?? '')))
+        setExecutionValues({
+          ...executionContextDefaults(CAT.executionContext, favoriteOperation.contextOverrides),
+          ...(f.context ?? legacy.context),
+        })
+        setShowDeprecated(allOptions(favoriteOperation).some(option => option.deprecated && isCliOptionValueActive(option, legacy.resource[option.name] ?? '')))
         if (favoriteCommand.crossCopy || favoriteCommand.compartmentCleanup || favoriteCommand.allSubscriptionBalances || favoriteCommand.iamMfaReset) setCustomOpen(true)
       }
     }
@@ -1351,6 +1407,13 @@ export default function CliBuilderPage() {
       subVal={k => values[subKey(o.name, k)] || ''}
       onSub={(k, v) => setVal(subKey(o.name, k), v)} />
   }
+  const executionField = (option: CliOption) => (
+    <Field key={option.name} o={option} value={executionValues[option.name] || ''}
+      onChange={value => setExecutionVal(option.name, value)} optional
+      dynamic={false} onToggleDynamic={undefined}
+      subVal={key => executionValues[subKey(option.name, key)] || ''}
+      onSub={(key, value) => setExecutionVal(subKey(option.name, key), value)} />
+  )
 
   if (!protectedState.data) return (
     <div className="cli-main">
@@ -1457,6 +1520,37 @@ export default function CliBuilderPage() {
             <input type="checkbox" checked={isOperationVerified(active, currentVerificationOperation)} onChange={() => toggleVerified(active, currentVerificationOperation)} />
             <span>현재 <b>{selectedActionMeta?.label ?? (hasCrud ? crudOperation.toUpperCase() : 'CUSTOM')}</b> 명령을 직접 실행해 확인함 — 확인한 동작만 <b className="cli-verified">파란색</b>으로 표시</span>
           </label>
+        )}
+
+        {cmd && (
+          <section className="cli-context-panel" aria-label="OCI CLI 공통 실행 컨텍스트">
+            <button type="button" className="cli-context-toggle" aria-expanded={contextOpen}
+              onClick={() => setContextOpen(open => !open)}>
+              <span className="cli-context-heading"><span aria-hidden="true">{contextOpen ? '▾' : '▸'}</span> 공통 실행 컨텍스트</span>
+              <span className="cli-context-summary">
+                <code>{executionValues['--profile'] || 'DEFAULT'}</code>
+                <span>{executionValues['--region'] || '프로필 리전'}</span>
+                <span>{executionValues['--auth'] || '기본 인증'}</span>
+              </span>
+            </button>
+            {contextOpen && (
+              <div className="cli-context-body">
+                <p>이 값은 자원 입력과 분리되며 동적 조회와 실제 명령에 동일하게 전달됩니다. Region을 비우면 프로필 설정을 사용합니다.</p>
+                <div className="cli-context-groups">
+                  <div className="cli-context-group">
+                    <div className="cli-context-group-title"><span>REQUEST</span> 접속·인증</div>
+                    {requestContextOptions.map(executionField)}
+                  </div>
+                  <div className={`cli-context-group${responseContextEnabled ? '' : ' unavailable'}`}>
+                    <div className="cli-context-group-title"><span>RESPONSE</span> 출력·조회</div>
+                    {responseContextEnabled
+                      ? responseContextOptions.map(executionField)
+                      : <p className="cli-context-unavailable">여러 OCI 명령을 묶은 운영 절차라 내부 검증 Query와 Output을 보호합니다. 접속·인증 컨텍스트만 공통 적용됩니다.</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
         )}
 
         {cmd?.crossCopy && (
