@@ -113,11 +113,20 @@
   - 회귀 검증: 209개 CRUD 동작의 Click↔카탈로그 타입 일치와 `--all`, `--force`, boolean value, multiple 최종 문자열을 자동 검사; 보호 데이터 L1/L2/L3·lint·build 통과
   - 사이트 커밋: `b765c25`
   - 배포: GitHub Pages run `31873175930` 성공; 라이브 `assets/index-isdVxO5Z.js`, `assets/index-C5Ebu7lI.css`, 보호 데이터 SHA-256 `094022F60D5AC959B0D084493E804EC56928E139986DF7F357C913FF2F486400`이 로컬과 일치
-- [ ] `P1-04` 필수·선택·조건부 필수·택일·상호배타 스키마 도입
+- [x] `P1-04` 필수·선택·조건부 필수·택일·상호배타 스키마 도입
   - CLI optional을 Console 관행만으로 무조건 required로 승격하지 않음
   - Instance CREATE의 image/source, subnet/create-vnic-details 같은 대체 관계를 그룹으로 표현
   - deprecated 옵션은 대체 옵션과 함께 표시하거나 기본 화면에서 제외
   - 완료 기준: 공식 문서의 required/optional 관계와 UI가 일치하고 조건부 규칙을 자동 테스트
+  - 완료: 2026-08-15
+  - required 교정: Console 관행으로 승격하던 24개 옵션을 원복하고, Click-backed CRUD 190개 동작의 required 불일치 0건 확인
+  - 관계 스키마: `required|optional|conditional`, `oneOf`, `mutuallyExclusive`, `requires`, `optionNotices`, `deprecated|replacement` 도입
+  - Instance CREATE: 절대 필수는 `--availability-domain`, `--compartment-id`, `--subnet-id`; `--image-id|--source-details|--source-boot-volume-id`는 정확히 하나를 고르는 조건부 필수로 구현
+  - VNIC 교정: 공식 최종 Click·cmdref에 없는 `--create-vnic-details`를 재도입하지 않고, `--subnet-id`와 공개 VNIC 개별 옵션을 대안으로 명시
+  - 사용 중단 옵션: 카탈로그 내 5개를 기본 폼에서 숨기고 별도 토글로 분리; Block Volume `--size-in-mbs`와 VCN `--cidr-block`에 공식 대체 옵션 표시
+  - 회귀 검증: 공식 릴리스 cmdref·final Click·확장 callback과 스키마를 대조하고 보호 데이터 L1/L2/L3·lint·build 통과
+  - 사이트 커밋: `375af47`
+  - 배포: GitHub Pages run `31874035399` 성공; 라이브 `assets/index-DuynVMnz.js`, `assets/index-Cm4zacWe.css`, 보호 데이터 SHA-256 `189C5939D85485F95A8DEF834921065AF3B673D854603545743F629EDE757948`이 로컬과 일치
 - [ ] `P1-05` 미완성 명령 안전장치
   - 필수 또는 조건부 필수값이 빠지면 부족한 항목을 명시
   - 미완성 최종 명령은 미리보기로 보여줄 수 있으나 복사·즐겨찾기 실행본 저장은 비활성화
@@ -338,12 +347,13 @@
 
 ## 5. 다음 작업
 
-다음 착수 항목은 `P1-04 필수·선택·조건부 필수·택일·상호배타 스키마 도입`이다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
+다음 착수 항목은 `P1-05 미완성 명령 안전장치`다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
 
 ## 6. 변경 이력
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-15 | P1-04 완료 — required 승격 제거, 조건부·택일·상호배타 스키마와 deprecated 기본 숨김 UI 도입 | `375af47` | Codex |
 | 2026-08-15 | P1-03 완료 — flag/boolean/multiple/choices/JSON/file/datetime 분리, 충돌 UI와 최종 명령 직렬화 회귀 검증 | `b765c25` | Codex |
 | 2026-08-15 | P1-02 완료 — 공식 릴리스의 최종 Click 트리로 전환, extended 공개 이름·cmdref 회귀·오프라인 재현성 검증 | `7d9f9e6` | Codex |
 | 2026-08-15 | P1-01 완료 — 공식 OCI CLI v3.90.2 단일 원천 잠금, 절대 경로·혼합 버전 제거, 재현성 검증 | 사이트 `6f2b547` / blog-db `600de31` | Codex |
