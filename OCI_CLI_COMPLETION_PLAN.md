@@ -127,10 +127,17 @@
   - 회귀 검증: 공식 릴리스 cmdref·final Click·확장 callback과 스키마를 대조하고 보호 데이터 L1/L2/L3·lint·build 통과
   - 사이트 커밋: `375af47`
   - 배포: GitHub Pages run `31874035399` 성공; 라이브 `assets/index-DuynVMnz.js`, `assets/index-Cm4zacWe.css`, 보호 데이터 SHA-256 `189C5939D85485F95A8DEF834921065AF3B673D854603545743F629EDE757948`이 로컬과 일치
-- [ ] `P1-05` 미완성 명령 안전장치
+- [x] `P1-05` 미완성 명령 안전장치
   - 필수 또는 조건부 필수값이 빠지면 부족한 항목을 명시
   - 미완성 최종 명령은 미리보기로 보여줄 수 있으나 복사·즐겨찾기 실행본 저장은 비활성화
   - 완료 기준: 실행 불가능한 명령을 "완성된 최종 명령"으로 복사할 수 없음
+  - 완료: 2026-08-15
+  - 검증기: `required`, 정확히 하나를 고르는 `oneOf`, `mutuallyExclusive`, `requires`, 옵션 간 `conflictsWith`를 단일 순수 함수로 판정
+  - 동적 조회 판정: 입력 없이 확정 가능한 루트 테넌시와 기본 AD만 충족으로 인정하고, 리소스 이름이 필요한 동적 조회는 빈 값일 때 미완성 유지
+  - 화면 안전장치: 부족한 입력과 관계 위반을 명시하고 `미완성 명령 미리보기`로 구분; 복사·Alt+C·즐겨찾기 저장 비활성화
+  - 회귀 검증: Instance CREATE 빈 입력·정상 Image 부팅·복수 부팅 소스·Boot Volume 크기 의존성 및 `--all/--limit` 충돌 검증, 보호 데이터 L1/L2/L3·lint·build 통과
+  - 사이트 커밋: `539569a`
+  - 배포: GitHub Pages run `31874658029` 성공; 라이브 JS `assets/index-C5ofnAGc.js` SHA-256 `BF5C64D4ADCD84F51A412EB0196DA468FA7D927EC3769439CF987CD67A5FA643`, CSS `assets/index-s5uSnS7O.css` SHA-256 `B78B2411C0BD829E9D5DB8DCF42589B08AC7DEA73AF4F12ECFB671846A38D722`, 보호 데이터 SHA-256 `84CE55B0AB7F73B6F5C11178C3A8AF8EA45378FC34551F6AA03167B617CB50A2`가 로컬과 일치
 - [ ] `P1-06` 공통 실행 컨텍스트 계층 도입
   - Profile, Region, Auth, Endpoint, Output, Query를 각 리소스와 분리된 공통 영역에서 관리
   - 동적 조회와 본 명령에 동일한 컨텍스트 전달
@@ -347,12 +354,13 @@
 
 ## 5. 다음 작업
 
-다음 착수 항목은 `P1-05 미완성 명령 안전장치`다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
+다음 착수 항목은 `P1-06 공통 실행 컨텍스트 계층 도입`이다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
 
 ## 6. 변경 이력
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-15 | P1-05 완료 — 미완성 명령 사유 표시, 미리보기 구분, 복사·단축키·즐겨찾기 저장 차단 및 회귀 검증 | `539569a` | Codex |
 | 2026-08-15 | P1-04 완료 — required 승격 제거, 조건부·택일·상호배타 스키마와 deprecated 기본 숨김 UI 도입 | `375af47` | Codex |
 | 2026-08-15 | P1-03 완료 — flag/boolean/multiple/choices/JSON/file/datetime 분리, 충돌 UI와 최종 명령 직렬화 회귀 검증 | `b765c25` | Codex |
 | 2026-08-15 | P1-02 완료 — 공식 릴리스의 최종 Click 트리로 전환, extended 공개 이름·cmdref 회귀·오프라인 재현성 검증 | `7d9f9e6` | Codex |
