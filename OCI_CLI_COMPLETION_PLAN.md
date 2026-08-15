@@ -186,9 +186,16 @@
 
 ### Phase 2 — P1 안전한 사용 흐름과 Console 정보 구조
 
-- [ ] `P2-01` 기본 진입 동작을 안전한 LIST 또는 GET으로 변경
+- [x] `P2-01` 기본 진입 동작을 안전한 LIST 또는 GET으로 변경
   - 리소스별 `preferredOperation`을 명시하고 CREATE 우선 fallback 제거
   - LIST가 없으면 GET, 둘 다 없을 때만 가장 안전한 동작 선택
+  - 완료: 2026-08-15
+  - 카탈로그 결과: CRUD 리소스 44개는 모두 LIST, Instance Maintenance Reboot 전용 흐름은 GET으로 최초 진입
+  - 안전장치: 카탈로그 생성기와 UI 양쪽에 `LIST > GET > CREATE > UPDATE > DELETE` 정책을 적용하고, 변경 작업 preference가 지원되는 LIST/GET을 앞설 수 없도록 차단
+  - 진입 경로: 딥링크, 좌측 리소스 선택, 유효하지 않은 즐겨찾기 fallback이 동일한 `defaultCliOperation`을 사용
+  - 회귀 검증: `test:oci-defaults`를 보호 데이터 생성 체인에 포함하고, 219개 최종 명령 Bash·필수값·상호배타·위험 확인 회귀 검사 유지
+  - 사이트 커밋: `4c54320`
+  - 배포: GitHub Pages run `31878599863` 성공; 라이브 JS `assets/index-D9i3FDON.js` SHA-256 `FA5EE7317F67C4E0F2C7F76EB0A8BB53BEF7F12AC853CF12A8B863E6AF045B9D`, CSS `assets/index-CEVH-R3Q.css` SHA-256 `73C56BC3FC7F6A14A2CE7C234F6060A54235E0D3908DA390E2B08392CDAFC947`, 보호 데이터 SHA-256 `1800C14AECB71B916E792E8EAC4A5E6F766D3E3B51DF1B7AA6FD7D55EFD3F445`가 로컬과 일치
 - [ ] `P2-02` 모든 필수 OCID 동적 조회 전수표 작성 및 구현
   - 최초 기준: 필수 ID 109회, 동적 조회가 없는 유형 36종
   - 리소스별 이름 검색, 선행 LIST 선택, 직접 OCID 입력을 함께 제공
@@ -378,12 +385,13 @@
 
 ## 5. 다음 작업
 
-다음 착수 항목은 `P2-01 기본 진입 동작을 안전한 LIST 또는 GET으로 변경`이다.
+다음 착수 항목은 `P2-02 모든 필수 OCID 동적 조회 전수표 작성 및 구현`이다.
 
 ## 6. 변경 이력
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-15 | P2-01 완료 — 44개 CRUD 리소스 LIST 기본 진입, 유지보수 GET 기본 진입, 공통 안전 정책·회귀 게이트 구축 | `4c54320` | Codex |
 | 2026-08-15 | P1-08 및 Phase 1 완료 — 219개 최종 명령·Bash 전수 검사, 직렬화 회귀, shell quoting 결함 교정 | `e45fe7d` | Codex |
 | 2026-08-15 | P1-07 완료 — 190개 명령·1,874개 옵션 공식 메타데이터 계약, 정확한 승인 예외, 최신 릴리스·정기 CI 차단 게이트 구축 | `d7253d1` | Codex |
 | 2026-08-15 | P1-06 완료 — OCI root 공통 실행 컨텍스트 분리, 동적 조회·본 명령 동일 Request 전달, 최종 Response 격리 및 회귀 검증 | `c9ae258` | Codex |
