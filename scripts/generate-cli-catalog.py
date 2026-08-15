@@ -479,7 +479,9 @@ def annotate_json_inputs(command):
             option['jsonFieldChoices'] = INSTANCE_SHAPE_CONFIG_FIELD_CHOICES
             option['jsonNotice'] = ('Burstable은 지원 Shape에서만 사용할 수 있습니다. '
                                     'BASELINE_1_8은 12.5%, BASELINE_1_2는 50%, '
-                                    'BASELINE_1_1은 Burstable 비활성입니다.')
+                                    'BASELINE_1_1은 Burstable 비활성입니다. 기존 SR-IOV 인스턴스를 '
+                                    'Burstable로 전환할 때는 --launch-options의 networkType을 '
+                                    'PARAVIRTUALIZED로 함께 변경해야 합니다.')
         if command_path == 'oci compute instance launch' and option['name'] == '--image-id':
             # 일반 exact-name 조회기는 platform image의 OS/버전/shape 선택을 표현하지
             # 못한다. 전용 조회 결과 picker가 최종 OCID를 확정하므로 본 명령에는 그대로 전달한다.

@@ -107,7 +107,8 @@ for (const [operation, shapeConfig] of [['launch', launchShapeConfig], ['update'
   if (JSON.stringify(Object.keys(shapeConfig?.jsonTemplate ?? {})) !== JSON.stringify(shapeFields)
     || JSON.stringify(shapeConfig?.jsonFieldChoices?.baselineOcpuUtilization?.map(choice => choice.value))
       !== JSON.stringify(['BASELINE_1_8', 'BASELINE_1_2', 'BASELINE_1_1'])
-    || !shapeConfig?.jsonNotice?.includes('Burstable')) {
+    || !shapeConfig?.jsonNotice?.includes('Burstable')
+    || !shapeConfig.jsonNotice.includes('PARAVIRTUALIZED')) {
     fail(`Instance ${operation} shape-config lost its official Burstable schema`)
   }
 }
