@@ -7,6 +7,7 @@ import ts from 'typescript'
 const catalog = JSON.parse(readFileSync(resolve('.protected-cache/cliCatalog.json'), 'utf8'))
 const modelSource = readFileSync(resolve('src/lib/cliOptionModel.ts'), 'utf8')
 const pageSource = readFileSync(resolve('src/pages/CliBuilderPage.tsx'), 'utf8')
+const cssSource = readFileSync(resolve('src/index.css'), 'utf8')
 const compiled = ts.transpileModule(modelSource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText
@@ -79,10 +80,17 @@ for (const marker of [
   if (!pageSource.includes(marker)) fail(`CLI validation UI/guard is missing: ${marker}`)
 }
 
+const validationPanelRule = cssSource.match(/\.cli-validation-panel\s*\{([^}]*)\}/s)?.[1] ?? ''
+if (!/width:\s*min\(100%,\s*560px\)/.test(validationPanelRule)
+  || !/margin:\s*0\s+0\s+10px\s+auto/.test(validationPanelRule)) {
+  fail('CLI preflight validation panel must stay right-aligned on wide screens and fluid on narrow screens')
+}
+
 console.log(JSON.stringify({
   emptyIssueCodes: codesOf(empty),
   instanceImageValid: validImage.valid,
   multipleSourceIssueCodes: codesOf(multipleSources),
   dependencyIssueCodes: codesOf(missingDependency),
   allLimitIssueCodes: codesOf(allLimit),
+  validationPanelPlacement: 'right-fluid',
 }))

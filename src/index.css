@@ -737,7 +737,13 @@ select.cli-input { cursor: pointer; }
 }
 .cli-optional-toggle:hover { color: var(--text); border-color: var(--text-dim); }
 .cli-rule-panel { display: grid; gap: 8px; margin: 0 0 18px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-inset); }
-.cli-validation-panel { display: grid; gap: 7px; margin-bottom: 10px; padding: 11px 13px; border: 1px solid color-mix(in srgb, #f59e0b 58%, var(--line)); border-radius: 12px; background: color-mix(in srgb, #f59e0b 8%, var(--bg)); color: var(--text-dim); font-size: 12px; line-height: 1.55; }
+.cli-validation-panel {
+  display: grid; gap: 7px; width: min(100%, 560px); margin: 0 0 10px auto; padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, #f59e0b 58%, var(--line)); border-radius: 12px;
+  background: color-mix(in srgb, #f59e0b 8%, var(--bg)); color: var(--text-dim);
+  box-shadow: 0 12px 28px color-mix(in srgb, #000 18%, transparent);
+  font-size: 12px; line-height: 1.55;
+}
 .cli-validation-title { color: #fbbf24; font-weight: 800; letter-spacing: .02em; }
 .cli-validation-panel ul { display: grid; gap: 6px; margin: 0; padding-left: 19px; }
 .cli-validation-panel li { padding-left: 2px; }
