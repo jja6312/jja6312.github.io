@@ -638,6 +638,26 @@ kbd {
 .cli-crud-op:focus-visible { outline: 2px solid var(--crud-color); outline-offset: 2px; }
 .cli-crud-op:disabled { opacity: .28; cursor: not-allowed; filter: grayscale(.35); }
 .cli-crud-op:disabled .cli-crud-icon { background: transparent; border: 1px dashed var(--crud-color); }
+.cli-action-strip {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin: -2px 0 12px; padding: 8px 10px; border: 1px solid var(--line-soft);
+  border-radius: 12px; background: color-mix(in srgb, var(--bg-inset) 76%, transparent);
+}
+.cli-action-label { margin-right: 2px; color: var(--text-faint); font-size: 10px; letter-spacing: .12em; }
+.cli-action-op {
+  --action-color: #4b9cff; display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 10px; border: 1px solid color-mix(in srgb, var(--action-color) 52%, var(--border));
+  border-radius: 999px; color: var(--action-color); background: color-mix(in srgb, var(--action-color) 8%, var(--bg-card));
+  font: 700 12px/1.2 inherit; cursor: pointer; transition: .15s ease;
+}
+.cli-action-op.tone-warning { --action-color: #f0c94b; }
+.cli-action-op.tone-danger { --action-color: #ff6376; }
+.cli-action-op:hover, .cli-action-op.selected {
+  border-color: var(--action-color); background: color-mix(in srgb, var(--action-color) 18%, var(--bg-card));
+  transform: translateY(-1px);
+}
+.cli-action-op.selected { box-shadow: 0 0 0 2px color-mix(in srgb, var(--action-color) 18%, transparent); }
+.cli-action-op.verified { border-color: #3b82f6; }
 .cli-form { margin-bottom: 22px; }
 .cli-section-label { font-size: 11px; color: var(--accent); letter-spacing: 1px; margin: 4px 0 12px; }
 .cli-section-label span { color: var(--text-faint); }

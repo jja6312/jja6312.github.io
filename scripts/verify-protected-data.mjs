@@ -9,6 +9,7 @@ import ts from 'typescript'
 const file = JSON.parse(readFileSync(resolve('public/protected-data.json'), 'utf8'))
 const verifiers = JSON.parse(readFileSync(resolve('src/data/authVerifiers.json'), 'utf8'))
 const cliBuilder = readFileSync(resolve('src/pages/CliBuilderPage.tsx'), 'utf8')
+const generatedCliCatalog = JSON.parse(readFileSync(resolve('.protected-cache/cliCatalog.json'), 'utf8'))
 const { subtle } = webcrypto
 const dec = new TextDecoder()
 const fromB64 = value => new Uint8Array(Buffer.from(value, 'base64'))
@@ -188,6 +189,52 @@ for (const level of [1, 2, 3]) {
   for (const field of ['reference-ticket-number', 'announcement-type', 'affected-regions', 'time-one-value']) {
     if (!announcementQuery.includes(field)) throw new Error(`L${level} Announcements query missing ${field}`)
   }
+  const identityCategory = bundle.cliCatalog.categories.find(category => category.id === '06-identity-security')
+  const identityGroup = identityCategory?.groups.find(group => group.label === 'Identity')
+  if (JSON.stringify(identityGroup?.resources) !== JSON.stringify(['iam-user', 'iam-group', 'iam-policy'])) {
+    throw new Error(`L${level} Identity & Security > Identity menu invalid`)
+  }
+  const expectedIamCommands = {
+    'iam-user': 'oci iam user', 'iam-group': 'oci iam group', 'iam-policy': 'oci iam policy',
+  }
+  for (const [resource, prefix] of Object.entries(expectedIamCommands)) {
+    const command = bundle.cliCatalog.commands[resource]
+    if (command?.iamResource !== resource.replace('iam-', '')
+      || JSON.stringify(Object.keys(command.operations ?? {})) !== JSON.stringify(['get', 'list', 'create', 'update', 'delete'])) {
+      throw new Error(`L${level} ${resource} CRUD metadata invalid`)
+    }
+    for (const operation of ['get', 'list', 'create', 'update', 'delete']) {
+      if (command.operations[operation].cmd !== `${prefix} ${operation}`) {
+        throw new Error(`L${level} ${resource} ${operation} command invalid`)
+      }
+    }
+  }
+  const iamUser = bundle.cliCatalog.commands['iam-user']
+  if (JSON.stringify(requiredNames(iamUser.operations.create)) !== JSON.stringify(['--description', '--name'])) {
+    throw new Error(`L${level} IAM User CREATE required fields invalid`)
+  }
+  if (iamUser.actions?.['reset-password']?.cmd !== 'oci iam user ui-password create-or-reset'
+    || iamUser.actions?.['assign-group']?.cmd !== 'oci iam group add-user'
+    || iamUser.actions?.['upload-api-key']?.cmd !== 'oci iam user api-key upload') {
+    throw new Error(`L${level} IAM User actions missing`)
+  }
+  const apiKeyOptions = iamUser.actions['upload-api-key'].sections.flatMap(section => section.options)
+  if (!apiKeyOptions.find(option => option.name === '--key')
+    || !apiKeyOptions.find(option => option.name === '--key-file')
+    || apiKeyOptions.find(option => option.name === '--key-source')?.defaultValue !== 'KEY_FILE') {
+    throw new Error(`L${level} API key mutually exclusive input controls invalid`)
+  }
+  if (JSON.stringify(requiredNames(bundle.cliCatalog.commands['iam-group'].operations.create)) !== JSON.stringify(['--description', '--name'])) {
+    throw new Error(`L${level} IAM Group CREATE required fields invalid`)
+  }
+  if (JSON.stringify(requiredNames(bundle.cliCatalog.commands['iam-policy'].operations.create))
+    !== JSON.stringify(['--compartment-id', '--description', '--name', '--statements'])) {
+    throw new Error(`L${level} IAM Policy CREATE required fields invalid`)
+  }
+  const iamMfaReset = bundle.cliCatalog.commands['iam-user-mfa-reset']
+  if (!iamMfaReset?.iamMfaReset || iamMfaReset.cmd !== 'oci iam mfa-totp-device list') {
+    throw new Error(`L${level} IAM User MFA reset custom workflow missing`)
+  }
   const allBalances = bundle.cliCatalog.commands['all-subscription-balances']
   if (!allBalances?.allSubscriptionBalances
     || allBalances.cmd !== 'oci onesubscription organization-subscription organization-subscription list') {
@@ -209,7 +256,7 @@ for (const level of [1, 2, 3]) {
   }
   const fullCrudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations
     && ['get', 'list', 'create', 'update', 'delete'].every(operation => command.operations[operation]?.cmd))
-  if (fullCrudCommands.length !== 38) throw new Error(`L${level} full CRUD resource count invalid: ${fullCrudCommands.length}`)
+  if (fullCrudCommands.length !== 41) throw new Error(`L${level} full CRUD resource count invalid: ${fullCrudCommands.length}`)
   for (const command of fullCrudCommands) {
     for (const operation of ['get', 'list', 'create', 'update', 'delete']) {
       if (!command.operations[operation]?.cmd) throw new Error(`L${level} ${command.resource} ${operation} 명령 누락`)
@@ -261,6 +308,15 @@ if (!cliBuilder.includes('cmd.rootTenancyLookup')
 if (!cliBuilder.includes('function buildAllSubscriptionBalances')
   || !cliBuilder.includes('allSubscriptionBalances) return buildAllSubscriptionBalances')) {
   throw new Error('all Subscription balances custom builder not connected')
+}
+if (!cliBuilder.includes('function buildIamCommand')
+  || !cliBuilder.includes('function buildIamMfaReset')
+  || !cliBuilder.includes('cmd.iamResource) return buildIamCommand')
+  || !cliBuilder.includes('cmd.iamMfaReset) return buildIamMfaReset')) {
+  throw new Error('IAM dynamic/action builders not connected')
+}
+if (!cliBuilder.includes('cli-action-strip') || !cliBuilder.includes('action:${selectedAction}')) {
+  throw new Error('IAM action selection or verification UI missing')
 }
 if (!cliBuilder.includes('Custom CLI') || !cliBuilder.includes('setCustomOpen(open => !open)')) {
   throw new Error('Custom CLI accordion missing')
@@ -353,6 +409,97 @@ if (!context.dynamicGetScript.includes('oci mysql db-system list')
   || context.directGetScript.includes('oci mysql db-system list')
   || !context.dynamicGetScript.includes('DB_SYSTEM_COUNT')) {
   throw new Error('MySQL DB System GET name/OCID selection mode invalid')
+}
+
+const iamBuilderStart = cliBuilder.indexOf('function buildIamCommand')
+const iamBuilderEnd = cliBuilder.indexOf('\nfunction buildCli', iamBuilderStart)
+if (iamBuilderStart < 0 || iamBuilderEnd < 0) throw new Error('IAM builder source extraction failed')
+const iamUserCatalog = generatedCliCatalog.commands['iam-user']
+const iamPolicyCatalog = generatedCliCatalog.commands['iam-policy']
+const iamHarness = `
+const allOptions = c => [...c.sections.flatMap(s => s.options), ...c.advanced]
+const DYNAMIC = {'--compartment-id': {}, '--user-id': {}, '--group-id': {}, '--policy-id': {}}
+const isDynamic = (dyn, name) => name in DYNAMIC ? (dyn[name] ?? true) : false
+${cliBuilder.slice(iamBuilderStart, iamBuilderEnd)}
+const userCommand = ${JSON.stringify(iamUserCatalog)}
+const policyCommand = ${JSON.stringify(iamPolicyCatalog)}
+globalThis.userCreate = buildIamCommand(userCommand, userCommand.operations.create, {
+  '--name': 'ops.user@example.com', '--description': 'OCI operations', '--email': 'ops.user@example.com',
+  '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+}, {})
+globalThis.passwordReset = buildIamCommand(userCommand, userCommand.actions['reset-password'], {
+  '--user-id': 'ops.user@example.com', '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+}, {})
+globalThis.groupAssign = buildIamCommand(userCommand, userCommand.actions['assign-group'], {
+  '--user-id': 'ops.user@example.com', '--group-id': 'OCI-Operators', '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+}, {})
+globalThis.apiKeyUpload = buildIamCommand(userCommand, userCommand.actions['upload-api-key'], {
+  '--user-id': 'ocid1.user.oc1..example', '--key-source': 'KEY_FILE', '--key-file': '/home/opc/.oci/oci_api_key_public.pem',
+  '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+}, {'--user-id': false})
+globalThis.policyCreate = buildIamCommand(policyCommand, policyCommand.operations.create, {
+  '--compartment-id': 'ROOT', '--name': 'OCI-Operators-Policy', '--description': 'OCI operators permissions',
+  '--statements': '["Allow group OCI-Operators to inspect all-resources in tenancy"]',
+  '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+}, {})
+globalThis.mfaPreview = buildIamMfaReset({
+  '--user-lookup': 'NAME', '--user-id': 'ops.user@example.com', '--mode': 'PREVIEW',
+  '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+})
+globalThis.mfaReset = buildIamMfaReset({
+  '--user-lookup': 'NAME', '--user-id': 'ops.user@example.com', '--mode': 'RESET',
+  '--confirm-user-name': 'ops.user@example.com', '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+})
+`
+const iamContext = {}
+vm.runInNewContext(ts.transpileModule(iamHarness, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+}).outputText, iamContext)
+const iamScripts = {
+  userCreate: iamContext.userCreate,
+  passwordReset: iamContext.passwordReset,
+  groupAssign: iamContext.groupAssign,
+  apiKeyUpload: iamContext.apiKeyUpload,
+  policyCreate: iamContext.policyCreate,
+  mfaPreview: iamContext.mfaPreview,
+  mfaReset: iamContext.mfaReset,
+}
+for (const [name, script] of Object.entries(iamScripts)) {
+  const syntax = spawnSync('C:\\Program Files\\Git\\bin\\bash.exe', ['-n'], { input: script, encoding: 'utf8' })
+  if (syntax.status !== 0) throw new Error(`IAM ${name} bash syntax invalid: ${syntax.stderr}`)
+}
+for (const [name, expected] of Object.entries({
+  userCreate: 'oci iam user create',
+  passwordReset: 'oci iam user ui-password create-or-reset',
+  groupAssign: 'oci iam group add-user',
+  apiKeyUpload: 'oci iam user api-key upload',
+  policyCreate: 'oci iam policy create',
+})) {
+  if (!iamScripts[name].includes(expected)) throw new Error(`IAM ${name} command missing: ${expected}`)
+}
+if (!iamContext.passwordReset.includes('USER_ID_COUNT=$(oci iam user list')
+  || !iamContext.groupAssign.includes('GROUP_ID_COUNT=$(oci iam group list')
+  || !iamContext.groupAssign.includes('--user-id "$USER_ID"')
+  || !iamContext.groupAssign.includes('--group-id "$GROUP_ID"')) {
+  throw new Error('IAM User/Group exact-name dynamic lookup missing')
+}
+if (!iamContext.apiKeyUpload.includes('--key-file "/home/opc/.oci/oci_api_key_public.pem"')
+  || iamContext.apiKeyUpload.includes('oci iam user list')) {
+  throw new Error('IAM API key direct User OCID or public key file handling invalid')
+}
+if (!iamContext.policyCreate.includes('TENANCY_ID=$(oci iam availability-domain list')
+  || !iamContext.policyCreate.includes('--compartment-id "$TENANCY_ID"')
+  || !iamContext.policyCreate.includes('--statements "[\\"Allow group OCI-Operators')) {
+  throw new Error('IAM Policy ROOT tenancy or statement handling invalid')
+}
+for (const script of [iamContext.mfaPreview, iamContext.mfaReset]) {
+  for (const expected of ['oci iam mfa-totp-device list', 'oci iam mfa-totp-device delete', '--mfa-totp-device-id "$MFA_ID"', '--force']) {
+    if (!script.includes(expected)) throw new Error(`IAM MFA workflow missing: ${expected}`)
+  }
+}
+if (!iamContext.mfaReset.includes('CONFIRM_USER_NAME="ops.user@example.com"')
+  || !iamContext.mfaReset.includes('if [[ "$CONFIRM_USER_NAME" != "$USER_NAME" ]]')) {
+  throw new Error('IAM MFA RESET confirmation guard missing')
 }
 
 const allBalancesStart = cliBuilder.indexOf('function buildAllSubscriptionBalances')

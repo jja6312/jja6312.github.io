@@ -44,6 +44,9 @@ STRUCTURE = [
     ('Oracle Base Database', ['base-db']),
     ('MySQL HeatWave', ['mysql', 'mysql-backup']),
   ]),
+  ('06-identity-security', 'Identity & Security', [
+    ('Identity', ['iam-user', 'iam-group', 'iam-policy']),
+  ]),
   ('06-observability', 'Observability', [
     ('Monitoring', ['alarm']),
     ('Notifications', ['topic', 'subscription']),
@@ -68,6 +71,7 @@ RES_LABEL = {
   'public-ip': 'Public IP', 'load-balancer': 'Load Balancer', 'network-load-balancer': 'Network Load Balancer',
   'autonomous-database': 'Autonomous Database', 'base-db': 'Base Database System', 'mysql': 'MySQL DB System',
   'mysql-backup': 'MySQL Backup',
+  'iam-user': 'Users', 'iam-group': 'Groups', 'iam-policy': 'Policies',
   'subscription-list': 'Subscriptions', 'subscription-balance': 'Subscription Balance',
   'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription', 'announcement': 'Announcements',
 }
@@ -312,7 +316,10 @@ def find_operation(commands, group, operation):
     return None
 
 catalog = {'categories': [], 'commands': {}}
-MANUAL_CATEGORY_RESOURCES = {'instance-maintenance-reboot', 'instance-boot-volume-backup'}
+MANUAL_CATEGORY_RESOURCES = {
+    'instance-maintenance-reboot', 'instance-boot-volume-backup',
+    'iam-user', 'iam-group', 'iam-policy',
+}
 placed = set()
 for cat_id, cat_label, groups in STRUCTURE:
     cat = {'id': cat_id, 'label': cat_label, 'groups': []}
@@ -464,6 +471,221 @@ def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=Fa
         o['flag'] = True
     return o
 
+def _io(name, req, help, ph='', **metadata):
+    """IAM 수동 큐레이션 옵션. OCI CLI 3.90.2 공식 cmdref 기준."""
+    option = _co(
+        name, req, help, ph,
+        default=metadata.pop('default', None),
+        choices=metadata.pop('choices', None),
+        flag=metadata.pop('flag', False),
+    )
+    option.update(metadata)
+    return option
+
+def _iam_env():
+    return [
+        _io('--profile', False, 'OCI CLI 프로필 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT', shellQuote=True),
+        _io('--region', False, 'IAM 요청을 보낼 리전. IAM 변경은 홈 리전에서 먼저 반영됩니다.', 'ap-seoul-1', default='ap-seoul-1', shellQuote=True),
+    ]
+
+def _iam_op(cmd, help_text, sections, advanced=None, **metadata):
+    operation = {'cmd': cmd, 'help': help_text, 'sections': sections, 'advanced': advanced or []}
+    operation.update(metadata)
+    return operation
+
+def _iam_user():
+    user_id = _io('--user-id', True, '대상 User OCID. 동적 조회에서는 정확한 User 이름을 입력합니다.', 'operator@example.com', shellQuote=True)
+    return {
+        'resource': 'iam-user', 'label': 'Users', 'cmd': 'oci iam user create', 'iamResource': 'user',
+        'preferredOperation': 'create',
+        'help': ('Identity & Security > Identity > Users. User 생성 뒤에는 Group 할당과 Console password 또는 '
+                 'API signing key 발급이 별도로 필요합니다.'),
+        'sections': [], 'advanced': [],
+        'operations': {
+            'get': _iam_op('oci iam user get', 'User 한 명의 상세 정보를 조회합니다.', [
+                {'label': '대상 User', 'options': [user_id]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'list': _iam_op('oci iam user list', '테넌시의 User를 이름·상태로 조회합니다.', [
+                {'label': '조회 범위 · 필터', 'options': [
+                    _io('--compartment-id', False, '비우면 프로필의 루트 테넌시. 동적 조회에서는 ROOT를 사용합니다.', 'ROOT', default='ROOT', shellQuote=True),
+                    _io('--name', False, 'User 이름과 정확히 일치하는 결과만 조회', 'operator@example.com', shellQuote=True),
+                    _io('--lifecycle-state', False, 'User 수명주기 상태', choices=['ACTIVE', 'CREATING', 'INACTIVE', 'DELETING', 'DELETED']),
+                    _io('--all', False, '--limit과 함께 사용할 수 없는 전체 페이지 조회', flag=True, default='true'),
+                    _io('--output', False, '결과 출력 형식', choices=['table', 'json'], default='table'),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'create': _iam_op('oci iam user create', '테넌시에 새 User를 생성합니다. 이름은 생성 후 변경할 수 없습니다.', [
+                {'label': 'User 정보', 'options': [
+                    _io('--name', True, '로그인에 사용할 고유 User 이름. 공백은 허용되지 않습니다.', 'operator@example.com', shellQuote=True),
+                    _io('--description', True, 'User 설명. 빈 문자열도 허용됩니다.', 'OCI operations engineer', shellQuote=True),
+                    _io('--email', False, 'Identity Domain 지원 테넌시에서는 User별 email이 필요합니다.', 'operator@example.com', shellQuote=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'update': _iam_op('oci iam user update', '변경 가능한 User 설명·email을 수정합니다.', [
+                {'label': '대상 User', 'options': [user_id]},
+                {'label': '변경 값', 'options': [
+                    _io('--description', False, '새 User 설명', 'OCI operations engineer', shellQuote=True),
+                    _io('--email', False, '새 email 주소', 'operator@example.com', shellQuote=True),
+                    _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 수정', 'etag-value', shellQuote=True),
+                    _io('--force', False, '변경 값 확인 프롬프트 없이 수정', flag=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'delete': _iam_op('oci iam user delete', 'User를 삭제합니다. 삭제 전에 Group·credential 영향을 확인하세요.', [
+                {'label': '대상 User', 'options': [
+                    user_id, _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 삭제', 'etag-value', shellQuote=True),
+                    _io('--force', False, '확인 프롬프트 없이 삭제', flag=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+        },
+        'actions': {
+            'reset-password': _iam_op(
+                'oci iam user ui-password create-or-reset',
+                'Classic IAM은 7일 유효 일회용 비밀번호를 반환하고, Identity Domain 테넌시는 비밀번호 재설정 email을 발송합니다.',
+                [{'label': '대상 User', 'options': [user_id]}, {'label': '실행 환경', 'options': _iam_env()}],
+                label='Password 초기화', icon='⌁', tone='warning',
+            ),
+            'assign-group': _iam_op(
+                'oci iam group add-user', '정확히 조회된 User를 정확히 조회된 Group에 할당합니다.',
+                [{'label': '할당 대상', 'options': [
+                    user_id,
+                    _io('--group-id', True, '할당할 Group OCID. 동적 조회에서는 정확한 Group 이름을 입력합니다.', 'OCI-Operators', shellQuote=True),
+                ]}, {'label': '실행 환경', 'options': _iam_env()}],
+                label='Group 할당', icon='↦', tone='create',
+            ),
+            'upload-api-key': _iam_op(
+                'oci iam user api-key upload',
+                'RSA PEM 공개키를 API signing key로 등록합니다. Compute SSH 공개키가 아니며 User당 최대 3개입니다.',
+                [{'label': '대상 User', 'options': [user_id]}, {'label': '공개키', 'options': [
+                    _io('--key-source', True, '공개키 파일 경로 또는 PEM 원문 중 하나를 선택', choices=['KEY_FILE', 'PEM_TEXT'], default='KEY_FILE', lookupOnly=True, displayLabel='공개키 입력 방식'),
+                    _io('--key-file', False, 'Cloud Shell 또는 실행 호스트의 RSA PEM 공개키 파일 경로', '/home/opc/.oci/oci_api_key_public.pem', shellQuote=True),
+                    _io('--key', False, 'RSA PEM 공개키 원문. KEY_FILE 대신 사용할 때만 입력합니다.', '-----BEGIN PUBLIC KEY-----', type='json', shellQuote=True),
+                ]}, {'label': '실행 환경', 'options': _iam_env()}],
+                label='API Key 발행', icon='⌘', tone='create',
+            ),
+        },
+    }
+
+def _iam_group():
+    group_id = _io('--group-id', True, '대상 Group OCID. 동적 조회에서는 정확한 Group 이름을 입력합니다.', 'OCI-Operators', shellQuote=True)
+    return {
+        'resource': 'iam-group', 'label': 'Groups', 'cmd': 'oci iam group create', 'iamResource': 'group',
+        'preferredOperation': 'create',
+        'help': 'Identity & Security > Identity > Groups. Group은 Policy가 권한을 부여하는 주체입니다.',
+        'sections': [], 'advanced': [],
+        'operations': {
+            'get': _iam_op('oci iam group get', 'Group 한 건을 조회합니다.', [
+                {'label': '대상 Group', 'options': [group_id]}, {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'list': _iam_op('oci iam group list', '테넌시의 Group을 이름·상태로 조회합니다.', [
+                {'label': '조회 범위 · 필터', 'options': [
+                    _io('--compartment-id', False, '비우면 프로필의 루트 테넌시. 동적 조회에서는 ROOT를 사용합니다.', 'ROOT', default='ROOT', shellQuote=True),
+                    _io('--name', False, 'Group 이름과 정확히 일치하는 결과만 조회', 'OCI-Operators', shellQuote=True),
+                    _io('--lifecycle-state', False, 'Group 수명주기 상태', choices=['ACTIVE', 'CREATING', 'INACTIVE', 'DELETING', 'DELETED']),
+                    _io('--all', False, '--limit과 함께 사용할 수 없는 전체 페이지 조회', flag=True, default='true'),
+                    _io('--output', False, '결과 출력 형식', choices=['table', 'json'], default='table'),
+                ]}, {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'create': _iam_op('oci iam group create', '테넌시에 고유 Group을 생성합니다. 이름은 생성 후 변경할 수 없습니다.', [
+                {'label': 'Group 정보', 'options': [
+                    _io('--name', True, '고유 Group 이름', 'OCI-Operators', shellQuote=True),
+                    _io('--description', True, 'Group 설명. 빈 문자열도 허용됩니다.', 'OCI operations group', shellQuote=True),
+                ]}, {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'update': _iam_op('oci iam group update', 'Group 설명을 수정합니다.', [
+                {'label': '대상 Group', 'options': [group_id]},
+                {'label': '변경 값', 'options': [
+                    _io('--description', False, '새 Group 설명', 'OCI operations group', shellQuote=True),
+                    _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 수정', 'etag-value', shellQuote=True),
+                    _io('--force', False, '변경 값 확인 프롬프트 없이 수정', flag=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'delete': _iam_op('oci iam group delete', 'Group을 삭제합니다. Policy statement와 구성원 영향을 먼저 확인하세요.', [
+                {'label': '대상 Group', 'options': [
+                    group_id, _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 삭제', 'etag-value', shellQuote=True),
+                    _io('--force', False, '확인 프롬프트 없이 삭제', flag=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+        },
+    }
+
+def _iam_policy():
+    policy_id = _io('--policy-id', True, '대상 Policy OCID. 동적 조회에서는 정확한 Policy 이름을 입력합니다.', 'OCI-Operators-Policy', shellQuote=True)
+    lookup_scope = _io('--lookup-compartment-id', True, 'Policy 이름을 찾을 위치. ROOT, compartment 이름 또는 직접 OCID', 'ROOT', default='ROOT', lookupOnly=True, displayLabel='Policy 조회 위치')
+    statements = _io('--statements', True, '한 개 이상의 Policy statement를 JSON 배열로 입력', '["Allow group OCI-Operators to inspect all-resources in tenancy"]', type='json', shellQuote=True)
+    return {
+        'resource': 'iam-policy', 'label': 'Policies', 'cmd': 'oci iam policy create', 'iamResource': 'policy',
+        'preferredOperation': 'create',
+        'compartmentSupportsRoot': True,
+        'help': 'Identity & Security > Identity > Policies. Policy가 부착되는 compartment는 수정·삭제 관리 범위를 결정합니다.',
+        'sections': [], 'advanced': [],
+        'operations': {
+            'get': _iam_op('oci iam policy get', 'Policy 한 건의 statement와 부착 위치를 조회합니다.', [
+                {'label': '대상 Policy', 'options': [lookup_scope, policy_id]}, {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'list': _iam_op('oci iam policy list', '지정한 tenancy 또는 compartment에 부착된 Policy를 조회합니다.', [
+                {'label': '조회 위치 · 필터', 'options': [
+                    _io('--compartment-id', True, 'ROOT 또는 Policy가 부착된 compartment 이름/OCID', 'ROOT', default='ROOT', shellQuote=True),
+                    _io('--name', False, 'Policy 이름과 정확히 일치하는 결과만 조회', 'OCI-Operators-Policy', shellQuote=True),
+                    _io('--lifecycle-state', False, 'Policy 수명주기 상태', choices=['ACTIVE', 'CREATING', 'INACTIVE', 'DELETING', 'DELETED']),
+                    _io('--all', False, '--limit과 함께 사용할 수 없는 전체 페이지 조회', flag=True, default='true'),
+                    _io('--output', False, '결과 출력 형식', choices=['table', 'json'], default='table'),
+                ]}, {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'create': _iam_op('oci iam policy create', '지정한 tenancy 또는 compartment에 Policy를 생성합니다.', [
+                {'label': '부착 위치', 'options': [_io('--compartment-id', True, 'ROOT 또는 Policy를 부착할 compartment 이름/OCID', 'ROOT', default='ROOT', shellQuote=True)]},
+                {'label': 'Policy 정보', 'options': [
+                    _io('--name', True, '테넌시 안에서 고유하며 생성 후 변경할 수 없는 이름', 'OCI-Operators-Policy', shellQuote=True),
+                    _io('--description', True, 'Policy 설명. 빈 문자열도 허용됩니다.', 'OCI operators permissions', shellQuote=True),
+                    statements,
+                ]}, {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'update': _iam_op('oci iam policy update', 'Policy description 또는 statement를 변경합니다.', [
+                {'label': '대상 Policy', 'options': [lookup_scope, policy_id]},
+                {'label': '변경 값', 'options': [
+                    _io('--description', False, '새 Policy 설명', 'OCI operators permissions', shellQuote=True),
+                    _io('--statements', False, '전체 statement JSON 배열. 기존 배열을 대체합니다.', '["Allow group OCI-Operators to inspect all-resources in tenancy"]', type='json', shellQuote=True),
+                    _io('--version-date', False, 'Policy 평가 동작을 고정할 YYYY-MM-DD 버전 날짜', '2026-08-15', shellQuote=True),
+                    _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 수정', 'etag-value', shellQuote=True),
+                    _io('--force', False, '변경 값 확인 프롬프트 없이 수정', flag=True),
+                ]}, {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'delete': _iam_op('oci iam policy delete', 'Policy를 삭제하면 권한이 회수됩니다. 영향 대상을 먼저 확인하세요.', [
+                {'label': '대상 Policy', 'options': [
+                    lookup_scope, policy_id, _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 삭제', 'etag-value', shellQuote=True),
+                    _io('--force', False, '확인 프롬프트 없이 삭제', flag=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+        },
+    }
+
+def _iam_mfa_reset():
+    return {
+        'resource': 'iam-user-mfa-reset', 'label': 'IAM User — MFA Reset',
+        'cmd': 'oci iam mfa-totp-device list', 'iamMfaReset': True,
+        'help': ('기본 PREVIEW에서 User의 MFA TOTP 장치를 확인합니다. RESET은 확인용 User 이름이 일치할 때만 모든 장치를 삭제하며, '
+                 '사용자는 다음 로그인 전에 Console에서 MFA를 다시 등록해야 합니다.'),
+        'sections': [
+            {'label': '대상 User', 'options': [
+                _io('--user-lookup', True, 'User 이름 또는 OCID 선택', choices=['NAME', 'OCID'], default='NAME', lookupOnly=True, displayLabel='User 입력 방식'),
+                _io('--user-id', True, 'NAME이면 정확한 User 이름, OCID이면 User OCID', 'operator@example.com', shellQuote=True),
+            ]},
+            {'label': '안전 실행', 'options': [
+                _io('--mode', True, 'PREVIEW는 조회만, RESET은 장치를 삭제', choices=['PREVIEW', 'RESET'], default='PREVIEW', lookupOnly=True),
+                _io('--confirm-user-name', False, 'RESET일 때 실제 User 이름을 다시 입력', 'operator@example.com', lookupOnly=True),
+            ]},
+            {'label': '실행 환경', 'options': _iam_env()},
+        ],
+        'advanced': [],
+    }
+
 def _compartment_cleanup():
     enabled = lambda name, help: _co(name, False, help, default='true', flag=True)
     return {
@@ -591,6 +813,10 @@ def _instance_boot_volume_backup():
 EXTRA = {
     'compartment-resource-cleansing': _compartment_cleanup(),
     'all-subscription-balances': _all_subscription_balances(),
+    'iam-user-mfa-reset': _iam_mfa_reset(),
+    'iam-user': _iam_user(),
+    'iam-group': _iam_group(),
+    'iam-policy': _iam_policy(),
     'instance-maintenance-reboot': _maintenance_reboot(),
     'instance-boot-volume-backup': _instance_boot_volume_backup(),
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),

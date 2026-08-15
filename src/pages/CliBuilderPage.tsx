@@ -30,18 +30,27 @@ interface CliOperation {
   cmd: string; help: string
   sections: CliSection[]; advanced: CliOption[]
 }
+interface CliAction extends CliOperation {
+  label: string
+  icon?: string
+  tone?: 'create' | 'warning' | 'danger'
+}
 interface CliCommand {
   resource: string; label: string
   cmd: string; help: string
   preferredOperation?: CrudVerb
   disableDynamic?: boolean
   rootTenancyLookup?: boolean
+  compartmentSupportsRoot?: boolean
+  iamResource?: 'user' | 'group' | 'policy'
+  iamMfaReset?: boolean
   allSubscriptionBalances?: boolean
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
   maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
   compartmentCleanup?: boolean // scoped resource cleanup PREVIEW/DELETE script
   manualBackup?: 'instance-boot-volume' | 'mysql'
   operations?: Partial<Record<CrudVerb, CliOperation>>
+  actions?: Record<string, CliAction>
   sections: CliSection[]; advanced: CliOption[]
 }
 // 조립·검색용 평탄화 — 섹션 순서(콘솔 마법사 순서)를 그대로 유지
@@ -75,6 +84,12 @@ const operationDefaults = (command: CliCommand, operation: CrudVerb): Record<str
     .filter(option => option.defaultValue !== undefined)
     .map(option => [option.name, option.defaultValue as string]))
 }
+const actionDefaults = (command: CliCommand, action: string): Record<string, string> => {
+  const selected = command.actions?.[action]
+  return selected ? Object.fromEntries(allOptions(selected)
+    .filter(option => option.defaultValue !== undefined)
+    .map(option => [option.name, option.defaultValue as string])) : {}
+}
 
 /* ── 동적 조회 지원 옵션 — 이름만 넣으면 $()/변수로 OCID를 찾아준다 ──
    기본값 = 동적. 체크 해제 시 OCID 직접 입력. */
@@ -85,6 +100,9 @@ const DYNAMIC: Record<string, { input: string; note: string }> = {
   '--subnet-id': { input: 'Subnet 이름', note: '이름으로 OCID 자동 조회 (compartment 기준)' },
   '--lookup-compartment-id': { input: 'compartment 이름 (예: prod)', note: 'DB System 이름 조회에만 사용할 compartment' },
   '--db-system-id': { input: 'MySQL DB System 이름', note: 'compartment 안에서 정확한 이름으로 OCID 조회' },
+  '--user-id': { input: 'User 이름', note: '테넌시에서 정확한 이름으로 OCID 조회' },
+  '--group-id': { input: 'Group 이름', note: '테넌시에서 정확한 이름으로 OCID 조회' },
+  '--policy-id': { input: 'Policy 이름', note: '지정 위치에서 정확한 이름으로 OCID 조회' },
 }
 
 /* ── JSON 옵션 서브필드 스키마 — 사용자는 값만 넣고 {} 는 자동 조립 ── */
@@ -153,7 +171,7 @@ function buildMultiSelectQuery(value: string): string {
 
 interface Favorite {
   id: string; name: string; resource: string; values: Record<string, string>
-  dyn?: Record<string, boolean>; operation?: CrudVerb
+  dyn?: Record<string, boolean>; operation?: CrudVerb; action?: string
 }
 const FAV_KEY = 'hub-cli-favorites'
 const loadFavs = (): Favorite[] => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]') } catch { return [] } }
@@ -813,16 +831,202 @@ function buildRootTenancyLookup(values: Record<string, string>): string {
   ].join('\n')
 }
 
-function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>, operation: CrudVerb): string {
+function buildIamCommand(
+  cmd: CliCommand,
+  selected: CliOperation,
+  values: Record<string, string>,
+  dyn: Record<string, boolean>,
+): string {
+  if (!cmd.iamResource) return selected.cmd
+  const v = (key: string) => (values[key] || '').trim()
+  const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
+  const profile = v('--profile') || 'DEFAULT'
+  const region = v('--region') || 'ap-seoul-1'
+  const prelude: string[] = []
+  const resolved = new Map<string, string>()
+  let tenancyReady = false
+  const ensureTenancy = () => {
+    if (tenancyReady) return
+    prelude.push(
+      `PROFILE=${q(profile)}`,
+      `REGION=${q(region)}`,
+      'CTX=(--profile "$PROFILE" --region "$REGION")',
+      'TENANCY_ID=$(oci iam availability-domain list \\',
+      '  --query \'data[0]."compartment-id"\' --raw-output "${CTX[@]}")',
+      '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 프로필에서 테넌시 OCID를 확인하지 못했습니다: $TENANCY_ID" >&2; exit 2; }',
+    )
+    tenancyReady = true
+  }
+  const resolveCompartment = (input: string, variable: string) => {
+    if (input.toUpperCase() === 'ROOT') {
+      ensureTenancy(); resolved.set(variable, '"$TENANCY_ID"'); return
+    }
+    ensureTenancy()
+    const nameVariable = `${variable}_NAME`
+    const countVariable = `${variable}_COUNT`
+    prelude.push(
+      `${nameVariable}=${q(input || '<compartment-name>')}`,
+      `${countVariable}=$(oci iam compartment list --name "$${nameVariable}" --lifecycle-state ACTIVE \\`,
+      '  --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+      '  --query \'length(data)\' --raw-output "${CTX[@]}")',
+      `if [[ "$${countVariable}" != "1" ]]; then`,
+      `  echo "[ERROR] ACTIVE compartment 이름은 정확히 1개여야 합니다: $${nameVariable} (found=$${countVariable})" >&2`,
+      `  oci iam compartment list --name "$${nameVariable}" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\`,
+      '    --query \'data[].{name:name,id:id,parent:"compartment-id"}\' --output table "${CTX[@]}" >&2',
+      '  exit 1',
+      'fi',
+      `${variable}=$(oci iam compartment list --name "$${nameVariable}" --lifecycle-state ACTIVE \\`,
+      '  --compartment-id-in-subtree true --access-level ACCESSIBLE --all \\',
+      '  --query \'data[0].id\' --raw-output "${CTX[@]}")',
+    )
+    resolved.set(variable, `"$${variable}"`)
+  }
+
+  const compInput = v('--compartment-id')
+  if (allOptions(selected).some(option => option.name === '--compartment-id')
+    && isDynamic(dyn, '--compartment-id') && compInput) {
+    resolveCompartment(compInput, 'COMPARTMENT_ID')
+    resolved.set('--compartment-id', resolved.get('COMPARTMENT_ID') as string)
+  }
+
+  for (const [optionName, kind, variable] of [
+    ['--user-id', 'user', 'USER_ID'],
+    ['--group-id', 'group', 'GROUP_ID'],
+  ] as const) {
+    if (!allOptions(selected).some(option => option.name === optionName) || !isDynamic(dyn, optionName)) continue
+    ensureTenancy()
+    const inputVariable = `${variable}_NAME`
+    const countVariable = `${variable}_COUNT`
+    prelude.push(
+      `${inputVariable}=${q(v(optionName) || `<${kind}-name>`)}`,
+      `${countVariable}=$(oci iam ${kind} list --compartment-id "$TENANCY_ID" --name "$${inputVariable}" \\`,
+      '  --lifecycle-state ACTIVE --all --query \'length(data)\' --raw-output "${CTX[@]}")',
+      `if [[ "$${countVariable}" != "1" ]]; then`,
+      `  echo "[ERROR] ACTIVE ${kind} 이름은 정확히 1개여야 합니다: $${inputVariable} (found=$${countVariable})" >&2`,
+      `  oci iam ${kind} list --compartment-id "$TENANCY_ID" --name "$${inputVariable}" --all \\`,
+      '    --query \'data[].{name:name,state:"lifecycle-state",id:id}\' --output table "${CTX[@]}" >&2',
+      '  exit 1',
+      'fi',
+      `${variable}=$(oci iam ${kind} list --compartment-id "$TENANCY_ID" --name "$${inputVariable}" \\`,
+      '  --lifecycle-state ACTIVE --all --query \'data[0].id\' --raw-output "${CTX[@]}")',
+    )
+    resolved.set(optionName, `"$${variable}"`)
+  }
+
+  if (allOptions(selected).some(option => option.name === '--policy-id') && isDynamic(dyn, '--policy-id')) {
+    ensureTenancy()
+    const scope = v('--lookup-compartment-id') || 'ROOT'
+    if (scope.toUpperCase() === 'ROOT') {
+      ensureTenancy(); resolved.set('POLICY_SCOPE_ID', '"$TENANCY_ID"')
+    } else if (scope.startsWith('ocid1.')) resolved.set('POLICY_SCOPE_ID', q(scope))
+    else resolveCompartment(scope, 'POLICY_SCOPE_ID')
+    prelude.push(
+      `POLICY_NAME=${q(v('--policy-id') || '<policy-name>')}`,
+      'POLICY_COUNT=$(oci iam policy list --compartment-id ' + resolved.get('POLICY_SCOPE_ID') + ' --name "$POLICY_NAME" \\',
+      '  --lifecycle-state ACTIVE --all --query \'length(data)\' --raw-output "${CTX[@]}")',
+      'if [[ "$POLICY_COUNT" != "1" ]]; then',
+      '  echo "[ERROR] ACTIVE policy 이름은 지정 위치에서 정확히 1개여야 합니다: $POLICY_NAME (found=$POLICY_COUNT)" >&2',
+      '  oci iam policy list --compartment-id ' + resolved.get('POLICY_SCOPE_ID') + ' --name "$POLICY_NAME" --all \\',
+      '    --query \'data[].{name:name,state:"lifecycle-state",id:id}\' --output table "${CTX[@]}" >&2',
+      '  exit 1',
+      'fi',
+      'POLICY_ID=$(oci iam policy list --compartment-id ' + resolved.get('POLICY_SCOPE_ID') + ' --name "$POLICY_NAME" \\',
+      '  --lifecycle-state ACTIVE --all --query \'data[0].id\' --raw-output "${CTX[@]}")',
+    )
+    resolved.set('--policy-id', '"$POLICY_ID"')
+  }
+
+  const args: string[] = []
+  const keySource = v('--key-source') || 'KEY_FILE'
+  for (const option of allOptions(selected)) {
+    if (option.lookupOnly) continue
+    if (option.name === '--key' && keySource !== 'PEM_TEXT') continue
+    if (option.name === '--key-file' && keySource !== 'KEY_FILE') continue
+    if (option.flag) {
+      if (v(option.name) === 'true') args.push(`  ${option.name}`)
+      continue
+    }
+    if (resolved.has(option.name)) {
+      args.push(`  ${option.name} ${resolved.get(option.name)}`); continue
+    }
+    let value = v(option.name)
+    if (option.name === '--key-file' && keySource === 'KEY_FILE' && !value) value = '<rsa-public-key.pem>'
+    if (option.name === '--key' && keySource === 'PEM_TEXT' && !value) value = '<rsa-public-key-pem>'
+    if (!value) continue
+    args.push(`  ${option.name} ${q(value)}`)
+  }
+  const main = [selected.cmd, ...args].join(' \\\n')
+  return prelude.length ? ['#!/usr/bin/env bash', 'set -euo pipefail', '', ...prelude, '', main].join('\n') : main
+}
+
+function buildIamMfaReset(values: Record<string, string>): string {
+  const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
+  const q = (raw: string) => `"${raw.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('$', '\\$').replaceAll('`', '\\`')}"`
+  return [
+    '#!/usr/bin/env bash',
+    '# IAM User MFA TOTP reset — PREVIEW 기본, RESET은 이름 이중 확인 후 모든 등록 장치 삭제',
+    'set -euo pipefail',
+    '',
+    `PROFILE=${q(v('--profile', 'DEFAULT'))}`,
+    `REGION=${q(v('--region', 'ap-seoul-1'))}`,
+    `USER_LOOKUP=${q(v('--user-lookup', 'NAME').toUpperCase())}`,
+    `USER_INPUT=${q(v('--user-id', '<user-name-or-ocid>'))}`,
+    `MODE=${q(v('--mode', 'PREVIEW').toUpperCase())}`,
+    `CONFIRM_USER_NAME=${q(v('--confirm-user-name'))}`,
+    'CTX=(--profile "$PROFILE" --region "$REGION")',
+    'command -v jq >/dev/null 2>&1 || { echo "[ERROR] jq가 필요합니다. OCI Cloud Shell에는 기본 설치되어 있습니다." >&2; exit 2; }',
+    '',
+    '[[ "$USER_LOOKUP" == "NAME" || "$USER_LOOKUP" == "OCID" ]] || { echo "[ERROR] USER_LOOKUP은 NAME 또는 OCID여야 합니다." >&2; exit 2; }',
+    '[[ "$MODE" == "PREVIEW" || "$MODE" == "RESET" ]] || { echo "[ERROR] MODE는 PREVIEW 또는 RESET이어야 합니다." >&2; exit 2; }',
+    'TENANCY_ID=$(oci iam availability-domain list --query \'data[0]."compartment-id"\' --raw-output "${CTX[@]}")',
+    '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 프로필에서 테넌시 OCID를 확인하지 못했습니다." >&2; exit 2; }',
+    '',
+    'if [[ "$USER_LOOKUP" == "NAME" ]]; then',
+    '  USER_COUNT=$(oci iam user list --compartment-id "$TENANCY_ID" --name "$USER_INPUT" --lifecycle-state ACTIVE --all --query \'length(data)\' --raw-output "${CTX[@]}")',
+    '  if [[ "$USER_COUNT" != "1" ]]; then',
+    '    echo "[ERROR] ACTIVE User 이름은 정확히 1개여야 합니다: $USER_INPUT (found=$USER_COUNT)" >&2',
+    '    oci iam user list --compartment-id "$TENANCY_ID" --name "$USER_INPUT" --all --query \'data[].{name:name,state:"lifecycle-state",id:id}\' --output table "${CTX[@]}" >&2',
+    '    exit 1',
+    '  fi',
+    '  USER_ID=$(oci iam user list --compartment-id "$TENANCY_ID" --name "$USER_INPUT" --lifecycle-state ACTIVE --all --query \'data[0].id\' --raw-output "${CTX[@]}")',
+    '  USER_NAME="$USER_INPUT"',
+    'else',
+    '  [[ "$USER_INPUT" == ocid1.user.* ]] || { echo "[ERROR] OCID 모드에는 User OCID가 필요합니다." >&2; exit 2; }',
+    '  USER_ID="$USER_INPUT"',
+    '  USER_NAME=$(oci iam user get --user-id "$USER_ID" --query \'data.name\' --raw-output "${CTX[@]}")',
+    'fi',
+    '',
+    'echo "=== MFA devices: user=$USER_NAME / id=$USER_ID / mode=$MODE ==="',
+    'MFA_JSON=$(oci iam mfa-totp-device list --user-id "$USER_ID" --all --output json "${CTX[@]}")',
+    'MFA_COUNT=$(jq -r \'.data | length\' <<<"$MFA_JSON")',
+    'jq -r \'.data[] | [.id, (."is-activated"|tostring), (."time-created" // "-")] | @tsv\' <<<"$MFA_JSON" | column -t -s $\'\\t\' || true',
+    'if [[ "$MFA_COUNT" == "0" ]]; then echo "등록된 MFA TOTP 장치가 없습니다."; exit 0; fi',
+    'if [[ "$MODE" == "PREVIEW" ]]; then echo "PREVIEW 완료: 삭제하지 않았습니다."; exit 0; fi',
+    'if [[ "$CONFIRM_USER_NAME" != "$USER_NAME" ]]; then',
+    '  echo "[ABORT] RESET에는 confirm user name이 실제 User 이름과 정확히 같아야 합니다: $USER_NAME" >&2',
+    '  exit 2',
+    'fi',
+    'while IFS= read -r MFA_ID; do',
+    '  [[ -z "$MFA_ID" ]] && continue',
+    '  echo "[DELETE] MFA TOTP device $MFA_ID"',
+    '  oci iam mfa-totp-device delete --mfa-totp-device-id "$MFA_ID" --user-id "$USER_ID" --force "${CTX[@]}"',
+    'done < <(jq -r \'.data[].id\' <<<"$MFA_JSON")',
+    'echo "RESET 완료: User가 Console에서 MFA를 다시 등록해야 합니다."',
+  ].join('\n')
+}
+
+function buildCli(cmd: CliCommand, values: Record<string, string>, dyn: Record<string, boolean>, operation: CrudVerb, action?: string): string {
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values)
   if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get')
   if (cmd.compartmentCleanup) return buildCompartmentCleanup(values)
   if (cmd.allSubscriptionBalances) return buildAllSubscriptionBalances(values)
+  if (cmd.iamMfaReset) return buildIamMfaReset(values)
   if (cmd.resource === 'mysql' && operation === 'get') return buildMysqlDbSystemGet(values, dyn)
   if (cmd.resource === 'mysql-backup' && operation === 'create') return buildMysqlBackupCreate(values, dyn)
   if (cmd.manualBackup) return buildManualBackup(cmd.manualBackup, values)
 
-  const selected = cmd.operations?.[operation] ?? cmd
+  const selected = (action ? cmd.actions?.[action] : cmd.operations?.[operation]) ?? cmd
+  if (cmd.iamResource) return buildIamCommand(cmd, selected, values, dyn)
 
   const prelude: string[] = []
   const args: string[] = []
@@ -917,6 +1121,7 @@ export default function CliBuilderPage() {
   const [favs, setFavs] = useState<Favorite[]>(loadFavs())
   const [showOptional, setShowOptional] = useState(false)
   const [crudOperation, setCrudOperation] = useState<CrudVerb>('create')
+  const [selectedAction, setSelectedAction] = useState<string | null>(null)
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
   const [customOpen, setCustomOpen] = useState(false)
@@ -927,8 +1132,8 @@ export default function CliBuilderPage() {
   useEffect(() => {
     if (!rParam || !CAT.commands[rParam]) return
     const operation = defaultOperation(CAT.commands[rParam])
-    setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setDyn({}); setShowOptional(false); setCrudOperation(operation)
-    if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances) setCustomOpen(true)
+    setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setDyn({}); setShowOptional(false); setCrudOperation(operation); setSelectedAction(null)
+    if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances || CAT.commands[rParam].iamMfaReset) setCustomOpen(true)
     const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
   }, [rParam, CAT])
@@ -949,10 +1154,10 @@ export default function CliBuilderPage() {
   const usesCrudVerification = (command: CliCommand | null | undefined) => !!command
     && !command.crossCopy && !command.compartmentCleanup && !command.allSubscriptionBalances
     && (!!command.maintenanceReboot || !!command.operations)
-  const verificationKey = (r: string, operation: CrudVerb) => usesCrudVerification(CAT.commands[r]) ? `${r}:${operation}` : r
-  const isOperationVerified = (r: string, operation: CrudVerb) => verified.includes(verificationKey(r, operation))
+  const verificationKey = (r: string, operation: string) => usesCrudVerification(CAT.commands[r]) ? `${r}:${operation}` : r
+  const isOperationVerified = (r: string, operation: string) => verified.includes(verificationKey(r, operation))
   const isResourceVerified = (r: string) => verified.includes(r) || verified.some(key => key.startsWith(`${r}:`))
-  const toggleVerified = async (r: string, operation: CrudVerb) => {
+  const toggleVerified = async (r: string, operation: string) => {
     if (!pat) { showToast('검증 표시는 PAT 등록 후 가능'); return }
     const key = verificationKey(r, operation)
     const prev = verified
@@ -965,12 +1170,14 @@ export default function CliBuilderPage() {
   }
 
   const cmd = active !== '__custom' ? CAT.commands[active] : null
-  const selectedOperation = cmd?.operations?.[crudOperation]
+  const selectedActionMeta = selectedAction ? cmd?.actions?.[selectedAction] : undefined
+  const selectedOperation = selectedActionMeta ?? cmd?.operations?.[crudOperation]
   const formSections = cmd?.maintenanceReboot
     ? cmd.sections.filter((_, index) => crudOperation === 'update' || index === 0)
     : selectedOperation?.sections ?? cmd?.sections ?? []
   const formAdvanced = selectedOperation?.advanced ?? cmd?.advanced ?? []
   const hasCrud = usesCrudVerification(cmd)
+  const currentVerificationOperation = selectedAction ? `action:${selectedAction}` : crudOperation
   const isOperationAvailable = (operation: CrudVerb) => supportsOperation(cmd, operation)
   const operationHelp = cmd?.maintenanceReboot
     ? crudOperation === 'update'
@@ -978,13 +1185,13 @@ export default function CliBuilderPage() {
       : '유지보수 재부팅을 연장할 수 있는 최대 시각을 조회합니다.'
     : selectedOperation?.help || cmd?.help
   const cli = useMemo(
-    () => cmd ? buildCli(cmd, values, dyn, crudOperation) : customText,
-    [cmd, values, dyn, crudOperation, customText],
+    () => cmd ? buildCli(cmd, values, dyn, crudOperation, selectedAction ?? undefined) : customText,
+    [cmd, values, dyn, crudOperation, selectedAction, customText],
   )
 
   const selectResource = (res: string) => {
     const next = CAT.commands[res]
-    setActive(res); setDyn({}); setShowOptional(false)
+    setActive(res); setDyn({}); setShowOptional(false); setSelectedAction(null)
     if (next) {
       const operation = defaultOperation(next)
       setCrudOperation(operation); setValues(operationDefaults(next, operation))
@@ -992,7 +1199,11 @@ export default function CliBuilderPage() {
   }
   const selectOperation = (operation: CrudVerb) => {
     if (!isOperationAvailable(operation)) return
-    setCrudOperation(operation); setValues(cmd ? operationDefaults(cmd, operation) : {}); setDyn({}); setShowOptional(false)
+    setCrudOperation(operation); setSelectedAction(null); setValues(cmd ? operationDefaults(cmd, operation) : {}); setDyn({}); setShowOptional(false)
+  }
+  const selectAction = (action: string) => {
+    if (!cmd?.actions?.[action]) return
+    setSelectedAction(action); setValues(actionDefaults(cmd, action)); setDyn({}); setShowOptional(false)
   }
   const setVal = (name: string, v: string) => setValues(s => ({ ...s, [name]: v }))
   const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
@@ -1029,18 +1240,19 @@ export default function CliBuilderPage() {
     if (!name) return
     const fav: Favorite = {
       id: `fav-${favs.length}-${name}`, name, resource: active,
-      values: active === '__custom' ? { __custom: customText } : values, dyn, operation: crudOperation,
+      values: active === '__custom' ? { __custom: customText } : values, dyn, operation: crudOperation, action: selectedAction ?? undefined,
     }
     const next = [...favs, fav]; setFavs(next); saveFavs(next); showToast('즐겨찾기 저장됨')
   }
   const loadFav = (f: Favorite) => {
     if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci '); setCustomOpen(true) }
     else {
-      setActive(f.resource); setValues(f.values); setDyn(f.dyn ?? {}); setShowOptional(true)
+      setActive(f.resource); setValues(f.values); setDyn(f.dyn ?? {}); setShowOptional(true); setSelectedAction(null)
       const favoriteCommand = CAT.commands[f.resource]
       if (favoriteCommand) {
         setCrudOperation(f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultOperation(favoriteCommand))
-        if (favoriteCommand.crossCopy || favoriteCommand.compartmentCleanup || favoriteCommand.allSubscriptionBalances) setCustomOpen(true)
+        if (f.action && favoriteCommand.actions?.[f.action]) setSelectedAction(f.action)
+        if (favoriteCommand.crossCopy || favoriteCommand.compartmentCleanup || favoriteCommand.allSubscriptionBalances || favoriteCommand.iamMfaReset) setCustomOpen(true)
       }
     }
   }
@@ -1049,12 +1261,13 @@ export default function CliBuilderPage() {
 
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
-  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup || cmd?.manualBackup)
-  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup || c.allSubscriptionBalances)
+  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup || cmd?.manualBackup || cmd?.iamMfaReset)
+  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup || c.allSubscriptionBalances || c.iamMfaReset)
   const field = (o: CliOption, optional?: boolean) => {
     const mysqlBackupTarget = cmd?.resource === 'mysql-backup' && crudOperation === 'create'
     const mysqlDbSystemGet = cmd?.resource === 'mysql' && crudOperation === 'get'
-    const dynamicAllowed = !noDyn && o.name in DYNAMIC && (o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
+    const iamDynamic = !!cmd?.iamResource && ['--user-id', '--group-id', '--policy-id', '--compartment-id'].includes(o.name)
+    const dynamicAllowed = !noDyn && o.name in DYNAMIC && (iamDynamic || o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
     return <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
       dynamic={dynamicAllowed && isDynamic(dyn, o.name)}
       rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}
@@ -1126,15 +1339,15 @@ export default function CliBuilderPage() {
       {/* 우측 폼 + 결과 */}
       <main className="cli-main">
         <div className="crumb"><span className="px">OCI CLI</span> / {cmd ? cmd.label : 'Custom'}</div>
-        <h1 className={`sheet-h1${cmd && isOperationVerified(active, crudOperation) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
+        <h1 className={`sheet-h1${cmd && isOperationVerified(active, currentVerificationOperation) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
         {hasCrud && (
           <div className="cli-crud-strip" aria-label={`${cmd?.label} 명령 선택`}>
             {CRUD_OPERATIONS.map(operation => {
               const available = isOperationAvailable(operation.verb)
               return (
               <button type="button" key={operation.verb} disabled={!available}
-                className={`cli-crud-op verb-${operation.verb}${crudOperation === operation.verb ? ' selected' : ''}${available && isOperationVerified(active, operation.verb) ? ' verified' : ''}`}
-                aria-pressed={available ? crudOperation === operation.verb : undefined}
+                className={`cli-crud-op verb-${operation.verb}${!selectedAction && crudOperation === operation.verb ? ' selected' : ''}${available && isOperationVerified(active, operation.verb) ? ' verified' : ''}`}
+                aria-pressed={available ? !selectedAction && crudOperation === operation.verb : undefined}
                 title={`${operation.verb.toUpperCase()}${available ? ' 명령 선택' : ' 명령 없음'}`}
                 onClick={() => selectOperation(operation.verb)}>
                 <span className="cli-crud-icon" aria-hidden="true">{operation.icon}</span>
@@ -1145,13 +1358,28 @@ export default function CliBuilderPage() {
             })}
           </div>
         )}
+        {cmd?.actions && Object.keys(cmd.actions).length > 0 && (
+          <div className="cli-action-strip" aria-label={`${cmd.label} 자격 증명 및 할당 작업`}>
+            <span className="cli-action-label px">ACTIONS</span>
+            {Object.entries(cmd.actions).map(([key, action]) => (
+              <button type="button" key={key}
+                className={`cli-action-op tone-${action.tone ?? 'create'}${selectedAction === key ? ' selected' : ''}${isOperationVerified(active, `action:${key}`) ? ' verified' : ''}`}
+                aria-pressed={selectedAction === key}
+                onClick={() => selectAction(key)}>
+                <span aria-hidden="true">{action.icon ?? '→'}</span>
+                <span>{action.label}</span>
+                {isOperationVerified(active, `action:${key}`) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
         {cmd
           ? <p className="cli-help">{operationHelp}</p>
           : <p className="cli-help">자유 입력 — 직접 작성하거나, 왼쪽에서 자원을 골라 폼으로 만드세요. 저장하면 즐겨찾기로 재사용됩니다.</p>}
         {cmd && (
           <label className="cli-verify">
-            <input type="checkbox" checked={isOperationVerified(active, crudOperation)} onChange={() => toggleVerified(active, crudOperation)} />
-            <span>현재 <b>{hasCrud ? crudOperation.toUpperCase() : 'CUSTOM'}</b> 명령을 직접 실행해 확인함 — 확인한 동작만 <b className="cli-verified">파란색</b>으로 표시</span>
+            <input type="checkbox" checked={isOperationVerified(active, currentVerificationOperation)} onChange={() => toggleVerified(active, currentVerificationOperation)} />
+            <span>현재 <b>{selectedActionMeta?.label ?? (hasCrud ? crudOperation.toUpperCase() : 'CUSTOM')}</b> 명령을 직접 실행해 확인함 — 확인한 동작만 <b className="cli-verified">파란색</b>으로 표시</span>
           </label>
         )}
 
@@ -1166,6 +1394,13 @@ export default function CliBuilderPage() {
           <div className="cross-note cleanup-note">
             기본은 <b>PREVIEW</b>이며 조회만 실행하고 삭제 예정 명령을 보여줍니다. 실제 삭제는 <b>DELETE</b> 선택과
             동일한 컴파트먼트 OCID 재입력이 모두 맞아야 시작됩니다. Log Analytics는 테넌시 전체 offboard를 하지 않습니다.
+          </div>
+        )}
+
+        {cmd?.iamMfaReset && (
+          <div className="cross-note cleanup-note">
+            기본 <b>PREVIEW</b>는 등록 장치만 조회합니다. <b>RESET</b>은 실제 User 이름을 다시 확인한 뒤 TOTP 장치를 모두 삭제합니다.
+            MFA 등록은 CLI만으로 완료할 수 없으므로, 삭제 후 사용자가 Console에서 다시 등록해야 합니다.
           </div>
         )}
 
