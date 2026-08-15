@@ -392,7 +392,10 @@ if (!cliBuilder.includes('validateCliOptions(formOptions, validationValues, form
   || !cliBuilder.includes('미완성 명령 미리보기')
   || !cliBuilder.includes('disabled={!commandReady}')
   || !cliBuilder.includes('cli-validation-nav')
-  || !cliBuilder.includes('focusValidationField')) {
+  || !cliBuilder.includes('focusValidationField')
+  || !cliBuilder.includes('cli-sidebar-resizer left')
+  || !cliBuilder.includes('cli-sidebar-resizer right')
+  || !cliBuilder.includes('saveCliSidebarWidth')) {
   throw new Error('OCI CLI incomplete-command validation guard 누락')
 }
 if (!cliBuilder.includes('cli-context-panel') || !cliBuilder.includes('requestContextArguments')

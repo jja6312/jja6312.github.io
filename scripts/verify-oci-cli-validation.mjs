@@ -78,6 +78,11 @@ for (const marker of [
   "scrollIntoView({ behavior: 'smooth', block: 'center' })",
   "control?.focus({ preventScroll: true })",
   "id={fieldId}",
+  "cli-sidebar-resizer left",
+  "cli-sidebar-resizer right",
+  "role=\"separator\"",
+  "resizeSidebarWithKeyboard",
+  "saveCliSidebarWidth",
   "필수 입력을 완료해야 복사할 수 있습니다.",
   "필수 입력을 완료해야 저장할 수 있습니다.",
 ]) {
@@ -86,7 +91,7 @@ for (const marker of [
 
 const layoutRule = cssSource.match(/\.cli-layout\s*\{([^}]*)\}/s)?.[1] ?? ''
 const validationNavRule = cssSource.match(/\.cli-validation-nav\s*\{([^}]*)\}/s)?.[1] ?? ''
-if (!/grid-template-columns:\s*220px\s+minmax\(0,\s*1fr\)\s+280px/.test(layoutRule)
+if (!/grid-template-columns:\s*var\(--cli-left-width,\s*220px\)\s+14px\s+minmax\(0,\s*1fr\)\s+14px\s+var\(--cli-right-width,\s*280px\)/.test(layoutRule)
   || !/position:\s*sticky/.test(validationNavRule)
   || !/max-height:\s*calc\(100vh\s*-\s*90px\)/.test(validationNavRule)) {
   fail('CLI preflight validation must stay in a dedicated sticky right sidebar on wide screens')
@@ -103,4 +108,5 @@ console.log(JSON.stringify({
   allLimitIssueCodes: codesOf(allLimit),
   validationPanelPlacement: 'right-sidebar',
   validationFieldFocus: true,
+  resizableSidebars: true,
 }))

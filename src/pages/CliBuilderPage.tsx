@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
@@ -244,6 +244,26 @@ interface Favorite {
 const FAV_KEY = 'hub-cli-favorites'
 const loadFavs = (): Favorite[] => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]') } catch { return [] } }
 const saveFavs = (f: Favorite[]) => localStorage.setItem(FAV_KEY, JSON.stringify(f))
+type CliSidebarSide = 'left' | 'right'
+const CLI_SIDEBAR_WIDTH = {
+  left: { key: 'hub-cli-sidebar-left-width', min: 150, max: 360, fallback: 220 },
+  right: { key: 'hub-cli-sidebar-right-width', min: 200, max: 440, fallback: 280 },
+} as const
+const clampCliSidebarWidth = (side: CliSidebarSide, width: number) => {
+  const { min, max } = CLI_SIDEBAR_WIDTH[side]
+  return Math.min(max, Math.max(min, Math.round(width)))
+}
+const loadCliSidebarWidth = (side: CliSidebarSide) => {
+  try {
+    const stored = Number(localStorage.getItem(CLI_SIDEBAR_WIDTH[side].key))
+    return Number.isFinite(stored) && stored > 0
+      ? clampCliSidebarWidth(side, stored)
+      : CLI_SIDEBAR_WIDTH[side].fallback
+  } catch { return CLI_SIDEBAR_WIDTH[side].fallback }
+}
+const saveCliSidebarWidth = (side: CliSidebarSide, width: number) => {
+  try { localStorage.setItem(CLI_SIDEBAR_WIDTH[side].key, String(width)) } catch { /* local preference unavailable */ }
+}
 
 const isDynamic = (dyn: Record<string, boolean>, name: string, available = name in DYNAMIC) =>
   available ? (dyn[name] ?? true) : false
@@ -1362,8 +1382,51 @@ export default function CliBuilderPage() {
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
   const [customOpen, setCustomOpen] = useState(false)
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => loadCliSidebarWidth('left'))
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(() => loadCliSidebarWidth('right'))
+  const sidebarResizeRef = useRef<{
+    side: CliSidebarSide; pointerId: number; startX: number; startWidth: number; currentWidth: number
+  } | null>(null)
   // 딥링크로 들어온 자원의 카테고리는 펼쳐 둔다 (그 외는 닫힘)
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({})
+
+  const setCliSidebarWidth = (side: CliSidebarSide, width: number, persist = false) => {
+    const next = clampCliSidebarWidth(side, width)
+    if (side === 'left') setLeftSidebarWidth(next)
+    else setRightSidebarWidth(next)
+    if (persist) saveCliSidebarWidth(side, next)
+    return next
+  }
+  const startSidebarResize = (side: CliSidebarSide, event: ReactPointerEvent<HTMLButtonElement>) => {
+    const startWidth = side === 'left' ? leftSidebarWidth : rightSidebarWidth
+    sidebarResizeRef.current = { side, pointerId: event.pointerId, startX: event.clientX, startWidth, currentWidth: startWidth }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const resizeSidebar = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const resize = sidebarResizeRef.current
+    if (!resize || resize.pointerId !== event.pointerId) return
+    const delta = event.clientX - resize.startX
+    resize.currentWidth = setCliSidebarWidth(resize.side, resize.startWidth + (resize.side === 'left' ? delta : -delta))
+  }
+  const finishSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const resize = sidebarResizeRef.current
+    if (!resize || resize.pointerId !== event.pointerId) return
+    saveCliSidebarWidth(resize.side, resize.currentWidth)
+    sidebarResizeRef.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+  const resizeSidebarWithKeyboard = (side: CliSidebarSide, event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const config = CLI_SIDEBAR_WIDTH[side]
+    const current = side === 'left' ? leftSidebarWidth : rightSidebarWidth
+    let next: number | undefined
+    if (event.key === 'Home') next = config.min
+    else if (event.key === 'End') next = config.max
+    else if (event.key === 'ArrowLeft') next = current + (side === 'left' ? -16 : 16)
+    else if (event.key === 'ArrowRight') next = current + (side === 'left' ? 16 : -16)
+    if (next === undefined) return
+    event.preventDefault()
+    setCliSidebarWidth(side, next, true)
+  }
 
   // 팔레트에서 ?r 이 바뀌며 재진입하면 해당 자원 선택 + 카테고리 펼침
   useEffect(() => {
@@ -1641,10 +1704,15 @@ export default function CliBuilderPage() {
     </div>
   )
 
+  const cliLayoutStyle = {
+    '--cli-left-width': `${leftSidebarWidth}px`,
+    '--cli-right-width': `${rightSidebarWidth}px`,
+  } as CSSProperties
+
   return (
-    <div className="cli-layout">
+    <div className="cli-layout" style={cliLayoutStyle}>
       {/* 좌측 계층 네비 — 대분류 아코디언 (기본 닫힘) */}
-      <aside className="cli-nav">
+      <aside id="cli-resource-nav" className="cli-nav">
         <div className="cli-cat cli-custom-cat">
           <button className="cli-cat-toggle" onClick={() => setCustomOpen(open => !open)}>
             <span className={`caret${customOpen ? ' open' : ''}`}>▸</span> Custom CLI
@@ -1695,8 +1763,18 @@ export default function CliBuilderPage() {
         )}
       </aside>
 
+      <button type="button" className="cli-sidebar-resizer left" role="separator" aria-orientation="vertical"
+        aria-label="왼쪽 메뉴 너비 조절" aria-controls="cli-resource-nav" aria-valuemin={CLI_SIDEBAR_WIDTH.left.min}
+        aria-valuemax={CLI_SIDEBAR_WIDTH.left.max} aria-valuenow={leftSidebarWidth} title={`${leftSidebarWidth}px · 드래그/방향키 · 더블클릭 초기화`}
+        onPointerDown={event => startSidebarResize('left', event)} onPointerMove={resizeSidebar}
+        onPointerUp={finishSidebarResize} onPointerCancel={finishSidebarResize}
+        onKeyDown={event => resizeSidebarWithKeyboard('left', event)}
+        onDoubleClick={() => setCliSidebarWidth('left', CLI_SIDEBAR_WIDTH.left.fallback, true)}>
+        <span aria-hidden="true">⋮</span>
+      </button>
+
       {/* 우측 폼 + 결과 */}
-      <main className="cli-main">
+      <main id="cli-command-workspace" className="cli-main">
         <div className="crumb"><span className="px">OCI CLI</span> / {cmd ? cmd.label : 'Custom'}</div>
         <h1 className={`sheet-h1${cmd && isOperationVerified(active, currentVerificationOperation) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
         {hasCrud && (
@@ -1866,8 +1944,24 @@ export default function CliBuilderPage() {
         </div>
       </main>
 
-      {cmd && (
-        <aside className={`cli-validation-nav${commandReady ? ' ready' : ''}`} aria-label="실행 전 입력 확인" aria-live="polite">
+      <button type="button" className="cli-sidebar-resizer right" role="separator" aria-orientation="vertical"
+        aria-label="오른쪽 메뉴 너비 조절" aria-controls="cli-input-check-nav" aria-valuemin={CLI_SIDEBAR_WIDTH.right.min}
+        aria-valuemax={CLI_SIDEBAR_WIDTH.right.max} aria-valuenow={rightSidebarWidth} title={`${rightSidebarWidth}px · 드래그/방향키 · 더블클릭 초기화`}
+        onPointerDown={event => startSidebarResize('right', event)} onPointerMove={resizeSidebar}
+        onPointerUp={finishSidebarResize} onPointerCancel={finishSidebarResize}
+        onKeyDown={event => resizeSidebarWithKeyboard('right', event)}
+        onDoubleClick={() => setCliSidebarWidth('right', CLI_SIDEBAR_WIDTH.right.fallback, true)}>
+        <span aria-hidden="true">⋮</span>
+      </button>
+
+      <aside id="cli-input-check-nav" className={`cli-validation-nav${cmd ? (commandReady ? ' ready' : '') : ' custom'}`} aria-label="실행 전 입력 확인" aria-live="polite">
+        {!cmd ? (
+          <>
+            <div className="cli-validation-nav-title"><span>실행 전 입력 확인</span><span className="cli-validation-count">—</span></div>
+            <p className="cli-validation-ready">Custom Command는 자동 필수 입력 검사를 제공하지 않습니다. 최종 명령을 직접 확인하세요.</p>
+          </>
+        ) : (
+          <>
           <div className="cli-validation-nav-title">
             <span>실행 전 입력 확인</span>
             <span className="cli-validation-count">{commandReady ? '✓' : commandValidation.issues.length}</span>
@@ -1895,8 +1989,9 @@ export default function CliBuilderPage() {
               </ul>
             </>
           )}
-        </aside>
-      )}
+          </>
+        )}
+      </aside>
     </div>
   )
 }
