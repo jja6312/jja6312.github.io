@@ -198,6 +198,7 @@ const JSONSPEC: Record<string, { list?: boolean; ph?: string; fields?: JsonSubFi
   '--whitelisted-ips': { list: true, ph: '1.2.3.4, 5.6.7.8/29' },
 }
 const subKey = (opt: string, key: string) => `${opt}::${key}`
+const cliFieldAnchorId = (name: string) => `cli-field-${name.replace(/^--/, '').replace(/[^a-z0-9]+/gi, '-')}`
 
 /* 서브필드 값 → JSON 문자열 (비면 '') */
 function buildJsonValue(optName: string, values: Record<string, string>): string {
@@ -1523,6 +1524,20 @@ export default function CliBuilderPage() {
     }
     return next
   })
+  const focusValidationField = (name: string) => {
+    const option = formOptionsByName.get(name)
+    if (option?.deprecated) setShowDeprecated(true)
+    else if (formAdvanced.some(item => item.name === name)) setShowOptional(true)
+    const focusField = () => {
+      const target = document.getElementById(cliFieldAnchorId(name))
+      const control = target?.querySelector<HTMLElement>(
+        '.cli-input, .cli-flag-control input, .cli-multiple-choices input, .cli-query-picker input',
+      )
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      control?.focus({ preventScroll: true })
+    }
+    requestAnimationFrame(() => requestAnimationFrame(focusField))
+  }
   const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
 
   const copy = useCallback(async () => {
@@ -1830,22 +1845,6 @@ export default function CliBuilderPage() {
         )}
 
         <div className={`cli-result${commandReady ? '' : ' incomplete'}`}>
-          {!commandReady && (
-            <div className="cli-validation-panel" role="alert" aria-label="미완성 OCI CLI 입력">
-              <div className="cli-validation-title">실행 전 입력 확인</div>
-              <div>아래 항목을 해결하면 복사와 즐겨찾기 저장이 활성화됩니다.</div>
-              <ul>
-                {commandValidation.issues.map((issue, index) => (
-                  <li key={`${issue.code}:${issue.options.join(':')}:${index}`}>
-                    <span>{issue.message}</span>
-                    {issue.options.length > 0 && <span className="cli-validation-options">
-                      {issue.options.map(name => <code key={name}>{name}</code>)}
-                    </span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
           <div className="cli-result-hd">
             <button className="cli-out-toggle" aria-expanded={outOpen} aria-keyshortcuts="Alt+O"
               title={`${commandReady ? '최종 명령' : '미완성 명령 미리보기'} 접기/펼치기 (Alt+O)`} onClick={toggleOutput}>
@@ -1866,6 +1865,38 @@ export default function CliBuilderPage() {
           {outOpen && <pre className={`cli-output${outUncapped ? '' : ' initial'}`}>{cli}</pre>}
         </div>
       </main>
+
+      {cmd && (
+        <aside className={`cli-validation-nav${commandReady ? ' ready' : ''}`} aria-label="실행 전 입력 확인" aria-live="polite">
+          <div className="cli-validation-nav-title">
+            <span>실행 전 입력 확인</span>
+            <span className="cli-validation-count">{commandReady ? '✓' : commandValidation.issues.length}</span>
+          </div>
+          {commandReady ? (
+            <p className="cli-validation-ready">필수 입력이 모두 준비됐습니다. 최종 명령을 복사하거나 즐겨찾기에 저장할 수 있습니다.</p>
+          ) : (
+            <>
+              <p className="cli-validation-guide">항목을 누르면 해당 입력칸으로 이동합니다.</p>
+              <ul className="cli-validation-list">
+                {commandValidation.issues.map((issue, index) => (
+                  <li key={`${issue.code}:${issue.options.join(':')}:${index}`}>
+                    <span className="cli-validation-message">{issue.message}</span>
+                    {issue.options.length > 0 && (
+                      <div className="cli-validation-targets">
+                        {issue.options.map(name => (
+                          <button type="button" key={name} onClick={() => focusValidationField(name)}>
+                            <code>{name}</code><span>입력으로 이동</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </aside>
+      )}
     </div>
   )
 }
@@ -1875,6 +1906,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   dynamic: boolean; rootTenancy?: boolean; onToggleDynamic?: (on: boolean) => void
   subVal: (key: string) => string; onSub: (key: string, v: string) => void
 }) {
+  const fieldId = cliFieldAnchorId(o.name)
   const dynMeta = rootTenancy
     ? { input: '프로필에서 자동 조회 — 입력 불필요', note: '선택한 OCI 프로필의 루트 테넌시 OCID를 자동 조회' }
     : o.dynamicLookup
@@ -1905,7 +1937,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   )
   if (o.flag) {
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <label className="cli-flag-control">
           <input type="checkbox" checked={value === 'true'} onChange={e => onChange(e.target.checked ? 'true' : '')} />
@@ -1916,7 +1948,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   }
   if (o.checkbox) {
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <label className="cli-flag-control">
           <input type="checkbox" checked={value !== ''}
@@ -1928,7 +1960,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   }
   if (o.multi) {
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <textarea className="cli-input cli-json" value={value} rows={4}
           placeholder={`${o.placeholder}\n… 여러 개는 줄바꿈 또는 콤마로 구분 (각각 for 루프로 복사)`}
@@ -1945,7 +1977,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
         onChange([...new Set(next)].join('\n'))
       }
       return (
-        <div className="cli-field">
+        <div id={fieldId} className="cli-field" data-cli-option={o.name}>
           {label}
           <div className="cli-multiple-choices" role="group" aria-label={`${o.name} 복수 값 선택`}>
             {o.choices.map(choice => (
@@ -1960,7 +1992,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
       )
     }
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <textarea className="cli-input cli-json" value={value} rows={4}
           placeholder={`${o.placeholder || 'value'}\n값마다 한 줄씩 입력하면 같은 옵션을 반복합니다.`}
@@ -1979,7 +2011,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
       onChange([...new Set(next)].join('\n'))
     }
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <div className="cli-query-picker" role="group" aria-label="조회할 인스턴스 필드 복수 선택">
           {o.suggestions.map(suggestion => (
@@ -2002,7 +2034,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   }
   if (!dynamic && o.choices && o.choices.length) {
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <select className="cli-input" value={value} onChange={e => onChange(e.target.value)}>
           <option value="">(선택 안 함)</option>
@@ -2014,7 +2046,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   const spec = JSONSPEC[o.name]
   if (spec?.list) {
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <input className="cli-input" value={value} placeholder={spec.ph} onChange={e => onChange(e.target.value)} />
       </div>
@@ -2022,7 +2054,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   }
   if (spec?.fields) {
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <div className="cli-json-group">
           {spec.fields.map(f => (
@@ -2060,7 +2092,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   }
   if (!dynamic && o.type === 'json') {
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <textarea className="cli-input cli-json" value={value} placeholder={o.placeholder || '{ }'} onChange={e => onChange(e.target.value)} />
       </div>
@@ -2069,7 +2101,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   if (o.suggestions?.length) {
     const listId = `cli-suggestions-${o.name.replaceAll('-', '')}`
     return (
-      <div className="cli-field">
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <input className="cli-input" list={listId} value={value} placeholder={o.placeholder}
           onChange={e => onChange(e.target.value)} />
@@ -2080,7 +2112,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
     )
   }
   return (
-    <div className="cli-field">
+    <div id={fieldId} className="cli-field" data-cli-option={o.name}>
       {label}
       <input className="cli-input" value={value}
         inputMode={o.type === 'int' || o.type === 'float' ? 'decimal' : undefined}

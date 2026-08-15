@@ -73,17 +73,26 @@ for (const marker of [
   "if (!commandReady)",
   "disabled={!commandReady}",
   "미완성 명령 미리보기",
-  "cli-validation-panel",
+  "cli-validation-nav",
+  "focusValidationField",
+  "scrollIntoView({ behavior: 'smooth', block: 'center' })",
+  "control?.focus({ preventScroll: true })",
+  "id={fieldId}",
   "필수 입력을 완료해야 복사할 수 있습니다.",
   "필수 입력을 완료해야 저장할 수 있습니다.",
 ]) {
   if (!pageSource.includes(marker)) fail(`CLI validation UI/guard is missing: ${marker}`)
 }
 
-const validationPanelRule = cssSource.match(/\.cli-validation-panel\s*\{([^}]*)\}/s)?.[1] ?? ''
-if (!/width:\s*min\(100%,\s*560px\)/.test(validationPanelRule)
-  || !/margin:\s*0\s+0\s+10px\s+auto/.test(validationPanelRule)) {
-  fail('CLI preflight validation panel must stay right-aligned on wide screens and fluid on narrow screens')
+const layoutRule = cssSource.match(/\.cli-layout\s*\{([^}]*)\}/s)?.[1] ?? ''
+const validationNavRule = cssSource.match(/\.cli-validation-nav\s*\{([^}]*)\}/s)?.[1] ?? ''
+if (!/grid-template-columns:\s*220px\s+minmax\(0,\s*1fr\)\s+280px/.test(layoutRule)
+  || !/position:\s*sticky/.test(validationNavRule)
+  || !/max-height:\s*calc\(100vh\s*-\s*90px\)/.test(validationNavRule)) {
+  fail('CLI preflight validation must stay in a dedicated sticky right sidebar on wide screens')
+}
+if (!/@media\s*\(max-width:\s*860px\)[\s\S]*?\.cli-validation-nav\s*\{\s*grid-column:\s*1/.test(cssSource)) {
+  fail('CLI preflight validation sidebar needs a non-overlapping mobile fallback')
 }
 
 console.log(JSON.stringify({
@@ -92,5 +101,6 @@ console.log(JSON.stringify({
   multipleSourceIssueCodes: codesOf(multipleSources),
   dependencyIssueCodes: codesOf(missingDependency),
   allLimitIssueCodes: codesOf(allLimit),
-  validationPanelPlacement: 'right-fluid',
+  validationPanelPlacement: 'right-sidebar',
+  validationFieldFocus: true,
 }))
