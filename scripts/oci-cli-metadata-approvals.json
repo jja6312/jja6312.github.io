@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "tag": "v3.90.2",
+    "commit": "ad59a1f4c7df10decf51816ac16991621dae1b15"
+  },
+  "officialManualResources": [
+    "mysql-backup"
+  ],
+  "approvedDifferences": [
+    {
+      "id": "mysql-backup:create:extraOption:--lookup-compartment-id",
+      "kind": "extraOption",
+      "resource": "mysql-backup",
+      "operation": "create",
+      "subject": "--lookup-compartment-id",
+      "reason": "DB System 이름을 안전하게 OCID로 해석하기 위한 UI 전용 조회 범위이며 최종 OCI 명령에는 직렬화하지 않습니다.",
+      "guard": {
+        "lookupOnly": true
+      }
+    },
+    {
+      "id": "mysql:get:extraOption:--lookup-compartment-id",
+      "kind": "extraOption",
+      "resource": "mysql",
+      "operation": "get",
+      "subject": "--lookup-compartment-id",
+      "reason": "DB System 이름을 안전하게 OCID로 해석하기 위한 UI 전용 조회 범위이며 최종 OCI 명령에는 직렬화하지 않습니다.",
+      "guard": {
+        "lookupOnly": true
+      }
+    }
+  ]
+}

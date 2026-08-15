@@ -1,0 +1,60 @@
+name: OCI CLI metadata guard
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 0 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-oci-cli-source-update.py'
+      - 'scripts/collect-oci-cli-click-tree.py'
+      - 'scripts/oci-cli-*.json'
+      - 'scripts/oci-cli-runtime-requirements.txt'
+      - 'scripts/oci_cli_click.py'
+      - 'scripts/oci_cli_source.py'
+      - 'scripts/verify-oci-cli-metadata.py'
+      - '.github/workflows/oci-cli-metadata.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Compare pin with latest stable OCI CLI release
+        run: python scripts/check-oci-cli-source-update.py --fail-on-update --output artifacts/oci-cli-source-update-report.json
+      - name: Upload source-freshness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oci-cli-source-update-report
+          path: artifacts/oci-cli-source-update-report.json
+
+  pinned-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: scripts/oci-cli-runtime-requirements.txt
+      - name: Cache verified OCI CLI release and Click runtime
+        uses: actions/cache@v4
+        with:
+          path: .protected-cache/oci-cli-runtime
+          key: ${{ runner.os }}-oci-cli-${{ hashFiles('scripts/oci-cli-source.lock.json', 'scripts/oci-cli-runtime-requirements.txt', 'scripts/collect-oci-cli-click-tree.py') }}
+      - name: Compare committed contract with final Click metadata
+        run: python scripts/verify-oci-cli-metadata.py --self-test --report artifacts/oci-cli-metadata-report.json
+      - name: Upload command and option diff report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oci-cli-metadata-report
+          path: artifacts/oci-cli-metadata-report.json

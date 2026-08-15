@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 from oci_cli_source import load_lock
 
@@ -36,6 +38,10 @@ def fetch_bytes(url: str) -> bytes:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--fail-on-update", action="store_true")
+    args = parser.parse_args()
     lock = load_lock()
     latest = get_json(f"{API}/releases/latest")
     latest_tag = latest["tag_name"]
@@ -58,9 +64,21 @@ def main() -> None:
         "updateAvailable": latest_tag != lock["tag"] or latest_commit != lock["commit"],
         "changedSources": sum(item["status"] == "changed" for item in changes),
         "sources": changes,
-        "nextStep": "Review the generated catalog diff before changing the lock." if latest_tag != lock["tag"] else "No lock update is required.",
+        "requiresReview": latest_tag != lock["tag"] or latest_commit != lock["commit"]
+            or any(item["status"] != "unchanged" for item in changes),
+        "nextStep": "Review the generated catalog diff before changing the lock."
+            if latest_tag != lock["tag"] or latest_commit != lock["commit"]
+            else "No lock update is required.",
     }
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    rendered = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    if args.fail_on_update and report["requiresReview"]:
+        raise SystemExit(
+            f"Unreviewed OCI CLI release/source change detected: pinned={lock['tag']} latest={latest_tag}"
+        )
 
 
 if __name__ == "__main__":
