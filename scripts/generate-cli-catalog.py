@@ -193,6 +193,101 @@ CURATION = {
 
 NAMEISH = ('--display-name', '--name')
 
+# Required OCIDs are resolved through the target resource's official LIST
+# command. Ambiguous option names are overridden per source resource below.
+RESOURCE_ID_TARGETS = {
+    '--alarm-id': 'alarm',
+    '--announcement-id': 'announcement',
+    '--autonomous-database-id': 'autonomous-database',
+    '--backup-id': 'mysql-backup',
+    '--boot-volume-id': 'boot-volume',
+    '--capacity-reservation-id': 'capacity-reservation',
+    '--compute-cluster-id': 'compute-cluster',
+    '--db-system-id': 'base-db',
+    '--dedicated-vm-host-id': 'dedicated-vm-host',
+    '--dhcp-id': 'dhcp-options',
+    '--drg-attachment-id': 'drg-attachment',
+    '--drg-id': 'drg',
+    '--export-id': 'export',
+    '--export-set-id': 'export-set',
+    '--file-system-id': 'file-system',
+    '--group-id': 'iam-group',
+    '--ig-id': 'internet-gateway',
+    '--image-id': 'custom-image',
+    '--instance-configuration-id': 'instance-configuration',
+    '--instance-id': 'instance',
+    '--instance-pool-id': 'instance-pool',
+    '--load-balancer-id': 'load-balancer',
+    '--local-peering-gateway-id': 'local-peering-gateway',
+    '--mount-target-id': 'mount-target',
+    '--nat-gateway-id': 'nat-gateway',
+    '--network-load-balancer-id': 'network-load-balancer',
+    '--nsg-id': 'nsg',
+    '--policy-id': 'volume-backup-policy',
+    '--public-ip-id': 'public-ip',
+    '--remote-peering-connection-id': 'remote-peering-connection',
+    '--rt-id': 'route-table',
+    '--security-list-id': 'security-list',
+    '--service-gateway-id': 'service-gateway',
+    '--subnet-id': 'subnet',
+    '--subnet-ids': 'subnet',
+    '--subscription-id': 'subscription',
+    '--topic-id': 'topic',
+    '--user-id': 'iam-user',
+    '--vcn-id': 'vcn',
+    '--volume-group-id': 'volume-group',
+    '--volume-id': 'block-volume',
+}
+
+RESOURCE_ID_TARGET_OVERRIDES = {
+    ('mysql', '--db-system-id'): 'mysql',
+    ('mysql-backup', '--db-system-id'): 'mysql',
+    ('iam-policy', '--policy-id'): 'iam-policy',
+}
+
+LOOKUP_NAME_FIELDS = {
+    'announcement': 'reference-ticket-number',
+    'export': 'path',
+    'iam-user': 'name',
+    'iam-group': 'name',
+    'iam-policy': 'name',
+    'subscription': 'endpoint',
+    'topic': 'name',
+}
+
+LOOKUP_LABELS = {
+    'announcement': 'Announcement reference ticket number',
+    'export': 'Export path',
+    'export-set': 'Export Set 이름',
+    'subscription': 'Subscription endpoint',
+}
+
+EXTERNAL_LOOKUP_COMMANDS = {
+    'export-set': 'oci fs export-set list',
+}
+
+LOOKUP_REQUIRES_AD = {'export-set', 'file-system', 'mount-target'}
+
+DIRECT_ONLY_LOOKUPS = {
+    ('subscription-balance', '--subscription-id'): (
+        'OneSubscription 목록의 id 자체가 선택 키이며 별도의 고유 이름 필드가 없습니다. '
+        'Subscriptions LIST에서 확인한 ID를 직접 선택합니다.'
+    ),
+    ('compartment-resource-cleansing', '--compartment-id'): (
+        '삭제 범위 보호를 위해 정리 대상 compartment OCID를 직접 입력하고 같은 OCID로 이중 확인합니다.'
+    ),
+    ('boot-volume-cross-copy', '--source-tenancy-id'): '원본 프로필과 별개인 cross-tenancy IAM 주체를 명시적으로 확인합니다.',
+    ('boot-volume-cross-copy', '--dest-tenancy-id'): '대상 tenancy OCID를 policy statement와 대조해야 하므로 직접 확인합니다.',
+    ('boot-volume-cross-copy', '--target-group-id'): '대상 tenancy Group OCID를 Admit/Endorse policy와 독립적으로 대조합니다.',
+    ('boot-volume-cross-copy', '--compartment-id'): '복사 대상 tenancy의 정확한 compartment OCID를 policy 범위와 대조합니다.',
+    ('boot-volume-cross-copy', '--source-boot-volume-id'): '여러 원본 tenancy volume을 순회하므로 검증된 OCID 목록을 직접 입력합니다.',
+    ('block-volume-cross-copy', '--source-tenancy-id'): '원본 프로필과 별개인 cross-tenancy IAM 주체를 명시적으로 확인합니다.',
+    ('block-volume-cross-copy', '--dest-tenancy-id'): '대상 tenancy OCID를 policy statement와 대조해야 하므로 직접 확인합니다.',
+    ('block-volume-cross-copy', '--target-group-id'): '대상 tenancy Group OCID를 Admit/Endorse policy와 독립적으로 대조합니다.',
+    ('block-volume-cross-copy', '--compartment-id'): '복사 대상 tenancy의 정확한 compartment OCID를 policy 범위와 대조합니다.',
+    ('block-volume-cross-copy', '--source-volume-id'): '여러 원본 tenancy volume을 순회하므로 검증된 OCID 목록을 직접 입력합니다.',
+}
+
 def recipe_cmd(res):
     p = os.path.join(RECIPE, 'ocicli_%s.md' % res)
     if not os.path.exists(p):
@@ -996,6 +1091,123 @@ EXTRA = {
 catalog['commands'].update(EXTRA)
 catalog['executionContext'] = _execution_context()
 
+def surface_options(surface):
+    return [
+        option
+        for section in surface.get('sections', [])
+        for option in section.get('options', [])
+    ] + surface.get('advanced', [])
+
+def lookup_input(name, label, help_text, placeholder='', default=None, choices=None):
+    option = {
+        'name': name, 'required': False, 'requirement': 'optional',
+        'type': 'choice' if choices else 'str', 'choices': choices,
+        'help': help_text, 'placeholder': placeholder,
+        'lookupOnly': True, 'displayLabel': label, 'shellQuote': True,
+    }
+    if default is not None:
+        option['defaultValue'] = default
+    return option
+
+def target_list_command(target):
+    external = EXTERNAL_LOOKUP_COMMANDS.get(target)
+    if external:
+        if external not in CLICK_COMMANDS:
+            raise RuntimeError('Dynamic lookup command is absent from pinned Click tree: %s' % external)
+        return external, CLICK_COMMANDS[external]
+    target_command = catalog['commands'].get(target)
+    target_list = (target_command or {}).get('operations', {}).get('list')
+    if not target_list:
+        raise RuntimeError('Dynamic lookup target has no LIST operation: %s' % target)
+    official = CLICK_COMMANDS.get(target_list['cmd'])
+    return target_list['cmd'], official or {'options': surface_options(target_list)}
+
+def annotate_dynamic_lookups(resource, surface):
+    options = surface_options(surface)
+    option_names = {option['name'] for option in options}
+    lookup_inputs = {option['name']: option for option in surface.get('lookupInputs', [])}
+    for option in options:
+        option_name = option['name']
+        direct_reason = DIRECT_ONLY_LOOKUPS.get((resource, option_name))
+        if direct_reason:
+            option['directLookupReason'] = direct_reason
+            continue
+        if option_name == '--compartment-id':
+            option['dynamicLookup'] = {
+                'kind': 'compartment',
+                'inputLabel': 'Compartment 이름 또는 OCID',
+                'inputPlaceholder': 'prod, ROOT 또는 ocid1.compartment...',
+                'note': '이름은 tenancy 전체에서 정확히 1개일 때만 OCID로 변환합니다.',
+            }
+            continue
+        if option_name == '--metric-compartment-id':
+            option['dynamicLookup'] = {
+                'kind': 'compartment',
+                'inputLabel': 'Metric compartment 이름 또는 OCID',
+                'inputPlaceholder': 'prod 또는 ocid1.compartment...',
+                'note': '이름은 tenancy 전체에서 정확히 1개일 때만 OCID로 변환합니다.',
+            }
+            continue
+        target = RESOURCE_ID_TARGET_OVERRIDES.get((resource, option_name), RESOURCE_ID_TARGETS.get(option_name))
+        if not target:
+            continue
+        if resource == 'iam-user-mfa-reset' and option_name == '--user-id':
+            option['dynamicLookupImplementedBy'] = 'dedicated-builder'
+            continue
+        # Existing dedicated builders already implement exact 0/1/N lookup.
+        if resource in {'mysql', 'mysql-backup', 'iam-user', 'iam-group', 'iam-policy'}:
+            option['dynamicLookupImplementedBy'] = 'dedicated-builder'
+            continue
+        list_command, official_list = target_list_command(target)
+        field = LOOKUP_NAME_FIELDS.get(target, 'display-name')
+        label = LOOKUP_LABELS.get(target, RES_LABEL.get(target, target))
+        tenancy_scope = target == 'announcement'
+        scope_input = None if tenancy_scope else (
+            '--compartment-id' if '--compartment-id' in option_names else '--lookup-compartment-id'
+        )
+        if scope_input == '--lookup-compartment-id' and scope_input not in lookup_inputs:
+            lookup_inputs[scope_input] = lookup_input(
+                scope_input, '조회 범위 (compartment)',
+                '리소스 이름을 찾을 compartment 이름, ROOT 또는 OCID입니다. 최종 명령에는 전달되지 않습니다.',
+                'prod 또는 ocid1.compartment...',
+            )
+        prerequisite_inputs = []
+        if target in LOOKUP_REQUIRES_AD:
+            ad_input = '--lookup-availability-domain'
+            if ad_input not in lookup_inputs:
+                lookup_inputs[ad_input] = lookup_input(
+                    ad_input, '조회 Availability Domain',
+                    'AD 번호(1~3) 또는 정확한 AD 이름입니다. 최종 명령에는 전달되지 않습니다.',
+                    '1 또는 xxxx:AP-SEOUL-1-AD-1', default='1',
+                )
+            prerequisite_inputs.append({'input': ad_input, 'argument': '--availability-domain', 'kind': 'availabilityDomain'})
+        if target == 'public-ip':
+            scope_kind_input = '--lookup-scope'
+            if scope_kind_input not in lookup_inputs:
+                lookup_inputs[scope_kind_input] = lookup_input(
+                    scope_kind_input, 'Public IP 조회 범위',
+                    '대부분의 예약 Public IP는 REGION 범위에서 조회합니다.',
+                    default='REGION', choices=['REGION', 'AVAILABILITY_DOMAIN'],
+                )
+            prerequisite_inputs.append({'input': scope_kind_input, 'argument': '--scope', 'kind': 'value'})
+        option['dynamicLookup'] = {
+            'kind': 'exactName',
+            'target': target,
+            'listCommand': list_command,
+            'nameField': field,
+            'inputLabel': label,
+            'inputPlaceholder': '%s %s' % (label, '여러 개(줄바꿈)' if option_name.endswith('-ids') else '이름'),
+            'note': '공식 LIST 결과에서 정확히 일치하는 %s이 1개일 때만 OCID로 변환합니다.' % field,
+            'scope': 'tenancy' if tenancy_scope else 'compartment',
+            'scopeInput': scope_input,
+            'scopeArgument': '--compartment-id',
+            'prerequisites': prerequisite_inputs,
+            'multiple': option_name.endswith('-ids'),
+            'supportsAll': bool(official_list and any(item['name'] == '--all' for item in official_list.get('options', []))),
+        }
+    if lookup_inputs:
+        surface['lookupInputs'] = list(lookup_inputs.values())
+
 def set_safe_preferred_operation(command):
     """Persist the same LIST > GET > mutation default enforced by the UI."""
     if command.get('maintenanceReboot'):
@@ -1009,10 +1221,13 @@ def set_safe_preferred_operation(command):
 
 for resource, command in catalog['commands'].items():
     set_safe_preferred_operation(command)
+    annotate_dynamic_lookups(resource, command)
     annotate_option_relationships(command)
     for operation in command.get('operations', {}).values():
+        annotate_dynamic_lookups(resource, operation)
         annotate_option_relationships(operation)
     for action in command.get('actions', {}).values():
+        annotate_dynamic_lookups(resource, action)
         annotate_option_relationships(action)
     lift_execution_context(command)
     for operation in command.get('operations', {}).values():

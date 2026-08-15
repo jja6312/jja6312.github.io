@@ -26,7 +26,7 @@ const commonNames = [
 ]
 const harness = `
 const JSONSPEC = {}
-const allOptions = command => [...command.sections.flatMap(section => section.options), ...command.advanced]
+const allOptions = command => [...(command.lookupInputs ?? []), ...command.sections.flatMap(section => section.options), ...command.advanced]
 const isDynamic = (dynamic, name) => dynamic[name] === true
 const isExecutionContextName = name => ${JSON.stringify(commonNames)}.includes(name)
 const isCliOptionValueActive = ${optionModel.isCliOptionValueActive.toString()}
@@ -47,6 +47,7 @@ const buildCli = builderContext.buildCli
 if (typeof buildCli !== 'function') fail('OCI CLI buildCli harness did not compile')
 
 const allOptions = surface => [
+  ...(surface.lookupInputs ?? []),
   ...(surface.sections ?? []).flatMap(section => section.options),
   ...(surface.advanced ?? []),
 ]
@@ -173,6 +174,62 @@ const syntaxBatch = [...scripts.entries()]
 const syntax = spawnSync(bash, ['-n'], { input: syntaxBatch, encoding: 'utf8' })
 if (syntax.status !== 0) fail(`Generated command Bash syntax invalid: ${syntax.stderr}`)
 
+let dynamicLookups = 0
+const dynamicScripts = []
+const dynamicScriptMap = new Map()
+for (const record of records) {
+  const { resource, command, operation, action, surface } = record
+  const dynamicOptions = allOptions(surface).filter(option => option.dynamicLookup)
+  if (!dynamicOptions.length) continue
+  const values = makeValues(command, surface)
+  const dynamic = {}
+  for (const option of dynamicOptions) {
+    dynamic[option.name] = true
+    if (option.dynamicLookup.kind === 'exactName') {
+      values[option.name] = option.dynamicLookup.multiple ? 'example-one\nexample-two' : 'example-resource'
+    } else values[option.name] = 'example-compartment'
+  }
+  for (const input of surface.lookupInputs ?? []) {
+    if (input.defaultValue !== undefined) values[input.name] = String(input.defaultValue)
+    else if (input.name === '--lookup-compartment-id') values[input.name] = 'example-compartment'
+  }
+  const script = buildCli(command, values, dynamic, operation, action,
+    ["--profile 'DEFAULT'"], command.maintenanceReboot ? [] : ['--output json'])
+  const key = `${resource}:${action ? `action:${action}` : operation}`
+  const rootOnly = command.rootTenancyLookup
+    && dynamicOptions.every(option => option.dynamicLookup.kind === 'compartment')
+  if (rootOnly) {
+    if (!script.includes('ocid1.tenancy.*')) fail(`${key}: root tenancy derivation lacks OCID validation`)
+  } else if (!script.includes('found=$') || !script.includes('exit 1')) {
+    fail(`${key}: dynamic lookup lacks explicit 0/1/N guard`)
+  }
+  if (dynamicOptions.some(option => option.dynamicLookup.kind === 'exactName')
+    && (!script.includes('command -v jq') || !script.includes(' | length'))) {
+    fail(`${key}: exact-name lookup lacks jq exact-match resolution`)
+  }
+  dynamicLookups += dynamicOptions.length
+  dynamicScriptMap.set(key, script)
+  dynamicScripts.push(`# ===== dynamic ${key} =====\n{\n${script}\n}\n`)
+}
+const dynamicSyntax = spawnSync(bash, ['-n'], { input: dynamicScripts.join('\n'), encoding: 'utf8' })
+if (dynamicSyntax.status !== 0) fail(`Dynamic lookup Bash syntax invalid: ${dynamicSyntax.stderr}`)
+if (dynamicLookups < 200) fail(`Too few required-ID dynamic lookup surfaces covered: ${dynamicLookups}`)
+
+const dynamicFlowAssertions = [
+  ['instance:get', ['oci compute instance list', 'display-name', 'LOOKUP_INSTANCE_ID_COUNT']],
+  ['announcement:get', ['oci announce announcements list', 'reference-ticket-number']],
+  ['export:create', ['oci fs export-set list', 'oci fs file-system list', 'oci iam availability-domain list']],
+  ['load-balancer:create', ['oci network subnet list', 'LOOKUP_SUBNET_IDS_JSON']],
+  ['instance-maintenance-reboot:get', ['oci compute instance list', 'INSTANCE_COUNT']],
+]
+for (const [key, markers] of dynamicFlowAssertions) {
+  const script = dynamicScriptMap.get(key)
+  if (!script) fail(`${key}: representative dynamic lookup command was not generated`)
+  for (const marker of markers) {
+    if (!script.includes(marker)) fail(`${key}: missing dynamic lookup marker ${marker}`)
+  }
+}
+
 const quoted = optionModel.serializeCliOption({ name: '--name' }, "O'Reilly; echo unsafe")
 if (quoted.join('') !== "--name 'O'\\''Reilly; echo unsafe'") fail(`Unsafe shell value was not quoted: ${quoted}`)
 const jsonArgs = optionModel.serializeCliOption({ name: '--defined-tags' }, '{"Operations":{"Owner":"MSP"}}')
@@ -215,4 +272,5 @@ console.log(JSON.stringify({
   flag: true,
   mutuallyExclusive: true,
   dangerConfirmations: 2,
+  dynamicLookups,
 }))

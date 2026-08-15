@@ -131,7 +131,7 @@ if (buildStart < 0 || buildEnd < 0) fail('Generic CLI builder extraction failed'
 const buildHarness = `
 const DYNAMIC = {'--compartment-id': {}}
 const JSONSPEC = {}
-const allOptions = command => [...command.sections.flatMap(section => section.options), ...command.advanced]
+const allOptions = command => [...(command.lookupInputs ?? []), ...command.sections.flatMap(section => section.options), ...command.advanced]
 const isDynamic = (dynamic, name) => name in DYNAMIC ? (dynamic[name] ?? true) : false
 const isExecutionContextName = name => ${JSON.stringify([...commonNames])}.includes(name)
 const isCliOptionValueActive = ${optionModel.isCliOptionValueActive.toString()}
@@ -160,9 +160,11 @@ vm.runInNewContext(ts.transpileModule(buildHarness, {
 }).outputText, buildContext)
 const generated = buildContext.generated
 const occurrences = (text, part) => text.split(part).length - 1
-if (occurrences(generated, "--profile 'OPS'") !== 2
-  || occurrences(generated, '--auth instance_principal') !== 2
-  || occurrences(generated, '--output table') !== 1) {
+const generatedOciCalls = occurrences(generated, 'oci ')
+if (generatedOciCalls < 2
+  || occurrences(generated, "--profile 'OPS'") !== generatedOciCalls
+  || occurrences(generated, '--auth instance_principal') !== generatedOciCalls
+  || occurrences(generated, '--output table') < 1) {
   fail(`Dynamic lookup/final command context propagation failed:\n${generated}`)
 }
 const syntax = spawnSync('C:\\Program Files\\Git\\bin\\bash.exe', ['-n'], { input: generated, encoding: 'utf8' })

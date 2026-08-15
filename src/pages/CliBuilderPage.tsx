@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
-import { isCliOptionValueActive, serializeCliOption, validateCliOptions } from '../lib/cliOptionModel'
+import { isCliOptionValueActive, quoteCliValue, serializeCliOption, validateCliOptions } from '../lib/cliOptionModel'
 import { defaultCliOperation, type CliCrudVerb } from '../lib/cliDefaultOperation'
 import {
   executionContextDefaults,
@@ -39,6 +39,9 @@ interface CliOption {
   shellQuote?: boolean
   lookupOnly?: boolean       // 이름 조회에만 사용하고 최종 OCI 명령에는 전달하지 않음
   displayLabel?: string
+  dynamicLookup?: CliDynamicLookup
+  dynamicLookupImplementedBy?: 'dedicated-builder'
+  directLookupReason?: string
 }
 interface CliSection { label: string; options: CliOption[] }
 interface CliOptionRule {
@@ -55,10 +58,31 @@ interface CliOptionNotice {
   replacements: string[]
   message: string
 }
+interface CliLookupPrerequisite {
+  input: string
+  argument: string
+  kind: 'availabilityDomain' | 'value'
+}
+interface CliDynamicLookup {
+  kind: 'exactName' | 'compartment'
+  target?: string
+  listCommand?: string
+  nameField?: string
+  inputLabel: string
+  inputPlaceholder: string
+  note: string
+  scope?: 'tenancy' | 'compartment'
+  scopeInput?: string | null
+  scopeArgument?: string
+  prerequisites?: CliLookupPrerequisite[]
+  multiple?: boolean
+  supportsAll?: boolean
+}
 type CrudVerb = CliCrudVerb
 interface CliOperation {
   cmd: string; help: string
   sections: CliSection[]; advanced: CliOption[]
+  lookupInputs?: CliOption[]
   rules?: CliOptionRule[]
   optionNotices?: CliOptionNotice[]
   contextOverrides?: ExecutionContextOverrides
@@ -86,9 +110,12 @@ interface CliCommand {
   actions?: Record<string, CliAction>
   contextOverrides?: ExecutionContextOverrides
   sections: CliSection[]; advanced: CliOption[]
+  lookupInputs?: CliOption[]
 }
 // 조립·검색용 평탄화 — 섹션 순서(콘솔 마법사 순서)를 그대로 유지
-const allOptions = (c: Pick<CliCommand, 'sections' | 'advanced'>): CliOption[] => [...c.sections.flatMap(s => s.options), ...c.advanced]
+const allOptions = (c: Pick<CliCommand, 'sections' | 'advanced' | 'lookupInputs'>): CliOption[] => [
+  ...(c.lookupInputs ?? []), ...c.sections.flatMap(s => s.options), ...c.advanced,
+]
 interface Catalog {
   executionContext: ExecutionContextSchema
   categories: { id: string; label: string; groups: { label: string; resources: string[] }[] }[]
@@ -217,8 +244,8 @@ const FAV_KEY = 'hub-cli-favorites'
 const loadFavs = (): Favorite[] => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]') } catch { return [] } }
 const saveFavs = (f: Favorite[]) => localStorage.setItem(FAV_KEY, JSON.stringify(f))
 
-const isDynamic = (dyn: Record<string, boolean>, name: string) =>
-  name in DYNAMIC ? (dyn[name] ?? true) : false
+const isDynamic = (dyn: Record<string, boolean>, name: string, available = name in DYNAMIC) =>
+  available ? (dyn[name] ?? true) : false
 
 const formatCliCommand = (command: string, args: string[]) => [command, ...args.map(argument => `  ${argument}`)].join(' \\\n')
 const withoutContext = (args: string[], ...names: string[]) => args
@@ -330,17 +357,59 @@ function buildCrossCopy(kind: string, values: Record<string, string>, requestCon
 }
 
 /* 인스턴스 유지보수 재부팅 예정 시각 — 선택한 GET 또는 UPDATE 명령 생성 */
-function buildMaintenanceReboot(values: Record<string, string>, operation: 'get' | 'update', requestContext: string[] = []): string {
+function buildMaintenanceReboot(
+  values: Record<string, string>,
+  dyn: Record<string, boolean>,
+  operation: 'get' | 'update',
+  requestContext: string[] = [],
+): string {
   const v = (key: string, fallback: string) => (values[key] || '').trim() || fallback
-  const instanceId = v('--instance-id', '<instanceid>')
+  const dynamicInstance = isDynamic(dyn, '--instance-id', true)
+  const instanceInput = v('--instance-id', dynamicInstance ? '<instance-name>' : '<instance-ocid>')
+  const compartmentInput = v('--lookup-compartment-id', '<compartment-name-or-ocid>')
   const rebootDue = v('--time-maintenance-reboot-due', '<YYYY-MM-DDTHH:mm:ssZ>')
+  const prelude = dynamicInstance ? [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    'command -v jq >/dev/null 2>&1 || { echo "[ERROR] 동적 조회에는 jq가 필요합니다." >&2; exit 2; }',
+    `INSTANCE_NAME=${quoteCliValue(instanceInput, true)}`,
+    `COMPARTMENT_INPUT=${quoteCliValue(compartmentInput, true)}`,
+    `CTX=(${requestContext.join(' ')})`,
+    'TENANCY_ID=$(oci iam availability-domain list --query \'data[0]."compartment-id"\' --raw-output "${CTX[@]}")',
+    '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ERROR] 프로필에서 tenancy OCID를 확인하지 못했습니다." >&2; exit 2; }',
+    'if [[ "$COMPARTMENT_INPUT" == ocid1.compartment.* || "$COMPARTMENT_INPUT" == ocid1.tenancy.* ]]; then',
+    '  COMPARTMENT_ID="$COMPARTMENT_INPUT"',
+    'elif [[ "${COMPARTMENT_INPUT^^}" == "ROOT" ]]; then',
+    '  COMPARTMENT_ID="$TENANCY_ID"',
+    'else',
+    '  COMPARTMENT_COUNT=$(oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --query \'length(data)\' --raw-output "${CTX[@]}")',
+    '  if [[ "$COMPARTMENT_COUNT" != "1" ]]; then',
+    '    echo "[ERROR] ACTIVE compartment 이름은 정확히 1개여야 합니다: $COMPARTMENT_INPUT (found=$COMPARTMENT_COUNT)" >&2',
+    '    oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" --compartment-id-in-subtree true --access-level ACCESSIBLE --all --query \'data[].{name:name,state:"lifecycle-state",id:id}\' --output table "${CTX[@]}" >&2',
+    '    exit 1',
+    '  fi',
+    '  COMPARTMENT_ID=$(oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --query \'data[0].id\' --raw-output "${CTX[@]}")',
+    'fi',
+    'INSTANCE_JSON=$(oci compute instance list --compartment-id "$COMPARTMENT_ID" --all --output json "${CTX[@]}")',
+    'INSTANCE_COUNT=$(jq -r --arg NAME "$INSTANCE_NAME" \'[.data[]? | select(."display-name" == $NAME)] | length\' <<<"$INSTANCE_JSON")',
+    'if [[ "$INSTANCE_COUNT" != "1" ]]; then',
+    '  echo "[ERROR] Instance 이름은 조회 범위에서 정확히 1개여야 합니다: $INSTANCE_NAME (found=$INSTANCE_COUNT)" >&2',
+    '  jq -r \'.data[]? | [(."display-name" // "-"), (."lifecycle-state" // "-"), (.id // "-")] | @tsv\' <<<"$INSTANCE_JSON" | column -t -s $\'\\t\' >&2 || true',
+    '  exit 1',
+    'fi',
+    'INSTANCE_ID=$(jq -r --arg NAME "$INSTANCE_NAME" \'[.data[]? | select(."display-name" == $NAME)][0].id // empty\' <<<"$INSTANCE_JSON")',
+    '[[ "$INSTANCE_ID" == ocid1.instance.* ]] || { echo "[ERROR] Instance OCID 변환에 실패했습니다." >&2; exit 2; }',
+  ] : []
+  const instanceId = dynamicInstance ? '"$INSTANCE_ID"' : quoteCliValue(instanceInput, true)
 
   if (operation === 'get') {
     return [
+      ...prelude,
+      ...(prelude.length ? [''] : []),
       '# 유지보수 재부팅을 연장할 수 있는 최대 시각 조회',
       formatCliCommand('oci compute instance-maintenance-reboot get', [
-        `--instance-id "${instanceId}"`,
-        ...requestContext,
+        `--instance-id ${instanceId}`,
+        ...(dynamicInstance ? ['"${CTX[@]}"'] : requestContext),
         `--query 'data."time-maintenance-reboot-due-max"'`,
         '--raw-output',
       ]),
@@ -348,11 +417,13 @@ function buildMaintenanceReboot(values: Record<string, string>, operation: 'get'
   }
 
   return [
+    ...prelude,
+    ...(prelude.length ? [''] : []),
     '# 인스턴스 유지보수 재부팅 달력 업데이트',
     formatCliCommand('oci compute instance update', [
-      `--instance-id "${instanceId}"`,
+      `--instance-id ${instanceId}`,
       `--time-maintenance-reboot-due "${rebootDue}"`,
-      ...requestContext,
+      ...(dynamicInstance ? ['"${CTX[@]}"'] : requestContext),
       '--force',
     ]),
   ].join('\n')
@@ -1056,7 +1127,7 @@ function buildCli(
   responseContext: string[] = [],
 ): string {
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values, requestContext)
-  if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, operation === 'update' ? 'update' : 'get', requestContext)
+  if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, dyn, operation === 'update' ? 'update' : 'get', requestContext)
   if (cmd.compartmentCleanup) return buildCompartmentCleanup(values, requestContext)
   if (cmd.allSubscriptionBalances) return buildAllSubscriptionBalances(values, requestContext)
   if (cmd.iamMfaReset) return buildIamMfaReset(values, requestContext)
@@ -1069,22 +1140,130 @@ function buildCli(
 
   const prelude: string[] = []
   const args: string[] = []
+  let rootTenancyReady = false
+  let jqReady = false
+
+  const ensureRootTenancy = () => {
+    if (!rootTenancyReady) {
+      prelude.push(buildRootTenancyLookup(requestContext))
+      rootTenancyReady = true
+    }
+    return '"$TENANCY_ID"'
+  }
+  const ensureJq = () => {
+    if (!jqReady) {
+      prelude.push('command -v jq >/dev/null 2>&1 || { echo "[ERROR] 동적 조회에는 jq가 필요합니다. OCI Cloud Shell에는 기본 설치되어 있습니다." >&2; exit 2; }')
+      jqReady = true
+    }
+  }
+  const resolveCompartment = (input: string, variable: string) => {
+    const raw = (values[input] ?? '').trim() || '<compartment-name-or-ocid>'
+    if (raw.toUpperCase() === 'ROOT') return ensureRootTenancy()
+    if (raw.startsWith('ocid1.compartment.') || raw.startsWith('ocid1.tenancy.')) {
+      prelude.push(
+        `${variable}=${quoteCliValue(raw, true)}`,
+        `[[ "$${variable}" == ocid1.compartment.* || "$${variable}" == ocid1.tenancy.* ]] || { echo "[ERROR] ${input}에는 compartment/tenancy OCID가 필요합니다." >&2; exit 2; }`,
+      )
+      return `"$${variable}"`
+    }
+    const tenancy = ensureRootTenancy()
+    const nameVariable = `${variable}_NAME`
+    const countVariable = `${variable}_COUNT`
+    prelude.push(
+      `${nameVariable}=${quoteCliValue(raw, true)}`,
+      `${countVariable}=$(${formatCliCommand('oci iam compartment list', [
+        `--compartment-id ${tenancy}`, `--name "$${nameVariable}"`, '--lifecycle-state ACTIVE',
+        '--compartment-id-in-subtree true', '--access-level ACCESSIBLE', '--all',
+        "--query 'length(data)'", '--raw-output', ...requestContext,
+      ])})`,
+      `if [[ "$${countVariable}" != "1" ]]; then`,
+      `  echo "[ERROR] ACTIVE compartment 이름은 tenancy 전체에서 정확히 1개여야 합니다: $${nameVariable} (found=$${countVariable})" >&2`,
+      formatCliCommand('  oci iam compartment list', [
+        `--compartment-id ${tenancy}`, `--name "$${nameVariable}"`, '--compartment-id-in-subtree true',
+        '--access-level ACCESSIBLE', '--all', "--query 'data[].{name:name,state:\"lifecycle-state\",id:id,parent:\"compartment-id\"}'",
+        '--output table', ...requestContext,
+      ]),
+      '  exit 1',
+      'fi',
+      `${variable}=$(${formatCliCommand('oci iam compartment list', [
+        `--compartment-id ${tenancy}`, `--name "$${nameVariable}"`, '--lifecycle-state ACTIVE',
+        '--compartment-id-in-subtree true', '--access-level ACCESSIBLE', '--all',
+        "--query 'data[0].id'", '--raw-output', ...requestContext,
+      ])})`,
+      `[[ "$${variable}" == ocid1.compartment.* ]] || { echo "[ERROR] compartment OCID 변환에 실패했습니다." >&2; exit 2; }`,
+    )
+    return `"$${variable}"`
+  }
 
   const compOption = allOptions(selected).find(o => o.name === '--compartment-id')
   const compStatic = (values['--compartment-id'] ?? '').trim()
   const compDynamic = !!compOption && isDynamic(dyn, '--compartment-id') && (compOption.required || !!compStatic)
   const rootTenancyDynamic = compDynamic && !!cmd.rootTenancyLookup
   // 다른 동적 조회가 참조할 compartment 표현
-  const compRef = rootTenancyDynamic ? '"$TENANCY_ID"' : compDynamic ? '"$COMP"' : (compStatic ? compStatic : '<compartment-ocid>')
+  const compRef = rootTenancyDynamic
+    ? ensureRootTenancy()
+    : compDynamic
+      ? resolveCompartment('--compartment-id', 'COMP')
+      : (compStatic ? quoteCliValue(compStatic, true) : '<compartment-ocid>')
 
-  if (rootTenancyDynamic) {
-    prelude.push(buildRootTenancyLookup(requestContext))
-  } else if (compDynamic) {
-    const name = compStatic || '<compartment-name>'
-    prelude.push(`COMP=$(${formatCliCommand('oci iam compartment list', [
-      '--compartment-id-in-subtree true', '--all',
-      `--query "data[?name=='${name}'].id | [0]"`, '--raw-output', ...requestContext,
-    ])})`)
+  const ensureAvailabilityDomain = (input: string, scope: string, variable: string) => {
+    ensureJq()
+    const raw = (values[input] ?? '').trim() || '1'
+    const inputVariable = `${variable}_INPUT`
+    const jsonVariable = `${variable}_JSON`
+    prelude.push(
+      `${inputVariable}=${quoteCliValue(raw, true)}`,
+      `${jsonVariable}=$(${formatCliCommand('oci iam availability-domain list', [
+        `--compartment-id ${scope}`, '--output json', ...requestContext,
+      ])})`,
+      `if [[ "$${inputVariable}" =~ ^[0-9]+$ ]]; then`,
+      `  ${variable}=$(jq -r --argjson INDEX "$(( $${inputVariable} - 1 ))" '.data[$INDEX].name // empty' <<<"$${jsonVariable}")`,
+      'else',
+      `  ${variable}_COUNT=$(jq -r --arg NAME "$${inputVariable}" '[.data[]? | select(.name == $NAME)] | length' <<<"$${jsonVariable}")`,
+      `  if [[ "$${variable}_COUNT" != "1" ]]; then echo "[ERROR] Availability Domain은 번호 또는 정확한 이름 1개여야 합니다: $${inputVariable} (found=$${variable}_COUNT)" >&2; exit 1; fi`,
+      `  ${variable}=$(jq -r --arg NAME "$${inputVariable}" '[.data[]? | select(.name == $NAME)][0].name // empty' <<<"$${jsonVariable}")`,
+      'fi',
+      `[[ -n "$${variable}" ]] || { echo "[ERROR] Availability Domain을 찾지 못했습니다: $${inputVariable}" >&2; exit 1; }`,
+    )
+    return `"$${variable}"`
+  }
+
+  const resolveExactName = (option: CliOption, lookup: CliDynamicLookup, rawName: string, suffix = '') => {
+    ensureJq()
+    const variableBase = `LOOKUP_${option.name.slice(2).replaceAll('-', '_').toUpperCase()}${suffix}`
+    const inputVariable = `${variableBase}_NAME`
+    const jsonVariable = `${variableBase}_JSON`
+    const countVariable = `${variableBase}_COUNT`
+    const idVariable = `${variableBase}_ID`
+    const field = JSON.stringify(lookup.nameField ?? 'display-name')
+    const scope = lookup.scope === 'tenancy'
+      ? ensureRootTenancy()
+      : lookup.scopeInput === '--compartment-id'
+        ? compRef
+        : resolveCompartment(lookup.scopeInput ?? '--lookup-compartment-id', `${variableBase}_COMPARTMENT_ID`)
+    const lookupArguments = lookup.scopeArgument ? [`${lookup.scopeArgument} ${scope}`] : []
+    for (const prerequisite of lookup.prerequisites ?? []) {
+      if (prerequisite.kind === 'availabilityDomain') {
+        lookupArguments.push(`${prerequisite.argument} ${ensureAvailabilityDomain(prerequisite.input, scope, `${variableBase}_AD`)}`)
+      } else {
+        lookupArguments.push(`${prerequisite.argument} ${quoteCliValue((values[prerequisite.input] ?? '').trim(), true)}`)
+      }
+    }
+    if (lookup.supportsAll) lookupArguments.push('--all')
+    lookupArguments.push('--output json', ...requestContext)
+    prelude.push(
+      `${inputVariable}=${quoteCliValue(rawName || lookup.inputPlaceholder, true)}`,
+      `${jsonVariable}=$(${formatCliCommand(lookup.listCommand ?? '<missing-list-command>', lookupArguments)})`,
+      `${countVariable}=$(jq -r --arg NAME "$${inputVariable}" '[.data[]? | select((.[${field}] // "") == $NAME)] | length' <<<"$${jsonVariable}")`,
+      `if [[ "$${countVariable}" != "1" ]]; then`,
+      `  echo "[ERROR] ${lookup.inputLabel}은(는) 조회 범위에서 정확히 1개여야 합니다: $${inputVariable} (found=$${countVariable})" >&2`,
+      `  jq -r '.data[]? | [(.[${field}] // "-"), (."lifecycle-state" // "-"), (.id // "-")] | @tsv' <<<"$${jsonVariable}" | column -t -s $'\\t' >&2 || true`,
+      '  exit 1',
+      'fi',
+      `${idVariable}=$(jq -r --arg NAME "$${inputVariable}" '[.data[]? | select((.[${field}] // "") == $NAME)][0].id // empty' <<<"$${jsonVariable}")`,
+      `[[ "$${idVariable}" == ocid1.* ]] || { echo "[ERROR] ${lookup.inputLabel} OCID 변환에 실패했습니다." >&2; exit 2; }`,
+    )
+    return `"$${idVariable}"`
   }
 
   const selectedOptions = allOptions(selected).filter(option => !isExecutionContextName(option.name))
@@ -1117,31 +1296,33 @@ function buildCli(
     if (o.name === '--compartment-id') {
       if (rootTenancyDynamic) args.push(`  ${o.name} "$TENANCY_ID"`)
       else if (compDynamic) args.push(`  ${o.name} "$COMP"`)
-      else if (v) args.push(`  ${o.name} ${v}`)
+      else if (v) args.push(`  ${o.name} ${quoteCliValue(v, o.shellQuote)}`)
       else if (o.required) args.push(`  ${o.name} <required:compartment-id>`)
       continue
     }
+    if (o.dynamicLookup && isDynamic(dyn, o.name, true)) {
+      if (o.dynamicLookup.kind === 'compartment') {
+        const resolved = resolveCompartment(o.name, `LOOKUP_${o.name.slice(2).replaceAll('-', '_').toUpperCase()}`)
+        args.push(`  ${o.name} ${resolved}`)
+        continue
+      }
+      if (o.dynamicLookup.kind === 'exactName') {
+        if (o.dynamicLookup.multiple) {
+          const names = v.split(/[\r\n,]+/).map(item => item.trim()).filter(Boolean)
+          if (!names.length) names.push(o.dynamicLookup.inputPlaceholder)
+          const resolvedIds = names.map((name, index) => resolveExactName(o, o.dynamicLookup as CliDynamicLookup, name, `_${index + 1}`))
+          const jsonVariable = `LOOKUP_${o.name.slice(2).replaceAll('-', '_').toUpperCase()}_JSON`
+          ensureJq()
+          prelude.push(`${jsonVariable}=$(printf '%s\\n' ${resolvedIds.join(' ')} | jq -Rsc 'split("\\n") | map(select(length > 0))')`)
+          args.push(`  ${o.name} "$${jsonVariable}"`)
+        } else {
+          args.push(`  ${o.name} ${resolveExactName(o, o.dynamicLookup, v)}`)
+        }
+        continue
+      }
+    }
     if (o.name === '--availability-domain' && isDynamic(dyn, o.name)) {
-      const n = Math.max(1, parseInt(v || '1', 10) || 1)
-      args.push(`  ${o.name} $(${formatCliCommand('oci iam availability-domain list', [
-        `--compartment-id ${compRef}`, `--query "data[${n - 1}].name"`, '--raw-output', ...requestContext,
-      ])})`)
-      continue
-    }
-    if (o.name === '--vcn-id' && isDynamic(dyn, o.name)) {
-      const name = v || '<vcn-name>'
-      prelude.push(`VCN=$(${formatCliCommand('oci network vcn list', [
-        `--compartment-id ${compRef}`, `--query "data[?\\"display-name\\"=='${name}'].id | [0]"`, '--raw-output', ...requestContext,
-      ])})`)
-      args.push(`  ${o.name} "$VCN"`)
-      continue
-    }
-    if (o.name === '--subnet-id' && isDynamic(dyn, o.name)) {
-      const name = v || '<subnet-name>'
-      prelude.push(`SUBNET=$(${formatCliCommand('oci network subnet list', [
-        `--compartment-id ${compRef}`, `--query "data[?\\"display-name\\"=='${name}'].id | [0]"`, '--raw-output', ...requestContext,
-      ])})`)
-      args.push(`  ${o.name} "$SUBNET"`)
+      args.push(`  ${o.name} ${ensureAvailabilityDomain(o.name, compRef, 'AVAILABILITY_DOMAIN')}`)
       continue
     }
     if (!v) {
@@ -1154,7 +1335,7 @@ function buildCli(
   args.push(...requestContext.map(argument => `  ${argument}`), ...responseContext.map(argument => `  ${argument}`))
 
   const main = [selected.cmd, ...args].join(' \\\n')
-  return prelude.length ? prelude.join('\n\n') + '\n\n' + main : main
+  return prelude.length ? ['#!/usr/bin/env bash', 'set -euo pipefail', '', ...prelude, '', main].join('\n') : main
 }
 
 const catOfResource = (catalog: Catalog, r: string) =>
@@ -1228,9 +1409,16 @@ export default function CliBuilderPage() {
   const cmd = active !== '__custom' ? CAT.commands[active] : null
   const selectedActionMeta = selectedAction ? cmd?.actions?.[selectedAction] : undefined
   const selectedOperation = selectedActionMeta ?? cmd?.operations?.[crudOperation]
-  const rawFormSections = cmd?.maintenanceReboot
+  const formSurface = selectedOperation ?? cmd
+  const operationFormSections = cmd?.maintenanceReboot
     ? cmd.sections.filter((_, index) => crudOperation === 'update' || index === 0)
     : selectedOperation?.sections ?? cmd?.sections ?? []
+  const rawFormSections = [
+    ...((formSurface?.lookupInputs?.length ?? 0) > 0
+      ? [{ label: '동적 조회 범위', options: formSurface?.lookupInputs ?? [] }]
+      : []),
+    ...operationFormSections,
+  ]
   const formSections = rawFormSections
     .map(section => ({ ...section, options: section.options.filter(option => !isExecutionContextName(option.name)) }))
     .filter(section => section.options.length > 0)
@@ -1303,9 +1491,29 @@ export default function CliBuilderPage() {
   if (formOptionsByName.has('--availability-domain') && isDynamic(dyn, '--availability-domain')) {
     validationValues['--availability-domain'] = values['--availability-domain']?.trim() || '1'
   }
-  const commandValidation = cmd
+  const baseCommandValidation = cmd
     ? validateCliOptions(formOptions, validationValues, formRules)
     : { valid: true, issues: [], missing: [] }
+  const lookupIssues = formOptions.flatMap(option => {
+    const lookup = option.dynamicLookup
+    if (!lookup || !isDynamic(dyn, option.name, true) || lookup.kind !== 'exactName') return []
+    const requiredInputs = [
+      ...(lookup.scope === 'compartment' ? [lookup.scopeInput].filter((name): name is string => !!name) : []),
+      ...(lookup.prerequisites ?? []).map(prerequisite => prerequisite.input),
+    ]
+    return requiredInputs
+      .filter(name => !(values[name] ?? '').trim())
+      .map(name => ({
+        code: 'required' as const,
+        message: `${option.name} 동적 조회에는 ${name} 값이 필요합니다.`,
+        options: [name],
+      }))
+  })
+  const commandValidation = {
+    valid: baseCommandValidation.valid && lookupIssues.length === 0,
+    issues: [...baseCommandValidation.issues, ...lookupIssues],
+    missing: [...new Set([...baseCommandValidation.missing, ...lookupIssues.flatMap(issue => issue.options)])],
+  }
   const commandReady = commandValidation.valid
   const setVal = (name: string, v: string) => setValues(current => {
     const next = { ...current, [name]: v }
@@ -1388,15 +1596,17 @@ export default function CliBuilderPage() {
 
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
-  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.maintenanceReboot || cmd?.compartmentCleanup || cmd?.manualBackup || cmd?.iamMfaReset)
+  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.compartmentCleanup || cmd?.manualBackup || cmd?.iamMfaReset)
   const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup || c.allSubscriptionBalances || c.iamMfaReset)
   const field = (o: CliOption, optional?: boolean) => {
     const mysqlBackupTarget = cmd?.resource === 'mysql-backup' && crudOperation === 'create'
     const mysqlDbSystemGet = cmd?.resource === 'mysql' && crudOperation === 'get'
     const iamDynamic = !!cmd?.iamResource && ['--user-id', '--group-id', '--policy-id', '--compartment-id'].includes(o.name)
-    const dynamicAllowed = !noDyn && o.name in DYNAMIC && (iamDynamic || o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
+    const catalogDynamic = !!o.dynamicLookup
+    const legacyDynamic = o.name in DYNAMIC && (iamDynamic || o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
+    const dynamicAllowed = !noDyn && (catalogDynamic || legacyDynamic)
     return <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
-      dynamic={dynamicAllowed && isDynamic(dyn, o.name)}
+      dynamic={dynamicAllowed && isDynamic(dyn, o.name, true)}
       rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}
       onToggleDynamic={dynamicAllowed ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
       subVal={k => values[subKey(o.name, k)] || ''}
@@ -1667,7 +1877,9 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
 }) {
   const dynMeta = rootTenancy
     ? { input: '프로필에서 자동 조회 — 입력 불필요', note: '선택한 OCI 프로필의 루트 테넌시 OCID를 자동 조회' }
-    : DYNAMIC[o.name]
+    : o.dynamicLookup
+      ? { input: o.dynamicLookup.inputPlaceholder, note: o.dynamicLookup.note }
+      : DYNAMIC[o.name]
   const label = (
     <label className={`cli-field-label${optional ? ' optional' : ''}`}>
       {o.lookupOnly ? <span>{o.displayLabel || o.name}</span> : <code>{o.name}</code>}
@@ -1679,6 +1891,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
       {o.deprecated && <span className="cli-requirement deprecated">사용 중단</span>}
       {o.multiple && <span className="cli-type-tag">여러 값</span>}
       {['json', 'file', 'datetime'].includes(o.type) && <span className="cli-type-tag">{o.type.toUpperCase()}</span>}
+      {o.directLookupReason && <span className="cli-type-tag">직접 OCID</span>}
       {o.conflictsWith?.length && <span className="cli-conflict-note">{o.conflictsWith.join(', ')}와 동시 사용 불가</span>}
       {onToggleDynamic && (
         <span className="cli-dyn-toggle" title={dynMeta.note}>
@@ -1686,7 +1899,7 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
           동적 조회
         </span>
       )}
-      <span className="cli-field-help">{dynamic && dynMeta ? dynMeta.note : (o.deprecated ? o.deprecation : o.help)}</span>
+      <span className="cli-field-help">{dynamic && dynMeta ? dynMeta.note : (o.directLookupReason || (o.deprecated ? o.deprecation : o.help))}</span>
       {o.deprecated && o.replacement?.length && <span className="cli-replacement">대체: {o.replacement.join(', ')}</span>}
     </label>
   )
