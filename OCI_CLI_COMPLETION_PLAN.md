@@ -217,7 +217,7 @@
   - 2026-08-15 부분 구현: 좌·우 사이드바 폭을 포인터 드래그·방향키로 각각 조절하고 브라우저에 저장; 더블클릭 기본 폭 복원과 좁은 화면 자동 접힘 유지
   - 2026-08-15 부분 구현: 전 CRUD·Action에 노출되는 JSON 옵션 508회에 공식 `--generate-param-json-input` 경로를 부여하고, object·array·boolean·number·variant·자유 키 map을 입력칸으로 조립하는 범용 구조화 편집기와 JSON 유효성 차단 적용 (`b45e378`)
   - 2026-08-15 부분 구현: Instance CREATE `source-details`를 Image/Boot Volume 유형별 필드로 분리하고, 현재 profile·region·compartment·shape로 Image LIST를 조회한 결과를 OS 카드와 버전 radio로 선택해 Image OCID를 확정하는 흐름 구축 (`b45e378`)
-  - 2026-08-15 부분 구현: Instance CREATE를 Shape → Image 순서로 교정하고, 현재 profile·region·compartment·AD에서 Shape를 실시간 조회해 AMD·Intel·Ampere 카드로 선택한 뒤 `image list --shape` 호환 이미지만 표시하는 단일 사전조회 JSON 번들 흐름 구축
+  - 2026-08-15 부분 구현: Instance CREATE를 Shape → Image 순서로 교정하고, 현재 profile·region·compartment·AD의 전체 Shape와 Shape별 `image list --shape` 호환성 매트릭스를 단일 JSON으로 불러온 뒤 AMD·Intel·Ampere Shape 카드 클릭만으로 이미 붙여넣은 Image 목록을 로컬 필터링하는 흐름 구축
   - 2026-08-15 회귀 보호: 빈 `{}` 예시 0건, JSON schema 경로 누락 0건, source variant 필수 규칙, image 조회의 0/1/N compartment 가드와 생성 Bash `bash -n`을 보호 데이터 생성 전에 자동 검사
 - [ ] `P2-04` Console 대분류·그룹 맵 분리
   - CLI namespace와 Console 메뉴 구조를 별도 데이터로 관리

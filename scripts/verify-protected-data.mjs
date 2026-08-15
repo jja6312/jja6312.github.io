@@ -144,7 +144,7 @@ for (const level of [1, 2, 3]) {
   const launchOrder = instanceCreate.sections.flatMap(section => section.options.map(option => option.name))
   if (launchOrder.indexOf('--shape') < 0 || launchOrder.indexOf('--shape') > launchOrder.indexOf('--image-id')
     || shape?.shapePicker?.listCommand !== 'oci compute shape list'
-    || instanceCreate.instanceLaunchPreflight?.schema !== 'oci-instance-launch-preflight/v1'
+    || instanceCreate.instanceLaunchPreflight?.schema !== 'oci-instance-launch-preflight/v2'
     || instanceCreate.instanceLaunchPreflight.shapeListCommand !== 'oci compute shape list'
     || instanceCreate.instanceLaunchPreflight.imageListCommand !== 'oci compute image list') {
     throw new Error(`L${level} Instance Shape-first live preflight metadata missing`)
@@ -446,7 +446,9 @@ if (!cliBuilder.includes('cli-context-panel') || !cliBuilder.includes('requestCo
 if (!cliBuilder.includes('function buildInstanceLaunchPreflightCommand')
   || !cliBuilder.includes('function ShapeOptionField')
   || !cliBuilder.includes('parseInstanceLaunchPreflight')
-  || !cliBuilder.includes('cli-instance-preflight')) {
+  || !cliBuilder.includes('cli-instance-preflight')
+  || !cliBuilder.includes('compatibleShapes.includes(currentShape)')
+  || !cliBuilder.includes("[subKey('--image-id', '__image-scope')]: 'all-shapes'")) {
   throw new Error('Instance CREATE Shape-first live preflight UI 누락')
 }
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')

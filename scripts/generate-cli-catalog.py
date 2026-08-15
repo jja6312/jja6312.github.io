@@ -452,7 +452,7 @@ def annotate_json_inputs(command):
         return
     if command_path == 'oci compute instance launch':
         command['instanceLaunchPreflight'] = {
-            'schema': 'oci-instance-launch-preflight/v1',
+            'schema': 'oci-instance-launch-preflight/v2',
             'shapeListCommand': 'oci compute shape list',
             'imageListCommand': 'oci compute image list',
             'shapeDocs': 'https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/compute/shape/list.html',

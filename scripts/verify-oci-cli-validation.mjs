@@ -112,7 +112,7 @@ if (launchOrder.indexOf('--shape') < 0 || launchOrder.indexOf('--image-id') < 0
 }
 if (instanceShape?.shapePicker?.listCommand !== 'oci compute shape list'
   || !instanceShape.shapePicker.note.includes('AMD, Intel, Ampere')
-  || instance.instanceLaunchPreflight?.schema !== 'oci-instance-launch-preflight/v1'
+  || instance.instanceLaunchPreflight?.schema !== 'oci-instance-launch-preflight/v2'
   || instance.instanceLaunchPreflight.shapeListCommand !== 'oci compute shape list'
   || instance.instanceLaunchPreflight.imageListCommand !== 'oci compute image list') {
   fail('Instance launch needs live Shape-first preflight metadata')
@@ -157,6 +157,7 @@ const parsedImages = parseImageCatalog(JSON.stringify({ data: [{
   'operating-system-version': '9',
   'lifecycle-state': 'AVAILABLE',
   'time-created': '2026-08-01T00:00:00Z',
+  compatibleShapes: ['VM.Standard.E5.Flex'],
 }] }))
 if (parsedImages.error || parsedImages.entries.length !== 1
   || parsedImages.entries[0].operatingSystem !== 'Oracle Linux') {
@@ -175,13 +176,13 @@ if (parsedShapes.error || parsedShapes.entries[0]?.vendor !== 'AMD' || !parsedSh
 const parsedPreflight = parseInstanceLaunchPreflight(`terminal noise
 -----BEGIN OCI INSTANCE PREFLIGHT JSON-----
 ${JSON.stringify({
-  schema: 'oci-instance-launch-preflight/v1', generatedAt: '2026-08-15T00:00:00Z',
+  schema: 'oci-instance-launch-preflight/v2', generatedAt: '2026-08-15T00:00:00Z',
   context: { profile: 'DEFAULT', region: 'ap-seoul-1', compartmentInput: 'prod', compartmentId: 'ocid1.compartment.oc1..example', availabilityDomain: 'Uocm:AP-SEOUL-1-AD-1' },
-  selectedShape: 'VM.Standard.E5.Flex', shapes: parsedShapes.entries, images: parsedImages.entries,
+  shapes: parsedShapes.entries, images: parsedImages.entries,
 })}
 -----END OCI INSTANCE PREFLIGHT JSON-----`)
-if (parsedPreflight.error || parsedPreflight.bundle?.selectedShape !== 'VM.Standard.E5.Flex'
-  || parsedPreflight.bundle.images.length !== 1) {
+if (parsedPreflight.error || parsedPreflight.bundle?.shapes.length !== 1
+  || parsedPreflight.bundle.images[0]?.compatibleShapes[0] !== 'VM.Standard.E5.Flex') {
   fail(`Instance launch preflight bundle was not parsed: ${JSON.stringify(parsedPreflight)}`)
 }
 
@@ -225,6 +226,8 @@ for (const marker of [
   "parseInstanceLaunchPreflight",
   "cli-instance-preflight",
   "cli-shape-vendors",
+  "compatibleShapes.includes(currentShape)",
+  "__image-scope",
   "Shape이",
   "parseImageCatalog",
   "jsonTemplateCommand",
@@ -259,6 +262,6 @@ console.log(JSON.stringify({
   bareJsonExamples: braceOnlyExamples.length,
   instanceSourceVariants: instanceSourceDetails.jsonTemplate.length - 1,
   imagePicker: 'shape-aware-paste-to-select',
-  launchPreflight: 'live-shape-then-compatible-image',
+  launchPreflight: 'paste-once-local-compatibility-filter',
   burstableUpdate: burstableArguments.join(''),
 }))

@@ -199,12 +199,16 @@ const instancePreflight = buildInstanceLaunchPreflightCommand({
 }, { '--compartment-id': true, '--availability-domain': true },
 ["--profile 'DEFAULT'", "--region 'ap-seoul-1'"], { '--profile': 'DEFAULT', '--region': 'ap-seoul-1' })
 for (const marker of [
-  'oci compute shape list', '--availability-domain "$AD_NAME"', 'SHAPE_COUNT=', 'OCI_SHAPE_INDEX',
-  'oci compute image list', '--shape "$SELECTED_SHAPE"', 'oci-instance-launch-preflight/v1',
+  'oci compute shape list', '--availability-domain "$AD_NAME"', 'SHAPE_COUNT=',
+  'oci compute image list', '--shape "$SHAPE_NAME"', 'compatibleShape: $shape', 'group_by(.id)',
+  'compatibleShapes:', 'oci-instance-launch-preflight/v2',
   'COMPARTMENT_COUNT=', 'found=$COMPARTMENT_COUNT', '-----BEGIN OCI INSTANCE PREFLIGHT JSON-----',
   '--profile \'DEFAULT\'', '--region \'ap-seoul-1\'',
 ]) {
   if (!instancePreflight.includes(marker)) fail(`Instance launch preflight missing marker: ${marker}`)
+}
+for (const forbidden of ['사용할 Shape 번호', 'OCI_SHAPE_INDEX', '=== 사용 가능한 Shape:']) {
+  if (instancePreflight.includes(forbidden)) fail(`Instance launch preflight must not print/select Shape in terminal: ${forbidden}`)
 }
 const preflightSyntax = spawnSync(bash, ['-n'], { input: instancePreflight, encoding: 'utf8' })
 if (preflightSyntax.status !== 0) fail(`Instance launch preflight Bash syntax invalid: ${preflightSyntax.stderr}`)
@@ -223,6 +227,23 @@ const normalizedShapes = JSON.parse(shapeFilterResult.stdout)
 if (JSON.stringify(normalizedShapes.map(shape => [shape.vendor, shape.shape])) !== JSON.stringify([
   ['AMD', 'VM.Standard.E5.Flex'], ['Intel', 'VM.Standard3.Flex'], ['Ampere', 'VM.Standard.A1.Flex'],
 ])) fail(`Instance launch preflight Shape classification/order invalid: ${shapeFilterResult.stdout}`)
+const imageMatrixFilter = instancePreflight.match(/IMAGES=\$\(jq -sc '([\s\S]*?)' "\$IMAGE_ROWS_FILE"\)/)?.[1]
+if (!imageMatrixFilter) fail('Instance launch preflight Image compatibility jq filter extraction failed')
+const imageMatrixResult = spawnSync('jq', ['-sc', imageMatrixFilter], {
+  input: [
+    { id: 'ocid1.image.example1', name: 'Oracle Linux 9', os: 'Oracle Linux', version: '9', compatibleShape: 'VM.Standard.E5.Flex' },
+    { id: 'ocid1.image.example1', name: 'Oracle Linux 9', os: 'Oracle Linux', version: '9', compatibleShape: 'VM.Standard3.Flex' },
+    { id: 'ocid1.image.example2', name: 'Oracle Linux 9 ARM', os: 'Oracle Linux', version: '9', compatibleShape: 'VM.Standard.A1.Flex' },
+  ].map(row => JSON.stringify(row)).join('\n'),
+  encoding: 'utf8',
+})
+if (imageMatrixResult.status !== 0) fail(`Instance launch preflight Image compatibility jq invalid: ${imageMatrixResult.stderr}`)
+const normalizedImages = JSON.parse(imageMatrixResult.stdout)
+if (normalizedImages.length !== 2
+  || JSON.stringify(normalizedImages.find(image => image.id.endsWith('example1'))?.compatibleShapes)
+    !== JSON.stringify(['VM.Standard.E5.Flex', 'VM.Standard3.Flex'])) {
+  fail(`Instance launch preflight Image compatibility aggregation invalid: ${imageMatrixResult.stdout}`)
+}
 
 let dynamicLookups = 0
 const dynamicScripts = []
