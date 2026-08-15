@@ -13,7 +13,7 @@ const compiled = ts.transpileModule(modelSource, {
 }).outputText
 const module = { exports: {} }
 vm.runInNewContext(compiled, { module, exports: module.exports }, { filename: 'cliOptionModel.js' })
-const { validateCliOptions } = module.exports
+const { validateCliOptions, serializeCliOption } = module.exports
 
 const jsonHelperStart = pageSource.indexOf('const isJsonRecord')
 const jsonHelperEnd = pageSource.indexOf('\nfunction buildMultiSelectQuery', jsonHelperStart)
@@ -38,9 +38,13 @@ const optionsOf = command => [
 const codesOf = result => result.issues.map(issue => issue.code)
 
 const instance = catalog.commands.instance.operations.create
+const instanceUpdate = catalog.commands.instance.operations.update
 const instanceOptions = optionsOf(instance)
+const instanceUpdateOptions = optionsOf(instanceUpdate)
 const instanceSourceDetails = instanceOptions.find(option => option.name === '--source-details')
 const instanceImageId = instanceOptions.find(option => option.name === '--image-id')
+const launchShapeConfig = instanceOptions.find(option => option.name === '--shape-config')
+const updateShapeConfig = instanceUpdateOptions.find(option => option.name === '--shape-config')
 const baseValues = {
   '--compartment-id': 'ocid1.compartment.oc1..example',
   '--availability-domain': 'Uocm:AP-SEOUL-1-AD-1',
@@ -98,6 +102,25 @@ if (instanceImageId?.imagePicker?.listCommand !== 'oci compute image list'
   || instanceImageId.dynamicLookupImplementedBy !== 'dedicated-builder') {
   fail('Instance image-id must use the shape-aware dedicated image picker')
 }
+const shapeFields = ['baselineOcpuUtilization', 'localVolumeSizeInGBs', 'memoryInGBs', 'nvmes', 'ocpus', 'resourceManagement', 'vcpus']
+for (const [operation, shapeConfig] of [['launch', launchShapeConfig], ['update', updateShapeConfig]]) {
+  if (JSON.stringify(Object.keys(shapeConfig?.jsonTemplate ?? {})) !== JSON.stringify(shapeFields)
+    || JSON.stringify(shapeConfig?.jsonFieldChoices?.baselineOcpuUtilization?.map(choice => choice.value))
+      !== JSON.stringify(['BASELINE_1_8', 'BASELINE_1_2', 'BASELINE_1_1'])
+    || !shapeConfig?.jsonNotice?.includes('Burstable')) {
+    fail(`Instance ${operation} shape-config lost its official Burstable schema`)
+  }
+}
+const burstableShapeConfig = JSON.stringify({
+  baselineOcpuUtilization: 'BASELINE_1_8', ocpus: 1, memoryInGBs: 8,
+})
+const burstableArguments = serializeCliOption(updateShapeConfig, burstableShapeConfig)
+if (burstableArguments.join('') !== `--shape-config '${burstableShapeConfig}'`) {
+  fail(`Instance UPDATE Burstable JSON was not serialized safely: ${JSON.stringify(burstableArguments)}`)
+}
+if (/['"]--shape-config['"]\s*:/.test(pageSource.slice(pageSource.indexOf('const JSONSPEC'), pageSource.indexOf('const subKey')))) {
+  fail('Legacy shape-config JSONSPEC still overrides the official structured schema')
+}
 const sourceDetailChecks = [
   ['{', 'invalid-json'],
   ['{}', 'json-discriminator'],
@@ -154,6 +177,8 @@ for (const marker of [
   "function JsonNodeEditor",
   "isJsonMapTemplate",
   "+ 키·값 추가",
+  "jsonFieldChoices",
+  "legacyShapeConfigValue",
   "function JsonOptionField",
   "function ImageOptionField",
   "function buildImageDiscoveryCommand",
@@ -190,4 +215,5 @@ console.log(JSON.stringify({
   bareJsonExamples: braceOnlyExamples.length,
   instanceSourceVariants: instanceSourceDetails.jsonTemplate.length - 1,
   imagePicker: 'shape-aware-paste-to-select',
+  burstableUpdate: burstableArguments.join(''),
 }))

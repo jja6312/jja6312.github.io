@@ -45,8 +45,11 @@ interface CliOption {
   jsonTemplate?: unknown
   jsonTemplateCommand?: string
   jsonRules?: CliJsonRules
+  jsonFieldChoices?: Record<string, CliJsonFieldChoice[]>
+  jsonNotice?: string
   imagePicker?: CliImagePicker
 }
+interface CliJsonFieldChoice { value: string; label: string }
 interface CliJsonVariantRule { required?: string[]; requiredOneOf?: string[][] }
 interface CliJsonRules { discriminator?: string; variants?: Record<string, CliJsonVariantRule> }
 interface CliImagePicker { listCommand: string; shapeOption: string; docs: string; note: string }
@@ -190,10 +193,6 @@ const JSONSPEC: Record<string, { list?: boolean; ph?: string; fields?: JsonSubFi
     { key: 'privateIp', label: '사설 IP (고정)', kind: 'text', ph: '10.0.1.10' },
     { key: 'nsgIds', label: 'NSG OCID (콤마 구분)', kind: 'strlist', ph: 'ocid1.networksecuritygroup…' },
   ] },
-  '--shape-config': { fields: [
-    { key: 'ocpus', label: 'OCPU 수', kind: 'num', ph: '1' },
-    { key: 'memoryInGBs', label: '메모리(GB)', kind: 'num', ph: '16' },
-  ] },
   '--shape-details': { fields: [
     { key: 'minimumBandwidthInMbps', label: '최소 대역폭(Mbps)', kind: 'num', ph: '10' },
     { key: 'maximumBandwidthInMbps', label: '최대 대역폭(Mbps)', kind: 'num', ph: '100' },
@@ -226,6 +225,18 @@ function buildJsonValue(optName: string, values: Record<string, string>): string
       : v
   }
   return Object.keys(obj).length ? JSON.stringify(obj) : ''
+}
+
+function legacyShapeConfigValue(values: Record<string, string>): string {
+  const current = (values['--shape-config'] ?? '').trim()
+  if (current) return current
+  const ocpus = (values[subKey('--shape-config', 'ocpus')] ?? '').trim()
+  const memory = (values[subKey('--shape-config', 'memoryInGBs')] ?? '').trim()
+  if (!ocpus && !memory) return ''
+  return JSON.stringify({
+    ...(ocpus ? { ocpus: Number(ocpus) } : {}),
+    ...(memory ? { memoryInGBs: Number(memory) } : {}),
+  })
 }
 
 type JsonRecord = Record<string, unknown>
@@ -1688,6 +1699,8 @@ export default function CliBuilderPage() {
     ? serializeExecutionContext(CAT.executionContext, contextOverrides, resolvedExecutionValues, 'response')
     : []
   const effectiveValues = { ...values, ...resolvedExecutionValues }
+  const migratedShapeConfig = legacyShapeConfigValue(values)
+  if (migratedShapeConfig) effectiveValues['--shape-config'] = migratedShapeConfig
   const cli = cmd
     ? buildCli(cmd, effectiveValues, dyn, crudOperation, selectedAction ?? undefined, requestContextArguments, responseContextArguments)
     : customText
@@ -1713,7 +1726,7 @@ export default function CliBuilderPage() {
   const formOptions = [...formSections.flatMap(section => section.options), ...formAdvanced]
   const formOptionsByName = new Map(formOptions.map(option => [option.name, option]))
   const setExecutionVal = (name: string, value: string) => setExecutionValues(current => ({ ...current, [name]: value }))
-  const validationValues = { ...values }
+  const validationValues = { ...effectiveValues }
   for (const option of formOptions) {
     if (JSONSPEC[option.name]) validationValues[option.name] = buildJsonValue(option.name, values)
   }
@@ -1856,7 +1869,7 @@ export default function CliBuilderPage() {
     const catalogDynamic = !!o.dynamicLookup
     const legacyDynamic = o.name in DYNAMIC && (iamDynamic || o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
     const dynamicAllowed = !noDyn && (catalogDynamic || legacyDynamic)
-    return <Field key={o.name} o={o} value={values[o.name] || ''} onChange={v => setVal(o.name, v)} optional={optional}
+    return <Field key={o.name} o={o} value={o.name === '--shape-config' ? (effectiveValues[o.name] || '') : (values[o.name] || '')} onChange={v => setVal(o.name, v)} optional={optional}
       dynamic={dynamicAllowed && isDynamic(dyn, o.name, true)}
       rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}
       onToggleDynamic={dynamicAllowed ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
@@ -2183,11 +2196,13 @@ const isJsonMapTemplate = (template: JsonRecord) => {
   return keys.length > 0 && keys.every(key => /^string\d*$/.test(key))
 }
 
-function JsonNodeEditor({ template, value, onChange, fieldKey, depth = 0 }: {
+function JsonNodeEditor({ template, value, onChange, fieldKey, fieldPath = '', fieldChoices, depth = 0 }: {
   template: unknown
   value: unknown
   onChange: (value: unknown | undefined) => void
   fieldKey?: string
+  fieldPath?: string
+  fieldChoices?: Record<string, CliJsonFieldChoice[]>
   depth?: number
 }) {
   const variants = jsonTemplateVariants(template)
@@ -2209,7 +2224,8 @@ function JsonNodeEditor({ template, value, onChange, fieldKey, depth = 0 }: {
           })}
         </div>
         {selected
-          ? <JsonNodeEditor template={selected.value} value={value} onChange={onChange} depth={depth + 1} />
+          ? <JsonNodeEditor template={selected.value} value={value} onChange={onChange}
+              fieldPath={fieldPath} fieldChoices={fieldChoices} depth={depth + 1} />
           : <p className="cli-json-empty">먼저 JSON 유형을 선택하세요. 유형에 맞는 필드만 표시됩니다.</p>}
       </div>
     )
@@ -2226,7 +2242,8 @@ function JsonNodeEditor({ template, value, onChange, fieldKey, depth = 0 }: {
               <div className="cli-json-array-head"><span>항목 {index + 1}</span>
                 <button type="button" onClick={() => onChange(current.filter((_, itemIndex) => itemIndex !== index))}>삭제</button>
               </div>
-              <JsonNodeEditor template={itemTemplate} value={item} depth={depth + 1}
+              <JsonNodeEditor template={itemTemplate} value={item} fieldPath={`${fieldPath}[]`}
+                fieldChoices={fieldChoices} depth={depth + 1}
                 onChange={next => {
                   const copy = [...current]
                   if (next === undefined) copy.splice(index, 1)
@@ -2280,7 +2297,8 @@ function JsonNodeEditor({ template, value, onChange, fieldKey, depth = 0 }: {
                 onChange(Object.keys(next).length ? next : undefined)
               }}>삭제</button>
             </div>
-            <JsonNodeEditor fieldKey={key} template={itemTemplate} value={item} depth={depth + 1}
+            <JsonNodeEditor fieldKey={key} template={itemTemplate} value={item}
+              fieldPath={fieldPath ? `${fieldPath}.${key}` : key} fieldChoices={fieldChoices} depth={depth + 1}
               onChange={nextValue => {
                 const next = { ...current }
                 if (nextValue === undefined) delete next[key]
@@ -2300,7 +2318,8 @@ function JsonNodeEditor({ template, value, onChange, fieldKey, depth = 0 }: {
           const nested = isJsonRecord(childTemplate) || Array.isArray(childTemplate)
           return <div className={`cli-json-property${nested ? ' nested' : ''}`} key={key}>
             <div className="cli-json-property-label"><code>{key}</code><span>{jsonFieldLabel(key)}</span></div>
-            <JsonNodeEditor fieldKey={key} template={childTemplate} value={current[key]} depth={depth + 1}
+            <JsonNodeEditor fieldKey={key} template={childTemplate} value={current[key]}
+              fieldPath={fieldPath ? `${fieldPath}.${key}` : key} fieldChoices={fieldChoices} depth={depth + 1}
               onChange={nextValue => {
                 const next = { ...fixedValues, ...current }
                 if (nextValue === undefined || nextValue === '') delete next[key]
@@ -2313,6 +2332,15 @@ function JsonNodeEditor({ template, value, onChange, fieldKey, depth = 0 }: {
     )
   }
 
+  const choices = fieldChoices?.[fieldPath]
+  if (choices?.length) {
+    const selected = typeof value === 'string' ? value : ''
+    return <select className="cli-input" value={selected}
+      onChange={event => onChange(event.target.value || undefined)}>
+      <option value="">(미설정)</option>
+      {choices.map(choice => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+    </select>
+  }
   if (typeof template === 'boolean') {
     const selected = typeof value === 'boolean' ? String(value) : ''
     return <select className="cli-input" value={selected} onChange={event =>
@@ -2387,9 +2415,11 @@ function JsonOptionField({ fieldId, option, label, value, onChange, subVal, onSu
       {mode === 'structured' && template ? (
         <div className="cli-json-editor">
           <p className="cli-json-editor-note">입력한 필드만 JSON에 포함됩니다. 비어 있는 선택 필드는 자동으로 제외됩니다.</p>
+          {option.jsonNotice && <p className="cli-json-editor-note">{option.jsonNotice}</p>}
           {rawInvalid
             ? <p className="cli-json-error">현재 값이 올바른 JSON이 아닙니다. JSON 직접 입력에서 수정하세요.</p>
             : <JsonNodeEditor template={template} value={parsedValue}
+                fieldChoices={option.jsonFieldChoices}
                 onChange={next => onChange(next === undefined ? '' : JSON.stringify(next))} />}
         </div>
       ) : (

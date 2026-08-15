@@ -422,6 +422,29 @@ INSTANCE_SOURCE_DETAILS_TEMPLATE = [
     },
 ]
 
+# OCI CLI v3.90.2의 launch/update shape-config 공식 skeleton. Burstable은
+# baselineOcpuUtilization으로 설정하며 UI에서는 공식 enum을 선택지로 제한한다.
+INSTANCE_SHAPE_CONFIG_TEMPLATE = {
+    'baselineOcpuUtilization': 'string',
+    'localVolumeSizeInGBs': 0,
+    'memoryInGBs': 0.0,
+    'nvmes': 0,
+    'ocpus': 0.0,
+    'resourceManagement': 'string',
+    'vcpus': 0,
+}
+INSTANCE_SHAPE_CONFIG_FIELD_CHOICES = {
+    'baselineOcpuUtilization': [
+        {'value': 'BASELINE_1_8', 'label': 'Burstable 12.5% (1/8 OCPU baseline)'},
+        {'value': 'BASELINE_1_2', 'label': 'Burstable 50% (1/2 OCPU baseline)'},
+        {'value': 'BASELINE_1_1', 'label': 'Burstable 끄기 · 100% OCPU'},
+    ],
+    'resourceManagement': [
+        {'value': 'DYNAMIC', 'label': 'DYNAMIC'},
+        {'value': 'STATIC', 'label': 'STATIC'},
+    ],
+}
+
 def annotate_json_inputs(command):
     """Give every complex option an actionable schema path, never a bare `{ }`."""
     command_path = command.get('cmd')
@@ -451,6 +474,12 @@ def annotate_json_inputs(command):
                     },
                 },
             }
+        if command_path in ('oci compute instance launch', 'oci compute instance update') and option['name'] == '--shape-config':
+            option['jsonTemplate'] = INSTANCE_SHAPE_CONFIG_TEMPLATE
+            option['jsonFieldChoices'] = INSTANCE_SHAPE_CONFIG_FIELD_CHOICES
+            option['jsonNotice'] = ('Burstable은 지원 Shape에서만 사용할 수 있습니다. '
+                                    'BASELINE_1_8은 12.5%, BASELINE_1_2는 50%, '
+                                    'BASELINE_1_1은 Burstable 비활성입니다.')
         if command_path == 'oci compute instance launch' and option['name'] == '--image-id':
             # 일반 exact-name 조회기는 platform image의 OS/버전/shape 선택을 표현하지
             # 못한다. 전용 조회 결과 picker가 최종 OCID를 확정하므로 본 명령에는 그대로 전달한다.

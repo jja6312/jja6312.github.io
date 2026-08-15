@@ -123,6 +123,12 @@ for (const level of [1, 2, 3]) {
   }
   const sourceDetails = instanceCreateOptions.find(option => option.name === '--source-details')
   const imageId = instanceCreateOptions.find(option => option.name === '--image-id')
+  const createShapeConfig = instanceCreateOptions.find(option => option.name === '--shape-config')
+  const instanceUpdateOptions = [
+    ...bundle.cliCatalog.commands.instance.operations.update.sections.flatMap(section => section.options),
+    ...bundle.cliCatalog.commands.instance.operations.update.advanced,
+  ]
+  const updateShapeConfig = instanceUpdateOptions.find(option => option.name === '--shape-config')
   if (!Array.isArray(sourceDetails?.jsonTemplate) || sourceDetails.jsonTemplate.length !== 3
     || sourceDetails.jsonRules?.discriminator !== 'sourceType'
     || sourceDetails.jsonTemplateCommand !== 'oci compute instance launch --generate-param-json-input source-details') {
@@ -133,6 +139,13 @@ for (const level of [1, 2, 3]) {
     || imageId.dynamicLookup
     || imageId.dynamicLookupImplementedBy !== 'dedicated-builder') {
     throw new Error(`L${level} Instance image picker metadata invalid`)
+  }
+  for (const [operation, shapeConfig] of [['CREATE', createShapeConfig], ['UPDATE', updateShapeConfig]]) {
+    if (!shapeConfig?.jsonTemplate?.baselineOcpuUtilization
+      || JSON.stringify(shapeConfig.jsonFieldChoices?.baselineOcpuUtilization?.map(choice => choice.value))
+        !== JSON.stringify(['BASELINE_1_8', 'BASELINE_1_2', 'BASELINE_1_1'])) {
+      throw new Error(`L${level} Instance ${operation} Burstable shape-config metadata missing`)
+    }
   }
   const jsonOptions = catalogOperations.flatMap(operation => [
     ...operation.sections.flatMap(section => section.options), ...operation.advanced,
