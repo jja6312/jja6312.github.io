@@ -667,7 +667,7 @@ def _iam_user():
     user_id = _io('--user-id', True, '대상 User OCID. 동적 조회에서는 정확한 User 이름을 입력합니다.', 'operator@example.com', shellQuote=True)
     return {
         'resource': 'iam-user', 'label': 'Users', 'cmd': 'oci iam user create', 'iamResource': 'user',
-        'preferredOperation': 'create',
+        'preferredOperation': 'list',
         'help': ('Identity & Security > Identity > Users. User 생성 뒤에는 Group 할당과 Console password 또는 '
                  'API signing key 발급이 별도로 필요합니다.'),
         'sections': [], 'advanced': [],
@@ -744,7 +744,7 @@ def _iam_group():
     group_id = _io('--group-id', True, '대상 Group OCID. 동적 조회에서는 정확한 Group 이름을 입력합니다.', 'OCI-Operators', shellQuote=True)
     return {
         'resource': 'iam-group', 'label': 'Groups', 'cmd': 'oci iam group create', 'iamResource': 'group',
-        'preferredOperation': 'create',
+        'preferredOperation': 'list',
         'help': 'Identity & Security > Identity > Groups. Group은 Policy가 권한을 부여하는 주체입니다.',
         'sections': [], 'advanced': [],
         'operations': {
@@ -791,7 +791,7 @@ def _iam_policy():
     statements = _io('--statements', True, '한 개 이상의 Policy statement를 JSON 배열로 입력', '["Allow group OCI-Operators to inspect all-resources in tenancy"]', type='json', shellQuote=True)
     return {
         'resource': 'iam-policy', 'label': 'Policies', 'cmd': 'oci iam policy create', 'iamResource': 'policy',
-        'preferredOperation': 'create',
+        'preferredOperation': 'list',
         'compartmentSupportsRoot': True,
         'help': 'Identity & Security > Identity > Policies. Policy가 부착되는 compartment는 수정·삭제 관리 범위를 결정합니다.',
         'sections': [], 'advanced': [],
@@ -996,7 +996,19 @@ EXTRA = {
 catalog['commands'].update(EXTRA)
 catalog['executionContext'] = _execution_context()
 
+def set_safe_preferred_operation(command):
+    """Persist the same LIST > GET > mutation default enforced by the UI."""
+    if command.get('maintenanceReboot'):
+        command['preferredOperation'] = 'get'
+        return
+    operations = command.get('operations', {})
+    for operation in ('list', 'get', 'create', 'update', 'delete'):
+        if operation in operations:
+            command['preferredOperation'] = operation
+            return
+
 for resource, command in catalog['commands'].items():
+    set_safe_preferred_operation(command)
     annotate_option_relationships(command)
     for operation in command.get('operations', {}).values():
         annotate_option_relationships(operation)

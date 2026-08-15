@@ -4,6 +4,7 @@ import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
 import { isCliOptionValueActive, serializeCliOption, validateCliOptions } from '../lib/cliOptionModel'
+import { defaultCliOperation, type CliCrudVerb } from '../lib/cliDefaultOperation'
 import {
   executionContextDefaults,
   executionContextOptions,
@@ -54,7 +55,7 @@ interface CliOptionNotice {
   replacements: string[]
   message: string
 }
-type CrudVerb = 'get' | 'list' | 'create' | 'update' | 'delete'
+type CrudVerb = CliCrudVerb
 interface CliOperation {
   cmd: string; help: string
   sections: CliSection[]; advanced: CliOption[]
@@ -106,12 +107,6 @@ const CRUD_OPERATIONS: { verb: CrudVerb; icon: string }[] = [
   { verb: 'delete', icon: '×' },
 ] as const
 
-const defaultOperation = (command: CliCommand): CrudVerb => {
-  if (command.maintenanceReboot) return 'get'
-  if (command.preferredOperation && command.operations?.[command.preferredOperation]) return command.preferredOperation
-  if (command.operations?.create) return 'create'
-  return CRUD_OPERATIONS.find(operation => command.operations?.[operation.verb])?.verb ?? 'create'
-}
 const supportsOperation = (command: CliCommand | null | undefined, operation: CrudVerb) => command?.maintenanceReboot
   ? operation === 'get' || operation === 'update'
   : !!command?.operations?.[operation]
@@ -1180,7 +1175,7 @@ export default function CliBuilderPage() {
   const [showOptional, setShowOptional] = useState(false)
   const [showDeprecated, setShowDeprecated] = useState(false)
   const [contextOpen, setContextOpen] = useState(true)
-  const [crudOperation, setCrudOperation] = useState<CrudVerb>('create')
+  const [crudOperation, setCrudOperation] = useState<CrudVerb>('list')
   const [selectedAction, setSelectedAction] = useState<string | null>(null)
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
@@ -1191,7 +1186,7 @@ export default function CliBuilderPage() {
   // 팔레트에서 ?r 이 바뀌며 재진입하면 해당 자원 선택 + 카테고리 펼침
   useEffect(() => {
     if (!rParam || !CAT.commands[rParam]) return
-    const operation = defaultOperation(CAT.commands[rParam])
+    const operation = defaultCliOperation(CAT.commands[rParam])
     const surface = selectedSurface(CAT.commands[rParam], operation)
     setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setCrudOperation(operation); setSelectedAction(null)
     if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances || CAT.commands[rParam].iamMfaReset) setCustomOpen(true)
@@ -1281,7 +1276,7 @@ export default function CliBuilderPage() {
     const next = CAT.commands[res]
     setActive(res); setDyn({}); setShowOptional(false); setShowDeprecated(false); setSelectedAction(null)
     if (next) {
-      const operation = defaultOperation(next)
+      const operation = defaultCliOperation(next)
       const surface = selectedSurface(next, operation)
       setCrudOperation(operation); setValues(operationDefaults(next, operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides))
     } else { setValues({}); setExecutionValues({}) }
@@ -1375,7 +1370,7 @@ export default function CliBuilderPage() {
       setActive(f.resource); setValues(legacy.resource); setDyn(f.dyn ?? {}); setShowOptional(true); setShowDeprecated(false); setSelectedAction(null)
       const favoriteCommand = CAT.commands[f.resource]
       if (favoriteCommand) {
-        const operation = f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultOperation(favoriteCommand)
+        const operation = f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultCliOperation(favoriteCommand)
         setCrudOperation(operation)
         if (f.action && favoriteCommand.actions?.[f.action]) setSelectedAction(f.action)
         const favoriteOperation = (f.action ? favoriteCommand.actions?.[f.action] : favoriteCommand.operations?.[operation]) ?? favoriteCommand

@@ -404,7 +404,7 @@ if (!cliBuilder.includes('oci log-analytics storage purge-storage-data')) throw 
 if (!cliBuilder.includes('oci compute boot-volume-attachment list')) throw new Error('instance boot volume attachment lookup missing')
 if (!cliBuilder.includes('oci bv boot-volume-backup create')) throw new Error('boot volume manual backup create missing')
 if (!cliBuilder.includes('oci mysql backup create')) throw new Error('MySQL manual backup create missing')
-if (!cliBuilder.includes('command.preferredOperation')) throw new Error('preferred CRUD operation selection missing')
+if (!cliBuilder.includes('defaultCliOperation')) throw new Error('safe preferred CRUD operation selection missing')
 if (!cliBuilder.includes('cmd?.disableDynamic')) throw new Error('direct tenancy input mode missing')
 if (!cliBuilder.includes('cmd.rootTenancyLookup')
   || !cliBuilder.includes('function buildRootTenancyLookup')) {
