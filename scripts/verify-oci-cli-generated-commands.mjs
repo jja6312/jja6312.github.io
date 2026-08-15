@@ -1,0 +1,218 @@
+#!/usr/bin/env node
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import vm from 'node:vm'
+import ts from 'typescript'
+
+const fail = message => { throw new Error(message) }
+const catalog = JSON.parse(readFileSync(resolve('.protected-cache/cliCatalog.json'), 'utf8'))
+const page = readFileSync(resolve('src/pages/CliBuilderPage.tsx'), 'utf8')
+const optionSource = readFileSync(resolve('src/lib/cliOptionModel.ts'), 'utf8')
+
+const compiledOptionModel = ts.transpileModule(optionSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText
+const optionModule = { exports: {} }
+vm.runInNewContext(compiledOptionModel, { module: optionModule, exports: optionModule.exports })
+const optionModel = optionModule.exports
+
+const builderStart = page.indexOf('const formatCliCommand')
+const builderEnd = page.indexOf('\nconst catOfResource', builderStart)
+if (builderStart < 0 || builderEnd < 0) fail('OCI CLI builder extraction failed')
+const commonNames = [
+  ...catalog.executionContext.request.map(option => option.name),
+  ...catalog.executionContext.response.map(option => option.name),
+]
+const harness = `
+const JSONSPEC = {}
+const allOptions = command => [...command.sections.flatMap(section => section.options), ...command.advanced]
+const isDynamic = (dynamic, name) => dynamic[name] === true
+const isExecutionContextName = name => ${JSON.stringify(commonNames)}.includes(name)
+const isCliOptionValueActive = ${optionModel.isCliOptionValueActive.toString()}
+const serializeCliOption = ${optionModel.serializeCliOption.toString()}
+const quoteCliValue = ${optionModel.quoteCliValue.toString()}
+const splitRepeatedCliValues = ${optionModel.splitRepeatedCliValues.toString()}
+const buildJsonValue = (name, values) => values[name] || '{}'
+const subKey = (option, key) => option + '::' + key
+const buildMultiSelectQuery = value => value
+${page.slice(builderStart, builderEnd)}
+globalThis.buildCli = buildCli
+`
+const builderContext = {}
+vm.runInNewContext(ts.transpileModule(harness, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+}).outputText, builderContext)
+const buildCli = builderContext.buildCli
+if (typeof buildCli !== 'function') fail('OCI CLI buildCli harness did not compile')
+
+const allOptions = surface => [
+  ...(surface.sections ?? []).flatMap(section => section.options),
+  ...(surface.advanced ?? []),
+]
+const uniqueOptions = (...surfaces) => {
+  const byName = new Map()
+  for (const surface of surfaces) {
+    for (const option of allOptions(surface)) byName.set(option.name, option)
+  }
+  return [...byName.values()]
+}
+const sampleValue = option => {
+  if (option.defaultValue !== undefined) return String(option.defaultValue)
+  if (option.flag) return option.required ? 'true' : ''
+  if (option.choices?.length) return String(option.choices[0])
+  if (option.type === 'json') {
+    if (option.name === '--statements') return '["Allow group ExampleGroup to inspect all-resources in tenancy"]'
+    return '{}'
+  }
+  if (option.type === 'file') return './input.txt'
+  if (option.type === 'datetime' || option.name.startsWith('--time-')) return '2026-08-30T23:18:00Z'
+  if (option.name === '--availability-domain') return 'Uocm:AP-SEOUL-1-AD-1'
+  if (option.name.includes('cidr')) return option.multiple ? '10.0.0.0/24\n10.0.1.0/24' : '10.0.0.0/24'
+  if (option.name.includes('email')) return 'operator@example.com'
+  if (option.name.includes('password')) return 'Example-Password-2026!'
+  if (option.name === '--query-text') return 'CpuUtilization[1m].mean() > 80'
+  if (option.name === '--severity') return 'CRITICAL'
+  if (option.name === '--namespace-name') return 'example_namespace'
+  if (option.name.endsWith('-id') || option.name.endsWith('-ids')) {
+    const kind = option.name.replace(/^--/, '').replace(/-ids?$/, '').replaceAll('-', '') || 'resource'
+    const value = `ocid1.${kind}.oc1.ap-seoul-1.exampleuniqueid`
+    return option.multiple ? `${value}1\n${value}2` : value
+  }
+  if (option.name.includes('name')) return 'example-resource'
+  if (option.name.includes('port')) return '443'
+  if (option.type === 'int' || option.type === 'float') return '1'
+  if (option.type === 'bool') return 'true'
+  return option.multiple ? 'example-one\nexample-two' : 'example-value'
+}
+
+const makeValues = (command, surface) => {
+  const options = uniqueOptions(command, surface)
+  const byName = new Map(options.map(option => [option.name, option]))
+  const values = {}
+  for (const option of options) {
+    if (option.defaultValue !== undefined || option.required || option.requirement === 'required') {
+      values[option.name] = sampleValue(option)
+    }
+  }
+  for (const rule of surface.rules ?? []) {
+    if (rule.kind === 'oneOf') {
+      const [selected, ...others] = rule.options ?? []
+      if (selected && byName.has(selected)) values[selected] = sampleValue(byName.get(selected))
+      for (const name of others) values[name] = ''
+    } else if (rule.kind === 'mutuallyExclusive') {
+      const active = (rule.options ?? []).filter(name => optionModel.isCliOptionValueActive(byName.get(name), values[name] ?? ''))
+      for (const name of active.slice(1)) values[name] = ''
+    } else if (rule.kind === 'requires' && rule.when
+      && optionModel.isCliOptionValueActive(byName.get(rule.when), values[rule.when] ?? '')) {
+      for (const name of rule.requires ?? []) {
+        if (byName.has(name)) values[name] = sampleValue(byName.get(name))
+      }
+    }
+  }
+  for (const option of options) {
+    if (!optionModel.isCliOptionValueActive(option, values[option.name] ?? '')) continue
+    for (const conflict of option.conflictsWith ?? []) {
+      if (optionModel.isCliOptionValueActive(byName.get(conflict), values[conflict] ?? '')) values[conflict] = ''
+    }
+  }
+  return values
+}
+
+const records = []
+for (const [resource, command] of Object.entries(catalog.commands)) {
+  const operations = Object.entries(command.operations ?? {})
+  if (operations.length) {
+    for (const [operation, surface] of operations) records.push({ resource, command, operation, surface })
+  } else {
+    records.push({ resource, command, operation: command.preferredOperation ?? 'create', surface: command })
+  }
+  for (const [action, surface] of Object.entries(command.actions ?? {})) {
+    records.push({ resource, command, operation: command.preferredOperation ?? 'get', action, surface })
+  }
+}
+if (records.length !== 219) fail(`Expected 219 command surfaces, got ${records.length}`)
+
+let requiredGuards = 0
+let actionScripts = 0
+let specialScripts = 0
+const scripts = new Map()
+for (const record of records) {
+  const { resource, command, operation, action, surface } = record
+  const validationSurface = command.maintenanceReboot
+    ? { ...command, sections: command.sections.filter((_section, index) => operation === 'update' || index === 0) }
+    : surface
+  const options = uniqueOptions(validationSurface).filter(option => !commonNames.includes(option.name))
+  const values = makeValues(command, surface)
+  const validation = optionModel.validateCliOptions(options, values, surface.rules ?? [])
+  if (!validation.valid) {
+    fail(`${resource}:${action ? `action:${action}` : operation} sample is invalid: ${JSON.stringify(validation.issues)}`)
+  }
+  const empty = optionModel.validateCliOptions(options, {}, surface.rules ?? [])
+  if (options.some(option => (option.requirement ?? (option.required ? 'required' : 'optional')) === 'required')
+    || (surface.rules ?? []).some(rule => rule.kind === 'oneOf')) {
+    requiredGuards += 1
+    if (empty.valid) fail(`${resource}:${action ? `action:${action}` : operation} accepts empty required input`)
+  }
+  const responseEnabled = !command.crossCopy && !command.maintenanceReboot && !command.compartmentCleanup
+    && !command.allSubscriptionBalances && !command.iamMfaReset && !command.manualBackup
+  const script = buildCli(command, values, {}, operation, action,
+    ["--profile 'DEFAULT'"], responseEnabled ? ['--output json'] : [])
+  const key = `${resource}:${action ? `action:${action}` : operation}`
+  if (!script.trim() || /\b(?:undefined|NaN)\b/.test(script)) fail(`${key} generated an invalid placeholder`)
+  scripts.set(key, script)
+  actionScripts += action ? 1 : 0
+  specialScripts += !!(command.crossCopy || command.maintenanceReboot || command.compartmentCleanup
+    || command.allSubscriptionBalances || command.iamMfaReset || command.manualBackup)
+}
+
+const bash = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash'
+const syntaxBatch = [...scripts.entries()]
+  .map(([key, script]) => `# ===== ${key} =====\n{\n${script}\n}\n`)
+  .join('\n')
+const syntax = spawnSync(bash, ['-n'], { input: syntaxBatch, encoding: 'utf8' })
+if (syntax.status !== 0) fail(`Generated command Bash syntax invalid: ${syntax.stderr}`)
+
+const quoted = optionModel.serializeCliOption({ name: '--name' }, "O'Reilly; echo unsafe")
+if (quoted.join('') !== "--name 'O'\\''Reilly; echo unsafe'") fail(`Unsafe shell value was not quoted: ${quoted}`)
+const jsonArgs = optionModel.serializeCliOption({ name: '--defined-tags' }, '{"Operations":{"Owner":"MSP"}}')
+if (jsonArgs.join('') !== "--defined-tags '{\"Operations\":{\"Owner\":\"MSP\"}}'") fail(`JSON quoting failed: ${jsonArgs}`)
+const repeated = optionModel.serializeCliOption({ name: '--tag-name', multiple: true, shellQuote: true }, 'first\nsecond value')
+if (JSON.stringify(repeated) !== JSON.stringify(["--tag-name 'first'", "--tag-name 'second value'"])) {
+  fail(`Multiple option serialization failed: ${JSON.stringify(repeated)}`)
+}
+if (optionModel.serializeCliOption({ name: '--force', flag: true }, 'true').join('') !== '--force'
+  || optionModel.serializeCliOption({ name: '--force', flag: true }, 'false').length !== 0) {
+  fail('Flag serialization failed')
+}
+const exclusive = optionModel.validateCliOptions([
+  { name: '--all', flag: true }, { name: '--limit' },
+], { '--all': 'true', '--limit': '10' }, [{
+  id: 'all-limit', kind: 'mutuallyExclusive', options: ['--all', '--limit'], message: 'exclusive',
+}])
+if (exclusive.valid || !exclusive.issues.some(issue => issue.code === 'mutuallyExclusive')) {
+  fail('Mutually exclusive option regression was not detected')
+}
+
+const cleanup = scripts.get('compartment-resource-cleansing:create')
+if (!cleanup?.includes('CONFIRM_COMPARTMENT') || !cleanup.includes('confirm compartment OCID')) {
+  fail('Compartment cleanup confirmation guard missing from generated command')
+}
+const mfa = scripts.get('iam-user-mfa-reset:create')
+if (!mfa?.includes('CONFIRM_USER_NAME') || !mfa.includes('confirm user name')) {
+  fail('IAM MFA reset confirmation guard missing from generated command')
+}
+
+console.log(JSON.stringify({
+  surfaces: records.length,
+  bashSyntax: scripts.size,
+  requiredGuards,
+  actions: actionScripts,
+  specialScripts,
+  shellQuote: true,
+  json: true,
+  multiple: true,
+  flag: true,
+  mutuallyExclusive: true,
+  dangerConfirmations: 2,
+}))

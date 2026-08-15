@@ -41,7 +41,7 @@ export function splitRepeatedCliValues(value: string): string[] {
 }
 
 export function quoteCliValue(value: string, always = false): string {
-  return always || /\s|[{}$]/.test(value)
+  return always || !/^[A-Za-z0-9_@%+=:,./-]+$/.test(value)
     ? `'${value.replaceAll("'", "'\\''")}'`
     : value
 }
