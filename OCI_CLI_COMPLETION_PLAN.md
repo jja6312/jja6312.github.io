@@ -138,11 +138,19 @@
   - 회귀 검증: Instance CREATE 빈 입력·정상 Image 부팅·복수 부팅 소스·Boot Volume 크기 의존성 및 `--all/--limit` 충돌 검증, 보호 데이터 L1/L2/L3·lint·build 통과
   - 사이트 커밋: `539569a`
   - 배포: GitHub Pages run `31874658029` 성공; 라이브 JS `assets/index-C5ofnAGc.js` SHA-256 `BF5C64D4ADCD84F51A412EB0196DA468FA7D927EC3769439CF987CD67A5FA643`, CSS `assets/index-s5uSnS7O.css` SHA-256 `B78B2411C0BD829E9D5DB8DCF42589B08AC7DEA73AF4F12ECFB671846A38D722`, 보호 데이터 SHA-256 `84CE55B0AB7F73B6F5C11178C3A8AF8EA45378FC34551F6AA03167B617CB50A2`가 로컬과 일치
-- [ ] `P1-06` 공통 실행 컨텍스트 계층 도입
+- [x] `P1-06` 공통 실행 컨텍스트 계층 도입
   - Profile, Region, Auth, Endpoint, Output, Query를 각 리소스와 분리된 공통 영역에서 관리
   - 동적 조회와 본 명령에 동일한 컨텍스트 전달
   - 리전이 필요 없는 명령은 억지로 요구하지 않음
   - 완료 기준: 모든 명령이 적용 가능한 공통 옵션을 일관되게 제공
+  - 완료: 2026-08-15
+  - 공통 스키마: OCI CLI v3.90.2 최종 Click root 기준으로 Request(`Profile`, `Region`, `Auth`, `Endpoint`)와 Response(`Output`, `Query`, `Raw Output`)를 카탈로그 최상위에 1회 정의
+  - 적용 범위: 일반·Action 219개 화면에서 중복 공통 옵션을 제거하고, 기존 맞춤값 32개는 optional override로 보존; Region은 전역 기본값 없이 프로필·환경 설정 상속
+  - 실행 일관성: 컴파트먼트·AD·VCN·Subnet·IAM·MySQL 등의 동적 조회와 본 명령에 동일한 Request 컨텍스트를 전달하고 Response 컨텍스트는 최종 명령에만 적용
+  - 운영 절차 보호: 여러 명령을 묶는 Custom CLI의 내부 Query·Output은 사용자 Response 옵션으로 덮어쓰지 않고, 기존 Instance 복수 Query와 Announcement 체크박스 Query UI 유지
+  - 회귀 검증: 공통 스키마·219개 화면·32개 override·인증 방식 6개·즐겨찾기 마이그레이션·동적 조회/본 명령 전파·생성 Bash 구문, 보호 데이터 L1/L2/L3·lint·build 통과
+  - 사이트 커밋: `c9ae258`
+  - 배포: GitHub Pages run `31876558792` 성공; 라이브 JS `assets/index-B3HaIhF2.js` SHA-256 `6B375AD32BA53DCB133A0A8F703D5A39B91152EAC9587EFEBBE943EEFF0662EC`, CSS `assets/index-CEVH-R3Q.css` SHA-256 `73C56BC3FC7F6A14A2CE7C234F6060A54235E0D3908DA390E2B08392CDAFC947`, 보호 데이터 SHA-256 `38A275A2B5AAE233AEFD0A497B173CB69DBA73FC0AF40B9BD110F114857DBB36`가 로컬과 일치
 - [ ] `P1-07` 최신 공식 메타데이터 자동 비교 게이트 추가
   - 명령·옵션 누락/추가/required/type/flag/choices 차이를 CI 보고서로 생성
   - 차이가 검토되지 않으면 보호 데이터 생성을 실패시킴
@@ -354,12 +362,13 @@
 
 ## 5. 다음 작업
 
-다음 착수 항목은 `P1-06 공통 실행 컨텍스트 계층 도입`이다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
+다음 착수 항목은 `P1-07 최신 공식 메타데이터 자동 비교 게이트 추가`다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
 
 ## 6. 변경 이력
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-15 | P1-06 완료 — OCI root 공통 실행 컨텍스트 분리, 동적 조회·본 명령 동일 Request 전달, 최종 Response 격리 및 회귀 검증 | `c9ae258` | Codex |
 | 2026-08-15 | P1-05 완료 — 미완성 명령 사유 표시, 미리보기 구분, 복사·단축키·즐겨찾기 저장 차단 및 회귀 검증 | `539569a` | Codex |
 | 2026-08-15 | P1-04 완료 — required 승격 제거, 조건부·택일·상호배타 스키마와 deprecated 기본 숨김 UI 도입 | `375af47` | Codex |
 | 2026-08-15 | P1-03 완료 — flag/boolean/multiple/choices/JSON/file/datetime 분리, 충돌 UI와 최종 명령 직렬화 회귀 검증 | `b765c25` | Codex |
