@@ -101,11 +101,18 @@
   - 검증: generated 리소스 37개의 모든 제공 CRUD 경로가 최종 Click 트리에 존재, 보호 데이터 L1/L2/L3 복호화 회귀·lint·build 통과
   - 사이트 커밋: `7d9f9e6`
   - 배포: GitHub Pages run `31872360969` 성공; 라이브 `assets/index-DYEnip1d.js`, `assets/index-D2IOEbCJ.css`, 보호 데이터 SHA-256 `73EFEEA14645C9A56B5B3A6BB9F0274E38C97C06F7B90D873EC5D87D7271B1C5`가 로컬과 일치
-- [ ] `P1-03` 옵션 타입 모델 교정
+- [x] `P1-03` 옵션 타입 모델 교정
   - 값 없는 flag, boolean value, multiple, choices, JSON, file, datetime을 구분
   - `--all`, `--force`, `--raw-output` 등은 체크박스로 표현
   - `--all`과 `--limit` 같은 충돌 규칙 표현
   - 완료 기준: `--all true`, `--force true` 같은 잘못된 최종 명령이 생성되지 않음
+  - 완료: 2026-08-15
+  - 공식 메타데이터: 최종 Click 트리의 flag 564건, boolean value 691건, multiple 716건, choices 1,593건, JSON 1,357건, file 39건, datetime 79건을 분리 수집
+  - UI·직렬화: flag는 체크박스와 값 없는 인자로, boolean value는 `true|false` 선택값으로, multiple choice는 복수 체크 후 옵션 반복으로 생성; JSON·file·datetime 타입 표식과 전용 입력 형태 적용
+  - 충돌 처리: `--all`·`--limit`을 상호 충돌로 표시하고 한쪽 입력 시 반대쪽을 제거하며, 이전 즐겨찾기의 충돌값도 최종 명령에서 결정적으로 억제
+  - 회귀 검증: 209개 CRUD 동작의 Click↔카탈로그 타입 일치와 `--all`, `--force`, boolean value, multiple 최종 문자열을 자동 검사; 보호 데이터 L1/L2/L3·lint·build 통과
+  - 사이트 커밋: `b765c25`
+  - 배포: GitHub Pages run `31873175930` 성공; 라이브 `assets/index-isdVxO5Z.js`, `assets/index-C5Ebu7lI.css`, 보호 데이터 SHA-256 `094022F60D5AC959B0D084493E804EC56928E139986DF7F357C913FF2F486400`이 로컬과 일치
 - [ ] `P1-04` 필수·선택·조건부 필수·택일·상호배타 스키마 도입
   - CLI optional을 Console 관행만으로 무조건 required로 승격하지 않음
   - Instance CREATE의 image/source, subnet/create-vnic-details 같은 대체 관계를 그룹으로 표현
@@ -331,12 +338,13 @@
 
 ## 5. 다음 작업
 
-다음 착수 항목은 `P1-03 옵션 타입 모델 교정`이다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
+다음 착수 항목은 `P1-04 필수·선택·조건부 필수·택일·상호배타 스키마 도입`이다. 이 항목을 완료하기 전에는 대량의 새 리소스를 자동 생성하지 않는다.
 
 ## 6. 변경 이력
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-15 | P1-03 완료 — flag/boolean/multiple/choices/JSON/file/datetime 분리, 충돌 UI와 최종 명령 직렬화 회귀 검증 | `b765c25` | Codex |
 | 2026-08-15 | P1-02 완료 — 공식 릴리스의 최종 Click 트리로 전환, extended 공개 이름·cmdref 회귀·오프라인 재현성 검증 | `7d9f9e6` | Codex |
 | 2026-08-15 | P1-01 완료 — 공식 OCI CLI v3.90.2 단일 원천 잠금, 절대 경로·혼합 버전 제거, 재현성 검증 | 사이트 `6f2b547` / blog-db `600de31` | Codex |
 | 2026-08-15 | 최초 전수검수 결과를 실행 가능한 단계별 계획으로 고정, 완료된 IAM·Instance query 작업 반영 | — | Codex |
