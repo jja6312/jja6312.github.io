@@ -10,9 +10,23 @@ const file = JSON.parse(readFileSync(resolve('public/protected-data.json'), 'utf
 const verifiers = JSON.parse(readFileSync(resolve('src/data/authVerifiers.json'), 'utf8'))
 const cliBuilder = readFileSync(resolve('src/pages/CliBuilderPage.tsx'), 'utf8')
 const generatedCliCatalog = JSON.parse(readFileSync(resolve('.protected-cache/cliCatalog.json'), 'utf8'))
+const cliSourceLock = JSON.parse(readFileSync(resolve('scripts/oci-cli-source.lock.json'), 'utf8'))
 const { subtle } = webcrypto
 const dec = new TextDecoder()
 const fromB64 = value => new Uint8Array(Buffer.from(value, 'base64'))
+
+for (const key of ['repository', 'releaseUrl', 'tag', 'version', 'commit', 'tree', 'publishedAt', 'collectedAt']) {
+  if (generatedCliCatalog.source?.[key] !== cliSourceLock[key]) {
+    throw new Error(`OCI CLI catalog source provenance mismatch: ${key}`)
+  }
+}
+for (const [resource, command] of Object.entries(generatedCliCatalog.commands)) {
+  if (command.source?.tag !== cliSourceLock.tag || command.source?.version !== cliSourceLock.version
+    || command.source?.commit !== cliSourceLock.commit
+    || !['generated', 'manual-curation'].includes(command.source?.kind)) {
+    throw new Error(`${resource}: mixed or missing OCI CLI source provenance`)
+  }
+}
 
 async function passwordDecrypt(password, cipher) {
   const base = await subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey'])

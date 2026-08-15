@@ -10,6 +10,8 @@ v3: 콘솔 생성 마법사와 같은 경험 —
 import json, re, glob, os, sys, io, importlib.util
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
+from oci_cli_source import ensure_source, load_lock, resolve_source_path
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SITE = os.path.dirname(HERE)
 DATA = os.path.join(SITE, '..', 'blog-db', 'knowledge', 'oci-cli', '_data')
@@ -20,6 +22,9 @@ _parser_spec = importlib.util.spec_from_file_location('parse_oci_cli', os.path.j
 _parser_module = importlib.util.module_from_spec(_parser_spec)
 _parser_spec.loader.exec_module(_parser_module)
 parse_cli_file = _parser_module.parse_file
+
+SOURCE_LOCK = load_lock()
+SOURCE_ROOT = ensure_source()
 
 STRUCTURE = [
   ('02-compute', 'Compute', [
@@ -232,6 +237,12 @@ def placeholder(name, typ):
 raw = {}
 for f in glob.glob(os.path.join(DATA, '*.json')):
     d = json.load(open(f, encoding='utf-8'))
+    if d.get('cli_version') != SOURCE_LOCK['version']:
+        raise RuntimeError('%s: cli_version must match pinned OCI CLI %s' % (os.path.basename(f), SOURCE_LOCK['version']))
+    if d.get('source_tag') != SOURCE_LOCK['tag'] or d.get('source_commit') != SOURCE_LOCK['commit']:
+        raise RuntimeError('%s: source tag/commit does not match the OCI CLI source lock' % os.path.basename(f))
+    if d.get('source_kind') not in ('generated', 'manual-curation'):
+        raise RuntimeError('%s: source_kind must be generated or manual-curation' % os.path.basename(f))
     if not d.get('primary') and d.get('commands'):
         d['primary'] = next((command for command in d['commands'] if command.get('verb') == 'create'), d['commands'][0])
     if d.get('primary', {}).get('options'):
@@ -315,7 +326,25 @@ def find_operation(commands, group, operation):
             return prefixed[0]
     return None
 
-catalog = {'categories': [], 'commands': {}}
+def find_primary(commands, specification):
+    """Resolve the resource's curated command identity against the pinned source."""
+    same_group = [command for command in commands if command.get('group') == specification.get('group')]
+    for key in ('func', 'verb', 'override'):
+        value = specification.get(key)
+        if value:
+            exact = next((command for command in same_group if command.get(key) == value), None)
+            if exact:
+                return exact
+    return None
+
+catalog = {
+    'source': {
+        key: SOURCE_LOCK[key]
+        for key in ('repository', 'releaseUrl', 'tag', 'version', 'commit', 'tree', 'publishedAt', 'collectedAt')
+    },
+    'categories': [],
+    'commands': {},
+}
 MANUAL_CATEGORY_RESOURCES = {
     'instance-maintenance-reboot', 'instance-boot-volume-backup',
     'iam-user', 'iam-group', 'iam-policy',
@@ -337,23 +366,32 @@ for res, d in raw.items():
     cmd = d.get('command') or recipe_cmd(res)
     if not cmd:
         continue
-    sections, advanced = layout_command(res, d['primary'], curated=True)
     source_file = d.get('source_file')
-    if d.get('commands'):
-        source_commands = d['commands']
-    elif source_file and os.path.exists(source_file):
+    if d.get('source_kind') == 'generated':
+        if not source_file:
+            raise RuntimeError('%s: generated resource is missing source_file' % res)
+        resolved_source = str(resolve_source_path(source_file, SOURCE_ROOT))
         if source_file not in source_cache:
-            source_cache[source_file] = parse_cli_file(source_file)
+            source_cache[source_file] = parse_cli_file(resolved_source)
         source_commands = source_cache[source_file]
+        primary = find_primary(source_commands, d['primary'])
+        if not primary:
+            raise RuntimeError('%s: primary command %s/%s not found in pinned %s' % (
+                res, d['primary'].get('group'), d['primary'].get('verb'), source_file,
+            ))
+    elif d.get('commands'):
+        source_commands = d['commands']
+        primary = d['primary']
     else:
-        source_commands = []
+        raise RuntimeError('%s: no pinned source or curated commands' % res)
+    sections, advanced = layout_command(res, primary, curated=True)
     prefix = cmd.rsplit(' ', 1)[0]
     operations = {}
     for operation in ('get', 'list', 'create', 'update', 'delete'):
-        primary_verb = d['primary'].get('verb')
+        primary_verb = primary.get('verb')
         primary_is_create = operation == 'create' and primary_verb not in ('get', 'list', 'update', 'delete', 'terminate')
-        operation_source = d['primary'] if primary_verb == operation or primary_is_create else find_operation(
-            source_commands, d['primary'].get('group'), operation,
+        operation_source = primary if primary_verb == operation or primary_is_create else find_operation(
+            source_commands, primary.get('group'), operation,
         )
         if not operation_source:
             continue
@@ -449,7 +487,7 @@ for res, d in raw.items():
         }
     catalog_command = {
         'resource': res, 'label': RES_LABEL.get(res, res),
-        'cmd': cmd, 'help': (d['primary'].get('help') or '').strip()[:200],
+        'cmd': cmd, 'help': (primary.get('help') or '').strip()[:200],
         'sections': sections, 'advanced': advanced, 'operations': operations,
     }
     for metadata_key in ('preferredOperation', 'disableDynamic', 'rootTenancyLookup'):
@@ -824,6 +862,18 @@ EXTRA = {
 }
 # cross-copy는 최상위 레벨, maintenance reboot는 Compute > Instances에 렌더
 catalog['commands'].update(EXTRA)
+
+for resource, command in catalog['commands'].items():
+    specification = raw.get(resource, {})
+    provenance = {
+        'kind': specification.get('source_kind', 'manual-curation'),
+        'tag': SOURCE_LOCK['tag'],
+        'version': SOURCE_LOCK['version'],
+        'commit': SOURCE_LOCK['commit'],
+    }
+    if specification.get('source_file'):
+        provenance['sourceFile'] = specification['source_file']
+    command['source'] = provenance
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 json.dump(catalog, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)

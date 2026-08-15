@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/oracle/oci-cli",
+  "releaseUrl": "https://github.com/oracle/oci-cli/releases/tag/v3.90.2",
+  "rawBaseUrl": "https://raw.githubusercontent.com/oracle/oci-cli",
+  "tag": "v3.90.2",
+  "version": "3.90.2",
+  "commit": "ad59a1f4c7df10decf51816ac16991621dae1b15",
+  "tree": "0fc2085908d11d44ba34cabe1da572488b76ebfc",
+  "publishedAt": "2026-08-11T12:46:01Z",
+  "collectedAt": "2026-08-15T15:25:00+09:00",
+  "releaseAsset": {
+    "name": "oci-cli-3.90.2.zip",
+    "bytes": 184497661,
+    "sha256": "c76d0b1e14a19fa1df976be4eefaa9ca183f41e569b9392220d02b756af5e497"
+  },
+  "updatePolicy": "Pin the latest stable release. Compare immutable source files first, review the generated catalog diff, then update this lock explicitly.",
+  "sources": [
+    {
+      "path": "src/oci_cli/version.py",
+      "bytes": 365,
+      "sha256": "f8f2c278ecf2caf94af8ddb66cf203e3f38a4f99b3234a71293544a8af02b27c"
+    },
+    {
+      "path": "services/core/src/oci_cli_blockstorage/generated/blockstorage_cli.py",
+      "bytes": 375936,
+      "sha256": "af7d1057a6b1d4d3c15f6e7ff2f34d11732816ca31daa7313f0851f93714d873"
+    },
+    {
+      "path": "services/core/src/oci_cli_compute/generated/compute_cli.py",
+      "bytes": 1211670,
+      "sha256": "1a59bd28c6d616ad58accc330e29a3d4e874d91d7891117a8c26241ba996a147"
+    },
+    {
+      "path": "services/core/src/oci_cli_compute_management/generated/computemanagement_cli.py",
+      "bytes": 155477,
+      "sha256": "05873247f58c91e44fe81c122f07b4ba0be9ee8ce8f6df791d02428d65df50f3"
+    },
+    {
+      "path": "services/core/src/oci_cli_virtual_network/generated/virtualnetwork_cli.py",
+      "bytes": 1188232,
+      "sha256": "76d20bda69359649d0bb88b4e4b8e95a72ea496eb6e54bb2efd8c8c8a8493f2f"
+    },
+    {
+      "path": "services/database/src/oci_cli_database/generated/database_cli.py",
+      "bytes": 3832457,
+      "sha256": "f5d83930f2c0f48e70c85de10e1e4a81b43c17c8a5722e283fec0a9cf35c744b"
+    },
+    {
+      "path": "services/file_storage/src/oci_cli_file_storage/generated/filestorage_cli.py",
+      "bytes": 360287,
+      "sha256": "5035a1bc6c509ca236c994de0150ac0687121cd3a30ff303c8961e88d0fdc29d"
+    },
+    {
+      "path": "services/load_balancer/src/oci_cli_load_balancer/generated/loadbalancer_cli.py",
+      "bytes": 315896,
+      "sha256": "e774d8210ee0b2fe2b0d446a21d93b090fe895533e722dc6eda56e0d2c4e34dc"
+    },
+    {
+      "path": "services/monitoring/src/oci_cli_monitoring/generated/monitoring_cli.py",
+      "bytes": 134153,
+      "sha256": "d619468f3c263c96cdb19796a29b7458d54f6bd56ef0e25afecbdb0fe9fc320e"
+    },
+    {
+      "path": "services/mysql/src/oci_cli_db_system/generated/dbsystem_cli.py",
+      "bytes": 230998,
+      "sha256": "78d6831f4ea5d9e9b57fc30671c206a8a2be572862eb6687dc31be4bc2e448d0"
+    },
+    {
+      "path": "services/network_load_balancer/src/oci_cli_network_load_balancer/generated/networkloadbalancer_cli.py",
+      "bytes": 177167,
+      "sha256": "17b1574dc2fe62d871281121d015bbb9e2f6338572cc76a2abca95e64295ea0b"
+    },
+    {
+      "path": "services/object_storage/src/oci_cli_object_storage/generated/objectstorage_cli.py",
+      "bytes": 225441,
+      "sha256": "0716358f7cb5c95d6b40c6825eda0a135b30497a7d56dbf789e9533e0f9088c5"
+    },
+    {
+      "path": "services/ons/src/oci_cli_notification_control_plane/generated/notificationcontrolplane_cli.py",
+      "bytes": 17551,
+      "sha256": "55ad387be103bf6958ead11cef50ecde1939d15ba075def8ddd37ae24ed7272c"
+    },
+    {
+      "path": "services/ons/src/oci_cli_notification_data_plane/generated/notificationdataplane_cli.py",
+      "bytes": 31750,
+      "sha256": "e55bfc25d1cc93b282e31a7b6126a84e239a645ffb7e4ab571f593cda5b6ada0"
+    }
+  ]
+}
