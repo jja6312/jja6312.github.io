@@ -93,6 +93,34 @@ for (const level of [1, 2, 3]) {
       throw new Error(`L${level} --all/--limit conflict metadata missing: ${operation.cmd}`)
     }
   }
+  if (catalogOptions.some(option => option.console)) {
+    throw new Error(`L${level} CLI optional option was promoted by Console convention`)
+  }
+  const instanceCreate = bundle.cliCatalog.commands.instance.operations.create
+  const instanceCreateOptions = [
+    ...instanceCreate.sections.flatMap(section => section.options), ...instanceCreate.advanced,
+  ]
+  const instanceRequired = instanceCreateOptions.filter(option => option.required).map(option => option.name).sort()
+  if (JSON.stringify(instanceRequired) !== JSON.stringify(['--availability-domain', '--compartment-id', '--subnet-id'])) {
+    throw new Error(`L${level} Instance CREATE required metadata mismatch: ${JSON.stringify(instanceRequired)}`)
+  }
+  const bootSources = ['--image-id', '--source-details', '--source-boot-volume-id']
+  if (bootSources.some(name => instanceCreateOptions.find(option => option.name === name)?.requirement !== 'conditional')) {
+    throw new Error(`L${level} Instance boot source conditional metadata missing`)
+  }
+  const bootRule = instanceCreate.rules?.find(rule => rule.id === 'instance-boot-source')
+  if (bootRule?.kind !== 'oneOf' || JSON.stringify(bootRule.options) !== JSON.stringify(bootSources)) {
+    throw new Error(`L${level} Instance boot source one-of rule missing`)
+  }
+  if (instanceCreateOptions.some(option => option.name === '--create-vnic-details')
+    || !instanceCreate.optionNotices?.some(notice => notice.option === '--create-vnic-details'
+      && notice.replacements.includes('--subnet-id'))) {
+    throw new Error(`L${level} Instance final VNIC interface metadata mismatch`)
+  }
+  const deprecatedOptions = catalogOptions.filter(option => option.deprecated)
+  if (deprecatedOptions.length < 1 || !deprecatedOptions.some(option => option.replacement?.length)) {
+    throw new Error(`L${level} deprecated option metadata missing`)
+  }
   const instanceGroup = bundle.cliCatalog.categories
     .flatMap(category => category.groups)
     .find(group => group.label === 'Instances')
@@ -348,6 +376,10 @@ if (!cliBuilder.includes('function buildMultiSelectQuery')) throw new Error('Ins
 if (!cliBuilder.includes('if (o.checkbox)')) throw new Error('고정 query 체크박스 UI 누락')
 if (!cliBuilder.includes('if (o.multiple)')) throw new Error('Click multiple 옵션 UI 누락')
 if (!cliBuilder.includes('conflictsWith')) throw new Error('OCI CLI 옵션 충돌 UI 누락')
+if (!cliBuilder.includes('visibleFormSections') || !cliBuilder.includes('showDeprecated')
+  || !cliBuilder.includes('cli-rule-panel') || !cliBuilder.includes('조건부 필수')) {
+  throw new Error('OCI CLI required/conditional/deprecated UI 누락')
+}
 if (!cliBuilder.includes('oci compute instance update')) throw new Error('재부팅 달력 update 명령 누락')
 if (!cliBuilder.includes('confirm compartment OCID')) throw new Error('컴파트먼트 정리 이중 확인 가드 누락')
 if (!cliBuilder.includes('oci log-analytics storage purge-storage-data')) throw new Error('Log Analytics compartment purge 누락')

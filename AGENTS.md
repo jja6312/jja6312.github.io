@@ -14,6 +14,8 @@ OCI CLI changes in this repository must follow these rules before implementation
 10. Run protected-data generation and verification, lint, and build. Deploy automatically and confirm the live JavaScript, CSS, and protected data match the local final artifacts.
 11. Treat `scripts/oci-cli-source.lock.json` as the only OCI CLI generated-source authority. Never read an installed OCI CLI path or silently mix stored metadata from another version. Check the latest release with `npm run check:oci-source`, review the source/catalog diff, and then update the lock explicitly.
 12. Collect public command and option names from the pinned release's final Click tree after generated and `*_extended.py` modules are loaded. `scripts/parse-oci-cli.py` is legacy audit material only and must never drive catalog generation.
+13. Presentation curation may reorder or group options, but it must never promote a Click-optional option to required because the Console usually asks for it. Preserve `required` exactly and model one-of, conditional, dependency, and mutual-exclusion semantics separately.
+14. Hide deprecated options from the default form. Keep them in an explicit deprecated section with official deprecation text and a replacement when one is known. If the final public Click command removes a generated option, do not reintroduce it; record the supported public alternatives instead.
 
 ## OCI CLI completion plan
 

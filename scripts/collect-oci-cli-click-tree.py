@@ -18,6 +18,7 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 INFRASTRUCTURE_OPTIONS = {"--from-json", "--help"}
 REQUIRED_MARKER = re.compile(r"\s*\[required\]\s*$", re.IGNORECASE)
+DEPRECATED_MARKER = re.compile(r"^\s*(?:\[|\*\*)?\s*deprecated(?:\]|\*\*)?[\s.:]", re.IGNORECASE)
 
 
 def first_sentence(value: str | None) -> str:
@@ -41,6 +42,7 @@ def option_metadata(parameter) -> dict | None:
     if not name:
         return None
     help_text = parameter.help or ""
+    deprecated = bool(DEPRECATED_MARKER.search(help_text))
     required = bool(parameter.required or REQUIRED_MARKER.search(help_text))
     help_text = REQUIRED_MARKER.sub("", help_text)
     choices = getattr(parameter.type, "choices", None)
@@ -76,6 +78,8 @@ def option_metadata(parameter) -> dict | None:
         "choices": choices,
         "flag": is_flag,
         "multiple": bool(parameter.multiple),
+        "deprecated": deprecated,
+        "deprecation": first_sentence(help_text) if deprecated else None,
         "help": first_sentence(help_text),
     }
 

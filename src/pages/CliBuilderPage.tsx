@@ -8,7 +8,7 @@ import { isCliOptionValueActive, serializeCliOption } from '../lib/cliOptionMode
 interface CliOption {
   name: string
   required: boolean
-  console?: boolean          // CLI 스키마상 optional 이지만 콘솔 기준 필수 (승격)
+  requirement?: 'required' | 'optional' | 'conditional'
   multi?: boolean            // 여러 값 입력(줄바꿈/콤마) → 전용 빌더에서 for 루프
   type: string
   choices: string[] | null
@@ -17,6 +17,9 @@ interface CliOption {
   flag?: boolean
   multiple?: boolean        // Click multiple=True: 같은 옵션을 값마다 반복해 전달
   conflictsWith?: string[]  // 같은 명령에서 동시에 사용할 수 없는 옵션
+  deprecated?: boolean
+  deprecation?: string
+  replacement?: string[]
   checkbox?: boolean        // 고정된 옵션 값을 자유 입력 대신 체크박스로 켜고 끔
   checkboxLabel?: string
   defaultValue?: string
@@ -28,10 +31,26 @@ interface CliOption {
   displayLabel?: string
 }
 interface CliSection { label: string; options: CliOption[] }
+interface CliOptionRule {
+  id: string
+  kind: 'oneOf' | 'mutuallyExclusive' | 'requires'
+  options?: string[]
+  when?: string
+  requires?: string[]
+  message: string
+}
+interface CliOptionNotice {
+  kind: 'notPublic'
+  option: string
+  replacements: string[]
+  message: string
+}
 type CrudVerb = 'get' | 'list' | 'create' | 'update' | 'delete'
 interface CliOperation {
   cmd: string; help: string
   sections: CliSection[]; advanced: CliOption[]
+  rules?: CliOptionRule[]
+  optionNotices?: CliOptionNotice[]
 }
 interface CliAction extends CliOperation {
   label: string
@@ -1129,6 +1148,7 @@ export default function CliBuilderPage() {
   const [customText, setCustomText] = useState('oci ')
   const [favs, setFavs] = useState<Favorite[]>(loadFavs())
   const [showOptional, setShowOptional] = useState(false)
+  const [showDeprecated, setShowDeprecated] = useState(false)
   const [crudOperation, setCrudOperation] = useState<CrudVerb>('create')
   const [selectedAction, setSelectedAction] = useState<string | null>(null)
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
@@ -1141,7 +1161,7 @@ export default function CliBuilderPage() {
   useEffect(() => {
     if (!rParam || !CAT.commands[rParam]) return
     const operation = defaultOperation(CAT.commands[rParam])
-    setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setDyn({}); setShowOptional(false); setCrudOperation(operation); setSelectedAction(null)
+    setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setCrudOperation(operation); setSelectedAction(null)
     if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances || CAT.commands[rParam].iamMfaReset) setCustomOpen(true)
     const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
@@ -1185,6 +1205,14 @@ export default function CliBuilderPage() {
     ? cmd.sections.filter((_, index) => crudOperation === 'update' || index === 0)
     : selectedOperation?.sections ?? cmd?.sections ?? []
   const formAdvanced = selectedOperation?.advanced ?? cmd?.advanced ?? []
+  const formRules = selectedOperation?.rules ?? []
+  const formOptionNotices = selectedOperation?.optionNotices ?? []
+  const formDeprecated = [...formSections.flatMap(section => section.options), ...formAdvanced]
+    .filter(option => option.deprecated)
+  const visibleFormSections = formSections
+    .map(section => ({ ...section, options: section.options.filter(option => !option.deprecated) }))
+    .filter(section => section.options.length > 0)
+  const visibleFormAdvanced = formAdvanced.filter(option => !option.deprecated)
   const hasCrud = usesCrudVerification(cmd)
   const currentVerificationOperation = selectedAction ? `action:${selectedAction}` : crudOperation
   const isOperationAvailable = (operation: CrudVerb) => supportsOperation(cmd, operation)
@@ -1200,7 +1228,7 @@ export default function CliBuilderPage() {
 
   const selectResource = (res: string) => {
     const next = CAT.commands[res]
-    setActive(res); setDyn({}); setShowOptional(false); setSelectedAction(null)
+    setActive(res); setDyn({}); setShowOptional(false); setShowDeprecated(false); setSelectedAction(null)
     if (next) {
       const operation = defaultOperation(next)
       setCrudOperation(operation); setValues(operationDefaults(next, operation))
@@ -1208,11 +1236,11 @@ export default function CliBuilderPage() {
   }
   const selectOperation = (operation: CrudVerb) => {
     if (!isOperationAvailable(operation)) return
-    setCrudOperation(operation); setSelectedAction(null); setValues(cmd ? operationDefaults(cmd, operation) : {}); setDyn({}); setShowOptional(false)
+    setCrudOperation(operation); setSelectedAction(null); setValues(cmd ? operationDefaults(cmd, operation) : {}); setDyn({}); setShowOptional(false); setShowDeprecated(false)
   }
   const selectAction = (action: string) => {
     if (!cmd?.actions?.[action]) return
-    setSelectedAction(action); setValues(actionDefaults(cmd, action)); setDyn({}); setShowOptional(false)
+    setSelectedAction(action); setValues(actionDefaults(cmd, action)); setDyn({}); setShowOptional(false); setShowDeprecated(false)
   }
   const formOptions = [...formSections.flatMap(section => section.options), ...formAdvanced]
   const formOptionsByName = new Map(formOptions.map(option => [option.name, option]))
@@ -1265,11 +1293,14 @@ export default function CliBuilderPage() {
   const loadFav = (f: Favorite) => {
     if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci '); setCustomOpen(true) }
     else {
-      setActive(f.resource); setValues(f.values); setDyn(f.dyn ?? {}); setShowOptional(true); setSelectedAction(null)
+      setActive(f.resource); setValues(f.values); setDyn(f.dyn ?? {}); setShowOptional(true); setShowDeprecated(false); setSelectedAction(null)
       const favoriteCommand = CAT.commands[f.resource]
       if (favoriteCommand) {
-        setCrudOperation(f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultOperation(favoriteCommand))
+        const operation = f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultOperation(favoriteCommand)
+        setCrudOperation(operation)
         if (f.action && favoriteCommand.actions?.[f.action]) setSelectedAction(f.action)
+        const favoriteOperation = (f.action ? favoriteCommand.actions?.[f.action] : favoriteCommand.operations?.[operation]) ?? favoriteCommand
+        setShowDeprecated(allOptions(favoriteOperation).some(option => option.deprecated && isCliOptionValueActive(option, f.values[option.name] ?? '')))
         if (favoriteCommand.crossCopy || favoriteCommand.compartmentCleanup || favoriteCommand.allSubscriptionBalances || favoriteCommand.iamMfaReset) setCustomOpen(true)
       }
     }
@@ -1424,17 +1455,47 @@ export default function CliBuilderPage() {
 
         {cmd ? (
           <div className="cli-form">
-            {formSections.map(sec => (
+            {(formRules.length > 0 || formOptionNotices.length > 0) && (
+              <div className="cli-rule-panel" aria-label="OCI CLI 입력 관계">
+                <div className="cli-rule-title px">입력 관계</div>
+                {formRules.map(rule => (
+                  <div key={rule.id} className={`cli-rule kind-${rule.kind}`}>
+                    <span className="cli-rule-kind">{rule.kind === 'oneOf' ? '택일·필수' : rule.kind === 'mutuallyExclusive' ? '상호배타' : '조건부'}</span>
+                    <span>{rule.message}</span>
+                    <span className="cli-rule-options">
+                      {(rule.options ?? [rule.when, ...(rule.requires ?? [])]).filter((name): name is string => !!name)
+                        .map(name => <code key={name}>{name}</code>)}
+                    </span>
+                  </div>
+                ))}
+                {formOptionNotices.map(notice => (
+                  <div key={`${notice.kind}:${notice.option}`} className="cli-rule kind-notice">
+                    <span className="cli-rule-kind">공개 인터페이스</span>
+                    <span>{notice.message}</span>
+                    <span className="cli-rule-options"><code>{notice.option}</code><span>→</span>{notice.replacements.map(name => <code key={name}>{name}</code>)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {visibleFormSections.map(sec => (
               <div key={sec.label} className="cli-sec">
                 <div className="cli-section-label px">{sec.label}</div>
-                {sec.options.map(o => field(o, !o.required))}
+                {sec.options.map(o => field(o, o.requirement === 'optional'))}
               </div>
             ))}
-            {formAdvanced.length > 0 && <>
+            {visibleFormAdvanced.length > 0 && <>
               <button className="cli-optional-toggle" onClick={() => setShowOptional(s => !s)}>
-                {showOptional ? '▾' : '▸'} 고급 옵션 {formAdvanced.length}개 (태그·대기 등) {showOptional ? '접기' : '펼치기'}
+                {showOptional ? '▾' : '▸'} 고급 옵션 {visibleFormAdvanced.length}개 (태그·대기 등) {showOptional ? '접기' : '펼치기'}
               </button>
-              {showOptional && formAdvanced.map(o => field(o, true))}
+              {showOptional && visibleFormAdvanced.map(o => field(o, true))}
+            </>}
+            {formDeprecated.length > 0 && <>
+              <button className="cli-optional-toggle cli-deprecated-toggle" onClick={() => setShowDeprecated(open => !open)}>
+                {showDeprecated ? '▾' : '▸'} 사용 중단 옵션 {formDeprecated.length}개 — 기본적으로 숨김
+              </button>
+              {showDeprecated && <div className="cli-deprecated-options">
+                {formDeprecated.map(option => field(option, true))}
+              </div>}
             </>}
           </div>
         ) : (
@@ -1475,8 +1536,12 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
   const label = (
     <label className={`cli-field-label${optional ? ' optional' : ''}`}>
       {o.lookupOnly ? <span>{o.displayLabel || o.name}</span> : <code>{o.name}</code>}
-      {o.required && <span className="req">*</span>}
-      {o.console && <span className="cli-console-req px">필수</span>}
+      {(o.requirement ?? (o.required ? 'required' : 'optional')) === 'required'
+        ? <span className="cli-requirement required">필수</span>
+        : (o.requirement === 'conditional'
+          ? <span className="cli-requirement conditional">조건부 필수</span>
+          : <span className="cli-requirement optional">선택</span>)}
+      {o.deprecated && <span className="cli-requirement deprecated">사용 중단</span>}
       {o.multiple && <span className="cli-type-tag">여러 값</span>}
       {['json', 'file', 'datetime'].includes(o.type) && <span className="cli-type-tag">{o.type.toUpperCase()}</span>}
       {o.conflictsWith?.length && <span className="cli-conflict-note">{o.conflictsWith.join(', ')}와 동시 사용 불가</span>}
@@ -1486,7 +1551,8 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
           동적 조회
         </span>
       )}
-      <span className="cli-field-help">{dynamic && dynMeta ? dynMeta.note : o.help}</span>
+      <span className="cli-field-help">{dynamic && dynMeta ? dynMeta.note : (o.deprecated ? o.deprecation : o.help)}</span>
+      {o.deprecated && o.replacement?.length && <span className="cli-replacement">대체: {o.replacement.join(', ')}</span>}
     </label>
   )
   if (o.flag) {

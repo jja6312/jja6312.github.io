@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
-"""blog-db knowledge/oci-cli/_data → src/data/cliCatalog.json
+"""Generate the protected OCI CLI catalog from the pinned final Click tree.
 
-v3: 콘솔 생성 마법사와 같은 경험 —
-  - promote: CLI 스키마상 optional 이지만 콘솔에선 사실상 필수인 옵션을 필수로 승격
-  - sections: 콘솔 마법사 순서의 필드 그룹 (기본 정보 → Placement → … )
-  - advanced: tags·wait 등은 '고급'으로 접힘
-실행: python scripts/generate-cli-catalog.py  (cc3/jja6312.github.io 에서)
+Curated sections affect presentation order only. Required, optional,
+conditional, deprecated, and relationship metadata stay faithful to the CLI.
 """
 import json, re, glob, os, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -86,22 +83,19 @@ ADVANCED_ALWAYS = {
   '--extended-metadata',
 }
 
-# 리소스별 큐레이션 — 콘솔 생성 마법사의 섹션·순서를 그대로.
-# promote: CLI optional 이지만 콘솔상 사실상 필수 → 필수 취급.
+# 리소스별 큐레이션 — 표시 섹션과 순서만 조정하며 required 의미는 변경하지 않는다.
 CURATION = {
   'instance': {
-    'promote': ['--display-name', '--image-id', '--shape', '--subnet-id', '--metadata'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('Placement', ['--availability-domain', '--fault-domain', '--capacity-reservation-id', '--dedicated-vm-host-id', '--compute-cluster-id', '--cluster-placement-group-id']),
-      ('이미지와 Shape', ['--image-id', '--source-details', '--shape', '--shape-config']),
+      ('부팅 소스와 Shape', ['--image-id', '--source-details', '--source-boot-volume-id', '--boot-volume-size-in-gbs', '--shape', '--shape-config']),
       ('네트워킹 (VNIC)', ['--subnet-id', '--create-vnic-details', '--hostname-label']),
       ('SSH 키 (metadata.ssh_authorized_keys)', ['--metadata']),
       ('부트 볼륨·연결', ['--launch-volume-attachments', '--is-pv-encryption-in-transit-enabled']),
     ],
   },
   'vcn': {
-    'promote': ['--display-name', '--cidr-block'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('CIDR', ['--cidr-block', '--cidr-blocks', '--is-ipv6-enabled', '--ipv6-private-cidr-blocks']),
@@ -109,7 +103,6 @@ CURATION = {
     ],
   },
   'subnet': {
-    'promote': ['--display-name'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('네트워크', ['--vcn-id', '--cidr-block', '--availability-domain']),
@@ -118,7 +111,6 @@ CURATION = {
     ],
   },
   'autonomous-database': {
-    'promote': ['--display-name', '--db-name', '--admin-password', '--db-workload', '--compute-count', '--data-storage-size-in-tbs'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id', '--db-name']),
       ('워크로드·컴퓨트', ['--db-workload', '--compute-model', '--compute-count', '--data-storage-size-in-tbs', '--is-auto-scaling-enabled', '--is-auto-scaling-for-storage-enabled', '--is-free-tier', '--is-dev-tier']),
@@ -128,7 +120,6 @@ CURATION = {
     ],
   },
   'mysql': {
-    'promote': ['--display-name', '--admin-username', '--admin-password', '--data-storage-size-in-gbs'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id', '--description']),
       ('Shape·스토리지·HA', ['--shape-name', '--data-storage-size-in-gbs', '--is-highly-available', '--mysql-version']),
@@ -138,7 +129,6 @@ CURATION = {
     ],
   },
   'mysql-backup': {
-    'promote': [],
     'sections': [
       ('대상 DB System', ['--lookup-compartment-id', '--db-system-id']),
       ('백업 정보', ['--display-name', '--description', '--backup-type', '--retention-in-days', '--soft-delete']),
@@ -146,7 +136,6 @@ CURATION = {
     ],
   },
   'base-db': {
-    'promote': ['--display-name'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('Placement', ['--availability-domain', '--fault-domains']),
@@ -157,7 +146,6 @@ CURATION = {
     ],
   },
   'block-volume': {
-    'promote': ['--display-name', '--availability-domain', '--size-in-gbs'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('Placement·크기·성능', ['--availability-domain', '--size-in-gbs', '--vpus-per-gb', '--is-auto-tune-enabled', '--autotune-policies']),
@@ -165,7 +153,6 @@ CURATION = {
     ],
   },
   'bucket': {
-    'promote': [],
     'sections': [
       ('기본 정보', ['--name', '--compartment-id', '--namespace-name']),
       ('설정', ['--public-access-type', '--storage-tier', '--versioning', '--auto-tiering', '--object-events-enabled']),
@@ -173,7 +160,6 @@ CURATION = {
     ],
   },
   'load-balancer': {
-    'promote': ['--is-private'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('가시성·Shape', ['--is-private', '--shape-name', '--shape-details']),
@@ -182,7 +168,6 @@ CURATION = {
     ],
   },
   'network-load-balancer': {
-    'promote': ['--is-private'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('가시성·네트워크', ['--is-private', '--subnet-id', '--network-security-group-ids', '--nlb-ip-version', '--reserved-ips']),
@@ -191,7 +176,6 @@ CURATION = {
     ],
   },
   'file-system': {
-    'promote': ['--display-name'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('Placement', ['--availability-domain']),
@@ -199,7 +183,6 @@ CURATION = {
     ],
   },
   'mount-target': {
-    'promote': ['--display-name'],
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('Placement·네트워크', ['--availability-domain', '--subnet-id', '--hostname-label', '--ip-address', '--nsg-ids']),
@@ -259,6 +242,7 @@ def build_option(o):
         choices = ['true', 'false']
     option = {
         'name': o['name'], 'required': bool(o.get('required')),
+        'requirement': 'required' if o.get('required') else 'optional',
         'type': 'json' if o.get('json') else typ, 'choices': choices,
         'help': (o.get('help') or '').strip()[:140],
         'placeholder': placeholder(o['name'], 'json' if o.get('json') else typ),
@@ -271,9 +255,56 @@ def build_option(o):
         option['flag'] = True
     if o.get('multiple'):
         option['multiple'] = True
+    if o.get('deprecated'):
+        option['deprecated'] = True
+        option['deprecation'] = (o.get('deprecation') or o.get('help') or 'Deprecated option.').strip()[:240]
     if o.get('placeholder'):
         option['placeholder'] = o['placeholder']
     return option
+
+OPTION_RULES_BY_COMMAND = {
+    'oci compute instance launch': [
+        {
+            'id': 'instance-boot-source', 'kind': 'oneOf',
+            'options': ['--image-id', '--source-details', '--source-boot-volume-id'],
+            'message': '부팅 소스는 Image, Source Details, 기존 Boot Volume 중 정확히 하나를 선택합니다.',
+        },
+        {
+            'id': 'instance-boot-size-conflict', 'kind': 'mutuallyExclusive',
+            'options': ['--source-details', '--source-boot-volume-id', '--boot-volume-size-in-gbs'],
+            'message': 'Boot Volume 크기 단축 옵션은 Image 부팅에서만 사용합니다.',
+        },
+        {
+            'id': 'instance-boot-size-requires-image', 'kind': 'requires',
+            'when': '--boot-volume-size-in-gbs', 'requires': ['--image-id'],
+            'message': '--boot-volume-size-in-gbs를 사용하려면 --image-id를 선택해야 합니다.',
+        },
+    ],
+}
+
+OPTION_NOTICES_BY_COMMAND = {
+    'oci compute instance launch': [
+        {
+            'kind': 'notPublic', 'option': '--create-vnic-details',
+            'replacements': ['--subnet-id', '--assign-public-ip', '--private-ip', '--nsg-ids', '--hostname-label'],
+            'message': (f"OCI CLI {SOURCE_LOCK['version']}의 최종 launch 명령은 --create-vnic-details를 공개하지 않습니다. "
+                        '필수 --subnet-id와 VNIC 개별 옵션을 사용합니다.'),
+        },
+    ],
+}
+
+DEPRECATED_REPLACEMENTS = {
+    ('oci bv volume create', '--size-in-mbs'): ['--size-in-gbs'],
+    ('oci network vcn create', '--cidr-block'): ['--cidr-blocks'],
+}
+
+def add_conflict(options, left, right):
+    if left not in options or right not in options:
+        return
+    for current, other in ((left, right), (right, left)):
+        conflicts = options[current].setdefault('conflictsWith', [])
+        if other not in conflicts:
+            conflicts.append(other)
 
 def annotate_option_relationships(command):
     options = {
@@ -282,19 +313,40 @@ def annotate_option_relationships(command):
         for option in section.get('options', [])
     }
     options.update({option['name']: option for option in command.get('advanced', [])})
-    if '--all' in options and '--limit' in options:
-        options['--all']['conflictsWith'] = ['--limit']
-        options['--limit']['conflictsWith'] = ['--all']
+    for option in options.values():
+        option.setdefault('requirement', 'required' if option.get('required') else 'optional')
+        replacement = DEPRECATED_REPLACEMENTS.get((command.get('cmd'), option['name']))
+        if option.get('deprecated') and replacement:
+            option['replacement'] = replacement
+    add_conflict(options, '--all', '--limit')
+
+    rules = []
+    for original in OPTION_RULES_BY_COMMAND.get(command.get('cmd'), []):
+        rule = json.loads(json.dumps(original))
+        if rule['kind'] in ('oneOf', 'mutuallyExclusive'):
+            names = rule['options']
+            if not all(name in options for name in names):
+                continue
+            for index, left in enumerate(names):
+                for right in names[index + 1:]:
+                    add_conflict(options, left, right)
+            if rule['kind'] == 'oneOf':
+                for name in names:
+                    if not options[name].get('required'):
+                        options[name]['requirement'] = 'conditional'
+        elif rule['kind'] == 'requires':
+            if rule['when'] not in options or not all(name in options for name in rule['requires']):
+                continue
+        rules.append(rule)
+    if rules:
+        command['rules'] = rules
+    notices = OPTION_NOTICES_BY_COMMAND.get(command.get('cmd'))
+    if notices:
+        command['optionNotices'] = json.loads(json.dumps(notices))
 
 def layout_command(res, command, curated=False):
     opts = {o['name']: build_option(o) for o in command['options']}
     cur = CURATION.get(res) if curated else None
-    promote = set(cur['promote']) if cur else set()
-
-    for name in promote:
-        if name in opts:
-            opts[name]['required'] = True
-            opts[name]['console'] = True
 
     used = set()
     sections = []
