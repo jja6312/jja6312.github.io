@@ -9,6 +9,7 @@ const fail = message => { throw new Error(message) }
 const catalog = JSON.parse(readFileSync(resolve('.protected-cache/cliCatalog.json'), 'utf8'))
 const page = readFileSync(resolve('src/pages/CliBuilderPage.tsx'), 'utf8')
 const optionSource = readFileSync(resolve('src/lib/cliOptionModel.ts'), 'utf8')
+const dynamicLookupSource = readFileSync(resolve('src/lib/cliDynamicLookup.ts'), 'utf8')
 
 const compiledOptionModel = ts.transpileModule(optionSource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -25,6 +26,7 @@ const commonNames = [
   ...catalog.executionContext.response.map(option => option.name),
 ]
 const harness = `
+${dynamicLookupSource.replace(/\bexport /g, '')}
 const JSONSPEC = {}
 const allOptions = command => [...(command.lookupInputs ?? []), ...command.sections.flatMap(section => section.options), ...command.advanced]
 const isDynamic = (dynamic, name) => dynamic[name] === true
@@ -40,6 +42,7 @@ ${page.slice(builderStart, builderEnd)}
 globalThis.buildCli = buildCli
 globalThis.buildImageDiscoveryCommand = buildImageDiscoveryCommand
 globalThis.buildInstanceLaunchPreflightCommand = buildInstanceLaunchPreflightCommand
+globalThis.dynamicLookupItemIterator = dynamicLookupItemIterator
 `
 const builderContext = {}
 vm.runInNewContext(ts.transpileModule(harness, {
@@ -48,9 +51,11 @@ vm.runInNewContext(ts.transpileModule(harness, {
 const buildCli = builderContext.buildCli
 const buildImageDiscoveryCommand = builderContext.buildImageDiscoveryCommand
 const buildInstanceLaunchPreflightCommand = builderContext.buildInstanceLaunchPreflightCommand
+const dynamicLookupItemIterator = builderContext.dynamicLookupItemIterator
 if (typeof buildCli !== 'function') fail('OCI CLI buildCli harness did not compile')
 if (typeof buildImageDiscoveryCommand !== 'function') fail('OCI image discovery harness did not compile')
 if (typeof buildInstanceLaunchPreflightCommand !== 'function') fail('OCI Instance preflight harness did not compile')
+if (typeof dynamicLookupItemIterator !== 'function') fail('Dynamic lookup response iterator did not compile')
 
 const allOptions = surface => [
   ...(surface.lookupInputs ?? []),
@@ -288,7 +293,7 @@ if (dynamicLookups < 200) fail(`Too few required-ID dynamic lookup surfaces cove
 
 const dynamicFlowAssertions = [
   ['instance:get', ['oci compute instance list', 'display-name', 'LOOKUP_INSTANCE_ID_COUNT']],
-  ['announcement:get', ['oci announce announcements list', 'reference-ticket-number']],
+  ['announcement:get', ['oci announce announcements list', 'reference-ticket-number', '.["data"]["items"][]?']],
   ['export:create', ['oci fs export-set list', 'oci fs file-system list', 'oci iam availability-domain list']],
   ['load-balancer:create', ['oci network subnet list', 'LOOKUP_SUBNET_IDS_JSON']],
   ['instance-maintenance-reboot:get', ['oci compute instance list', 'INSTANCE_COUNT']],
@@ -299,6 +304,21 @@ for (const [key, markers] of dynamicFlowAssertions) {
   for (const marker of markers) {
     if (!script.includes(marker)) fail(`${key}: missing dynamic lookup marker ${marker}`)
   }
+}
+
+const announcementIterator = dynamicLookupItemIterator('announcement')
+const announcementFixture = JSON.stringify({ data: {
+  items: [{ id: 'ocid1.announcement.oc1..example', 'reference-ticket-number': 'ANN00001' }],
+  'user-statuses': [],
+} })
+const announcementFilter = `[${announcementIterator} | select((.["reference-ticket-number"] // "") == $NAME)][0].id // empty`
+const announcementResolution = spawnSync('jq', ['-r', '--arg', 'NAME', 'ANN00001', announcementFilter], {
+  input: announcementFixture,
+  encoding: 'utf8',
+})
+if (announcementResolution.status !== 0
+  || announcementResolution.stdout.trim() !== 'ocid1.announcement.oc1..example') {
+  fail(`Announcement nested LIST response lookup failed: ${announcementResolution.stderr || announcementResolution.stdout}`)
 }
 
 const quoted = optionModel.serializeCliOption({ name: '--name' }, "O'Reilly; echo unsafe")

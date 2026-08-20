@@ -204,6 +204,7 @@
   - 최신 전수 결과: 카탈로그 확장분을 포함한 필수 OCID 232회·48종 중 동적 조회 220회, 사유가 명시된 직접 입력 12회, 미분류 0회
   - 동적 조회 구성: compartment 안전 조회 72회, 리소스 정확한 이름 조회 126회, IAM·MySQL 등 전용 안전 빌더 22회
   - 안전 처리: 공식 LIST JSON에서 이름을 정확히 비교하고 1건일 때만 실행하며, 0건 또는 중복 N건이면 후보를 출력하고 본 명령 전에 종료
+  - 2026-08-20 회귀 수정: Announcement LIST의 중첩 응답(`data.items[]`)을 일반 `data[]`로 처리하던 오류를 교정하고, 참조번호→OCID 변환 및 실제 GET 성공을 전용 fixture·219개 생성 Bash·DEFAULT 프로필 읽기 검증으로 고정
   - 직접 입력 유지: cross-tenancy IAM 주체·원본 볼륨, 삭제 범위 compartment, 고유 이름이 없는 Subscription ID처럼 자동 추론이 위험하거나 불가능한 12회에 이유와 선행 경로 표시
   - 감사표: `OCI_CLI_REQUIRED_OCID_AUDIT.md`를 보호 데이터 생성 체인에서 자동 생성하고 드리프트를 차단
   - 회귀 검증: 일반·Action·특수 화면 219개와 동적 조회 입력 247개 조합을 생성해 `bash -n` 통과; Instance, Announcement, Export, Load Balancer, Maintenance 대표 흐름 고정
@@ -407,6 +408,7 @@
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-20 | P2-02 회귀 수정 — Announcement LIST `data.items[]` 응답 경로를 반영해 GET 동적 조회의 Bash 조기 종료 제거, 실제 OCI GET·219개 생성 Bash 회귀 검증 | — | Codex |
 | 2026-08-15 | P2-03 부분 구현 — 범용 JSON 구조화 입력·유효성 검사, Instance 부팅 소스 variant, 현재 컨텍스트 기반 Image 조회·OS/버전 선택 흐름과 회귀 게이트 구축 | `b45e378` | Codex |
 | 2026-08-15 | P2-02 완료 — 필수 OCID 232회 전수 분류, 220회 안전 동적 조회·12회 사유 있는 직접 입력, 0/1/N 중단 및 생성 Bash 회귀 구축 | `346d110` | Codex |
 | 2026-08-15 | P2-01 완료 — 44개 CRUD 리소스 LIST 기본 진입, 유지보수 GET 기본 진입, 공통 안전 정책·회귀 게이트 구축 | `4c54320` | Codex |

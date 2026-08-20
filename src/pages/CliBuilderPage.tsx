@@ -4,6 +4,7 @@ import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
 import { isCliOptionValueActive, quoteCliValue, serializeCliOption, validateCliOptions } from '../lib/cliOptionModel'
+import { dynamicLookupItemIterator } from '../lib/cliDynamicLookup'
 import { defaultCliOperation, type CliCrudVerb } from '../lib/cliDefaultOperation'
 import {
   executionContextDefaults,
@@ -1671,6 +1672,7 @@ function buildCli(
     const countVariable = `${variableBase}_COUNT`
     const idVariable = `${variableBase}_ID`
     const field = JSON.stringify(lookup.nameField ?? 'display-name')
+    const itemIterator = dynamicLookupItemIterator(lookup.target)
     const scope = lookup.scope === 'tenancy'
       ? ensureRootTenancy()
       : lookup.scopeInput === '--compartment-id'
@@ -1689,13 +1691,13 @@ function buildCli(
     prelude.push(
       `${inputVariable}=${quoteCliValue(rawName || lookup.inputPlaceholder, true)}`,
       `${jsonVariable}=$(${formatCliCommand(lookup.listCommand ?? '<missing-list-command>', lookupArguments)})`,
-      `${countVariable}=$(jq -r --arg NAME "$${inputVariable}" '[.data[]? | select((.[${field}] // "") == $NAME)] | length' <<<"$${jsonVariable}")`,
+      `${countVariable}=$(jq -r --arg NAME "$${inputVariable}" '[${itemIterator} | select((.[${field}] // "") == $NAME)] | length' <<<"$${jsonVariable}")`,
       `if [[ "$${countVariable}" != "1" ]]; then`,
       `  echo "[ERROR] ${lookup.inputLabel}은(는) 조회 범위에서 정확히 1개여야 합니다: $${inputVariable} (found=$${countVariable})" >&2`,
-      `  jq -r '.data[]? | [(.[${field}] // "-"), (."lifecycle-state" // "-"), (.id // "-")] | @tsv' <<<"$${jsonVariable}" | column -t -s $'\\t' >&2 || true`,
+      `  jq -r '${itemIterator} | [(.[${field}] // "-"), (."lifecycle-state" // "-"), (.id // "-")] | @tsv' <<<"$${jsonVariable}" | column -t -s $'\\t' >&2 || true`,
       '  exit 1',
       'fi',
-      `${idVariable}=$(jq -r --arg NAME "$${inputVariable}" '[.data[]? | select((.[${field}] // "") == $NAME)][0].id // empty' <<<"$${jsonVariable}")`,
+      `${idVariable}=$(jq -r --arg NAME "$${inputVariable}" '[${itemIterator} | select((.[${field}] // "") == $NAME)][0].id // empty' <<<"$${jsonVariable}")`,
       `[[ "$${idVariable}" == ocid1.* ]] || { echo "[ERROR] ${lookup.inputLabel} OCID 변환에 실패했습니다." >&2; exit 2; }`,
     )
     return `"$${idVariable}"`
