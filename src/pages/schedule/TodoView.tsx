@@ -16,6 +16,7 @@ const formatCardTime = (value: string) => {
     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(parsed)
 }
+const formatCardDate = (value: string) => value.replaceAll('-', '.')
 
 export default function TodoView() {
   const { rewardActivity, showToast } = useHub()
@@ -35,6 +36,7 @@ export default function TodoView() {
   const [editKind, setEditKind] = useState<CardKind>('task')
   const [editDueAt, setEditDueAt] = useState('')
   const [editDueUndated, setEditDueUndated] = useState(true)
+  const [editDoneAt, setEditDoneAt] = useState('')
   const dragRef = useRef<{ colId: string; cardId: string } | null>(null)
 
   const goalOf = (id?: string) => goals.find(g => g.id === id)
@@ -70,16 +72,30 @@ export default function TodoView() {
     board.update({ columns: board.data.columns.map(c => ({ ...c, cards: c.cards.map(x => x.id === cardId ? { ...x, ...patch } : x) })) })
   const saveEdit = () => {
     const t = editText.trim()
+    const editingColumn = editId ? board.data.columns.find(c => c.cards.some(card => card.id === editId)) : undefined
+    const editingDoneCard = editingColumn?.id === 'done'
     if (!editDueUndated && !editDueAt) { showToast('마감 일시를 입력하거나 미정을 선택하세요'); return }
-    if (editId && t) patchCard(editId, { text: t, kind: editKind, dueAt: editDueUndated ? undefined : editDueAt })
-    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true)
+    if (editingDoneCard && !editDoneAt) { showToast('완료일을 입력하세요'); return }
+    if (editId && t) {
+      patchCard(editId, {
+        text: t,
+        kind: editKind,
+        dueAt: editDueUndated ? undefined : editDueAt,
+        ...(editingDoneCard ? { doneAt: editDoneAt } : {}),
+      })
+      if (editingDoneCard && editDoneAt !== date) {
+        setDate(editDoneAt)
+        showToast(`완료일을 ${formatCardDate(editDoneAt)}로 변경했습니다`)
+      }
+    }
+    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true); setEditDoneAt('')
   }
   const cancelEdit = () => {
-    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true)
+    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true); setEditDoneAt('')
   }
   const startEdit = (card: Card) => {
     setEditId(card.id); setEditText(card.text); setEditKind(card.kind ?? 'task')
-    setEditDueAt(card.dueAt ?? ''); setEditDueUndated(!card.dueAt)
+    setEditDueAt(card.dueAt ?? ''); setEditDueUndated(!card.dueAt); setEditDoneAt(cardDoneDate(card))
   }
   const moveCard = (toCol: string, beforeCardId?: string) => {
     const src = dragRef.current
@@ -185,6 +201,14 @@ export default function TodoView() {
                             <input type="checkbox" checked={editDueUndated} onChange={e => setEditDueUndated(e.target.checked)} /> 미정
                           </label>
                         </div>
+                        {col.id === 'done' && (
+                          <div className="kcard-completed-row">
+                            <span className="px">완료일</span>
+                            <input className="cli-input kdone-input" type="date" value={editDoneAt}
+                              onChange={e => setEditDoneAt(e.target.value)} />
+                            <button className="cal-today" type="button" onClick={() => setEditDoneAt(todayIso())}>오늘</button>
+                          </div>
+                        )}
                         <div className="kcard-edit-actions">
                           <button className="iconbtn" onClick={cancelEdit}>취소</button>
                           <button className="submitbtn" onClick={saveEdit}>저장</button>
@@ -202,12 +226,13 @@ export default function TodoView() {
                           <span className={`kcard-due${!card.dueAt ? ' undated' : overdue ? ' overdue' : ''}`}>
                             {card.dueAt ? `${overdue ? '기한 지남 · ' : '마감 '}${formatCardTime(card.dueAt)}` : '마감 미정'}
                           </span>
+                          {col.id === 'done' && <span className="kcard-completed">완료 {formatCardDate(cardDoneDate(card))}</span>}
                         </div>
                       </div>
                     )}
                     {!editing && writable && (
                       <div className="kcard-btns">
-                        <button className="kedit" onClick={() => startEdit(card)} title="수정">✎</button>
+                        <button className="kedit" onClick={() => startEdit(card)} title="내용·마감·완료일 수정">✎</button>
                         <button className="kdel" onClick={() => removeCard(col.id, card.id)} title="삭제">✕</button>
                       </div>
                     )}

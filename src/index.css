@@ -1502,6 +1502,7 @@ select.cli-input { cursor: pointer; }
 .kcard-due { padding: 2px 6px; border: 1px solid var(--line-soft); border-radius: 999px; color: var(--text-dim); }
 .kcard-due.undated { color: var(--text-faint); border-style: dashed; }
 .kcard-due.overdue { color: var(--wrong); border-color: color-mix(in srgb, var(--wrong) 55%, var(--border)); background: color-mix(in srgb, var(--wrong) 8%, transparent); font-weight: 700; }
+.kcard-completed { padding: 2px 6px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-soft)); border-radius: 999px; color: var(--accent); background: var(--accent-glow); }
 .kcard.overdue { border-color: color-mix(in srgb, var(--wrong) 42%, var(--line-soft)); }
 .kcard-edit-form { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
 .kcard-deadline-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
@@ -1510,6 +1511,10 @@ select.cli-input { cursor: pointer; }
 [data-theme='light'] .kdue-input { color-scheme: light; }
 .kdue-input:disabled { opacity: .48; cursor: not-allowed; }
 .kdue-undated { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; color: var(--text-dim); font-size: 10.5px; white-space: nowrap; cursor: pointer; }
+.kcard-completed-row { display: flex; align-items: center; gap: 7px; }
+.kcard-completed-row > span { flex: 0 0 auto; color: var(--text-faint); font-size: 10.5px; }
+.kdone-input { flex: 1; min-width: 0; width: auto; padding: 6px 7px; font: 11px Consolas, monospace; color-scheme: dark; }
+[data-theme='light'] .kdone-input { color-scheme: light; }
 .kcard-edit-actions { display: flex; justify-content: flex-end; gap: 6px; }
 .kcard-edit-actions .iconbtn, .kcard-edit-actions .submitbtn { min-height: 28px; padding: 4px 10px; font-size: 11px; }
 .kadd-deadline { padding: 0 3px; }
