@@ -24,3 +24,4 @@ scripts/__pycache__/
 *.njsproj
 *.sln
 *.sw?
+.gstack/

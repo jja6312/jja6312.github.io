@@ -102,7 +102,8 @@ export const CARD_KINDS: { id: CardKind; label: string; color: string }[] = [
 ]
 export const kindColor = (k?: CardKind) => CARD_KINDS.find(c => c.id === k)?.color
 // doneAt: '완료' 칼럼으로 옮긴 날짜(YYYY-MM-DD). 완료는 일자별로 보존 — 어제 완료분은 오늘 TODO 에 안 보임.
-export interface Card { id: string; text: string; created: string; dueAt?: string; goalId?: string; kind?: CardKind; doneAt?: string }
+// source: 업무관리(TasksView)에서 자동 생성된 카드의 출처 태그. 수동 카드는 없음.
+export interface Card { id: string; text: string; created: string; dueAt?: string; goalId?: string; kind?: CardKind; doneAt?: string; source?: string }
 // 완료 날짜 — doneAt 없으면(구 데이터) 생성일로 대체해 사라지지 않게
 export const cardDoneDate = (c: Card) => c.doneAt ?? c.created.slice(0, 10)
 export interface Column { id: string; title: string; cards: Card[] }
@@ -182,3 +183,22 @@ export function dday(deadline: string): number {
   const now = new Date(); now.setHours(0, 0, 0, 0)
   return Math.round((d.getTime() - now.getTime()) / 86400000)
 }
+
+/* ── 업무관리 (schedule/tasks.json) ──────────────────────
+   3 종류: 주기성(cadence) · 단발성 · 프로젝트. 단발성/프로젝트는 스레드를 가질 수 있다.
+   미완료 항목은 TODO 보드(todo/board.json)에 실제 카드로 자동 생성(materialize)된다. */
+export type TaskCadence = 'daily' | 'weekly' | 'monthly' | 'quarterly'
+export const CADENCES: { id: TaskCadence; label: string }[] = [
+  { id: 'daily', label: '매일' }, { id: 'weekly', label: '매주' },
+  { id: 'monthly', label: '매월' }, { id: 'quarterly', label: '분기' },
+]
+export const cadenceLabel = (c: TaskCadence) => CADENCES.find(x => x.id === c)?.label ?? c
+
+export interface TaskThread { id: string; content: string; done?: boolean }
+export interface RecurringTask { id: string; title: string; cadence: TaskCadence; startDate?: string; dueDate?: string; active: boolean; createdAt: string }
+export interface WorkTask { id: string; title: string; startDate?: string; dueDate?: string; done?: boolean; threads: TaskThread[]; createdAt: string } // 단발성·프로젝트 공용
+export interface TasksFile { recurring: RecurringTask[]; oneoff: WorkTask[]; projects: WorkTask[] }
+export const EMPTY_TASKS: TasksFile = { recurring: [], oneoff: [], projects: [] }
+
+// 순수 로직은 taskReconcile.mjs(프레임워크 무관, Node 테스트 가능)에서 재노출한다.
+export { RECURRING_PREFIX, periodKey, reconcileTasksToBoard } from './taskReconcile.mjs'

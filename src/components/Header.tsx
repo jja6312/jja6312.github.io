@@ -33,6 +33,7 @@ const tabs: Tab[] = [
   {
     to: '/schedule', label: '일정관리', children: [
       { to: '/schedule/calendar', label: '월간일정' },
+      { to: '/schedule/tasks', label: '업무관리' },
       { to: '/schedule/todo', label: 'TODO LIST' },
       { to: '/schedule/goals', label: '목표' },
     ],

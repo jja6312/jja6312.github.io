@@ -32,6 +32,7 @@ const XP_SYSTEMS = [
   { match: /^\/knowledge\/announcements/, id: 'announcements', label: 'Announcement' },
   { match: /^\/knowledge/, id: 'knowledge', label: '지식모음' },
   { match: /^\/schedule\/calendar/, id: 'calendar', label: '월간일정' },
+  { match: /^\/schedule\/tasks/, id: 'tasks', label: '업무관리' },
   { match: /^\/schedule\/todo/, id: 'todo', label: 'TODO LIST' },
   { match: /^\/schedule\/goals/, id: 'goals', label: '목표' },
   { match: /^\/profile/, id: 'profile', label: '프로필' },

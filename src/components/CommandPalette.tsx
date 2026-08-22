@@ -21,6 +21,7 @@ export default function CommandPalette() {
     { id: 'feedback', label: '피드백 남기기', kbd: 'g f', run: () => nav('/feedback') },
     { id: 'cloudguard', label: 'OCI 보안 — Cloud Guard 열기', run: () => nav('/learning/oci-security/cloud-guard') },
     { id: 'sched-cal', label: '일정관리 — 월간일정', kbd: 'g d', run: () => nav('/schedule/calendar') },
+    { id: 'sched-tasks', label: '일정관리 — 업무관리', run: () => nav('/schedule/tasks') },
     { id: 'sched-todo', label: '일정관리 — TODO LIST', run: () => nav('/schedule/todo') },
     { id: 'sched-goals', label: '일정관리 — 목표', run: () => nav('/schedule/goals') },
     { id: 'ts', label: '지식모음 — 트러블슈팅', kbd: 'g s', run: () => nav('/knowledge/troubleshooting') },

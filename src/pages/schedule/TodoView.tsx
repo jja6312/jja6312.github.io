@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  useSyncedJson, SYNC_LABEL, EMPTY_BOARD, EMPTY_JOURNAL, EMPTY_GOALS,
-  CARD_KINDS, kindColor, cardDoneDate,
-  type Board, type Card, type CardKind, type Journal, type GoalsFile,
+  useSyncedJson, SYNC_LABEL, EMPTY_BOARD, EMPTY_JOURNAL, EMPTY_GOALS, EMPTY_TASKS,
+  CARD_KINDS, kindColor, cardDoneDate, reconcileTasksToBoard,
+  type Board, type Card, type CardKind, type Journal, type GoalsFile, type TasksFile,
 } from '../../lib/scheduleDb'
 import { useHub } from '../../store'
 
@@ -23,7 +23,15 @@ export default function TodoView() {
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, 'todo: 보드 갱신')
   const journal = useSyncedJson<Journal>('schedule/journal.json', EMPTY_JOURNAL, 'journal: 일지 갱신')
+  const tasksData = useSyncedJson<TasksFile>('schedule/tasks.json', EMPTY_TASKS, '').data
   const writable = board.writable && journal.writable
+
+  // TODO 를 열 때 업무관리 미완료 항목을 카드로 반영(주기성은 주기마다). 변경 없으면 no-op.
+  useEffect(() => {
+    if (!board.writable) return
+    const next = reconcileTasksToBoard(board.data, tasksData)
+    if (next) board.update(next)
+  }, [tasksData, board])
 
   const [date, setDate] = useState(todayIso())
   const [inputs, setInputs] = useState<Record<string, string>>({})

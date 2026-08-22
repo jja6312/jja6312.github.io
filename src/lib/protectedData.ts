@@ -48,6 +48,7 @@ export interface ProtectedBundle {
     board: unknown
     journal: unknown
     goals: unknown
+    tasks: unknown
   }
   meetings?: ProtectedDoc[]
   announcements?: {
@@ -130,6 +131,7 @@ export function protectedJson(bundle: ProtectedBundle | null, path: string): unk
     'todo/board.json': bundle.schedule?.board,
     'schedule/journal.json': bundle.schedule?.journal,
     'schedule/goals.json': bundle.schedule?.goals,
+    'schedule/tasks.json': bundle.schedule?.tasks,
     'provisioning/contracts.json': bundle.provisioning,
   }
   return map[path]

@@ -89,6 +89,7 @@ const level2 = {
     board: readJson('todo/board.json', { columns: [] }),
     journal: readJson('schedule/journal.json', {}),
     goals: readJson('schedule/goals.json', { goals: [] }),
+    tasks: readJson('schedule/tasks.json', { recurring: [], oneoff: [], projects: [] }),
   },
 }
 const level3 = {
