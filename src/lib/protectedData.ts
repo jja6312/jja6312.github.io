@@ -40,6 +40,7 @@ export interface SupportHistoryCase {
 export interface ProtectedBundle {
   cliCatalog?: unknown
   cliVerified?: string[]
+  cliBlueprints?: unknown
   terraformDocs?: ProtectedDoc[]
   quoteHtml?: string
   schedule?: {

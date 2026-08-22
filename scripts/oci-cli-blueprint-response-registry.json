@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "note": "commandRef별 응답 JSON Pointer/type 레지스트리. OCI CLI 는 {\"data\": ...} 로 SDK 모델을 kebab-case 로 출력한다. generate-cli-blueprints.mjs 가 blueprint 의 outputs/discovery/comparison/verify pointer 를 이 레지스트리로 대조하고, unknown pointer/type 은 build 실패시킨다. 필드는 OCI Python SDK v3.90.x 모델(Vcn·Subnet·InternetGateway·NatGateway·ServiceGateway·RouteTable(RouteRule)·SecurityList·Service·ServiceIdResponseDetails)로 검증(2026-08-22).",
+  "source": { "verifiedAt": "2026-08-22", "basis": "Oracle Python SDK core models" },
+  "commands": {
+    "vcn": {
+      "single": {
+        "/data/id": "string",
+        "/data/compartment-id": "string",
+        "/data/default-dhcp-options-id": "string",
+        "/data/default-route-table-id": "string",
+        "/data/default-security-list-id": "string",
+        "/data/cidr-blocks": "json",
+        "/data/dns-label": "string",
+        "/data/lifecycle-state": "string",
+        "/data/freeform-tags": "json",
+        "/data/defined-tags": "json"
+      },
+      "listItems": "/data",
+      "listItem": {
+        "/id": "string",
+        "/display-name": "string",
+        "/compartment-id": "string",
+        "/cidr-blocks": "json",
+        "/dns-label": "string",
+        "/lifecycle-state": "string",
+        "/freeform-tags": "json",
+        "/defined-tags": "json"
+      }
+    },
+    "internet-gateway": {
+      "single": {
+        "/data/id": "string",
+        "/data/vcn-id": "string",
+        "/data/is-enabled": "boolean",
+        "/data/lifecycle-state": "string",
+        "/data/freeform-tags": "json",
+        "/data/defined-tags": "json"
+      },
+      "listItems": "/data",
+      "listItem": {
+        "/id": "string",
+        "/display-name": "string",
+        "/vcn-id": "string",
+        "/is-enabled": "boolean",
+        "/lifecycle-state": "string",
+        "/freeform-tags": "json",
+        "/defined-tags": "json"
+      }
+    },
+    "nat-gateway": {
+      "single": {
+        "/data/id": "string",
+        "/data/vcn-id": "string",
+        "/data/block-traffic": "boolean",
+        "/data/lifecycle-state": "string",
+        "/data/freeform-tags": "json",
+        "/data/defined-tags": "json"
+      },
+      "listItems": "/data",
+      "listItem": {
+        "/id": "string",
+        "/display-name": "string",
+        "/vcn-id": "string",
+        "/block-traffic": "boolean",
+        "/lifecycle-state": "string",
+        "/freeform-tags": "json",
+        "/defined-tags": "json"
+      }
+    },
+    "service-gateway": {
+      "single": {
+        "/data/id": "string",
+        "/data/vcn-id": "string",
+        "/data/services": "json",
+        "/data/lifecycle-state": "string",
+        "/data/freeform-tags": "json",
+        "/data/defined-tags": "json"
+      },
+      "listItems": "/data",
+      "listItem": {
+        "/id": "string",
+        "/display-name": "string",
+        "/vcn-id": "string",
+        "/services": "json",
+        "/lifecycle-state": "string",
+        "/freeform-tags": "json",
+        "/defined-tags": "json"
+      }
+    },
+    "route-table": {
+      "single": {
+        "/data/id": "string",
+        "/data/vcn-id": "string",
+        "/data/route-rules": "json",
+        "/data/lifecycle-state": "string",
+        "/data/freeform-tags": "json",
+        "/data/defined-tags": "json"
+      },
+      "listItems": "/data",
+      "listItem": {
+        "/id": "string",
+        "/display-name": "string",
+        "/vcn-id": "string",
+        "/route-rules": "json",
+        "/lifecycle-state": "string",
+        "/freeform-tags": "json",
+        "/defined-tags": "json"
+      }
+    },
+    "security-list": {
+      "single": {
+        "/data/id": "string",
+        "/data/vcn-id": "string",
+        "/data/ingress-security-rules": "json",
+        "/data/egress-security-rules": "json",
+        "/data/lifecycle-state": "string",
+        "/data/freeform-tags": "json",
+        "/data/defined-tags": "json"
+      },
+      "listItems": "/data",
+      "listItem": {
+        "/id": "string",
+        "/display-name": "string",
+        "/vcn-id": "string",
+        "/ingress-security-rules": "json",
+        "/egress-security-rules": "json",
+        "/lifecycle-state": "string",
+        "/freeform-tags": "json",
+        "/defined-tags": "json"
+      }
+    },
+    "subnet": {
+      "single": {
+        "/data/id": "string",
+        "/data/compartment-id": "string",
+        "/data/vcn-id": "string",
+        "/data/cidr-block": "string",
+        "/data/route-table-id": "string",
+        "/data/security-list-ids": "json",
+        "/data/dhcp-options-id": "string",
+        "/data/prohibit-public-ip-on-vnic": "boolean",
+        "/data/dns-label": "string",
+        "/data/lifecycle-state": "string",
+        "/data/freeform-tags": "json",
+        "/data/defined-tags": "json"
+      },
+      "listItems": "/data",
+      "listItem": {
+        "/id": "string",
+        "/display-name": "string",
+        "/compartment-id": "string",
+        "/vcn-id": "string",
+        "/cidr-block": "string",
+        "/route-table-id": "string",
+        "/security-list-ids": "json",
+        "/dhcp-options-id": "string",
+        "/prohibit-public-ip-on-vnic": "boolean",
+        "/dns-label": "string",
+        "/lifecycle-state": "string",
+        "/freeform-tags": "json",
+        "/defined-tags": "json"
+      }
+    }
+  },
+  "supportCommands": {
+    "network-service-list": {
+      "resource": "service",
+      "operation": "list",
+      "listItems": "/data",
+      "listItem": {
+        "/id": "string",
+        "/name": "string",
+        "/cidr-block": "string",
+        "/description": "string"
+      }
+    }
+  }
+}

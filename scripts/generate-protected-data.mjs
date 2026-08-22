@@ -9,6 +9,7 @@ import { webcrypto } from 'node:crypto'
 const SITE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const DB = resolve(SITE, '..', 'blog-db')
 const CACHE = join(SITE, '.protected-cache', 'cliCatalog.json')
+const BLUEPRINT_CACHE = join(SITE, '.protected-cache', 'cliBlueprintCatalog.json')
 const OUT = join(SITE, 'public', 'protected-data.json')
 const SITE_VERIFIERS = join(SITE, 'src', 'data', 'authVerifiers.json')
 const DB_VERIFIERS = join(DB, 'auth', 'verifiers.json')
@@ -74,9 +75,11 @@ const readJsonDocs = rel => {
     .sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')))
 }
 
+if (!existsSync(BLUEPRINT_CACHE)) throw new Error('cliBlueprintCatalog.json 없음 — generate-cli-blueprints.mjs 를 먼저 실행하세요')
 const level1 = {
   cliCatalog: JSON.parse(readFileSync(CACHE, 'utf8')),
   cliVerified: readJson('knowledge/oci-cli/verified.json', { verified: [] }).verified ?? [],
+  cliBlueprints: JSON.parse(readFileSync(BLUEPRINT_CACHE, 'utf8')),
   terraformDocs: readDocs('knowledge/terraform'),
   quoteHtml: readText('tools/quote_form.html'),
 }

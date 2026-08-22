@@ -241,6 +241,24 @@
 - Console 맵 검증 결과: —
 - 배포·라이브 검증: —
 
+### Phase 2.5 — Blueprint Foundation
+
+사용자 우선순위 변경(2026-08-22): 서비스 범위 확장(Phase 3) 전에 First-class Blueprint Engine을 구축한다. 정본 설계 = `OCI_CLI_BLUEPRINT_ENGINE_DESIGN.md`. 첫 자산 = `network-baseline-2tier/v1`(VCN·IGW·NAT·SGW·Public/Private RT·Public/Private SL·Public/Private Subnet 10개). 블로그는 OCI를 직접 실행하지 않고 read-only Discover + Apply/Resume/Verify/Rollback Bash를 생성하고 결과 JSON을 다시 Import한다. 각 하위 Phase는 테스트 통과 후 진행하며, 배포·라이브 검증 전까지 완료 처리하지 않는다.
+
+- [x] `P2.5-01` Contracts & generator — 8 schema(envelope·run-result·verification·run-manifest·discovery·blueprint-input·blueprint·blueprint-schema), blog-db source 3(catalog·blueprint def·naming policy), 응답 pointer 레지스트리, 검증 코어 `scripts/lib/blueprint-validate.mjs` + `generate-cli-blueprints.mjs`/`verify-oci-cli-blueprints.mjs`(commandRef/option/deprecated/required/derived/pointer/DAG/cycle/nodeOutput ancestry 검증), RFC 8785+SHA-256 digest, protected L1 `cliBlueprints` 파이프라인. **green: 정본 통과 + negative fixture 8종 거부 + digest 결정성 + lint + `tsc -b`.** 라이브 bake(`generate-protected-data.mjs`)는 HUB_LOCK 비번 필요 → 사용자 실행 대기
+- [ ] `P2.5-02` Pure engine — `src/lib/oci-cli/`(catalogTypes·renderOperation·blueprintTypes·Canonical·Validate·Naming·Graph·Plan·Render·Manifest). naming/DAG/CIDR/plan, discovery·run-result·verification·manifest parser, Plan Digest(RFC 8785+SHA-256), Resume, Provisional/Final Manifest merge, Discover/Apply/Resume/Verify/Rollback Bash renderer
+- [ ] `P2.5-03` Network Blueprint — 2-Tier 정의, Service Gateway discovery, per-resource comparison/verify/rollback 계약
+- [ ] `P2.5-04` UI — 독립 `Blueprints` accordion + Workspace(DESIGN/DISCOVER/PLAN/APPLY/VERIFY/MANIFEST), JSON Import/Export, validation sidebar, responsive, deep link
+- [ ] `P2.5-05` Release — 테스트·lint·build, 완료 증거, commit/push, 배포, 라이브·모바일 검증
+
+#### Phase 2.5 완료 증거
+
+- 완료일: —
+- 커밋(site/blog-db): —
+- 테스트 명령·결과: —
+- 생성 Bash `bash -n` 결과: —
+- 배포·라이브 검증(데스크톱/모바일): —
+
 ### Phase 3 — 운영 핵심 서비스 확장
 
 이 Phase에서는 조회·생성·변경·삭제의 닫힌 흐름을 먼저 확장한다. Actions가 필요한 항목은 Phase 4에서 이어서 완성한다.
@@ -402,12 +420,13 @@
 
 ## 5. 다음 작업
 
-다음 착수 항목은 `P2-03 발견 → 선택 → 실행 → 결과 해석 UX 완성`이다.
+사용자 우선순위 변경(2026-08-22)으로 다음 착수 항목은 `Phase 2.5 — Blueprint Foundation`(`P2.5-01`부터)이다. `P2-03`은 Blueprint Foundation 완료 후 재개한다.
 
 ## 6. 변경 이력
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-22 | Phase 2.5 — Blueprint Engine 착수: 설계 문서(`OCI_CLI_BLUEPRINT_ENGINE_DESIGN.md`) 정독, 완료계획에 Phase 2.5(01~05) 추가, step 0 기반 조사(catalog v3.90.2 pin·option 스키마·protected L1 파이프라인) 완료 | — | Claude |
 | 2026-08-20 | P2-02 회귀 수정 — Announcement LIST `data.items[]` 응답 경로를 반영해 GET 동적 조회의 Bash 조기 종료 제거, 실제 OCI GET·219개 생성 Bash 회귀 검증 | — | Codex |
 | 2026-08-15 | P2-03 부분 구현 — 범용 JSON 구조화 입력·유효성 검사, Instance 부팅 소스 variant, 현재 컨텍스트 기반 Image 조회·OS/버전 선택 흐름과 회귀 게이트 구축 | `b45e378` | Codex |
 | 2026-08-15 | P2-02 완료 — 필수 OCID 232회 전수 분류, 220회 안전 동적 조회·12회 사유 있는 직접 입력, 0/1/N 중단 및 생성 Bash 회귀 구축 | `346d110` | Codex |

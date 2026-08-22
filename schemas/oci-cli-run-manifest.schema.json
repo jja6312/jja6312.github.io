@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jja6312.github.io/schemas/oci-cli-run-manifest.schema.json",
+  "title": "CliBlueprintRunManifest",
+  "description": "Run Result import 으로 Provisional, Verify Result 결합으로 Final 이 되는 oci-cli-blueprint-manifest/v1. Secret/API Private Key/Security Token 을 넣지 않는다. digest 는 digest field 를 제거한 payload 의 RFC 8785+SHA-256.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "digest", "phase", "status", "runId", "blueprint", "namingPolicy", "cliSource", "createdAt", "context", "inputDigest", "discoveryDigest", "planDigest", "runResultDigest", "inputs", "nodes", "warnings"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "digest": { "$ref": "#/$defs/digest" },
+    "phase": { "enum": ["PROVISIONAL", "FINAL"] },
+    "status": { "enum": ["SUCCEEDED", "PARTIAL", "FAILED"] },
+    "runId": { "type": "string", "minLength": 1 },
+    "blueprint": { "$ref": "#/$defs/idVersionDigest" },
+    "namingPolicy": { "$ref": "#/$defs/idVersionDigest" },
+    "cliSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "tag", "commit"],
+      "properties": {
+        "version": { "type": "string" },
+        "tag": { "type": "string" },
+        "commit": { "type": "string" }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "context": { "$ref": "#/$defs/context" },
+    "inputDigest": { "$ref": "#/$defs/digest" },
+    "discoveryDigest": { "$ref": "#/$defs/digest" },
+    "planDigest": { "$ref": "#/$defs/digest" },
+    "runResultDigest": { "$ref": "#/$defs/digest" },
+    "inputs": { "type": "object" },
+    "nodes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/manifestNode" }
+    },
+    "verification": { "type": "object" },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "phase": { "const": "PROVISIONAL" } } },
+      "then": { "not": { "required": ["verification"] } }
+    },
+    {
+      "if": { "properties": { "phase": { "const": "FINAL" } } },
+      "then": { "required": ["verification"] }
+    }
+  ],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "ocid": { "type": "string", "pattern": "^ocid1\\.[a-z0-9_-]+\\." },
+    "idVersionDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "digest"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string" },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "tenancyId", "region", "compartmentId"],
+      "properties": {
+        "profile": { "type": "string" },
+        "auth": { "type": "string" },
+        "tenancyId": { "type": "string" },
+        "region": { "type": "string" },
+        "compartmentId": { "type": "string" }
+      }
+    },
+    "ownedResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actualAction", "ocid", "createdByRun"],
+      "properties": {
+        "actualAction": { "enum": ["CREATED", "REUSED"] },
+        "ocid": { "$ref": "#/$defs/ocid" },
+        "createdByRun": { "type": "boolean" },
+        "configDigest": { "$ref": "#/$defs/digest" },
+        "lifecycleState": { "type": "string" }
+      }
+    },
+    "manifestNode": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "name", "ocid", "actualAction", "createdByRun", "configDigest"],
+          "properties": {
+            "status": { "const": "SUCCEEDED" },
+            "name": { "type": "string" },
+            "ocid": { "$ref": "#/$defs/ocid" },
+            "actualAction": { "enum": ["CREATED", "REUSED"] },
+            "createdByRun": { "type": "boolean" },
+            "configDigest": { "$ref": "#/$defs/digest" },
+            "lifecycleState": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "name", "error", "resumeEligible", "resumeFrom"],
+          "properties": {
+            "status": { "const": "FAILED" },
+            "name": { "type": "string" },
+            "error": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "message"],
+              "properties": {
+                "code": { "type": "string" },
+                "message": { "type": "string" }
+              }
+            },
+            "resource": { "$ref": "#/$defs/ownedResource" },
+            "resumeEligible": { "type": "boolean" },
+            "resumeFrom": { "enum": ["CREATE", "WAIT", "POST_CREATE_GET"] }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "name", "reason"],
+          "properties": {
+            "status": { "enum": ["PENDING", "SKIPPED"] },
+            "name": { "type": "string" },
+            "reason": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}
