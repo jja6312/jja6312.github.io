@@ -13,6 +13,7 @@ import { deriveValue, materialize, DERIVED_KEYS } from '../src/lib/oci-cli/bluep
 import { computePlan, planDigestInput, compareField } from '../src/lib/oci-cli/blueprintPlan.mjs'
 import { renderDiscover, renderApply, renderVerify, renderRollback, renderResume } from '../src/lib/oci-cli/blueprintRender.mjs'
 import { buildProvisionalManifest, mergeVerification, evaluateVerification, evaluateAssertion } from '../src/lib/oci-cli/blueprintManifest.mjs'
+import { resolveRender, emitOption, buildJqExpr, VarRef } from '../src/lib/oci-cli/blueprintResolve.mjs'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -261,6 +262,28 @@ t('manifest: evaluateAssertion comparator', () => {
   assert.equal(evaluateAssertion('equals', 'AVAILABLE', 'AVAILABLE'), true)
   assert.equal(evaluateAssertion('containsSet', ['a'], ['a', 'b']), true)
   assert.equal(evaluateAssertion('tagSubset', { k: 'v' }, { k: 'v', x: 1 }), true)
+})
+
+// ── 보안: 위조된 __var 로 셸 인젝션 불가 (adversarial regression) ──
+t('security: 위조 __var 입력은 리터럴 JSON 으로만 처리(인젝션 차단)', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const evilInputs = { ...INPUTS, 'metadata.definedTags': '{"__var":"x\\"; touch /tmp/PWNED; a=\\""}' }
+  const rv = resolveRender({ source: 'input', input: 'metadata.definedTags' }, { blueprint: BP, node: BP.nodes[0], inputs: evilInputs, naming: nm })
+  const emitted = emitOption('--defined-tags', rv, 'VCN')
+  const blob = [...emitted.pre, emitted.arg].join('\n')
+  // 위조 __var 는 VarRef 가 아니므로 bash 변수로 새지 않고, __var 키 자체가 stripReserved 로 제거됨
+  assert.ok(!blob.includes('touch /tmp/PWNED'), '페이로드가 bash 로 새면 안 됨')
+  assert.ok(!blob.includes('$x'), '위조 변수명이 참조로 변환되면 안 됨')
+})
+t('security: 실제 VarRef(route rules)만 안전하게 --arg 주입', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const rv = resolveRender({ source: 'derived', key: 'publicRouteRules' }, { blueprint: BP, node: BP.nodes.find(n => n.id === 'public-route-table'), inputs: INPUTS, naming: nm })
+  const emit = emitOption('--route-rules', rv, 'PUBLIC_ROUTE_TABLE')
+  assert.ok(emit.pre.join('\n').includes('--arg a0 "$INTERNET_GATEWAY_ID"'))
+})
+t('security: buildJqExpr 는 비식별자 bash 변수명 거부', () => {
+  assert.throws(() => buildJqExpr(new VarRef('x"; rm -rf /; a="')), /잘못된 bash 변수명/)
+  assert.doesNotThrow(() => buildJqExpr(new VarRef('VALID_NAME')))
 })
 
 console.log(`\nblueprint 엔진 테스트 통과 — ${passed}건`)

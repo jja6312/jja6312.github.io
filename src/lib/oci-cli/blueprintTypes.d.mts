@@ -103,8 +103,15 @@ export type InputValues = Record<string, string>
 
 // ── 파생값 + 이름 ──
 export interface RoleName { role: string; displayName: string; dnsLabel?: string; resourceToken: string }
-export interface DerivedValues { [key: string]: unknown }
-export interface NamingResult { names: Record<string, RoleName>; derived: DerivedValues; issues: string[] }
+export interface NamingResult {
+  normalized: { customer: string; workload: string; environment: string }
+  regionAlias: string
+  regionAliasSource: 'override' | 'policy' | 'fallback'
+  sequence: string
+  names: Record<string, RoleName>
+  staticTags: Record<string, string>
+  issues: string[]
+}
 
 // ── Discovery 결과(사용자가 붙여넣는 JSON) ──
 export interface DiscoveryNodeResult {

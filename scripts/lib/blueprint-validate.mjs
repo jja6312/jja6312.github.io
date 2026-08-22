@@ -3,6 +3,7 @@
 // catalog/registry/blueprints/namingPolicies 객체를 받아 {errors, results} 를 돌려준다.
 import { createHash } from 'node:crypto'
 import { canonicalize } from '../../src/lib/oci-cli/jsonCanonical.mjs'
+import { DERIVE_REF_NODES } from '../../src/lib/oci-cli/blueprintDerive.mjs'
 
 export const DERIVED_KEYS = new Set([
   'normalizedCustomer', 'normalizedWorkload', 'normalizedEnvironment', 'regionAlias',
@@ -125,6 +126,14 @@ export function validateBlueprints({ catalog, registry, blueprints, namingPolici
         if (!meta) { err(`${nc}: create 에 없는 옵션 binding '${opt}'`); continue }
         if (meta.deprecated) err(`${nc}: deprecated 옵션 binding '${opt}'`)
         checkValueSource(vs, node, `binding ${opt}`)
+        // derived route rule 이 참조하는 게이트웨이는 dependsOn 조상이어야 reverseDag 삭제가 안전
+        if (vs.source === 'derived' && DERIVE_REF_NODES[vs.key]) {
+          const anc = ancestors(node.id)
+          for (const target of DERIVE_REF_NODES[vs.key]) {
+            if (!nodeSet.has(target)) err(`${nc}: derived '${vs.key}' 가 참조하는 '${target}' 노드가 blueprint 에 없음`)
+            else if (!anc.has(target)) err(`${nc}: derived '${vs.key}' 가 참조하는 '${target}' 가 dependsOn 조상이 아님(삭제 순서 위험)`)
+          }
+        }
       }
       for (const [name, meta] of createOpts) if (meta.required && !(name in (node.bindings || {}))) err(`${nc}: 필수 옵션 미바인딩 '${name}'`)
       const single = singlePointers(resource)

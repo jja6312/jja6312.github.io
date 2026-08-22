@@ -11,6 +11,7 @@ export type RenderValue =
   | { t: 'var'; name: string }
   | { t: 'json'; tree: unknown }
 
+export class VarRef { constructor(name: string); name: string }
 export function varNameForNode(nodeId: string, pointer: string): string
 export function varNameForDiscovery(key: string, pointer: string): string
 export function resolveCompare(vs: ValueSource, ctx: CompareCtx): unknown

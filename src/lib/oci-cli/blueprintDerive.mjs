@@ -86,6 +86,13 @@ export const DERIVED_KEYS = [
   'publicIngressRules', 'publicEgressRules', 'privateIngressRules', 'privateEgressRules',
 ]
 
+// derived route rule 이 참조하는 게이트웨이 노드. 이 노드들은 route-table 노드의 dependsOn 조상이어야
+// reverseDag 삭제 시 route-table 이 게이트웨이보다 먼저 지워진다(빌드 게이트에서 검증).
+export const DERIVE_REF_NODES = {
+  publicRouteRules: ['internet-gateway'],
+  privateRouteRules: ['nat-gateway', 'service-gateway'],
+}
+
 /** __ref 토큰을 resolver 로 치환한 순수 값을 만든다(재귀). resolver 는 토큰→값(문자열). */
 export function materialize(value, resolver) {
   if (Array.isArray(value)) return value.map(v => materialize(v, resolver))

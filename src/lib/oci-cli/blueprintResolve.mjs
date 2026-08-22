@@ -29,6 +29,18 @@ export function varNameForDiscovery(key, pointer) {
 }
 const CONTEXT_VAR = { compartmentId: 'COMPARTMENT_ID', tenancyId: 'TENANCY_ID', region: 'OCI_REGION', profile: 'OCI_PROFILE' }
 
+// 사용자 입력 JSON 에서 예약 마커 키를 제거(위조 방지 심화). VarRef 로 이미 인젝션은 차단되지만
+// 예약어가 리터럴로 새어 OCI 에 전달되는 것도 막는다.
+function stripReserved(v) {
+  if (Array.isArray(v)) return v.map(stripReserved)
+  if (v && typeof v === 'object') {
+    const o = {}
+    for (const [k, val] of Object.entries(v)) { if (k === '__var' || k === '__ref') continue; o[k] = stripReserved(val) }
+    return o
+  }
+  return v
+}
+
 // ── 입력 강제변환 ──
 function coerceInput(def, raw) {
   const v = raw ?? ''
@@ -36,17 +48,17 @@ function coerceInput(def, raw) {
   if (def.type === 'boolean') return String(v).toLowerCase() === 'true'
   if (def.type === 'number') return v === '' ? undefined : Number(v)
   if (def.type === 'stringArray') {
-    if (Array.isArray(v)) return v
+    if (Array.isArray(v)) return stripReserved(v)
     const s = String(v).trim()
     if (!s) return []
-    if (s.startsWith('[')) { try { return JSON.parse(s) } catch { /* fallthrough */ } }
+    if (s.startsWith('[')) { try { return stripReserved(JSON.parse(s)) } catch { /* fallthrough */ } }
     return s.split(/\r?\n|,/).map(x => x.trim()).filter(Boolean)
   }
   if (def.type === 'json') {
-    if (v && typeof v === 'object') return v
+    if (v && typeof v === 'object') return stripReserved(v)
     const s = String(v).trim()
     if (!s) return undefined
-    try { return JSON.parse(s) } catch { return undefined }
+    try { return stripReserved(JSON.parse(s)) } catch { return undefined }
   }
   return String(v)
 }
@@ -103,11 +115,12 @@ export function resolveRender(vs, ctx) {
     case 'derived': {
       const raw = deriveValue(vs.key, ctx)
       const tree = materialize(raw, tok => {
-        if (tok.__ref === 'runId') return { __var: 'RUN_ID' }
-        if (tok.__ref === 'node') return { __var: varNameForNode(tok.node, tok.path) }
-        if (tok.__ref === 'discovery') return { __var: varNameForDiscovery(tok.key, tok.path) }
+        if (tok.__ref === 'runId') return new VarRef('RUN_ID')
+        if (tok.__ref === 'node') return new VarRef(varNameForNode(tok.node, tok.path))
+        if (tok.__ref === 'discovery') return new VarRef(varNameForDiscovery(tok.key, tok.path))
         return ''
       })
+      if (tree instanceof VarRef) return { t: 'var', name: tree.name }
       if (Array.isArray(tree) || (tree && typeof tree === 'object')) return { t: 'json', tree }
       return { t: 'scalar', v: String(tree) }
     }
@@ -116,7 +129,7 @@ export function resolveRender(vs, ctx) {
     case 'json': {
       const tree = walkValueSources(vs.value, tok => {
         const r = resolveRender(tok, ctx)
-        if (r.t === 'var') return { __var: r.name }
+        if (r.t === 'var') return new VarRef(r.name)
         if (r.t === 'json') return r.tree
         return r.v
       })
@@ -126,11 +139,17 @@ export function resolveRender(vs, ctx) {
   }
 }
 
-// ── jq 표현식 빌더: {__var:name} 은 --arg 로, 나머지는 리터럴 ──
+// bash 변수 참조 마커. 클래스 인스턴스라 사용자 JSON.parse 로는 절대 위조할 수 없다(인젝션 차단).
+export class VarRef {
+  constructor(name) { this.name = name }
+}
+
+// ── jq 표현식 빌더: VarRef 는 --arg 로, 나머지는 리터럴. bash 변수명은 식별자만 허용(방어) ──
 export function buildJqExpr(tree) {
   const args = []
   const seen = new Map()
   const argFor = name => {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`buildJqExpr: 잘못된 bash 변수명 '${name}'`)
     if (seen.has(name)) return seen.get(name)
     const jq = `a${args.length}`
     args.push({ jq, bash: name })
@@ -138,9 +157,9 @@ export function buildJqExpr(tree) {
     return jq
   }
   const walk = node => {
+    if (node instanceof VarRef) return '$' + argFor(node.name)
     if (Array.isArray(node)) return '[' + node.map(walk).join(',') + ']'
     if (node && typeof node === 'object') {
-      if (node.__var) return '$' + argFor(node.__var)
       return '{' + Object.entries(node).map(([k, v]) => `${JSON.stringify(k)}:${walk(v)}`).join(',') + '}'
     }
     return JSON.stringify(node)
@@ -149,7 +168,12 @@ export function buildJqExpr(tree) {
   return { expr, args }
 }
 
-const hasVar = tree => JSON.stringify(tree).includes('"__var"')
+const hasVar = tree => {
+  if (tree instanceof VarRef) return true
+  if (Array.isArray(tree)) return tree.some(hasVar)
+  if (tree && typeof tree === 'object') return Object.values(tree).some(hasVar)
+  return false
+}
 
 /** render 서술자 → `--opt ...` shell 토큰 + (필요시) 사전 대입줄. @returns {{pre:string[], arg:string}} */
 export function emitOption(optionName, rv, varPrefix) {

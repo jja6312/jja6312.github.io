@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import CliBlueprintWorkspace from '../components/CliBlueprintWorkspace'
+import type { BlueprintCatalog } from '../lib/oci-cli/blueprintTypes.d.mts'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
@@ -1783,6 +1785,7 @@ export default function CliBuilderPage() {
   const protectedState = useProtectedData()
   const CAT = (protectedState.data?.cliCatalog as Catalog | undefined) ?? EMPTY_CATALOG
   const [sp] = useSearchParams()
+  const nav = useNavigate()
   const rParam = sp.get('r')                                  // Ctrl+K 딥링크: ?r=<resource>
   const [active, setActive] = useState<string>('__custom')
   const [values, setValues] = useState<Record<string, string>>({})
@@ -2170,6 +2173,17 @@ export default function CliBuilderPage() {
     </div>
   )
 
+  // Blueprint 모드 — 자원 조립(선언형) 워크스페이스. ?mode=blueprint 딥링크로 진입.
+  if (sp.get('mode') === 'blueprint') return (
+    <CliBlueprintWorkspace
+      catalog={CAT as unknown as { commands: Record<string, unknown> }}
+      blueprintCatalog={protectedState.data.cliBlueprints as BlueprintCatalog | undefined}
+      initialId={sp.get('blueprint')}
+      initialVersion={sp.get('version')}
+      onExit={() => nav('/knowledge/oci-cli')}
+    />
+  )
+
   const cliLayoutStyle = {
     '--cli-left-width': `${leftSidebarWidth}px`,
     '--cli-right-width': `${rightSidebarWidth}px`,
@@ -2179,6 +2193,11 @@ export default function CliBuilderPage() {
     <div className="cli-layout" style={cliLayoutStyle}>
       {/* 좌측 계층 네비 — 대분류 아코디언 (기본 닫힘) */}
       <aside id="cli-resource-nav" className="cli-nav">
+        <div className="cli-cat cli-blueprint-cat">
+          <button className="cli-cat-toggle" onClick={() => nav('/knowledge/oci-cli?mode=blueprint')} title="선언형 자원 조립 — 여러 자원을 한 번에 계획·생성">
+            <span className="cli-bp-mark">◆</span> Blueprints
+          </button>
+        </div>
         <div className="cli-cat cli-custom-cat">
           <button className="cli-cat-toggle" onClick={() => setCustomOpen(open => !open)}>
             <span className={`caret${customOpen ? ' open' : ''}`}>▸</span> Custom CLI
