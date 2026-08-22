@@ -41,11 +41,33 @@ function preamble(title, lines = []) {
   ]
 }
 function baseVars(inputs) {
+  const profile = inputs['execution.profile'] || 'DEFAULT'
+  const mode = String(inputs['execution.compartmentMode'] || 'OCID').toUpperCase()
   return [
+    `OCI_PROFILE=${shq(profile)}`,
     `OCI_REGION=${shq(inputs['execution.region'] || '')}`,
-    `COMPARTMENT_ID=${shq(inputs['execution.compartment'] || '')}`,
+    `COMPARTMENT_MODE=${shq(mode)}`,
+    `COMPARTMENT_INPUT=${shq(inputs['execution.compartment'] || '')}`,
     ': "${OCI_REGION:?execution.region 필요}"',
-    ': "${COMPARTMENT_ID:?execution.compartment 필요}"',
+    ': "${COMPARTMENT_INPUT:?execution.compartment 필요}"',
+    'if [[ "$COMPARTMENT_INPUT" == ocid1.compartment.* || "$COMPARTMENT_INPUT" == ocid1.tenancy.* ]]; then',
+    '  COMPARTMENT_ID="$COMPARTMENT_INPUT"',
+    'elif [[ "$COMPARTMENT_MODE" == "NAME" ]]; then',
+    `  TENANCY_ID=$(oci iam availability-domain list --query 'data[0]."compartment-id"' --raw-output --profile "$OCI_PROFILE" --region "$OCI_REGION")`,
+    '  [[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "프로필에서 tenancy OCID를 확인하지 못했습니다" >&2; exit 2; }',
+    '  if [[ "${COMPARTMENT_INPUT^^}" == "ROOT" ]]; then',
+    '    COMPARTMENT_ID="$TENANCY_ID"',
+    '  else',
+    '    COMPARTMENT_JSON=$(oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --profile "$OCI_PROFILE" --region "$OCI_REGION" --output json)',
+    `    COMPARTMENT_COUNT=$(echo "$COMPARTMENT_JSON" | jq -r --arg name "$COMPARTMENT_INPUT" '[.data[]? | select(.name == $name)] | length')`,
+    '    [ "$COMPARTMENT_COUNT" = "1" ] || { echo "ACTIVE compartment 이름은 정확히 1개여야 합니다: $COMPARTMENT_INPUT (found=$COMPARTMENT_COUNT)" >&2; exit 2; }',
+    `    COMPARTMENT_ID=$(echo "$COMPARTMENT_JSON" | jq -r --arg name "$COMPARTMENT_INPUT" '[.data[]? | select(.name == $name)][0].id // empty')`,
+    '  fi',
+    'else',
+    '  echo "Compartment 입력 방식이 OCID입니다. 이름이 아닌 compartment OCID를 입력하세요: $COMPARTMENT_INPUT" >&2',
+    '  exit 2',
+    'fi',
+    '[[ "$COMPARTMENT_ID" == ocid1.compartment.* || "$COMPARTMENT_ID" == ocid1.tenancy.* ]] || { echo "compartment OCID 변환 실패" >&2; exit 2; }',
   ]
 }
 
@@ -179,7 +201,8 @@ export function renderDiscover({ blueprint, catalog, inputs, naming }) {
     const ind = parentGuard ? '  ' : ''
     if (parentGuard) out.push(`if [ -z "\${${parentGuard}:-}" ]; then`, `  DISC_NODES+=("$(jq -nc '{node:"${nodeId}",status:"OK",found:null}')")`, 'else')
     // list 실패(권한/토큰/스로틀)를 빈 결과로 위장하지 않고 DISCOVERY_ERROR 로 구분 → computePlan 이 BLOCKED 처리
-    out.push(`${ind}if ${V}_LIST=$(${listLine} 2>/dev/null); then`)
+    out.push(`${ind}${V}_ERR_FILE=$(mktemp)`)
+    out.push(`${ind}if ${V}_LIST=$(${listLine} 2>"$${V}_ERR_FILE"); then`)
     out.push(`${ind}  ${V}_MATCH=$(echo "$${V}_LIST" | jq -c --arg n ${shq(String(expected))} '[.data[] | select(.["${nameKey}"]==$n)]')`)
     out.push(`${ind}  ${V}_CNT=$(echo "$${V}_MATCH" | jq 'length')`)
     out.push(`${ind}  if [ "$${V}_CNT" = "1" ]; then`)
@@ -199,15 +222,17 @@ export function renderDiscover({ blueprint, catalog, inputs, naming }) {
     out.push(`${ind}    DISC_NODES+=("$(echo "$${V}_MATCH" | jq -c '{node:"${nodeId}",status:"OK",candidates:[.[]|{id:.id,name:.["${nameKey}"]}]}')")`)
     out.push(`${ind}  fi`)
     out.push(`${ind}else`)
-    out.push(`${ind}  DISC_NODES+=("$(jq -nc '{node:"${nodeId}",status:"DISCOVERY_ERROR",error:"list 실패(권한/토큰/스로틀 확인)"}')")`)
+    out.push(`${ind}  ${V}_ERR=$(<"$${V}_ERR_FILE")`)
+    out.push(`${ind}  DISC_NODES+=("$(jq -nc --arg error "list 실패: \${${V}_ERR:-알 수 없는 OCI CLI 오류}" '{node:"${nodeId}",status:"DISCOVERY_ERROR",error:$error}')")`)
     out.push(`${ind}fi`)
+    out.push(`${ind}rm -f "$${V}_ERR_FILE"`)
     if (parentGuard) out.push('fi')
   }
   out.push('', '# ── discovery-result (stdout JSON 을 블로그에 Import) ──')
   const svc = needsService(blueprint)
     ? `--argjson services "$(jq -nc --arg id "$SGW_SERVICE_ID" --arg cidr "$SGW_SERVICE_CIDR_BLOCK" '[{key:"oracleServicesNetworkAll",items:[{id:$id,name:"all-services","cidr-block":$cidr}]}]')"`
     : '--argjson services "[]"'
-  out.push(`printf '%s\\n' "\${DISC_NODES[@]}" | jq -s ${svc} '{artifactType:"discovery-result",services:$services,nodes:.}'`)
+  out.push(`printf '%s\\n' "\${DISC_NODES[@]}" | jq -s ${svc} --arg profile "$OCI_PROFILE" --arg region "$OCI_REGION" --arg compartment "$COMPARTMENT_ID" '{artifactType:"discovery-result",context:{profile:$profile,region:$region,compartmentId:$compartment},services:$services,nodes:.}'`)
   return { name: 'discover.sh', title: `Discover: ${blueprint.label}`, content: out.join('\n') + '\n' }
 }
 
@@ -245,15 +270,13 @@ export function renderVerify({ blueprint, catalog, inputs, naming, manifest }) {
 export function renderRollback({ blueprint, catalog, inputs, naming, manifest }) {
   void naming
   const runId = manifest?.runId || ''
-  const compartment = inputs['execution.compartment'] || ''
   const out = preamble(`Rollback: ${blueprint.label}`, [
-    `OCI_REGION=${shq(inputs['execution.region'] || '')}`,
-    ': "${OCI_REGION:?execution.region 필요}"',
+    ...baseVars(inputs),
     '# 이중 확인: 실수 방지를 위해 두 값을 환경변수로 명시해야 실행됩니다.',
     ': "${CONFIRM_RUN_ID:?롤백하려면 CONFIRM_RUN_ID 를 설정하세요}"',
     ': "${CONFIRM_COMPARTMENT_ID:?롤백하려면 CONFIRM_COMPARTMENT_ID 를 설정하세요}"',
     `[ "$CONFIRM_RUN_ID" = ${shq(runId)} ] || { echo "run-id 불일치 — 중단" >&2; exit 1; }`,
-    `[ "$CONFIRM_COMPARTMENT_ID" = ${shq(compartment)} ] || { echo "compartment 불일치 — 중단" >&2; exit 1; }`,
+    '[ "$CONFIRM_COMPARTMENT_ID" = "$COMPARTMENT_ID" ] || { echo "compartment 불일치 — 중단" >&2; exit 1; }',
   ])
   out.push(`RUN_ID=${shq(runId)}`)
   out.push('[ -n "$RUN_ID" ] || { echo "manifest run-id 없음 — 롤백 불가" >&2; exit 1; }')

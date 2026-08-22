@@ -45,7 +45,7 @@ export function staticManagedTags(blueprint) {
   }
 }
 
-const DEFAULT_SEGMENTS = ['customer', 'workload', 'environment', 'regionAlias', 'resource', 'role', 'sequence']
+const DEFAULT_SEGMENTS = ['resource', 'customer', 'workload', 'environment', 'regionAlias', 'role', 'sequence']
 
 /** JSON 배열을 우선하고, 기존 CSV/줄바꿈 값도 받아들인다. */
 export function parseNamingList(raw, fallback = []) {
@@ -113,7 +113,8 @@ export function computeNaming(blueprint, policy, inputs) {
     const seg = { customer: normalized.customer, workload: normalized.workload, environment: normalized.environment, regionAlias, resource: resourceToken, role: roleToken, sequence }
     const conventionName = segmentOrder.filter(key => includedSegments.includes(key)).map(key => seg[key] ?? '').filter(Boolean).join(separator)
     const manualName = String(inputs[`naming.manual.${node.id}`] ?? '').trim()
-    const displayName = validateDisplayName(mode === 'MANUAL' ? manualName : conventionName, node, policy, issues)
+    const conventionOverride = String(inputs[`naming.override.${node.id}`] ?? '').trim()
+    const displayName = validateDisplayName(mode === 'MANUAL' ? manualName : (conventionOverride || conventionName), node, policy, issues)
     const rec = { role, resourceToken, displayName }
     if ((policy.dnsLabel.appliesTo || []).includes(node.commandRef.resource)) {
       const dnsParts = mode === 'MANUAL' ? [displayName] : [normalized.workload || resourceToken, roleToken, sequence]

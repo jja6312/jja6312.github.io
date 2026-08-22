@@ -129,6 +129,7 @@ export interface DiscoveryNodeResult {
 export interface DiscoveryResult {
   artifactType: 'discovery-result'
   runId?: string
+  context?: { profile?: string; region?: string; compartmentId?: string }
   services?: { key: string; items: { id: string; name: string }[] }[]
   nodes: DiscoveryNodeResult[]
 }

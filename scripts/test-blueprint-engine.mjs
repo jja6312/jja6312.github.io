@@ -14,6 +14,7 @@ import { computePlan, planDigestInput, compareField } from '../src/lib/oci-cli/b
 import { renderDiscover, renderApply, renderVerify, renderRollback, renderResume } from '../src/lib/oci-cli/blueprintRender.mjs'
 import { buildProvisionalManifest, mergeVerification, evaluateVerification, evaluateAssertion } from '../src/lib/oci-cli/blueprintManifest.mjs'
 import { resolveRender, emitOption, buildJqExpr, VarRef } from '../src/lib/oci-cli/blueprintResolve.mjs'
+import { OCI_REGIONS, searchOciRegions } from '../src/data/ociRegions.mjs'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -27,6 +28,8 @@ const WORKSPACE_CSS = readFileSync(resolve(HERE, '..', 'src', 'index.css'), 'utf
 const INPUTS = {
   'naming.customer': 'ACME Corp', 'naming.workload': 'Web', 'naming.environment': 'prd',
   'execution.region': 'ap-seoul-1', 'naming.sequence': '01',
+  'naming.segmentOrder': JSON.stringify(['resource', 'customer', 'workload', 'environment', 'regionAlias', 'role', 'sequence']),
+  'naming.includedSegments': JSON.stringify(['resource', 'workload', 'environment', 'role', 'sequence']),
   'topology.enableSshIngress': 'true', 'address.sshSourceCidr': '203.0.113.0/24',
 }
 
@@ -113,8 +116,8 @@ t('naming: 한글/공백/대문자 정규화', () => {
 })
 t('naming: display name = pattern', () => {
   const nm = computeNaming(BP, POL, INPUTS)
-  assert.equal(nm.names['vcn'].displayName, 'acme-corp-web-prd-icn-vcn-main-01')
-  assert.equal(nm.names['public-subnet'].displayName, 'acme-corp-web-prd-icn-subnet-public-01')
+  assert.equal(nm.names['vcn'].displayName, 'vcn-web-prd-main-01')
+  assert.equal(nm.names['public-subnet'].displayName, 'subnet-web-prd-public-01')
 })
 t('naming: DNS label 유효·중복 없음', () => {
   const nm = computeNaming(BP, POL, INPUTS)
@@ -124,7 +127,11 @@ t('naming: DNS label 유효·중복 없음', () => {
   assert.deepEqual(nm.issues, [])
 })
 t('naming: 빈 정규화 → issue', () => {
-  const nm = computeNaming(BP, POL, { ...INPUTS, 'naming.customer': '고객사' })
+  const nm = computeNaming(BP, POL, {
+    ...INPUTS,
+    'naming.customer': '고객사',
+    'naming.includedSegments': JSON.stringify(['resource', 'customer', 'workload', 'environment', 'role', 'sequence']),
+  })
   assert.ok(nm.issues.some(i => i.includes('naming.customer')))
 })
 t('naming: 요소 제외 + 언더바 구분자', () => {
@@ -133,15 +140,21 @@ t('naming: 요소 제외 + 언더바 구분자', () => {
     'naming.separator': '_',
     'naming.includedSegments': JSON.stringify(['workload', 'environment', 'resource', 'role']),
   })
-  assert.equal(nm.names.vcn.displayName, 'web_prd_vcn_main')
+  assert.equal(nm.names.vcn.displayName, 'vcn_web_prd_main')
   assert.ok(!nm.issues.some(i => i.includes('naming.customer')))
 })
 t('naming: drag 순서 결과를 엔진이 그대로 반영', () => {
   const nm = computeNaming(BP, POL, {
     ...INPUTS,
     'naming.segmentOrder': JSON.stringify(['environment', 'customer', 'workload', 'regionAlias', 'resource', 'role', 'sequence']),
+    'naming.includedSegments': JSON.stringify(['customer', 'workload', 'environment', 'regionAlias', 'resource', 'role', 'sequence']),
   })
   assert.equal(nm.names.vcn.displayName, 'prd-acme-corp-web-icn-vcn-main-01')
+})
+t('naming: CONVENTION에서도 자원별 이름 override', () => {
+  const nm = computeNaming(BP, POL, { ...INPUTS, 'naming.override.vcn': 'vcn-linuxpoc-1' })
+  assert.equal(nm.names.vcn.displayName, 'vcn-linuxpoc-1')
+  assert.equal(nm.names['public-subnet'].displayName, 'subnet-web-prd-public-01')
 })
 t('naming: MANUAL 모드는 모든 노드 직접 이름 사용', () => {
   const manual = Object.fromEntries(BP.nodes.map(node => [`naming.manual.${node.id}`, `manual-${node.id}`]))
@@ -155,6 +168,14 @@ t('UI: 우측 필수입력 패널·Alt+I 전체화면 질답·drag 네이밍 제
   assert.ok(WORKSPACE_UI.includes('event.altKey') && WORKSPACE_UI.includes("event.key.toLowerCase() === 'i'"))
   assert.ok(WORKSPACE_UI.includes('role="dialog"') && WORKSPACE_CSS.includes('.bp-wizard-overlay { position: fixed; inset: 0;'))
   assert.ok(WORKSPACE_UI.includes('draggable') && WORKSPACE_UI.includes('naming.segmentOrder'))
+  assert.ok(WORKSPACE_UI.includes('문항 남음') && WORKSPACE_UI.includes('bp-wizard-progress'))
+  assert.ok(WORKSPACE_UI.includes('TagEditor') && !WORKSPACE_UI.includes("question.type === 'json' ? '{}"))
+  assert.ok(WORKSPACE_UI.includes('naming.override.'))
+})
+t('UI: OCI 공식 리전 목록과 국가 검색', () => {
+  assert.ok(OCI_REGIONS.length >= 40)
+  assert.deepEqual(searchOciRegions('일본').map(region => region.id), ['ap-osaka-1', 'ap-tokyo-1'])
+  assert.equal(searchOciRegions('서울')[0]?.id, 'ap-seoul-1')
 })
 
 // ── derive ──

@@ -64,6 +64,9 @@ export function computePlan({ blueprint, inputs, naming, discovery, runId }) {
   const byId = new Map(blueprint.nodes.map(n => [n.id, n]))
   const discByNode = new Map((discovery?.nodes || []).map(n => [n.node, n]))
   const services = discovery?.services || []
+  const effectiveInputs = discovery?.context?.compartmentId
+    ? { ...inputs, 'execution.compartment': discovery.context.compartmentId }
+    : inputs
 
   // 확정된 OCID 조회기(재사용/발견된 것만). 생성 예정 노드는 undefined.
   const nodeOcid = (nodeId, pointer) => {
@@ -95,7 +98,7 @@ export function computePlan({ blueprint, inputs, naming, discovery, runId }) {
     if (!d || !d.found) { nodes.push({ ...base, state: 'CREATE', reasons: ['기존 자원 없음 → 신규 생성'] }); continue }
 
     // found → comparison
-    const ctx = { blueprint, node, inputs, naming, nodeOcid, discovery: discoveryVal, runId }
+    const ctx = { blueprint, node, inputs: effectiveInputs, naming, nodeOcid, discovery: discoveryVal, runId }
     const diffs = []
     let indeterminate = false
     for (const f of node.comparison.fields) {

@@ -4,6 +4,7 @@ import { computePlan, planDigestInput } from '../lib/oci-cli/blueprintPlan.mjs'
 import { renderDiscover, renderApply, renderResume, renderVerify, renderRollback } from '../lib/oci-cli/blueprintRender.mjs'
 import { buildProvisionalManifest, mergeVerification } from '../lib/oci-cli/blueprintManifest.mjs'
 import { sha256Hex } from '../lib/oci-cli/blueprintCanonical.ts'
+import { findOciRegion, ociRegionLabel, searchOciRegions } from '../data/ociRegions.mjs'
 import type {
   BlueprintCatalog, CliBlueprint, NamingPolicy, InputValues, DiscoveryResult,
   RunResult, VerificationResult, RunManifest, RenderedScript, PlanNode,
@@ -16,7 +17,7 @@ const TAB_LABEL: Record<Tab, string> = {
   design: '1 · DESIGN', discover: '2 · DISCOVER', plan: '3 · PLAN', apply: '4 · APPLY', verify: '5 · VERIFY', manifest: '6 · MANIFEST',
 }
 const STATE_TONE: Record<string, string> = { CREATE: 'create', REUSE: 'reuse', CONFLICT: 'conflict', BLOCKED: 'blocked', SKIP: 'skip' }
-const NAMING_SEGMENTS = ['customer', 'workload', 'environment', 'regionAlias', 'resource', 'role', 'sequence'] as const
+const NAMING_SEGMENTS = ['resource', 'customer', 'workload', 'environment', 'regionAlias', 'role', 'sequence'] as const
 const SEGMENT_LABEL: Record<string, string> = {
   customer: '고객사', workload: '워크로드', environment: '환경', regionAlias: '리전',
   resource: '자원 종류', role: '역할', sequence: '순번',
@@ -69,7 +70,31 @@ function requiredInputsFor(blueprint: CliBlueprint, inputs: InputValues): Requir
 
 type WizardQuestion = {
   id: string; label: string; type: string; valueId?: string; choices?: string[]
-  optional?: boolean; help?: string
+  optional?: boolean; help?: string; placeholder?: string
+}
+
+const INPUT_PLACEHOLDERS: Record<string, string> = {
+  'execution.profile': '예: DEFAULT',
+  'execution.region': '서울, 일본 또는 ap-seoul-1 검색',
+  'execution.compartment': '예: ocid1.compartment.oc1.. 또는 컴파트먼트 이름',
+  'naming.customer': '예: wizbase',
+  'naming.workload': '예: web, erp, db',
+  'naming.environment': '예: dev',
+  'naming.regionAlias': '선택 입력 · 예: icn',
+  'naming.sequence': '예: 01',
+  'address.vcnCidrs': '예: 10.0.0.0/16',
+  'address.publicSubnetCidr': '예: 10.0.10.0/24',
+  'address.privateSubnetCidr': '예: 10.0.20.0/24',
+  'address.sshSourceCidr': '예: 0.0.0.0/0 또는 203.0.113.0/24',
+  'metadata.freeformTags': '키와 값을 각각 입력하세요',
+  'metadata.definedTags': '네임스페이스, 키, 값을 각각 입력하세요',
+}
+
+function placeholderFor(id: string, type: string) {
+  if (INPUT_PLACEHOLDERS[id]) return INPUT_PLACEHOLDERS[id]
+  if (id.startsWith('naming.manual.')) return '직접 사용할 자원 이름'
+  if (type === 'stringArray') return '쉼표 또는 줄바꿈으로 여러 값을 입력'
+  return '값을 입력하세요'
 }
 
 function wizardQuestionsFor(blueprint: CliBlueprint, inputs: InputValues, enforcedKeys: Set<string>): WizardQuestion[] {
@@ -77,14 +102,14 @@ function wizardQuestionsFor(blueprint: CliBlueprint, inputs: InputValues, enforc
   const fromDef = (id: string, optional?: boolean): WizardQuestion | null => {
     const def = byId.get(id)
     if (!def || enforcedKeys.has(id)) return null
-    return { id, label: def.label, type: def.type, choices: def.choices?.map(String), optional: optional ?? def.requirement !== 'required', help: def.help }
+    return { id, label: def.label, type: def.type, choices: def.choices?.map(String), optional: optional ?? def.requirement !== 'required', help: def.help, placeholder: placeholderFor(id, def.type) }
   }
   const questions: WizardQuestion[] = []
   const modeQuestion = fromDef('naming.mode', false)
   if (modeQuestion) questions.push(modeQuestion)
   const mode = inputs['naming.mode'] || 'CONVENTION'
   if (mode === 'MANUAL') {
-    for (const node of blueprint.nodes) questions.push({ id: `naming.manual.${node.id}`, label: `${node.label} 이름`, type: 'string', optional: false })
+    for (const node of blueprint.nodes) questions.push({ id: `naming.manual.${node.id}`, label: `${node.label} 이름`, type: 'string', optional: false, placeholder: `${node.label}에 사용할 이름` })
   } else {
     const separator = fromDef('naming.separator', false)
     if (separator) questions.push(separator)
@@ -98,7 +123,7 @@ function wizardQuestionsFor(blueprint: CliBlueprint, inputs: InputValues, enforc
   }
   for (const group of ['execution', 'topology', 'address', 'metadata']) for (const def of blueprint.inputs) {
     if (def.group !== group || enforcedKeys.has(def.id)) continue
-    questions.push({ id: def.id, label: def.label, type: def.type, choices: def.choices?.map(String), optional: def.requirement !== 'required' && !(def.id === 'address.sshSourceCidr' && inputs['topology.enableSshIngress'] === 'true'), help: def.help })
+    questions.push({ id: def.id, label: def.label, type: def.type, choices: def.choices?.map(String), optional: def.requirement !== 'required' && !(def.id === 'address.sshSourceCidr' && inputs['topology.enableSshIngress'] === 'true'), help: def.help, placeholder: placeholderFor(def.id, def.type) })
   }
   return questions
 }
@@ -351,15 +376,170 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
   )
 }
 
+function RegionCombobox({ id, value, onChange, disabled = false, className, placeholder, onCommit, inputRef }: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  disabled?: boolean
+  className: string
+  placeholder: string
+  onCommit?: () => void
+  inputRef?: (element: HTMLInputElement | null) => void
+}) {
+  const selected = findOciRegion(value)
+  const selectedLabel = selected ? ociRegionLabel(selected) : value
+  const [query, setQuery] = useState(selectedLabel)
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const ownRef = useRef<HTMLInputElement | null>(null)
+  const exactSelected = selected && query === selectedLabel
+  const matches = exactSelected ? [selected] : searchOciRegions(query)
+
+  useEffect(() => {
+    if (!open) setQuery(selectedLabel)
+  }, [selectedLabel, open])
+
+  const assignInput = (element: HTMLInputElement | null) => {
+    ownRef.current = element
+    inputRef?.(element)
+  }
+  const choose = (region: NonNullable<typeof selected> | (typeof matches)[number], commit = false) => {
+    onChange(region.id)
+    setQuery(ociRegionLabel(region))
+    setOpen(false)
+    if (commit) window.setTimeout(() => onCommit?.(), 0)
+  }
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault(); event.stopPropagation(); setOpen(true)
+      const delta = event.key === 'ArrowDown' ? 1 : -1
+      setActive(index => Math.max(0, Math.min(matches.length - 1, index + delta)))
+      return
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault(); event.stopPropagation()
+      if (exactSelected) onCommit?.()
+      else if (matches[active]) choose(matches[active], true)
+      return
+    }
+    if (event.key === 'Escape' && open) {
+      event.preventDefault(); event.stopPropagation(); setOpen(false); setQuery(selectedLabel)
+    }
+  }
+
+  return (
+    <div className="bp-region-combobox">
+      <input ref={assignInput} id={id} className={className} disabled={disabled} value={query} placeholder={placeholder} autoComplete="off"
+        role="combobox" aria-expanded={open} aria-controls={`${id}-regions`} aria-autocomplete="list"
+        onFocus={event => { setOpen(true); setActive(0); event.currentTarget.select() }}
+        onChange={event => { setQuery(event.target.value); setOpen(true); setActive(0) }} onKeyDown={onKeyDown}
+        onBlur={() => window.setTimeout(() => { setOpen(false); setQuery(selectedLabel) }, 120)} />
+      {open && matches.length ? (
+        <div id={`${id}-regions`} className="bp-region-options" role="listbox">
+          {matches.map((region, index) => (
+            <button type="button" role="option" aria-selected={index === active} key={region.id}
+              className={`bp-region-option${index === active ? ' active' : ''}`} onMouseDown={event => event.preventDefault()} onClick={() => choose(region)}>
+              <span>{ociRegionLabel(region)}</span><small>{region.countryKo} · {region.key} · {region.realm}</small>
+            </button>
+          ))}
+        </div>
+      ) : open ? <div className="bp-region-options empty">일치하는 OCI 리전이 없습니다.</div> : null}
+    </div>
+  )
+}
+
+type TagRow = { namespace: string; key: string; value: string }
+
+function parseTagRows(raw: string, defined: boolean): TagRow[] {
+  try {
+    const parsed = JSON.parse(raw || '{}') as Record<string, unknown>
+    const rows: TagRow[] = []
+    if (defined) {
+      for (const [namespace, tags] of Object.entries(parsed)) if (tags && typeof tags === 'object' && !Array.isArray(tags)) {
+        for (const [key, value] of Object.entries(tags as Record<string, unknown>)) rows.push({ namespace, key, value: String(value ?? '') })
+      }
+    } else {
+      for (const [key, value] of Object.entries(parsed)) rows.push({ namespace: '', key, value: String(value ?? '') })
+    }
+    return rows.length ? rows : [{ namespace: '', key: '', value: '' }]
+  } catch {
+    return [{ namespace: '', key: '', value: '' }]
+  }
+}
+
+function serializeTagRows(rows: TagRow[], defined: boolean) {
+  const result: Record<string, unknown> = {}
+  for (const row of rows) {
+    const key = row.key.trim()
+    if (!key) continue
+    if (defined) {
+      const namespace = row.namespace.trim()
+      if (!namespace) continue
+      const current = (result[namespace] ?? {}) as Record<string, string>
+      current[key] = row.value
+      result[namespace] = current
+    } else result[key] = row.value
+  }
+  return Object.keys(result).length ? JSON.stringify(result) : ''
+}
+
+function TagEditor({ value, onChange, defined, disabled = false, wizard = false, inputRef }: {
+  value: string
+  onChange: (value: string) => void
+  defined: boolean
+  disabled?: boolean
+  wizard?: boolean
+  inputRef?: (element: HTMLInputElement | null) => void
+}) {
+  const [rows, setRows] = useState<TagRow[]>(() => parseTagRows(value, defined))
+  useEffect(() => {
+    const incoming = parseTagRows(value, defined)
+    setRows(current => serializeTagRows(current, defined) === serializeTagRows(incoming, defined) ? current : incoming)
+  }, [value, defined])
+
+  const updateRows = (next: TagRow[]) => {
+    const safe = next.length ? next : [{ namespace: '', key: '', value: '' }]
+    setRows(safe)
+    onChange(serializeTagRows(safe, defined))
+  }
+  const update = (index: number, field: keyof TagRow, nextValue: string) => {
+    const next = rows.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: nextValue } : row)
+    updateRows(next)
+  }
+
+  return (
+    <div className={`bp-tag-editor${defined ? ' defined' : ''}${wizard ? ' wizard' : ''}`}>
+      <div className="bp-tag-head">
+        {defined ? <span>네임스페이스</span> : null}<span>키</span><span>값</span><span aria-hidden="true" />
+      </div>
+      {rows.map((row, index) => (
+        <div className="bp-tag-row" key={index}>
+          {defined ? <input ref={index === 0 ? inputRef : undefined} disabled={disabled} value={row.namespace} placeholder="예: Operations" aria-label={`Defined tag ${index + 1} 네임스페이스`} onChange={event => update(index, 'namespace', event.target.value)} /> : null}
+          <input ref={!defined && index === 0 ? inputRef : undefined} disabled={disabled} value={row.key} placeholder="예: owner" aria-label={`${defined ? 'Defined' : 'Free-form'} tag ${index + 1} 키`} onChange={event => update(index, 'key', event.target.value)} />
+          <input disabled={disabled} value={row.value} placeholder="예: platform-team" aria-label={`${defined ? 'Defined' : 'Free-form'} tag ${index + 1} 값`} onChange={event => update(index, 'value', event.target.value)} />
+          <button type="button" disabled={disabled} aria-label="태그 행 삭제" onKeyDown={event => event.stopPropagation()} onClick={() => updateRows(rows.filter((_, rowIndex) => rowIndex !== index))}>×</button>
+        </div>
+      ))}
+      <button type="button" className="bp-tag-add" disabled={disabled} onKeyDown={event => event.stopPropagation()}
+        onClick={() => updateRows([...rows, { namespace: '', key: '', value: '' }])}>+ 태그 추가</button>
+      <p className="bp-help">JSON은 자동 생성됩니다. {defined ? '네임스페이스·키·값' : '키·값'}만 입력하세요.</p>
+    </div>
+  )
+}
+
 function Field({ def, value, onChange, locked }: { def: CliBlueprint['inputs'][number]; value: string; onChange: (v: string) => void; locked: boolean }) {
-  const common = { id: `bp-in-${def.id}`, disabled: locked, className: 'bp-field-input' }
+  const common = { id: `bp-in-${def.id}`, disabled: locked, className: `bp-field-input${String(value).trim() ? ' filled' : ''}` }
   let control: ReactNode
-  if (def.choices?.length) {
+  if (def.id === 'execution.region') {
+    control = <RegionCombobox {...common} value={value} onChange={onChange} placeholder={placeholderFor(def.id, def.type)} />
+  } else if (def.id === 'metadata.freeformTags' || def.id === 'metadata.definedTags') {
+    control = <TagEditor value={value} onChange={onChange} defined={def.id === 'metadata.definedTags'} disabled={locked} />
+  } else if (def.choices?.length) {
     const choices = [...new Set([...(def.requirement === 'required' ? [] : ['']), ...def.choices.map(String)])]
     control = <select {...common} value={value} onChange={e => onChange(e.target.value)}>{choices.map(c => <option key={c || '__empty'} value={c}>{c || '(구분자 없음/미선택)'}</option>)}</select>
   } else if (def.type === 'boolean') control = <label className="bp-check"><input id={`bp-in-${def.id}`} type="checkbox" disabled={locked} checked={value === 'true'} onChange={e => onChange(e.target.checked ? 'true' : 'false')} /> {value === 'true' ? '예' : '아니오'}</label>
-  else if (def.type === 'json' || def.type === 'stringArray') control = <textarea {...common} rows={2} value={value} onChange={e => onChange(e.target.value)} placeholder={def.type === 'stringArray' ? '["10.0.0.0/16"] 또는 줄바꿈' : '{ }'} />
-  else control = <input {...common} type="text" value={value} onChange={e => onChange(e.target.value)} />
+  else if (def.type === 'json' || def.type === 'stringArray') control = <textarea {...common} rows={2} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholderFor(def.id, def.type)} />
+  else control = <input {...common} type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholderFor(def.id, def.type)} />
   return (
     <div className="bp-field">
       <label htmlFor={`bp-in-${def.id}`} className="bp-field-label">{def.label}{def.requirement === 'required' ? <span className="bp-req">*</span> : null}{locked ? <span className="bp-lock">preset 고정</span> : null}</label>
@@ -408,7 +588,7 @@ function NamingEditor({ blueprint, inputs, setInput, enforcedKeys }: {
         {blueprint.nodes.map(node => (
           <div className="bp-field" key={node.id}>
             <label className="bp-field-label" htmlFor={`bp-in-naming.manual.${node.id}`}>{node.label} 이름<span className="bp-req">*</span></label>
-            <input id={`bp-in-naming.manual.${node.id}`} className="bp-field-input" value={inputs[`naming.manual.${node.id}`] ?? ''} onChange={event => setInput(`naming.manual.${node.id}`, event.target.value)} />
+            <input id={`bp-in-naming.manual.${node.id}`} className="bp-field-input" value={inputs[`naming.manual.${node.id}`] ?? ''} placeholder={`${node.label}에 사용할 이름`} onChange={event => setInput(`naming.manual.${node.id}`, event.target.value)} />
           </div>
         ))}
       </div>
@@ -475,10 +655,22 @@ function DesignTab({ blueprint, inputs, setInput, preset, setPreset, enforcedKey
         {naming ? (
           <table className="bp-names"><tbody>
             {Object.entries(naming.names).map(([id, n]) => (
-              <tr key={id}><td className="bp-mono bp-dim">{id}</td><td className="bp-mono">{n.displayName}</td><td className="bp-mono bp-dim">{n.dnsLabel ?? ''}</td></tr>
+              <tr key={id}>
+                <td className="bp-mono bp-dim">{id}</td>
+                <td>
+                  {inputs['naming.mode'] === 'MANUAL' ? <span className="bp-mono">{n.displayName}</span> : (
+                    <input className={`bp-name-override${inputs[`naming.override.${id}`] ? ' overridden' : ''}`}
+                      value={inputs[`naming.override.${id}`] ?? ''} placeholder={n.displayName}
+                      aria-label={`${id} 이름 개별 수정`} title="비워두면 컨벤션 이름을 사용합니다"
+                      onChange={event => setInput(`naming.override.${id}`, event.target.value)} />
+                  )}
+                </td>
+                <td className="bp-mono bp-dim">{n.dnsLabel ?? ''}</td>
+              </tr>
             ))}
           </tbody></table>
         ) : <p className="bp-dim">naming 정책 로드 대기</p>}
+        {inputs['naming.mode'] !== 'MANUAL' ? <p className="bp-help">자원별 입력값을 비워두면 컨벤션 이름으로 즉시 돌아갑니다.</p> : null}
         <p className="bp-dim bp-region">region alias: <span className="bp-mono">{naming?.regionAlias}</span></p>
       </div>
     </div>
@@ -529,14 +721,24 @@ function WizardSegmentPicker({ inputs, setInput, onConfirm }: {
   )
 }
 
+function questionHasValue(question: WizardQuestion, inputs: InputValues) {
+  if (question.type === 'segments') return decodeList(inputs['naming.includedSegments'], []).length > 0
+  const value = String(inputs[question.valueId ?? question.id] ?? '').trim()
+  if (question.type === 'boolean') return value === 'true' || value === 'false'
+  return Boolean(value)
+}
+
 function InputWizard({ questions, inputs, setInput, onClose }: {
   questions: WizardQuestion[]; inputs: InputValues; setInput: (id: string, value: string) => void; onClose: () => void
 }) {
   const [index, setIndex] = useState(0)
   const [moving, setMoving] = useState(false)
   const [blocked, setBlocked] = useState(false)
+  const [completed, setCompleted] = useState<Set<string>>(() => new Set())
   const inputRef = useRef<HTMLElement | null>(null)
   const question = questions[Math.min(index, Math.max(0, questions.length - 1))]
+  const questionValueId = question?.valueId ?? question?.id ?? ''
+  const requiredChoiceDefault = !question?.optional ? question?.choices?.[0] : undefined
 
   useEffect(() => {
     const before = document.body.style.overflow
@@ -550,24 +752,37 @@ function InputWizard({ questions, inputs, setInput, onClose }: {
     if (!moving && question?.type !== 'segments') window.setTimeout(() => inputRef.current?.focus(), 20)
     setBlocked(false)
   }, [question?.id, question?.type, moving])
+  useEffect(() => {
+    if (!questionValueId || !requiredChoiceDefault) return
+    if (!String(inputs[questionValueId] ?? '').trim()) setInput(questionValueId, requiredChoiceDefault)
+  }, [questionValueId, requiredChoiceDefault, inputs, setInput])
 
-  const answered = () => {
-    if (!question || question.optional || question.type === 'boolean') return true
-    if (question.type === 'segments') return decodeList(inputs['naming.includedSegments'], []).length > 0
-    return Boolean(String(inputs[question.valueId ?? question.id] ?? '').trim())
+  const answered = () => !question || question.optional || questionHasValue(question, inputs)
+  const goTo = (nextIndex: number) => {
+    if (moving) return
+    setIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)))
+    setBlocked(false)
   }
   const advance = () => {
     if (moving || !question) return
-    if (!answered()) { setBlocked(true); return }
+    const valueId = question.valueId ?? question.id
+    if (!String(inputs[valueId] ?? '').trim() && !question.optional && question.choices?.[0]) setInput(valueId, question.choices[0])
+    if (!answered() && !(question.choices?.length && !question.optional)) { setBlocked(true); return }
+    setCompleted(previous => new Set(previous).add(question.id))
     setMoving(true)
     window.setTimeout(() => {
       if (index >= questions.length - 1) onClose()
       else { setIndex(value => value + 1); setMoving(false) }
-    }, 210)
+    }, 180)
   }
+  const goBack = () => goTo(index - 1)
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') { event.preventDefault(); onClose(); return }
-    if (event.key === 'Enter' && !(event.shiftKey && question?.type === 'json')) {
+    if (event.altKey && event.key === 'ArrowLeft') { event.preventDefault(); goBack(); return }
+    if (event.altKey && event.key === 'ArrowRight') { event.preventDefault(); advance(); return }
+    if (event.target instanceof HTMLButtonElement) return
+    const multiline = question?.type === 'json' || question?.type === 'stringArray'
+    if (event.key === 'Enter' && !(event.shiftKey && multiline)) {
       event.preventDefault()
       advance()
     }
@@ -576,40 +791,69 @@ function InputWizard({ questions, inputs, setInput, onClose }: {
   if (!question) return null
   const valueId = question.valueId ?? question.id
   const value = inputs[valueId] ?? ''
-  const previous = questions[index - 1]
-  const next = questions[index + 1]
+  const filled = questionHasValue(question, inputs)
   const assignRef = (element: HTMLElement | null) => { inputRef.current = element }
+  const inputClass = `bp-wizard-input${filled ? ' is-filled' : ''}`
 
   let control: ReactNode
   if (question.type === 'segments') control = <WizardSegmentPicker inputs={inputs} setInput={setInput} onConfirm={advance} />
+  else if (question.id === 'execution.region') control = (
+    <RegionCombobox id="bp-wizard-region" className={inputClass} value={value} onChange={next => setInput(valueId, next)}
+      placeholder={question.placeholder ?? placeholderFor(question.id, question.type)} onCommit={advance} inputRef={assignRef} />
+  )
+  else if (question.id === 'metadata.freeformTags' || question.id === 'metadata.definedTags') control = (
+    <TagEditor value={value} onChange={next => setInput(valueId, next)} defined={question.id === 'metadata.definedTags'} wizard inputRef={assignRef} />
+  )
   else if (question.type === 'boolean') control = (
-    <select ref={assignRef} className="bp-wizard-input" value={value || 'false'} onChange={event => setInput(valueId, event.target.value)}>
+    <select ref={assignRef} className={inputClass} value={value || 'false'} onChange={event => setInput(valueId, event.target.value)}>
       <option value="true">예</option><option value="false">아니오</option>
     </select>
   )
   else if (question.choices?.length) control = (
-    <select ref={assignRef} className="bp-wizard-input" value={value} onChange={event => setInput(valueId, event.target.value)}>
-      {[...new Set([...(question.optional ? [''] : []), ...question.choices])].map(choice => <option key={choice || '__empty'} value={choice}>{choice || '없음'}</option>)}
+    <select ref={assignRef} className={inputClass} value={value || (!question.optional ? question.choices[0] : '')} onChange={event => setInput(valueId, event.target.value)}>
+      {[...new Set([...(question.optional ? [''] : []), ...question.choices])].map(choice => <option key={choice || '__empty'} value={choice}>{choice || '선택하지 않음'}</option>)}
     </select>
   )
   else if (question.type === 'json' || question.type === 'stringArray') control = (
-    <textarea ref={assignRef} className="bp-wizard-input bp-wizard-textarea" value={value} onChange={event => setInput(valueId, event.target.value)} placeholder={question.type === 'json' ? '{} (선택 입력)' : '["10.0.0.0/16"]'} />
+    <textarea ref={assignRef} className={`${inputClass} bp-wizard-textarea`} value={value} onChange={event => setInput(valueId, event.target.value)} placeholder={question.placeholder} />
   )
-  else control = <input ref={assignRef} className="bp-wizard-input" value={value} onChange={event => setInput(valueId, event.target.value)} autoComplete="off" />
+  else control = <input ref={assignRef} className={inputClass} value={value} placeholder={question.placeholder} onChange={event => setInput(valueId, event.target.value)} autoComplete="off" />
 
+  const remaining = Math.max(0, questions.length - index - 1)
   return (
     <div className="bp-wizard-overlay" role="dialog" aria-modal="true" aria-label="Blueprint 입력 마법사" onKeyDown={onKeyDown}>
-      <div className="bp-wizard-head"><span>BLUEPRINT INPUT</span><span>{index + 1} / {questions.length}</span><button type="button" onClick={onClose}>ESC 닫기</button></div>
-      <div className={`bp-wizard-track${moving ? ' moving' : ''}`}>
-        <div className="bp-wizard-question previous">{previous ? previous.label : '시작'}</div>
-        <div className="bp-wizard-current" key={question.id}>
-          <div className="bp-wizard-question current">{question.label}{question.optional ? <small>선택</small> : <small>필수</small>}</div>
-          {question.help ? <p>{question.help}</p> : null}
-          {control}
-          {blocked ? <div className="bp-wizard-required">값을 입력한 뒤 Enter를 누르세요.</div> : null}
-          <div className="bp-wizard-hint">Enter 다음 · Esc 닫기{question.type === 'json' ? ' · Shift+Enter 줄바꿈' : ''}</div>
+      <div className="bp-wizard-head">
+        <span>BLUEPRINT INPUT</span><span>{index + 1} / {questions.length} · {remaining}문항 남음</span><button type="button" onClick={onClose}>ESC 닫기</button>
+      </div>
+      <div className="bp-wizard-body">
+        <div className={`bp-wizard-track${moving ? ' moving' : ''}`}>
+          <div className="bp-wizard-current" key={question.id}>
+            <div className="bp-wizard-question current">
+              {question.label}{question.optional ? <small>선택</small> : <small>필수</small>}
+              {filled ? <span className="bp-wizard-filled">✓ 입력됨</span> : null}
+            </div>
+            {question.help ? <p>{question.help}</p> : null}
+            {control}
+            {blocked ? <div className="bp-wizard-required">값을 입력한 뒤 Enter를 누르세요.</div> : null}
+            <div className="bp-wizard-actions">
+              <button type="button" disabled={index === 0} onClick={goBack}>← 이전</button>
+              <span className="bp-wizard-hint">Enter 다음 · Alt+←/→ 이동 · Esc 닫기{question.type === 'stringArray' ? ' · Shift+Enter 줄바꿈' : ''}</span>
+              <button type="button" onClick={advance}>{index === questions.length - 1 ? '완료' : '다음 →'}</button>
+            </div>
+          </div>
         </div>
-        <div className="bp-wizard-question next">{next ? next.label : '입력 완료'}</div>
+        <nav className="bp-wizard-progress" aria-label="입력 진행 이정표">
+          <strong>{remaining}</strong><small>남음</small>
+          <div className="bp-wizard-progress-list">
+            {questions.map((item, step) => {
+              const done = completed.has(item.id) || step < index
+              const hasValue = questionHasValue(item, inputs)
+              return <button type="button" key={`${item.id}-${step}`} title={`${step + 1}. ${item.label}`} aria-label={`${step + 1}. ${item.label}`}
+                aria-current={step === index ? 'step' : undefined} className={`${done ? 'done ' : ''}${hasValue ? 'filled ' : ''}${step === index ? 'current' : ''}`}
+                onClick={() => goTo(step)}><span /></button>
+            })}
+          </div>
+        </nav>
       </div>
     </div>
   )
