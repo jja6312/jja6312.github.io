@@ -79,6 +79,7 @@ export interface NamingPolicy {
   id: string; version: string
   pattern: string
   segmentOrder?: string[]
+  separators?: string[]
   normalization?: { lowercase?: boolean; unicodeForm?: string; stripDiacritics?: boolean; replaceRun?: string; replaceWith?: string; trim?: string }
   resourceTokens: Record<string, string>
   roleTokens?: Record<string, string>
@@ -104,6 +105,10 @@ export type InputValues = Record<string, string>
 // ── 파생값 + 이름 ──
 export interface RoleName { role: string; displayName: string; dnsLabel?: string; resourceToken: string }
 export interface NamingResult {
+  mode: 'CONVENTION' | 'MANUAL'
+  separator: string
+  segmentOrder: string[]
+  includedSegments: string[]
   normalized: { customer: string; workload: string; environment: string }
   regionAlias: string
   regionAliasSource: 'override' | 'policy' | 'fallback'

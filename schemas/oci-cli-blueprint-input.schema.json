@@ -22,13 +22,32 @@
     "naming": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["customer", "workload", "environment"],
+      "required": ["mode"],
       "properties": {
+        "mode": { "enum": ["CONVENTION", "MANUAL"], "default": "CONVENTION" },
+        "separator": { "enum": ["-", "_", ".", ""], "default": "-" },
+        "includedSegments": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["customer", "workload", "environment", "regionAlias", "resource", "role", "sequence"] }
+        },
+        "segmentOrder": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["customer", "workload", "environment", "regionAlias", "resource", "role", "sequence"] }
+        },
         "customer": { "type": "string", "minLength": 1 },
         "workload": { "type": "string", "minLength": 1 },
         "environment": { "enum": ["dev", "stg", "prd"] },
         "regionAlias": { "type": "string" },
         "sequence": { "type": "string", "pattern": "^[0-9]{2}$", "default": "01" },
+        "manualNames": {
+          "description": "mode=MANUAL 일 때 blueprint 각 node id 를 키로 하여 모든 자원 이름을 직접 지정한다.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 255 }
+        },
         "overrides": {
           "description": "개별 리소스 이름 override. Manifest 에 override 사실과 이유가 기록된다.",
           "type": "object",
@@ -59,7 +78,7 @@
         "publicSubnetCidr": { "$ref": "#/$defs/cidr" },
         "privateSubnetCidr": { "$ref": "#/$defs/cidr" },
         "sshSourceCidr": {
-          "description": "enableSshIngress=true 일 때만 필수. 0.0.0.0/0 은 경고 또는 차단.",
+          "description": "enableSshIngress=true 일 때만 필수. 0.0.0.0/0 도 허용한다.",
           "$ref": "#/$defs/cidr"
         }
       }

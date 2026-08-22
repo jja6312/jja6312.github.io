@@ -22,6 +22,8 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const DB = resolve(HERE, '..', '..', 'blog-db', 'knowledge', 'oci-cli')
 const BP = JSON.parse(readFileSync(resolve(DB, 'blueprints', 'network-baseline-2tier.v1.json'), 'utf8'))
 const POL = JSON.parse(readFileSync(resolve(DB, 'naming-policies', 'msp-standard.v1.json'), 'utf8'))
+const WORKSPACE_UI = readFileSync(resolve(HERE, '..', 'src', 'components', 'CliBlueprintWorkspace.tsx'), 'utf8')
+const WORKSPACE_CSS = readFileSync(resolve(HERE, '..', 'src', 'index.css'), 'utf8')
 const INPUTS = {
   'naming.customer': 'ACME Corp', 'naming.workload': 'Web', 'naming.environment': 'prd',
   'execution.region': 'ap-seoul-1', 'naming.sequence': '01',
@@ -125,6 +127,35 @@ t('naming: 빈 정규화 → issue', () => {
   const nm = computeNaming(BP, POL, { ...INPUTS, 'naming.customer': '고객사' })
   assert.ok(nm.issues.some(i => i.includes('naming.customer')))
 })
+t('naming: 요소 제외 + 언더바 구분자', () => {
+  const nm = computeNaming(BP, POL, {
+    ...INPUTS,
+    'naming.separator': '_',
+    'naming.includedSegments': JSON.stringify(['workload', 'environment', 'resource', 'role']),
+  })
+  assert.equal(nm.names.vcn.displayName, 'web_prd_vcn_main')
+  assert.ok(!nm.issues.some(i => i.includes('naming.customer')))
+})
+t('naming: drag 순서 결과를 엔진이 그대로 반영', () => {
+  const nm = computeNaming(BP, POL, {
+    ...INPUTS,
+    'naming.segmentOrder': JSON.stringify(['environment', 'customer', 'workload', 'regionAlias', 'resource', 'role', 'sequence']),
+  })
+  assert.equal(nm.names.vcn.displayName, 'prd-acme-corp-web-icn-vcn-main-01')
+})
+t('naming: MANUAL 모드는 모든 노드 직접 이름 사용', () => {
+  const manual = Object.fromEntries(BP.nodes.map(node => [`naming.manual.${node.id}`, `manual-${node.id}`]))
+  const nm = computeNaming(BP, POL, { ...INPUTS, ...manual, 'naming.mode': 'MANUAL' })
+  assert.equal(nm.names.vcn.displayName, 'manual-vcn')
+  assert.equal(nm.names['public-subnet'].displayName, 'manual-public-subnet')
+  assert.ok(!nm.issues.some(i => i.includes('display name 이 비었습니다')))
+})
+t('UI: 우측 필수입력 패널·Alt+I 전체화면 질답·drag 네이밍 제공', () => {
+  assert.ok(WORKSPACE_UI.includes('실행 전 입력 확인'))
+  assert.ok(WORKSPACE_UI.includes('event.altKey') && WORKSPACE_UI.includes("event.key.toLowerCase() === 'i'"))
+  assert.ok(WORKSPACE_UI.includes('role="dialog"') && WORKSPACE_CSS.includes('.bp-wizard-overlay { position: fixed; inset: 0;'))
+  assert.ok(WORKSPACE_UI.includes('draggable') && WORKSPACE_UI.includes('naming.segmentOrder'))
+})
 
 // ── derive ──
 t('derive: 10키 모두 값 반환', () => {
@@ -153,6 +184,12 @@ t('derive: ingress deny-by-default, SSH만 조건부', () => {
   assert.equal(on[0].tcpOptions.destinationPortRange.min, 22)
   const off = deriveValue('publicIngressRules', { blueprint: BP, inputs: { ...INPUTS, 'topology.enableSshIngress': 'false' }, naming: nm })
   assert.deepEqual(off, [])
+})
+t('derive: SSH 0.0.0.0/0 도 차단 없이 규칙 생성', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const rules = deriveValue('publicIngressRules', { blueprint: BP, inputs: { ...INPUTS, 'address.sshSourceCidr': '0.0.0.0/0' }, naming: nm })
+  assert.equal(rules.length, 1)
+  assert.equal(rules[0].source, '0.0.0.0/0')
 })
 t('derive: egress allow-all', () => {
   const nm = computeNaming(BP, POL, INPUTS)

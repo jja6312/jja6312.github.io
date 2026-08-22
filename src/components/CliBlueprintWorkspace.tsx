@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { computeNaming } from '../lib/oci-cli/blueprintNaming.mjs'
 import { computePlan, planDigestInput } from '../lib/oci-cli/blueprintPlan.mjs'
 import { renderDiscover, renderApply, renderResume, renderVerify, renderRollback } from '../lib/oci-cli/blueprintRender.mjs'
@@ -16,6 +16,92 @@ const TAB_LABEL: Record<Tab, string> = {
   design: '1 · DESIGN', discover: '2 · DISCOVER', plan: '3 · PLAN', apply: '4 · APPLY', verify: '5 · VERIFY', manifest: '6 · MANIFEST',
 }
 const STATE_TONE: Record<string, string> = { CREATE: 'create', REUSE: 'reuse', CONFLICT: 'conflict', BLOCKED: 'blocked', SKIP: 'skip' }
+const NAMING_SEGMENTS = ['customer', 'workload', 'environment', 'regionAlias', 'resource', 'role', 'sequence'] as const
+const SEGMENT_LABEL: Record<string, string> = {
+  customer: '고객사', workload: '워크로드', environment: '환경', regionAlias: '리전',
+  resource: '자원 종류', role: '역할', sequence: '순번',
+}
+
+function serializeValue(value: unknown, type?: string) {
+  if (value === undefined || value === null) return ''
+  if (type === 'stringArray' || type === 'json' || Array.isArray(value) || (typeof value === 'object' && typeof value !== 'string')) return JSON.stringify(value)
+  return String(value)
+}
+
+function decodeList(raw: unknown, fallback: readonly string[] = NAMING_SEGMENTS) {
+  if (Array.isArray(raw)) return raw.map(String)
+  const value = String(raw ?? '').trim()
+  if (!value) return [...fallback]
+  try {
+    const parsed = JSON.parse(value)
+    if (Array.isArray(parsed)) return parsed.map(String)
+  } catch { /* 기존 CSV/줄바꿈 값도 허용 */ }
+  return value.split(/[\n,]+/).map(v => v.trim()).filter(Boolean)
+}
+
+function mergeSerialized(blueprint: CliBlueprint, values: Record<string, unknown>) {
+  const defs = new Map(blueprint.inputs.map(def => [def.id, def]))
+  return Object.fromEntries(Object.entries(values).map(([id, value]) => [id, serializeValue(value, defs.get(id)?.type)]))
+}
+
+type RequiredInput = { id: string; label: string; focusId: string; missing: boolean }
+
+function requiredInputsFor(blueprint: CliBlueprint, inputs: InputValues): RequiredInput[] {
+  const items: RequiredInput[] = []
+  const add = (id: string, label: string, focusId = `bp-in-${id}`) => items.push({ id, label, focusId, missing: !String(inputs[id] ?? '').trim() })
+  for (const def of blueprint.inputs) {
+    if (def.group !== 'naming' && def.requirement === 'required') add(def.id, def.label)
+  }
+  if (inputs['topology.enableSshIngress'] === 'true') add('address.sshSourceCidr', 'SSH 허용 source CIDR')
+
+  const mode = inputs['naming.mode'] || 'CONVENTION'
+  add('naming.mode', '네이밍 방식')
+  if (mode === 'MANUAL') {
+    for (const node of blueprint.nodes) add(`naming.manual.${node.id}`, `${node.label} 이름`)
+  } else {
+    const included = decodeList(inputs['naming.includedSegments'])
+    for (const id of ['customer', 'workload', 'environment']) {
+      if (included.includes(id)) add(`naming.${id}`, SEGMENT_LABEL[id])
+    }
+  }
+  return items
+}
+
+type WizardQuestion = {
+  id: string; label: string; type: string; valueId?: string; choices?: string[]
+  optional?: boolean; help?: string
+}
+
+function wizardQuestionsFor(blueprint: CliBlueprint, inputs: InputValues, enforcedKeys: Set<string>): WizardQuestion[] {
+  const byId = new Map(blueprint.inputs.map(def => [def.id, def]))
+  const fromDef = (id: string, optional?: boolean): WizardQuestion | null => {
+    const def = byId.get(id)
+    if (!def || enforcedKeys.has(id)) return null
+    return { id, label: def.label, type: def.type, choices: def.choices?.map(String), optional: optional ?? def.requirement !== 'required', help: def.help }
+  }
+  const questions: WizardQuestion[] = []
+  const modeQuestion = fromDef('naming.mode', false)
+  if (modeQuestion) questions.push(modeQuestion)
+  const mode = inputs['naming.mode'] || 'CONVENTION'
+  if (mode === 'MANUAL') {
+    for (const node of blueprint.nodes) questions.push({ id: `naming.manual.${node.id}`, label: `${node.label} 이름`, type: 'string', optional: false })
+  } else {
+    const separator = fromDef('naming.separator', false)
+    if (separator) questions.push(separator)
+    questions.push({ id: 'naming.segments', label: '네이밍 요소 선택·순서', type: 'segments', optional: false, help: '↑↓ 이동, Space 포함/제외, Alt+↑↓ 순서 변경, Enter 확정' })
+    const included = decodeList(inputs['naming.includedSegments'])
+    for (const segment of ['customer', 'workload', 'environment', 'regionAlias', 'sequence']) {
+      if (!included.includes(segment)) continue
+      const q = fromDef(`naming.${segment}`, !['customer', 'workload', 'environment'].includes(segment))
+      if (q) questions.push(q)
+    }
+  }
+  for (const group of ['execution', 'topology', 'address', 'metadata']) for (const def of blueprint.inputs) {
+    if (def.group !== group || enforcedKeys.has(def.id)) continue
+    questions.push({ id: def.id, label: def.label, type: def.type, choices: def.choices?.map(String), optional: def.requirement !== 'required' && !(def.id === 'address.sshSourceCidr' && inputs['topology.enableSshIngress'] === 'true'), help: def.help })
+  }
+  return questions
+}
 
 function CopyButton({ text }: { text: string }) {
   const [done, setDone] = useState(false)
@@ -82,14 +168,15 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
   const [runRaw, setRunRaw] = useState('')
   const [verifyRaw, setVerifyRaw] = useState('')
   const [planDigest, setPlanDigest] = useState('')
+  const [wizardOpen, setWizardOpen] = useState(false)
 
   // 초기 입력값(default + preset)
   useEffect(() => {
     if (!blueprint) return
     const base: InputValues = {}
-    for (const i of blueprint.inputs) if (i.default !== undefined && i.default !== null) base[i.id] = String(i.default)
+    for (const i of blueprint.inputs) if (i.default !== undefined && i.default !== null) base[i.id] = serializeValue(i.default, i.type)
     const p = blueprint.presets?.[0]
-    if (p) { for (const [k, v] of Object.entries({ ...p.values, ...(p.enforced ?? {}) })) base[k] = String(v); setPreset(p.id) }
+    if (p) { Object.assign(base, mergeSerialized(blueprint, { ...p.values, ...(p.enforced ?? {}) })); setPreset(p.id) }
     setInputs(base)
     setDiscoverRaw(''); setRunRaw(''); setVerifyRaw(''); setTab('design')
   }, [blueprint])
@@ -99,6 +186,28 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
     const p = blueprint?.presets?.find(x => x.id === preset)
     return new Set(Object.keys(p?.enforced ?? {}))
   }, [blueprint, preset])
+  const requiredInputs = useMemo(() => blueprint ? requiredInputsFor(blueprint, inputs) : [], [blueprint, inputs])
+  const wizardQuestions = useMemo(() => blueprint ? wizardQuestionsFor(blueprint, inputs, enforcedKeys) : [], [blueprint, inputs, enforcedKeys])
+
+  useEffect(() => {
+    const openWizard = (event: KeyboardEvent) => {
+      if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'i') {
+        event.preventDefault()
+        setWizardOpen(true)
+      }
+    }
+    window.addEventListener('keydown', openWizard)
+    return () => window.removeEventListener('keydown', openWizard)
+  }, [])
+
+  const focusInput = (focusId: string) => {
+    setTab('design')
+    window.setTimeout(() => {
+      const element = document.getElementById(focusId) as HTMLElement | null
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      element?.focus({ preventScroll: true })
+    }, 80)
+  }
 
   const naming = useMemo(() => (blueprint && policy) ? computeNaming(blueprint, policy, inputs) : null, [blueprint, policy, inputs])
   const discovery = useMemo<DiscoveryResult | undefined>(() => parseArtifact<DiscoveryResult>(discoverRaw, 'discovery-result').value, [discoverRaw])
@@ -150,6 +259,7 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
         <select className="bp-select" value={selectedKey} onChange={e => setSelectedKey(e.target.value)} aria-label="Blueprint 선택">
           {blueprints.map(b => <option key={`${b.id}@${b.version}`} value={`${b.id}@${b.version}`}>{b.label} (v{b.version}{b.status !== 'verified' ? ` · ${b.status}` : ''})</option>)}
         </select>
+        <button type="button" className="bp-wizard-launch" onClick={() => setWizardOpen(true)}>입력 마법사 <kbd>Alt+I</kbd></button>
         {onExit ? <button className="bp-exit" onClick={onExit}>← CLI 빌더</button> : null}
       </div>
 
@@ -160,7 +270,7 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
           </div>
 
           {tab === 'design' && blueprint && (
-            <DesignTab blueprint={blueprint} inputs={inputs} setInput={setInput} preset={preset} setPreset={p => { setPreset(p); const pr = blueprint.presets?.find(x => x.id === p); if (pr) setInputs(prev => ({ ...prev, ...pr.values as InputValues, ...(pr.enforced ?? {}) as InputValues })) }} enforcedKeys={enforcedKeys} naming={naming} />
+            <DesignTab blueprint={blueprint} inputs={inputs} setInput={setInput} preset={preset} setPreset={p => { setPreset(p); const pr = blueprint.presets?.find(x => x.id === p); if (pr) setInputs(prev => ({ ...prev, ...mergeSerialized(blueprint, { ...pr.values, ...(pr.enforced ?? {}) }) })) }} enforcedKeys={enforcedKeys} naming={naming} />
           )}
 
           {tab === 'discover' && renderArgs && (
@@ -208,6 +318,20 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
         </div>
 
         <aside className="bp-side">
+          <section className="bp-required-panel" aria-labelledby="bp-required-title">
+            <div className="bp-side-heading">
+              <h2 id="bp-required-title">실행 전 입력 확인</h2>
+              <span>{requiredInputs.filter(item => !item.missing).length}/{requiredInputs.length}</span>
+            </div>
+            <div className="bp-required-list">
+              {requiredInputs.map(item => (
+                <button type="button" key={item.id} className={`bp-required-item${item.missing ? ' missing' : ' done'}`} onClick={() => focusInput(item.focusId)}>
+                  <span aria-hidden="true">{item.missing ? '○' : '✓'}</span><span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+            <button type="button" className="bp-wizard-side" onClick={() => setWizardOpen(true)}>키보드로 한 번에 입력 <kbd>Alt+I</kbd></button>
+          </section>
           <h2 className="bp-side-title">검증</h2>
           {issues.length === 0 ? <p className="bp-ok">문제 없음</p> : (
             <ul className="bp-issues">{issues.map((it, i) => <li key={i} className={`bp-issue ${it.tone}`}>{it.text}</li>)}</ul>
@@ -222,6 +346,7 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
           ) : null}
         </aside>
       </div>
+      {wizardOpen && blueprint ? <InputWizard questions={wizardQuestions} inputs={inputs} setInput={setInput} onClose={() => setWizardOpen(false)} /> : null}
     </div>
   )
 }
@@ -229,8 +354,10 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
 function Field({ def, value, onChange, locked }: { def: CliBlueprint['inputs'][number]; value: string; onChange: (v: string) => void; locked: boolean }) {
   const common = { id: `bp-in-${def.id}`, disabled: locked, className: 'bp-field-input' }
   let control: ReactNode
-  if (def.choices?.length) control = <select {...common} value={value} onChange={e => onChange(e.target.value)}>{[...(def.requirement === 'required' ? [] : ['']), ...def.choices.map(String)].map(c => <option key={c} value={c}>{c || '(미선택)'}</option>)}</select>
-  else if (def.type === 'boolean') control = <label className="bp-check"><input type="checkbox" disabled={locked} checked={value === 'true'} onChange={e => onChange(e.target.checked ? 'true' : 'false')} /> {value === 'true' ? '예' : '아니오'}</label>
+  if (def.choices?.length) {
+    const choices = [...new Set([...(def.requirement === 'required' ? [] : ['']), ...def.choices.map(String)])]
+    control = <select {...common} value={value} onChange={e => onChange(e.target.value)}>{choices.map(c => <option key={c || '__empty'} value={c}>{c || '(구분자 없음/미선택)'}</option>)}</select>
+  } else if (def.type === 'boolean') control = <label className="bp-check"><input id={`bp-in-${def.id}`} type="checkbox" disabled={locked} checked={value === 'true'} onChange={e => onChange(e.target.checked ? 'true' : 'false')} /> {value === 'true' ? '예' : '아니오'}</label>
   else if (def.type === 'json' || def.type === 'stringArray') control = <textarea {...common} rows={2} value={value} onChange={e => onChange(e.target.value)} placeholder={def.type === 'stringArray' ? '["10.0.0.0/16"] 또는 줄바꿈' : '{ }'} />
   else control = <input {...common} type="text" value={value} onChange={e => onChange(e.target.value)} />
   return (
@@ -240,6 +367,77 @@ function Field({ def, value, onChange, locked }: { def: CliBlueprint['inputs'][n
       {def.help ? <p className="bp-help">{def.help}</p> : null}
     </div>
   )
+}
+
+function NamingEditor({ blueprint, inputs, setInput, enforcedKeys }: {
+  blueprint: CliBlueprint; inputs: InputValues; setInput: (id: string, value: string) => void; enforcedKeys: Set<string>
+}) {
+  const [dragged, setDragged] = useState<string | null>(null)
+  const mode = inputs['naming.mode'] || 'CONVENTION'
+  const order = decodeList(inputs['naming.segmentOrder'])
+  const included = decodeList(inputs['naming.includedSegments'])
+  const defs = new Map(blueprint.inputs.map(def => [def.id, def]))
+  const updateOrder = (next: string[]) => setInput('naming.segmentOrder', JSON.stringify(next))
+  const updateIncluded = (segment: string, checked: boolean) => {
+    const next = checked ? [...new Set([...included, segment])] : included.filter(value => value !== segment)
+    setInput('naming.includedSegments', JSON.stringify(next))
+  }
+  const move = (segment: string, delta: number) => {
+    const from = order.indexOf(segment)
+    const to = Math.max(0, Math.min(order.length - 1, from + delta))
+    if (from < 0 || from === to) return
+    const next = [...order]
+    next.splice(to, 0, next.splice(from, 1)[0])
+    updateOrder(next)
+  }
+  const dropAt = (target: string) => {
+    if (!dragged || dragged === target) return setDragged(null)
+    const next = order.filter(value => value !== dragged)
+    next.splice(Math.max(0, next.indexOf(target)), 0, dragged)
+    updateOrder(next)
+    setDragged(null)
+  }
+  const modeDef = defs.get('naming.mode')
+  const separatorDef = defs.get('naming.separator')
+
+  return <>
+    {modeDef ? <Field def={modeDef} value={mode} onChange={value => setInput(modeDef.id, value)} locked={enforcedKeys.has(modeDef.id)} /> : null}
+    {mode === 'MANUAL' ? (
+      <div className="bp-manual-names">
+        <p className="bp-help">컨벤션을 사용하지 않습니다. Blueprint가 만드는 모든 자원 이름을 직접 지정하세요.</p>
+        {blueprint.nodes.map(node => (
+          <div className="bp-field" key={node.id}>
+            <label className="bp-field-label" htmlFor={`bp-in-naming.manual.${node.id}`}>{node.label} 이름<span className="bp-req">*</span></label>
+            <input id={`bp-in-naming.manual.${node.id}`} className="bp-field-input" value={inputs[`naming.manual.${node.id}`] ?? ''} onChange={event => setInput(`naming.manual.${node.id}`, event.target.value)} />
+          </div>
+        ))}
+      </div>
+    ) : <>
+      {separatorDef ? <Field def={separatorDef} value={inputs[separatorDef.id] ?? '-'} onChange={value => setInput(separatorDef.id, value)} locked={enforcedKeys.has(separatorDef.id)} /> : null}
+      <div className="bp-segment-box">
+        <div className="bp-field-label">네이밍 요소 · 포함 여부와 순서</div>
+        <div className="bp-segment-list">
+          {order.map(segment => (
+            <div key={segment} className={`bp-segment-row${dragged === segment ? ' dragging' : ''}`} draggable
+              onDragStart={() => setDragged(segment)} onDragEnd={() => setDragged(null)} onDragOver={event => event.preventDefault()} onDrop={() => dropAt(segment)}>
+              <span className="bp-drag-handle" aria-hidden="true">⋮⋮</span>
+              <input id={`bp-segment-${segment}`} type="checkbox" checked={included.includes(segment)} onChange={event => updateIncluded(segment, event.target.checked)} />
+              <label htmlFor={`bp-segment-${segment}`}>{SEGMENT_LABEL[segment] ?? segment}</label>
+              <code>{segment}</code>
+              <span className="bp-segment-actions">
+                <button type="button" onClick={() => move(segment, -1)} aria-label={`${SEGMENT_LABEL[segment]} 앞으로 이동`}>↑</button>
+                <button type="button" onClick={() => move(segment, 1)} aria-label={`${SEGMENT_LABEL[segment]} 뒤로 이동`}>↓</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {['customer', 'workload', 'environment', 'regionAlias', 'sequence'].filter(segment => included.includes(segment)).map(segment => {
+        const def = defs.get(`naming.${segment}`)
+        return def ? <Field key={def.id} def={def} value={inputs[def.id] ?? ''} onChange={value => setInput(def.id, value)} locked={enforcedKeys.has(def.id)} /> : null
+      })}
+    </>}
+  </>
 }
 
 function DesignTab({ blueprint, inputs, setInput, preset, setPreset, enforcedKeys, naming }: {
@@ -265,7 +463,9 @@ function DesignTab({ blueprint, inputs, setInput, preset, setPreset, enforcedKey
           return (
             <fieldset key={g} className="bp-group">
               <legend>{GLABEL[g]}</legend>
-              {fields.map(def => <Field key={def.id} def={def} value={inputs[def.id] ?? ''} onChange={v => setInput(def.id, v)} locked={enforcedKeys.has(def.id)} />)}
+              {g === 'naming'
+                ? <NamingEditor blueprint={blueprint} inputs={inputs} setInput={setInput} enforcedKeys={enforcedKeys} />
+                : fields.map(def => <Field key={def.id} def={def} value={inputs[def.id] ?? ''} onChange={v => setInput(def.id, v)} locked={enforcedKeys.has(def.id)} />)}
             </fieldset>
           )
         })}
@@ -280,6 +480,136 @@ function DesignTab({ blueprint, inputs, setInput, preset, setPreset, enforcedKey
           </tbody></table>
         ) : <p className="bp-dim">naming 정책 로드 대기</p>}
         <p className="bp-dim bp-region">region alias: <span className="bp-mono">{naming?.regionAlias}</span></p>
+      </div>
+    </div>
+  )
+}
+
+function WizardSegmentPicker({ inputs, setInput, onConfirm }: {
+  inputs: InputValues; setInput: (id: string, value: string) => void; onConfirm: () => void
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const order = decodeList(inputs['naming.segmentOrder'])
+  const included = decodeList(inputs['naming.includedSegments'])
+  const [active, setActive] = useState(0)
+  useEffect(() => { rootRef.current?.focus() }, [])
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const current = order[active]
+    if (!current) return
+    if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); onConfirm(); return }
+    if (event.key === ' ') {
+      event.preventDefault(); event.stopPropagation()
+      const next = included.includes(current) ? included.filter(v => v !== current) : [...included, current]
+      setInput('naming.includedSegments', JSON.stringify(next))
+      return
+    }
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+    event.preventDefault(); event.stopPropagation()
+    const delta = event.key === 'ArrowUp' ? -1 : 1
+    if (event.altKey) {
+      const to = Math.max(0, Math.min(order.length - 1, active + delta))
+      if (to !== active) {
+        const next = [...order]
+        next.splice(to, 0, next.splice(active, 1)[0])
+        setInput('naming.segmentOrder', JSON.stringify(next))
+        setActive(to)
+      }
+    } else setActive(index => Math.max(0, Math.min(order.length - 1, index + delta)))
+  }
+
+  return (
+    <div ref={rootRef} className="bp-wizard-segments" tabIndex={0} onKeyDown={onKeyDown} aria-label="네이밍 요소 선택 및 순서 변경">
+      {order.map((segment, index) => (
+        <div key={segment} className={`bp-wizard-segment${index === active ? ' active' : ''}${included.includes(segment) ? ' included' : ''}`}>
+          <span>{included.includes(segment) ? '✓' : '○'}</span><strong>{SEGMENT_LABEL[segment] ?? segment}</strong><code>{segment}</code>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function InputWizard({ questions, inputs, setInput, onClose }: {
+  questions: WizardQuestion[]; inputs: InputValues; setInput: (id: string, value: string) => void; onClose: () => void
+}) {
+  const [index, setIndex] = useState(0)
+  const [moving, setMoving] = useState(false)
+  const [blocked, setBlocked] = useState(false)
+  const inputRef = useRef<HTMLElement | null>(null)
+  const question = questions[Math.min(index, Math.max(0, questions.length - 1))]
+
+  useEffect(() => {
+    const before = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = before }
+  }, [])
+  useEffect(() => {
+    if (index >= questions.length && questions.length) setIndex(questions.length - 1)
+  }, [index, questions.length])
+  useEffect(() => {
+    if (!moving && question?.type !== 'segments') window.setTimeout(() => inputRef.current?.focus(), 20)
+    setBlocked(false)
+  }, [question?.id, question?.type, moving])
+
+  const answered = () => {
+    if (!question || question.optional || question.type === 'boolean') return true
+    if (question.type === 'segments') return decodeList(inputs['naming.includedSegments'], []).length > 0
+    return Boolean(String(inputs[question.valueId ?? question.id] ?? '').trim())
+  }
+  const advance = () => {
+    if (moving || !question) return
+    if (!answered()) { setBlocked(true); return }
+    setMoving(true)
+    window.setTimeout(() => {
+      if (index >= questions.length - 1) onClose()
+      else { setIndex(value => value + 1); setMoving(false) }
+    }, 210)
+  }
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') { event.preventDefault(); onClose(); return }
+    if (event.key === 'Enter' && !(event.shiftKey && question?.type === 'json')) {
+      event.preventDefault()
+      advance()
+    }
+  }
+
+  if (!question) return null
+  const valueId = question.valueId ?? question.id
+  const value = inputs[valueId] ?? ''
+  const previous = questions[index - 1]
+  const next = questions[index + 1]
+  const assignRef = (element: HTMLElement | null) => { inputRef.current = element }
+
+  let control: ReactNode
+  if (question.type === 'segments') control = <WizardSegmentPicker inputs={inputs} setInput={setInput} onConfirm={advance} />
+  else if (question.type === 'boolean') control = (
+    <select ref={assignRef} className="bp-wizard-input" value={value || 'false'} onChange={event => setInput(valueId, event.target.value)}>
+      <option value="true">예</option><option value="false">아니오</option>
+    </select>
+  )
+  else if (question.choices?.length) control = (
+    <select ref={assignRef} className="bp-wizard-input" value={value} onChange={event => setInput(valueId, event.target.value)}>
+      {[...new Set([...(question.optional ? [''] : []), ...question.choices])].map(choice => <option key={choice || '__empty'} value={choice}>{choice || '없음'}</option>)}
+    </select>
+  )
+  else if (question.type === 'json' || question.type === 'stringArray') control = (
+    <textarea ref={assignRef} className="bp-wizard-input bp-wizard-textarea" value={value} onChange={event => setInput(valueId, event.target.value)} placeholder={question.type === 'json' ? '{} (선택 입력)' : '["10.0.0.0/16"]'} />
+  )
+  else control = <input ref={assignRef} className="bp-wizard-input" value={value} onChange={event => setInput(valueId, event.target.value)} autoComplete="off" />
+
+  return (
+    <div className="bp-wizard-overlay" role="dialog" aria-modal="true" aria-label="Blueprint 입력 마법사" onKeyDown={onKeyDown}>
+      <div className="bp-wizard-head"><span>BLUEPRINT INPUT</span><span>{index + 1} / {questions.length}</span><button type="button" onClick={onClose}>ESC 닫기</button></div>
+      <div className={`bp-wizard-track${moving ? ' moving' : ''}`}>
+        <div className="bp-wizard-question previous">{previous ? previous.label : '시작'}</div>
+        <div className="bp-wizard-current" key={question.id}>
+          <div className="bp-wizard-question current">{question.label}{question.optional ? <small>선택</small> : <small>필수</small>}</div>
+          {question.help ? <p>{question.help}</p> : null}
+          {control}
+          {blocked ? <div className="bp-wizard-required">값을 입력한 뒤 Enter를 누르세요.</div> : null}
+          <div className="bp-wizard-hint">Enter 다음 · Esc 닫기{question.type === 'json' ? ' · Shift+Enter 줄바꿈' : ''}</div>
+        </div>
+        <div className="bp-wizard-question next">{next ? next.label : '입력 완료'}</div>
       </div>
     </div>
   )
