@@ -254,11 +254,12 @@
 
 #### Phase 2.5 완료 증거
 
-- 완료일: —
-- 커밋(site/blog-db): —
-- 테스트 명령·결과: —
-- 생성 Bash `bash -n` 결과: —
-- 배포·라이브 검증(데스크톱/모바일): —
+- 완료일: 2026-08-22 (코드 완료). 라이브 데이터는 HUB_LOCK bake 대기
+- 커밋(site): bb01221→7688de6→ed2734a→e7f3b36→c1dffbe→7e95601 (6커밋, main push, CI deploy success). blog-db: network-baseline-2tier 정의 + msp-standard 정책
+- 테스트 명령·결과: `npm run test:blueprint` = generate(1 blueprint·1 policy) + verify(정본+negative fixture 8 + digest 결정성) + 엔진 43건(보안 regression 3 포함) 전부 통과. `tsc -b` 0, `oxlint` 0, `vite build` 성공
+- 생성 Bash `bash -n` 결과: discover/apply/resume/verify/rollback 5종 전부 통과. emit_result 부분/전체 flush 기능검증
+- 적대적 리뷰: ultracode 5-lens 워크플로우 → CRITICAL 셸 인젝션(__var 위조) + HIGH 4건 발견·전부 수정+regression
+- 배포·라이브 검증: CI deploy success. 배포 사이트 앱 셸 로드 무오류 확인(HashRouter). **blueprint 워크스페이스 자체는 자물쇠1 로그인 + L1 bake 필요 → 사용자 HUB_LOCK 로 `npm run gen:protected` 실행 후 인증 QA (유일한 미완 단계)**
 
 ### Phase 3 — 운영 핵심 서비스 확장
 
@@ -427,7 +428,7 @@
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
-| 2026-08-22 | Phase 2.5 — Blueprint Engine 착수: 설계 문서(`OCI_CLI_BLUEPRINT_ENGINE_DESIGN.md`) 정독, 완료계획에 Phase 2.5(01~05) 추가, step 0 기반 조사(catalog v3.90.2 pin·option 스키마·protected L1 파이프라인) 완료 | — | Claude |
+| 2026-08-22 | Phase 2.5 — Blueprint Engine 코드 완료(P2.5-01~04.5): 계약 8스키마+생성기/검증(negative fixture 8), 순수 엔진(naming·derive·resolve·plan·render·manifest, 43 테스트+5 bash -n), 6탭 UI+딥링크, ultracode 5-lens 적대적 리뷰로 CRITICAL 셸 인젝션+HIGH 4건 수정. 6커밋 push·CI deploy success·앱셸 스모크 통과. 라이브 데이터는 HUB_LOCK bake(사용자) 대기 | `7e95601` | Claude |
 | 2026-08-20 | P2-02 회귀 수정 — Announcement LIST `data.items[]` 응답 경로를 반영해 GET 동적 조회의 Bash 조기 종료 제거, 실제 OCI GET·219개 생성 Bash 회귀 검증 | — | Codex |
 | 2026-08-15 | P2-03 부분 구현 — 범용 JSON 구조화 입력·유효성 검사, Instance 부팅 소스 variant, 현재 컨텍스트 기반 Image 조회·OS/버전 선택 흐름과 회귀 게이트 구축 | `b45e378` | Codex |
 | 2026-08-15 | P2-02 완료 — 필수 OCID 232회 전수 분류, 220회 안전 동적 조회·12회 사유 있는 직접 입력, 0/1/N 중단 및 생성 Bash 회귀 구축 | `346d110` | Codex |
