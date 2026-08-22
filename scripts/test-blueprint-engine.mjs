@@ -10,6 +10,12 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { computeNaming } from '../src/lib/oci-cli/blueprintNaming.mjs'
 import { deriveValue, materialize, DERIVED_KEYS } from '../src/lib/oci-cli/blueprintDerive.mjs'
+import { computePlan, planDigestInput, compareField } from '../src/lib/oci-cli/blueprintPlan.mjs'
+import { renderDiscover, renderApply, renderVerify, renderRollback, renderResume } from '../src/lib/oci-cli/blueprintRender.mjs'
+import { buildProvisionalManifest, mergeVerification, evaluateVerification, evaluateAssertion } from '../src/lib/oci-cli/blueprintManifest.mjs'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DB = resolve(HERE, '..', '..', 'blog-db', 'knowledge', 'oci-cli')
@@ -158,6 +164,103 @@ t('derive: managedFreeformTags render → $RUN_ID', () => {
   const tags = materialize(deriveValue('managedFreeformTags', { blueprint: BP, inputs: INPUTS, naming: nm }), tok => tok.__ref === 'runId' ? '$RUN_ID' : '?')
   assert.equal(tags['blueprint-run-id'], '$RUN_ID')
   assert.equal(tags['blueprint-id'], 'network-baseline-2tier')
+})
+
+// ── plan ──
+const CATALOG = JSON.parse(readFileSync(resolve(HERE, '..', '.protected-cache', 'cliCatalog.json'), 'utf8'))
+const emptyDiscovery = { artifactType: 'discovery-result', services: [{ key: 'oracleServicesNetworkAll', items: [{ id: 'ocid1.service.oc1..all', name: 'all-services', 'cidr-block': 'all-icn-services-in-oracle-services-network' }] }], nodes: BP.nodes.map(n => ({ node: n.id, status: 'OK', found: null })) }
+
+t('plan: 전부 미발견 → 전부 CREATE, executable', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const plan = computePlan({ blueprint: BP, inputs: INPUTS, naming: nm, discovery: emptyDiscovery })
+  assert.equal(plan.nodes.length, BP.nodes.length)
+  assert.ok(plan.nodes.every(n => n.state === 'CREATE'))
+  assert.equal(plan.executable, true)
+  assert.equal(plan.createCount, BP.nodes.length)
+})
+t('plan: 동일이름 존재+필드불일치 → CONFLICT, not executable', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const disc = { ...emptyDiscovery, nodes: emptyDiscovery.nodes.map(n => n.node === 'vcn' ? { node: 'vcn', status: 'OK', found: { id: 'ocid1.vcn.oc1..exists', name: nm.names['vcn'].displayName, collected: {} } } : n) }
+  const plan = computePlan({ blueprint: BP, inputs: INPUTS, naming: nm, discovery: disc })
+  const vcn = plan.nodes.find(n => n.nodeId === 'vcn')
+  assert.equal(vcn.state, 'CONFLICT')
+  assert.equal(plan.executable, false)
+})
+t('plan: discovery 오류 → BLOCKED', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const disc = { ...emptyDiscovery, nodes: emptyDiscovery.nodes.map(n => n.node === 'vcn' ? { node: 'vcn', status: 'DISCOVERY_ERROR', error: 'permission' } : n) }
+  const plan = computePlan({ blueprint: BP, inputs: INPUTS, naming: nm, discovery: disc })
+  assert.equal(plan.nodes.find(n => n.nodeId === 'vcn').state, 'BLOCKED')
+  assert.equal(plan.executable, false)
+})
+t('plan: planDigestInput 결정적', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const p1 = planDigestInput(computePlan({ blueprint: BP, inputs: INPUTS, naming: nm, discovery: emptyDiscovery }))
+  const p2 = planDigestInput(computePlan({ blueprint: BP, inputs: INPUTS, naming: nm, discovery: emptyDiscovery }))
+  assert.equal(canonicalize(p1), canonicalize(p2))
+})
+t('compareField: comparator 동작', () => {
+  assert.equal(compareField('string', 'a', 'a'), true)
+  assert.equal(compareField('jsonSet', [{ a: 1 }, { b: 2 }], [{ b: 2 }, { a: 1 }]), true)
+  assert.equal(compareField('jsonSet', [{ networkEntityId: 'x' }], [{ 'network-entity-id': 'x' }]), true) // kebab↔camel 통일
+  assert.equal(compareField('tagSubset', { 'blueprint-id': 'x', 'blueprint-run-id': '' }, { 'blueprint-id': 'x', extra: 'y' }), true)
+  assert.equal(compareField('tagSubset', { 'blueprint-id': 'x' }, { 'blueprint-id': 'z' }), false)
+})
+
+// ── render + bash -n ──
+const TMP = mkdtempSync(resolve(tmpdir(), 'bp-engine-'))
+const bashN = (script) => {
+  const f = resolve(TMP, script.name)
+  writeFileSync(f, script.content)
+  execFileSync('bash', ['-n', f]) // 문법 오류면 throw
+}
+const nm0 = computeNaming(BP, POL, INPUTS)
+const plan0 = computePlan({ blueprint: BP, inputs: INPUTS, naming: nm0, discovery: emptyDiscovery })
+const runResult0 = { artifactType: 'run-result', runId: 'run-test-1', planDigest: 'deadbeef', nodes: BP.nodes.map((n, i) => ({ node: n.id, action: 'CREATED', id: `ocid1.${n.commandRef.resource}.oc1..n${i}` })) }
+const manifest0 = buildProvisionalManifest({ blueprint: BP, plan: plan0, runResult: runResult0, naming: nm0 })
+
+t('render: Discover bash -n 통과', () => bashN(renderDiscover({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0 })))
+t('render: Apply bash -n 통과', () => bashN(renderApply({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, plan: plan0, planDigest: 'deadbeef' })))
+t('render: Verify bash -n 통과', () => bashN(renderVerify({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, manifest: manifest0 })))
+t('render: Rollback bash -n 통과', () => bashN(renderRollback({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, manifest: manifest0 })))
+t('render: Resume bash -n 통과', () => bashN(renderResume({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, plan: plan0, planDigest: 'deadbeef', priorRunResult: { nodes: [{ node: 'vcn', action: 'CREATED', id: 'ocid1.vcn.oc1..x' }] } })))
+t('render: Apply 에 run-id 태그·jq·표준변수 포함', () => {
+  const s = renderApply({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, plan: plan0, planDigest: 'deadbeef' }).content
+  assert.ok(s.includes('RUN_ID'))
+  assert.ok(s.includes('oci network vcn create'))
+  assert.ok(s.includes('VCN_ID='))
+  assert.ok(s.includes('--freeform-tags'))
+  assert.ok(s.includes('artifactType":"run-result') || s.includes('run-result'))
+})
+t('render: Rollback 이중확인 가드 포함', () => {
+  const s = renderRollback({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, manifest: manifest0 }).content
+  assert.ok(s.includes('CONFIRM_RUN_ID'))
+  assert.ok(s.includes('CONFIRM_COMPARTMENT_ID'))
+  assert.ok(s.includes('blueprint-run-id'))
+  assert.ok(s.includes('oci network subnet delete') || s.includes('delete'))
+})
+
+// ── manifest ──
+t('manifest: provisional 에 rollbackEligible = CREATED', () => {
+  assert.equal(manifest0.status, 'PROVISIONAL')
+  assert.equal(manifest0.rollbackEligible.length, BP.nodes.length)
+})
+t('manifest: verification 판정 + merge → FINAL', () => {
+  const vr = { artifactType: 'verification-result', runId: 'run-test-1', checks: [
+    { node: 'vcn', id: 'vcn-available', comparator: 'lifecycleAvailable', severity: 'fail', actual: 'AVAILABLE', expected: 'AVAILABLE' },
+    { node: 'internet-gateway', id: 'igw-available', comparator: 'lifecycleAvailable', severity: 'fail', actual: 'PROVISIONING', expected: 'AVAILABLE' },
+  ] }
+  const ev = evaluateVerification(vr)
+  assert.equal(ev.nodeOutcome.get('vcn'), 'PASS')
+  assert.equal(ev.nodeOutcome.get('internet-gateway'), 'FAIL')
+  const final = mergeVerification(manifest0, vr)
+  assert.equal(final.status, 'FINAL')
+  assert.equal(final.nodes.find(n => n.nodeId === 'vcn').verify, 'PASS')
+})
+t('manifest: evaluateAssertion comparator', () => {
+  assert.equal(evaluateAssertion('equals', 'AVAILABLE', 'AVAILABLE'), true)
+  assert.equal(evaluateAssertion('containsSet', ['a'], ['a', 'b']), true)
+  assert.equal(evaluateAssertion('tagSubset', { k: 'v' }, { k: 'v', x: 1 }), true)
 })
 
 console.log(`\nblueprint 엔진 테스트 통과 — ${passed}건`)
