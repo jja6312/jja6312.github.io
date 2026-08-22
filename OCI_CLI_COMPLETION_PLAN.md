@@ -251,15 +251,16 @@
 - [x] `P2.5-04` UI — `CliBlueprintWorkspace`(6탭 DESIGN/DISCOVER/PLAN/APPLY/VERIFY/MANIFEST) + 좌측 `Blueprints` 진입 + 딥링크 `?mode=blueprint&blueprint=&version=` + JSON Import/Export(artifactType 검증) + 검증 사이드바 + 반응형. tsc·lint·vite build 통과. (라이브 렌더는 L1 bake 후)
 - [x] `P2.5-04.5` 적대적 리뷰(ultracode 5-lens 워크플로우) — **CRITICAL 인젝션 수정**: 위조 `__var` 셸 인젝션 → `VarRef` 클래스 + bash 식별자 검증 + `stripReserved`. 그 외: discover 실패→DISCOVERY_ERROR(중복생성 차단), Apply EXIT trap 부분 run-result(resume 가능), rollback get 멱등, verify `--argjson`, ownership 빈 run-id 가드, `--wait-for-state AVAILABLE`, compartment 이중검증, derive ref ancestry 게이트. 보안 regression 테스트 3건 추가(총 43건) 및 Windows Git Bash 경로 호환 수정
 - [x] `P2.5-05` Release — v3.90.3 source lock 검토·갱신, metadata contract/OCI provenance 갱신, HUB_LOCK bake 및 protected-data 검증 완료. 남은 작업 없음
+- [x] `P2.5-06` Blueprint Input UX — SSH source `0.0.0.0/0` 차단 제거 및 실제 ingress rule 회귀 고정. 네이밍 컨벤션의 요소별 포함 체크·구분자(`-`/`_`/`.`/없음)·drag/키보드 순서 변경·전체 MANUAL 이름 입력을 엔진과 UI 계약에 반영했다. 우측 `실행 전 입력 확인`에서 누락 필드를 안내하고 클릭 시 실제 input으로 포커스한다. `Alt+I` 전체화면 질답은 이전/현재/다음 질문 대비, Enter 전환·Esc 종료·자동 종료, 요소 선택/정렬 키보드 조작을 제공한다. 모바일 375px overflow 0 및 우측 패널 하단 재배치를 라이브에서 확인했다.
 
 #### Phase 2.5 완료 증거
 
 - 완료일: 2026-08-22 (v3.90.3 source lock + HUB_LOCK bake 완료)
 - 커밋(site): bb01221→7688de6→ed2734a→e7f3b36→c1dffbe→7e95601 (6커밋, main push, CI deploy success). blog-db: network-baseline-2tier 정의 + msp-standard 정책
-- 테스트 명령·결과: `npm run gen:protected` 성공(L1 4 docs·L2 schedule·L3 2 customers/1 support cases/1 meetings/17 announcements). `npm run test:blueprint` = generate(1 blueprint·1 policy) + verify(정본+negative fixture 8 + digest 결정성) + 엔진 43건(보안 regression 3 포함) 전부 통과. `tsc -b` 0, `oxlint` 0, `vite build` 성공. protected/source/click/options/requirements/validation/context/defaults/lookups/metadata/commands 회귀 전부 통과
+- 테스트 명령·결과: `npm run gen:protected` 성공(L1 4 docs·L2 schedule·L3 2 customers/1 support cases/1 meetings/17 announcements). `npm run test:blueprint` = generate(1 blueprint·1 policy) + verify(정본+negative fixture 8 + digest 결정성) + 엔진/UI 48건(보안 regression 3, Blueprint 입력 UX regression 포함) 전부 통과. `tsc -b` 0, `oxlint` 0, `vite build` 성공. protected/source/click/options/requirements/validation/context/defaults/lookups/metadata/commands 회귀 전부 통과
 - 생성 Bash `bash -n` 결과: discover/apply/resume/verify/rollback 5종 전부 통과. emit_result 부분/전체 flush 기능검증
 - 적대적 리뷰: ultracode 5-lens 워크플로우 → CRITICAL 셸 인젝션(__var 위조) + HIGH 4건 발견·전부 수정+regression
-- 배포·라이브 검증: commit/push 후 GitHub Actions 배포 완료를 확인하고, 자물쇠1 로그인 → OCI CLI → Blueprints에서 L1 워크스페이스와 중립 테마를 확인한다
+- 배포·라이브 검증: site `68d050a`, blog-db `3243e80`, GitHub Actions deploy `32576083546` 성공. 자물쇠1 로그인 → OCI CLI → Blueprints에서 네이밍 control 7개·우측 필수입력 패널·Alt+I 질답·모바일 375px overflow 0·console error 0 확인. 라이브 JS/CSS 파일명과 `protected-data.json` SHA-256이 로컬 최종 산출물과 일치
 
 ### Phase 3 — 운영 핵심 서비스 확장
 
@@ -428,6 +429,7 @@
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-22 | P2.5-06 — Blueprint 입력 UX: SSH 0.0.0.0/0 허용, 선택·구분자·순서·수동 네이밍, 우측 필수입력 포커스, Alt+I 전체화면 키보드 질답, 모바일 overflow 회귀 수정. 엔진/UI 48건·lint·build·보호 데이터·라이브 artifact 일치 검증 | `68d050a` / blog-db `3243e80` | Codex |
 | 2026-08-22 | Phase 2.5 — Blueprint Engine 코드 완료(P2.5-01~04.5): 계약 8스키마+생성기/검증(negative fixture 8), 순수 엔진(naming·derive·resolve·plan·render·manifest, 43 테스트+5 bash -n), 6탭 UI+딥링크, ultracode 5-lens 적대적 리뷰로 CRITICAL 셸 인젝션+HIGH 4건 수정. 6커밋 push·CI deploy success·앱셸 스모크 통과. 라이브 데이터는 HUB_LOCK bake(사용자) 대기 | `7e95601` | Claude |
 | 2026-08-20 | P2-02 회귀 수정 — Announcement LIST `data.items[]` 응답 경로를 반영해 GET 동적 조회의 Bash 조기 종료 제거, 실제 OCI GET·219개 생성 Bash 회귀 검증 | — | Codex |
 | 2026-08-15 | P2-03 부분 구현 — 범용 JSON 구조화 입력·유효성 검사, Instance 부팅 소스 variant, 현재 컨텍스트 기반 Image 조회·OS/버전 선택 흐름과 회귀 게이트 구축 | `b45e378` | Codex |
