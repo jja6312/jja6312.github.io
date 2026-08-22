@@ -1,25 +1,25 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/oracle/oci-cli",
-  "releaseUrl": "https://github.com/oracle/oci-cli/releases/tag/v3.90.2",
+  "releaseUrl": "https://github.com/oracle/oci-cli/releases/tag/v3.90.3",
   "rawBaseUrl": "https://raw.githubusercontent.com/oracle/oci-cli",
-  "tag": "v3.90.2",
-  "version": "3.90.2",
-  "commit": "ad59a1f4c7df10decf51816ac16991621dae1b15",
-  "tree": "0fc2085908d11d44ba34cabe1da572488b76ebfc",
-  "publishedAt": "2026-08-11T12:46:01Z",
-  "collectedAt": "2026-08-15T15:25:00+09:00",
+  "tag": "v3.90.3",
+  "version": "3.90.3",
+  "commit": "4bdc3beb2d0b4a3187ef8392fff19537aba1178d",
+  "tree": "9946659b8ca31f6c8fb8d3b7b63b0c970e08af8d",
+  "publishedAt": "2026-08-18T06:07:47Z",
+  "collectedAt": "2026-08-22T21:05:11+09:00",
   "releaseAsset": {
-    "name": "oci-cli-3.90.2.zip",
-    "bytes": 184497661,
-    "sha256": "c76d0b1e14a19fa1df976be4eefaa9ca183f41e569b9392220d02b756af5e497"
+    "name": "oci-cli-3.90.3.zip",
+    "bytes": 184590464,
+    "sha256": "098a9470ad4f097d505b8dbab6ec7e7d4397d2d5db2ed19ef402ca39cdfdd35d"
   },
   "clickTree": {
     "schemaVersion": 1,
     "wheel": {
-      "name": "oci_cli-3.90.2-py3-none-any.whl",
-      "bytes": 66093870,
-      "sha256": "b97d3ae64e8e0b3e3e40f54b07e8764511987ab0b461841c8f47a45eb27cffad"
+      "name": "oci_cli-3.90.3-py3-none-any.whl",
+      "bytes": 66132983,
+      "sha256": "15a05190a96666e0aa4f029d361563608cae5c66ae28ca51d96186f9d007a3b5"
     },
     "services": [
       "compute",
@@ -54,7 +54,7 @@
     {
       "path": "src/oci_cli/version.py",
       "bytes": 365,
-      "sha256": "f8f2c278ecf2caf94af8ddb66cf203e3f38a4f99b3234a71293544a8af02b27c"
+      "sha256": "bba4cb762aede3c8fd03edda310b3f87cb675ee274ef995de8d515de33bdc2e8"
     },
     {
       "path": "services/core/src/oci_cli_blockstorage/generated/blockstorage_cli.py",

@@ -15,7 +15,7 @@ import { renderDiscover, renderApply, renderVerify, renderRollback, renderResume
 import { buildProvisionalManifest, mergeVerification, evaluateVerification, evaluateAssertion } from '../src/lib/oci-cli/blueprintManifest.mjs'
 import { resolveRender, emitOption, buildJqExpr, VarRef } from '../src/lib/oci-cli/blueprintResolve.mjs'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -210,10 +210,18 @@ t('compareField: comparator 동작', () => {
 
 // ── render + bash -n ──
 const TMP = mkdtempSync(resolve(tmpdir(), 'bp-engine-'))
+const BASH = process.platform === 'win32' && existsSync('C:\\Program Files\\Git\\bin\\bash.exe')
+  ? 'C:\\Program Files\\Git\\bin\\bash.exe'
+  : 'bash'
 const bashN = (script) => {
   const f = resolve(TMP, script.name)
   writeFileSync(f, script.content)
-  execFileSync('bash', ['-n', f]) // 문법 오류면 throw
+  // Git Bash on Windows receives POSIX paths; passing `C:\...` directly is
+  // interpreted as an MSYS-converted argument with the separators stripped.
+  const bashPath = process.platform === 'win32'
+    ? f.replace(/^([A-Za-z]):[\\/]/, (_, drive) => `/${drive.toLowerCase()}/`).replaceAll('\\', '/')
+    : f
+  execFileSync(BASH, ['-n', bashPath]) // 문법 오류면 throw
 }
 const nm0 = computeNaming(BP, POL, INPUTS)
 const plan0 = computePlan({ blueprint: BP, inputs: INPUTS, naming: nm0, discovery: emptyDiscovery })

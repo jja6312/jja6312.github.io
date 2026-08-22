@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "source": {
-    "tag": "v3.90.2",
-    "version": "3.90.2",
-    "commit": "ad59a1f4c7df10decf51816ac16991621dae1b15",
+    "tag": "v3.90.3",
+    "version": "3.90.3",
+    "commit": "4bdc3beb2d0b4a3187ef8392fff19537aba1178d",
     "collector": "final-click-tree"
   },
   "resources": {

