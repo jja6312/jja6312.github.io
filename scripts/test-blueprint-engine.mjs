@@ -5,6 +5,21 @@ import { createHash } from 'node:crypto'
 import { canonicalize } from '../src/lib/oci-cli/jsonCanonical.mjs'
 import { topoOrder, reverseOrder, ancestorMap } from '../src/lib/oci-cli/blueprintGraph.mjs'
 import { shq, shref } from '../src/lib/oci-cli/shellQuote.mjs'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+import { computeNaming } from '../src/lib/oci-cli/blueprintNaming.mjs'
+import { deriveValue, materialize, DERIVED_KEYS } from '../src/lib/oci-cli/blueprintDerive.mjs'
+
+const HERE = dirname(fileURLToPath(import.meta.url))
+const DB = resolve(HERE, '..', '..', 'blog-db', 'knowledge', 'oci-cli')
+const BP = JSON.parse(readFileSync(resolve(DB, 'blueprints', 'network-baseline-2tier.v1.json'), 'utf8'))
+const POL = JSON.parse(readFileSync(resolve(DB, 'naming-policies', 'msp-standard.v1.json'), 'utf8'))
+const INPUTS = {
+  'naming.customer': 'ACME Corp', 'naming.workload': 'Web', 'naming.environment': 'prd',
+  'execution.region': 'ap-seoul-1', 'naming.sequence': '01',
+  'topology.enableSshIngress': 'true', 'address.sshSourceCidr': '203.0.113.0/24',
+}
 
 let passed = 0
 const t = (name, fn) => { fn(); passed += 1; console.log(`  ok  ${name}`) }
@@ -78,6 +93,71 @@ t('shq: 빈 문자열은 인용', () => {
 })
 t('shref: 항상 큰따옴표 변수참조', () => {
   assert.equal(shref('VCN_ID'), '"$VCN_ID"')
+})
+
+// ── naming ──
+t('naming: 한글/공백/대문자 정규화', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  assert.equal(nm.normalized.customer, 'acme-corp')
+  assert.equal(nm.normalized.workload, 'web')
+  assert.equal(nm.regionAlias, 'icn')
+})
+t('naming: display name = pattern', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  assert.equal(nm.names['vcn'].displayName, 'acme-corp-web-prd-icn-vcn-main-01')
+  assert.equal(nm.names['public-subnet'].displayName, 'acme-corp-web-prd-icn-subnet-public-01')
+})
+t('naming: DNS label 유효·중복 없음', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const labels = ['vcn', 'public-subnet', 'private-subnet'].map(id => nm.names[id].dnsLabel)
+  for (const l of labels) assert.match(l, /^[a-z][a-z0-9]{0,14}$/)
+  assert.equal(new Set(labels).size, 3)
+  assert.deepEqual(nm.issues, [])
+})
+t('naming: 빈 정규화 → issue', () => {
+  const nm = computeNaming(BP, POL, { ...INPUTS, 'naming.customer': '고객사' })
+  assert.ok(nm.issues.some(i => i.includes('naming.customer')))
+})
+
+// ── derive ──
+t('derive: 10키 모두 값 반환', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const ctx = { blueprint: BP, inputs: INPUTS, naming: nm }
+  for (const k of DERIVED_KEYS) assert.doesNotThrow(() => deriveValue(k, ctx))
+})
+t('derive: publicRouteRules → IGW ref', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const rules = deriveValue('publicRouteRules', { blueprint: BP, inputs: INPUTS, naming: nm })
+  assert.equal(rules[0].networkEntityId.__ref, 'node')
+  assert.equal(rules[0].networkEntityId.node, 'internet-gateway')
+})
+t('derive: privateRouteRules → NAT + SGW(service cidr)', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const rules = deriveValue('privateRouteRules', { blueprint: BP, inputs: INPUTS, naming: nm })
+  assert.equal(rules[0].networkEntityId.node, 'nat-gateway')
+  assert.equal(rules[1].networkEntityId.node, 'service-gateway')
+  assert.equal(rules[1].destination.__ref, 'discovery')
+  assert.equal(rules[1].destinationType, 'SERVICE_CIDR_BLOCK')
+})
+t('derive: ingress deny-by-default, SSH만 조건부', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const on = deriveValue('publicIngressRules', { blueprint: BP, inputs: INPUTS, naming: nm })
+  assert.equal(on.length, 1)
+  assert.equal(on[0].tcpOptions.destinationPortRange.min, 22)
+  const off = deriveValue('publicIngressRules', { blueprint: BP, inputs: { ...INPUTS, 'topology.enableSshIngress': 'false' }, naming: nm })
+  assert.deepEqual(off, [])
+})
+t('derive: egress allow-all', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const eg = deriveValue('publicEgressRules', { blueprint: BP, inputs: INPUTS, naming: nm })
+  assert.equal(eg[0].protocol, 'all')
+  assert.equal(eg[0].destination, '0.0.0.0/0')
+})
+t('derive: managedFreeformTags render → $RUN_ID', () => {
+  const nm = computeNaming(BP, POL, INPUTS)
+  const tags = materialize(deriveValue('managedFreeformTags', { blueprint: BP, inputs: INPUTS, naming: nm }), tok => tok.__ref === 'runId' ? '$RUN_ID' : '?')
+  assert.equal(tags['blueprint-run-id'], '$RUN_ID')
+  assert.equal(tags['blueprint-id'], 'network-baseline-2tier')
 })
 
 console.log(`\nblueprint 엔진 테스트 통과 — ${passed}건`)
