@@ -310,6 +310,12 @@ t('render: Windows glob 회피 — JSON 배열 인자는 인라인 [ 금지, fil
   assert.ok(s.includes('--security-list-ids "file://$BP_TMP/'))
   assert.ok(s.includes('BP_TMP=".bp-tmp-$RUN_ID"') && s.includes('rm -rf "$BP_TMP"'))
 })
+t('render: Apply 는 실패 캡처(FAILED)+결과파일(tee) 포함', () => {
+  const s = renderApply({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, plan: plan0, planDigest: 'deadbeef' }).content
+  assert.ok(s.includes('action:"FAILED"'), '실패 노드 캡처 없음')
+  assert.ok(s.includes('.err"); then'), 'stderr 캡처 없음')
+  assert.ok(s.includes('tee "run-result-$RUN_ID.json"'), '결과 파일(tee) 없음')
+})
 t('render: Rollback 이중확인 가드 포함', () => {
   const s = renderRollback({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, manifest: manifest0 }).content
   assert.ok(s.includes('CONFIRM_RUN_ID'))

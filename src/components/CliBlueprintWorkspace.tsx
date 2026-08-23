@@ -12,10 +12,11 @@ import type {
 } from '../lib/oci-cli/blueprintTypes.d.mts'
 
 type Catalog = { commands: Record<string, unknown> }
-const TABS = ['design', 'discover', 'plan', 'apply', 'verify', 'manifest'] as const
+// 단계 축소: DISCOVER+PLAN → 조사·계획, APPLY+VERIFY → 적용·검증 (6→4 단계)
+const TABS = ['design', 'discover', 'apply', 'manifest'] as const
 type Tab = typeof TABS[number]
 const TAB_LABEL: Record<Tab, string> = {
-  design: '1 · DESIGN', discover: '2 · DISCOVER', plan: '3 · PLAN', apply: '4 · APPLY', verify: '5 · VERIFY', manifest: '6 · MANIFEST',
+  design: '1 · 설계', discover: '2 · 조사·계획', apply: '3 · 적용·검증', manifest: '4 · 매니페스트',
 }
 const STATE_TONE: Record<string, string> = { CREATE: 'create', REUSE: 'reuse', CONFLICT: 'conflict', BLOCKED: 'blocked', SKIP: 'skip' }
 const NAMING_SEGMENTS = ['resource', 'customer', 'workload', 'environment', 'regionAlias', 'role', 'sequence'] as const
@@ -139,15 +140,30 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-// 스크립트는 기본 접힘 — 붙여넣기/결과 영역을 가리지 않게. 필요할 때만 펼쳐서 보고 복사.
-function ScriptBlock({ script, defaultOpen }: { script: RenderedScript; defaultOpen?: boolean }) {
+function DownloadButton({ text, filename }: { text: string; filename: string }) {
+  return (
+    <button type="button" className="bp-copy bp-dl" title={filename} onClick={e => {
+      e.preventDefault(); e.stopPropagation()
+      const blob = new Blob([text], { type: 'text/x-shellscript' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = filename
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    }}>⬇ .sh</button>
+  )
+}
+
+// 스크립트는 기본 접힘 — 붙여넣기/결과 영역을 가리지 않게. 필요할 때만 펼쳐서 보고 복사·다운로드.
+function ScriptBlock({ script, prefix, defaultOpen }: { script: RenderedScript; prefix?: string; defaultOpen?: boolean }) {
   const lineCount = script.content.split('\n').length
+  const filename = `${prefix ? prefix + '__' : ''}${script.name}`
   return (
     <details className="bp-script" open={defaultOpen}>
       <summary className="bp-script-head">
         <span className="bp-script-caret" aria-hidden>▸</span>
-        <span className="bp-mono">{script.name}</span>
-        <span className="bp-script-hint">스크립트 보기 · {lineCount}줄</span>
+        <span className="bp-mono">{filename}</span>
+        <span className="bp-script-hint">보기 · {lineCount}줄</span>
+        <DownloadButton text={script.content} filename={filename} />
         <CopyButton text={script.content} />
       </summary>
       <pre className="bp-pre"><code>{script.content}</code></pre>
@@ -257,6 +273,7 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
 
   const runResult = useMemo<RunResult | undefined>(() => parseArtifact<RunResult>(runRaw, 'run-result').value, [runRaw])
   const runErr = parseArtifact(runRaw, 'run-result').error
+  const failedNodes = useMemo(() => (runResult?.nodes || []).filter(n => n.action === 'FAILED'), [runResult])
   const manifest = useMemo<RunManifest | null>(() => (blueprint && plan && runResult && naming) ? buildProvisionalManifest({ blueprint, plan, runResult, naming }) : null, [blueprint, plan, runResult, naming])
   const verification = useMemo<VerificationResult | undefined>(() => parseArtifact<VerificationResult>(verifyRaw, 'verification-result').value, [verifyRaw])
   const verifyErr = parseArtifact(verifyRaw, 'verification-result').error
@@ -311,43 +328,37 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
             <DesignTab blueprint={blueprint} inputs={inputs} setInput={setInput} preset={preset} setPreset={p => { setPreset(p); const pr = blueprint.presets?.find(x => x.id === p); if (pr) setInputs(prev => ({ ...prev, ...mergeSerialized(blueprint, { ...pr.values, ...(pr.enforced ?? {}) }) })) }} enforcedKeys={enforcedKeys} naming={naming} />
           )}
 
+          {/* 2 · 조사·계획 = DISCOVER + PLAN */}
           {tab === 'discover' && renderArgs && (
             <div className="bp-tabpanel">
-              <p className="bp-lead">기존 자원을 <b>읽기 전용</b>으로 조회합니다. 실행 후 마지막 JSON 을 아래에 붙여넣으세요.</p>
-              <ScriptBlock script={renderDiscover(renderArgs)} />
-              <ImportBox label="Discovery 결과 Import" expected="discovery-result" value={discoverRaw} onChange={setDiscoverRaw} error={discoveryErr} />
-              {discovery ? <p className="bp-ok">✓ Discovery {discovery.nodes.length}개 노드 로드됨 → PLAN 탭 확인</p> : null}
+              <p className="bp-lead">① 기존 자원을 <b>읽기 전용</b>으로 조회 → 결과를 붙여넣으면 ② 계획(Plan)이 자동 계산됩니다.</p>
+              <ScriptBlock script={renderDiscover(renderArgs)} prefix={renderArgs.blueprint.id} />
+              <ImportBox label="① Discovery 결과 붙여넣기" expected="discovery-result" value={discoverRaw} onChange={setDiscoverRaw} error={discoveryErr} />
+              <div className="bp-step-div">② 계획 (Plan)</div>
+              <PlanTab plan={plan} planDigest={planDigest} />
             </div>
           )}
 
-          {tab === 'plan' && (
-            <PlanTab plan={plan} planDigest={planDigest} />
-          )}
-
+          {/* 3 · 적용·검증 = APPLY + VERIFY */}
           {tab === 'apply' && renderArgs && (
             <div className="bp-tabpanel">
               {addressIssues.length ? <div className="bp-err">주소(CIDR) 오류로 Apply 를 생성하지 않습니다 — 서브넷은 VCN CIDR 안에 있어야 합니다:<ul>{addressIssues.map((i, k) => <li key={k}>{i}</li>)}</ul></div>
-                : !plan ? <p className="bp-warn">먼저 DISCOVER 에서 결과를 Import 하면 PLAN 이 계산됩니다.</p>
-                : !plan.executable ? <p className="bp-err">PLAN 에 CONFLICT/BLOCKED 가 있어 Apply 를 생성하지 않습니다. 충돌을 해소하세요.</p>
+                : !plan ? <p className="bp-warn">먼저 ‘조사·계획’ 탭에서 discovery 결과를 붙여넣으세요.</p>
+                : !plan.executable ? <p className="bp-err">계획에 CONFLICT/BLOCKED 가 있어 Apply 를 생성하지 않습니다. 충돌을 해소하세요.</p>
                   : <>
-                    <p className="bp-lead">아래 스크립트를 검토 후 실행하고, 마지막 <span className="bp-mono">run-result</span> JSON 을 붙여넣으세요.</p>
-                    <ScriptBlock script={renderApply({ ...renderArgs, plan, planDigest })} />
-                    <details className="bp-details"><summary>중단 후 재개(Resume)</summary><ScriptBlock script={renderResume({ ...renderArgs, plan, planDigest, priorRunResult: runResult })} /></details>
-                    <ImportBox label="Run 결과 Import" expected="run-result" value={runRaw} onChange={setRunRaw} error={runErr} />
-                    {manifest ? <p className="bp-ok">✓ PROVISIONAL manifest 생성됨 → VERIFY/MANIFEST 확인</p> : null}
+                    <p className="bp-lead">① 스크립트 실행 → run-result 붙여넣기 → ② 검증(Verify) 이어서.</p>
+                    <ScriptBlock script={renderApply({ ...renderArgs, plan, planDigest })} prefix={renderArgs.blueprint.id} />
+                    <details className="bp-details"><summary>중단 후 재개(Resume) 스크립트</summary><ScriptBlock script={renderResume({ ...renderArgs, plan, planDigest, priorRunResult: runResult })} prefix={renderArgs.blueprint.id} /></details>
+                    <ImportBox label="① Run 결과 붙여넣기" expected="run-result" value={runRaw} onChange={setRunRaw} error={runErr} />
+                    {failedNodes.length ? <div className="bp-err">실패한 노드: <ul>{failedNodes.map((n, k) => <li key={k}><b>{n.node}</b> — {n.error || '원인 미기록'}</li>)}</ul></div> : null}
+                    {manifest ? <p className="bp-ok">✓ manifest 생성됨 ({manifest.nodes.filter(n => n.action === 'CREATED').length} 생성 · rollback 대상 {manifest.rollbackEligible.length})</p> : null}
+                    {manifest ? <>
+                      <div className="bp-step-div">② 검증 (Verify)</div>
+                      <ScriptBlock script={renderVerify({ ...renderArgs, manifest })} prefix={renderArgs.blueprint.id} />
+                      <ImportBox label="② 검증 결과 붙여넣기" expected="verification-result" value={verifyRaw} onChange={setVerifyRaw} error={verifyErr} />
+                      {verification && finalManifest ? <VerifySummary manifest={finalManifest} /> : null}
+                    </> : null}
                   </>}
-            </div>
-          )}
-
-          {tab === 'verify' && renderArgs && (
-            <div className="bp-tabpanel">
-              {!manifest ? <p className="bp-warn">APPLY 에서 run-result 를 Import 한 뒤 Verify 를 생성할 수 있습니다.</p>
-                : <>
-                  <p className="bp-lead">생성된 자원을 검증하고 <span className="bp-mono">verification-result</span> 를 붙여넣으세요.</p>
-                  <ScriptBlock script={renderVerify({ ...renderArgs, manifest })} />
-                  <ImportBox label="검증 결과 Import" expected="verification-result" value={verifyRaw} onChange={setVerifyRaw} error={verifyErr} />
-                  {verification && finalManifest ? <VerifySummary manifest={finalManifest} /> : null}
-                </>}
             </div>
           )}
 
@@ -926,7 +937,7 @@ function ManifestTab({ manifest, renderArgs, planDigest }: { manifest: RunManife
       <details className="bp-details">
         <summary>롤백 스크립트 (CREATED 자원만, 이중 확인 필요)</summary>
         <p className="bp-warn">실행 전 <span className="bp-mono">CONFIRM_RUN_ID</span> 와 <span className="bp-mono">CONFIRM_COMPARTMENT_ID</span> 를 환경변수로 설정해야 합니다. 재사용(REUSE) 자원은 삭제하지 않습니다.</p>
-        <ScriptBlock script={renderRollback({ ...renderArgs, manifest })} />
+        <ScriptBlock script={renderRollback({ ...renderArgs, manifest })} prefix={renderArgs.blueprint.id} />
       </details>
     </div>
   )

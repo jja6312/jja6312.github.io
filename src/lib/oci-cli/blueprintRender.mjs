@@ -108,10 +108,17 @@ function renderCreateNode(node, ctx, catalog, out) {
   }
   if (hasOption(catalog, node.commandRef.resource, 'create', '--wait-for-state')) args.push('--wait-for-state AVAILABLE', '--max-wait-seconds 600')
   const cmd = cmdOf(catalog, node.commandRef.resource, 'create')
-  out.push(`${V}_JSON=$(${cmd} ${COMMON} \\`)
-  out.push(args.map(a => `  ${a}`).join(' \\\n') + ')')
+  // 실패 시 stderr 를 캡처해 run-result 에 FAILED 노드로 남기고 중단(trap 이 부분결과 flush).
+  out.push(`if ${V}_JSON=$(${cmd} ${COMMON} \\`)
+  out.push(args.map(a => `  ${a}`).join(' \\\n') + ` 2>"$BP_TMP/${V}.err"); then`)
   captureOutputs(node, `${V}_JSON`, out)
-  out.push(`echo "  → ${node.id} 생성: $${varNameForNode(node.id, '/data/id')}" >&2`)
+  out.push(`  echo "  → ${node.id} 생성: $${varNameForNode(node.id, '/data/id')}" >&2`)
+  out.push('else')
+  out.push(`  ${V}_ERR=$(tr -d '\\r' < "$BP_TMP/${V}.err")`)
+  out.push(`  echo "  ✗ ${node.id} 실패: $${V}_ERR" >&2`)
+  out.push(`  RESULT_NODES+=("$(jq -nc --arg e "$${V}_ERR" '{node:"${node.id}",action:"FAILED",error:$e}')")`)
+  out.push('  exit 1')
+  out.push('fi')
 }
 
 function renderReuseNode(node, catalog, existingId, out, header) {
@@ -138,7 +145,9 @@ function renderApplyLike({ blueprint, catalog, inputs, naming, plan, planDigest,
   out.push('emit_result() {')
   out.push('  local body="[]"')
   out.push('  if [ ${#RESULT_NODES[@]} -gt 0 ]; then body=$(printf "%s\\n" "${RESULT_NODES[@]}" | jq -s "."); fi')
-  out.push(`  echo "$body" | jq --arg rid "$RUN_ID" --arg pd "$PLAN_DIGEST" '{artifactType:"run-result",runId:$rid,planDigest:$pd,nodes:.}'`)
+  // stdout 으로 출력하면서 실패(에러) 포함 결과를 별도 파일로도 남긴다(붙여넣기·보관용).
+  out.push(`  echo "$body" | jq --arg rid "$RUN_ID" --arg pd "$PLAN_DIGEST" '{artifactType:"run-result",runId:$rid,planDigest:$pd,nodes:.}' | tee "run-result-$RUN_ID.json"`)
+  out.push('  echo "→ 결과 파일: run-result-$RUN_ID.json" >&2')
   out.push('}')
   out.push("trap 'rc=$?; [ $rc -ne 0 ] && echo \"── 중단: 부분 run-result 를 출력합니다 ──\" >&2; emit_result; rm -rf \"$BP_TMP\"; exit $rc' EXIT")
   out.push('echo "run-id: $RUN_ID" >&2')
@@ -234,7 +243,8 @@ export function renderDiscover({ blueprint, catalog, inputs, naming }) {
   const svc = needsService(blueprint)
     ? `--argjson services "$(jq -nc --arg id "$SGW_SERVICE_ID" --arg cidr "$SGW_SERVICE_CIDR_BLOCK" '[{key:"oracleServicesNetworkAll",items:[{id:$id,name:"all-services","cidr-block":$cidr}]}]')"`
     : '--argjson services "[]"'
-  out.push(`printf '%s\\n' "\${DISC_NODES[@]}" | jq -s ${svc} --arg profile "$OCI_PROFILE" --arg region "$OCI_REGION" --arg compartment "$COMPARTMENT_ID" '{artifactType:"discovery-result",context:{profile:$profile,region:$region,compartmentId:$compartment},services:$services,nodes:.}'`)
+  out.push(`printf '%s\\n' "\${DISC_NODES[@]}" | jq -s ${svc} --arg profile "$OCI_PROFILE" --arg region "$OCI_REGION" --arg compartment "$COMPARTMENT_ID" '{artifactType:"discovery-result",context:{profile:$profile,region:$region,compartmentId:$compartment},services:$services,nodes:.}' | tee "discovery-result.json"`)
+  out.push('echo "→ 결과 파일: discovery-result.json" >&2')
   return { name: 'discover.sh', title: `Discover: ${blueprint.label}`, content: out.join('\n') + '\n' }
 }
 
@@ -264,7 +274,8 @@ export function renderVerify({ blueprint, catalog, inputs, naming, manifest }) {
     }
   }
   out.push('', '# ── verification-result (stdout JSON 을 블로그에 Import) ──')
-  out.push(`printf '%s\\n' "\${VERIFY_CHECKS[@]}" | jq -s --arg rid ${shq(manifest?.runId || '')} '{artifactType:"verification-result",runId:$rid,checks:.}'`)
+  out.push(`printf '%s\\n' "\${VERIFY_CHECKS[@]}" | jq -s --arg rid ${shq(manifest?.runId || '')} '{artifactType:"verification-result",runId:$rid,checks:.}' | tee "verification-result.json"`)
+  out.push('echo "→ 결과 파일: verification-result.json" >&2')
   return { name: 'verify.sh', title: `Verify: ${blueprint.label}`, content: out.join('\n') + '\n' }
 }
 
