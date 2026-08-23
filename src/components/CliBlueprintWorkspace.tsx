@@ -4,6 +4,7 @@ import { computePlan, planDigestInput } from '../lib/oci-cli/blueprintPlan.mjs'
 import { renderDiscover, renderApply, renderResume, renderVerify, renderRollback } from '../lib/oci-cli/blueprintRender.mjs'
 import { buildProvisionalManifest, mergeVerification } from '../lib/oci-cli/blueprintManifest.mjs'
 import { sha256Hex } from '../lib/oci-cli/blueprintCanonical.ts'
+import { validateAddressing } from '../lib/oci-cli/cidr.mjs'
 import { findOciRegion, ociRegionLabel, searchOciRegions } from '../data/ociRegions.mjs'
 import type {
   BlueprintCatalog, CliBlueprint, NamingPolicy, InputValues, DiscoveryResult,
@@ -253,9 +254,13 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
   const verifyErr = parseArtifact(verifyRaw, 'verification-result').error
   const finalManifest = useMemo<RunManifest | null>(() => (manifest && verification) ? mergeVerification(manifest, verification) : manifest, [manifest, verification])
 
+  // 주소(CIDR) 사전검증 — Apply 전에 잡아 부분 실패(자원 N개 생성 후 서브넷서 중단) 방지
+  const addressIssues = useMemo(() => (blueprint ? validateAddressing(inputs) : []), [blueprint, inputs])
+
   // 검증 사이드바 항목
   const issues: { tone: string; text: string }[] = []
   if (naming) for (const i of naming.issues) issues.push({ tone: 'warn', text: i })
+  for (const i of addressIssues) issues.push({ tone: 'err', text: i })
   if (discoveryErr) issues.push({ tone: 'err', text: `Discovery import: ${discoveryErr}` })
   if (runErr) issues.push({ tone: 'err', text: `Run-result import: ${runErr}` })
   if (verifyErr) issues.push({ tone: 'err', text: `Verify import: ${verifyErr}` })
@@ -313,7 +318,8 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
 
           {tab === 'apply' && renderArgs && (
             <div className="bp-tabpanel">
-              {!plan ? <p className="bp-warn">먼저 DISCOVER 에서 결과를 Import 하면 PLAN 이 계산됩니다.</p>
+              {addressIssues.length ? <div className="bp-err">주소(CIDR) 오류로 Apply 를 생성하지 않습니다 — 서브넷은 VCN CIDR 안에 있어야 합니다:<ul>{addressIssues.map((i, k) => <li key={k}>{i}</li>)}</ul></div>
+                : !plan ? <p className="bp-warn">먼저 DISCOVER 에서 결과를 Import 하면 PLAN 이 계산됩니다.</p>
                 : !plan.executable ? <p className="bp-err">PLAN 에 CONFLICT/BLOCKED 가 있어 Apply 를 생성하지 않습니다. 충돌을 해소하세요.</p>
                   : <>
                     <p className="bp-lead">아래 스크립트를 검토 후 실행하고, 마지막 <span className="bp-mono">run-result</span> JSON 을 붙여넣으세요.</p>
