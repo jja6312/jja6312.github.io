@@ -21,6 +21,7 @@ const tabs: Tab[] = [
   {
     to: '/knowledge', label: '지식모음', children: [
       { to: '/knowledge/oci-cli', label: 'OCI CLI' },
+      { to: '/knowledge/cli-wizard', label: 'CLI UI Wizard' },
       { to: '/knowledge/terraform', label: 'Terraform' },
       { to: '/knowledge/troubleshooting', label: '트러블슈팅' },
       { to: '/knowledge/support-history', label: '지원이력' },

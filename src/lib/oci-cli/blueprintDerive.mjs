@@ -37,11 +37,13 @@ const egressAll = () => ([{
  * @returns {unknown}
  */
 export function deriveValue(key, ctx) {
-  const { inputs, naming } = ctx
+  const { inputs, naming, node } = ctx
   switch (key) {
     case 'vcnDnsLabel': return naming.names['vcn']?.dnsLabel ?? ''
     case 'publicSubnetDnsLabel': return naming.names['public-subnet']?.dnsLabel ?? ''
     case 'privateSubnetDnsLabel': return naming.names['private-subnet']?.dnsLabel ?? ''
+    // 노드-인식 일반 DNS label — CLI UI Wizard 의 자유 조합용(현재 노드의 dnsLabel)
+    case 'dnsLabel': return naming.names[node?.id]?.dnsLabel ?? ''
 
     case 'managedFreeformTags':
       return { ...naming.staticTags, 'blueprint-run-id': runIdRef() }
@@ -81,7 +83,7 @@ export function deriveValue(key, ctx) {
 }
 
 export const DERIVED_KEYS = [
-  'vcnDnsLabel', 'publicSubnetDnsLabel', 'privateSubnetDnsLabel', 'managedFreeformTags',
+  'vcnDnsLabel', 'publicSubnetDnsLabel', 'privateSubnetDnsLabel', 'dnsLabel', 'managedFreeformTags',
   'publicRouteRules', 'privateRouteRules',
   'publicIngressRules', 'publicEgressRules', 'privateIngressRules', 'privateEgressRules',
 ]

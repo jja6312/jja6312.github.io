@@ -18,6 +18,7 @@ export const LOCKS: { prefix: string; level: Level }[] = [
   { prefix: '/schedule/goals', level: 2 },
   { prefix: '/schedule/automation-inbox', level: 3 },
   { prefix: '/knowledge/oci-cli', level: 1 },
+  { prefix: '/knowledge/cli-wizard', level: 1 },
   { prefix: '/knowledge/terraform', level: 1 },
   { prefix: '/knowledge/quote', level: 1 },
 ]

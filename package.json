@@ -11,6 +11,7 @@
     "test:blueprint": "node scripts/generate-cli-blueprints.mjs && node scripts/verify-oci-cli-blueprints.mjs && node scripts/test-blueprint-engine.mjs",
     "test:tasks": "node scripts/test-task-reconcile.mjs",
     "test:cidr": "node scripts/test-cidr.mjs",
+    "test:wizard": "node scripts/test-wizard-compose.mjs",
     "test:oci-msp": "node scripts/verify-oci-msp-learning.mjs",
     "test:oci-source": "python scripts/verify-oci-cli-source.py",
     "test:oci-click": "python scripts/verify-oci-cli-click.py",

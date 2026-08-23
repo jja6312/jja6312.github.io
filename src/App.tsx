@@ -23,6 +23,7 @@ const XP_SYSTEMS = [
   { match: /^\/learning/, id: 'learning', label: '학습' },
   { match: /^\/feedback/, id: 'feedback', label: '피드백' },
   { match: /^\/knowledge\/oci-cli/, id: 'oci-cli', label: 'OCI CLI' },
+  { match: /^\/knowledge\/cli-wizard/, id: 'cli-wizard', label: 'CLI UI Wizard' },
   { match: /^\/knowledge\/terraform/, id: 'terraform', label: 'Terraform' },
   { match: /^\/knowledge\/troubleshooting/, id: 'troubleshooting', label: '트러블슈팅' },
   { match: /^\/knowledge\/support-history/, id: 'support-history', label: '지원이력' },
@@ -89,6 +90,7 @@ function Hotkeys() {
         else if (e.key === 'h') nav('/knowledge/support-history')
         else if (e.key === 'a') nav('/knowledge/announcements')
         else if (e.key === 'c') nav('/knowledge/oci-cli')
+        else if (e.key === 'w') nav('/knowledge/cli-wizard')
         else if (e.key === 't') nav('/knowledge/terraform')
         else if (e.key === 'q') nav('/knowledge/quote')
         else if (e.key === 'v') nav('/knowledge/provisioning')

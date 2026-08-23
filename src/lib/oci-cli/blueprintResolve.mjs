@@ -6,11 +6,15 @@ import { shq } from './shellQuote.mjs'
 
 const lastSeg = pointer => String(pointer).split('/').filter(Boolean).pop() || ''
 
-// json value-source 안에 중첩된 value-source({source:...}) 를 찾아 치환한다(__ref 가 아니라 source 기준).
+// 알려진 value-source 판별자만 value-source 로 취급한다. OCI 데이터에 'source' 키가 있어도
+// (예: security rule 의 source=CIDR) value-source 로 오인하지 않게 한다.
+const KNOWN_SOURCES = new Set(['literal', 'input', 'derived', 'context', 'name', 'nodeOutput', 'discovery', 'json'])
+
+// json value-source 안에 중첩된 value-source 를 찾아 치환한다(알려진 source 타입 기준).
 function walkValueSources(value, onSource) {
   if (Array.isArray(value)) return value.map(v => walkValueSources(v, onSource))
   if (value && typeof value === 'object') {
-    if (typeof value.source === 'string') return onSource(value)
+    if (typeof value.source === 'string' && KNOWN_SOURCES.has(value.source)) return onSource(value)
     const out = {}
     for (const [k, v] of Object.entries(value)) out[k] = walkValueSources(v, onSource)
     return out
