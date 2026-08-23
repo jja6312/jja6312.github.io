@@ -132,13 +132,15 @@ function renderApplyLike({ blueprint, catalog, inputs, naming, plan, planDigest,
   out.push(`RUN_ID="\${RUN_ID:-run-$(date -u +%Y%m%d%H%M%S)-$$}"`)
   out.push(`PLAN_DIGEST=${shq(planDigest || '')}`)
   out.push('RESULT_NODES=()')
+  // JSON 배열 인자를 임시파일 file:// 로 전달(Windows Click 의 glob 확장 회피). 상대경로 = CWD 기준.
+  out.push('BP_TMP=".bp-tmp-$RUN_ID"; mkdir -p "$BP_TMP"')
   // 실패해도 EXIT trap 이 지금까지의 부분 run-result 를 stdout 으로 flush → resume/rollback 가능
   out.push('emit_result() {')
   out.push('  local body="[]"')
   out.push('  if [ ${#RESULT_NODES[@]} -gt 0 ]; then body=$(printf "%s\\n" "${RESULT_NODES[@]}" | jq -s "."); fi')
   out.push(`  echo "$body" | jq --arg rid "$RUN_ID" --arg pd "$PLAN_DIGEST" '{artifactType:"run-result",runId:$rid,planDigest:$pd,nodes:.}'`)
   out.push('}')
-  out.push("trap 'rc=$?; [ $rc -ne 0 ] && echo \"── 중단: 부분 run-result 를 출력합니다 ──\" >&2; emit_result; exit $rc' EXIT")
+  out.push("trap 'rc=$?; [ $rc -ne 0 ] && echo \"── 중단: 부분 run-result 를 출력합니다 ──\" >&2; emit_result; rm -rf \"$BP_TMP\"; exit $rc' EXIT")
   out.push('echo "run-id: $RUN_ID" >&2')
   if (needsService(blueprint)) out.push('', ...serviceListBlock(true))
   const ctx = { blueprint, inputs, naming }

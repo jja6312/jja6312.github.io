@@ -182,10 +182,13 @@ export function emitOption(optionName, rv, varPrefix) {
     return { pre: [], arg: `${optionName} ${shq(rv.v)}` }
   }
   if (rv.t === 'var') return { pre: [], arg: `${optionName} "$${rv.name}"` }
-  // json
-  if (!hasVar(rv.tree)) return { pre: [], arg: `${optionName} ${shq(JSON.stringify(rv.tree))}` }
+  // json → 임시파일 file:// 로 전달한다. 인라인으로 넘기면 '[' 로 시작하는 JSON 배열을
+  // Windows 의 oci(Click) 가 glob 패턴으로 확장하다 OCID 속 region('...-1' 등)에서
+  // '잘못된 문자 범위(bad character range)' 로 죽는다. BP_TMP 는 Apply/Resume 스크립트가 만든다.
   const jsonVar = `${varPrefix}_${optionName.replace(/^--/, '').replace(/[^A-Za-z0-9]+/g, '_')}`.toUpperCase()
-  const { expr, args } = buildJqExpr(rv.tree)
-  const argStr = args.map(a => `--arg ${a.jq} "$${a.bash}"`).join(' ')
-  return { pre: [`${jsonVar}=$(jq -nc ${argStr} ${shq(expr)})`], arg: `${optionName} "$${jsonVar}"` }
+  const path = `$BP_TMP/${jsonVar}.json`
+  const write = hasVar(rv.tree)
+    ? (() => { const { expr, args } = buildJqExpr(rv.tree); return `jq -nc ${args.map(a => `--arg ${a.jq} "$${a.bash}"`).join(' ')} ${shq(expr)} > "${path}"` })()
+    : `printf '%s' ${shq(JSON.stringify(rv.tree))} > "${path}"`
+  return { pre: [write], arg: `${optionName} "file://${path}"` }
 }

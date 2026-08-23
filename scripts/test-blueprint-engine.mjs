@@ -299,6 +299,17 @@ t('render: Apply 에 run-id 태그·jq·표준변수 포함', () => {
   assert.ok(s.includes('--freeform-tags'))
   assert.ok(s.includes('artifactType":"run-result') || s.includes('run-result'))
 })
+t('render: Windows glob 회피 — JSON 배열 인자는 인라인 [ 금지, file:// 사용', () => {
+  const s = renderApply({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, plan: plan0, planDigest: 'deadbeef' }).content
+  // '[' 로 시작하는 인라인 JSON 인자가 있으면 Windows Click 이 glob 확장하다 죽는다(seoul-1 → l-1)
+  assert.ok(!/--[a-z-]+ '\[/.test(s), '인라인 [ JSON 인자가 남아있으면 안 됨')
+  assert.ok(!/--[a-z-]+ "\[/.test(s), '인라인 [ JSON 인자가 남아있으면 안 됨')
+  // 배열 JSON 옵션은 file:// 임시파일로
+  assert.ok(s.includes('--services "file://$BP_TMP/'))
+  assert.ok(s.includes('--route-rules "file://$BP_TMP/'))
+  assert.ok(s.includes('--security-list-ids "file://$BP_TMP/'))
+  assert.ok(s.includes('BP_TMP=".bp-tmp-$RUN_ID"') && s.includes('rm -rf "$BP_TMP"'))
+})
 t('render: Rollback 이중확인 가드 포함', () => {
   const s = renderRollback({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, manifest: manifest0 }).content
   assert.ok(s.includes('CONFIRM_RUN_ID'))
