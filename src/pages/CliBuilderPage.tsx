@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import CliBlueprintWorkspace from '../components/CliBlueprintWorkspace'
+import CliInputWizard, { defaultCliWizardControl, useCliInputWizardShortcut, type CliWizardQuestion, type CliWizardRenderContext } from '../components/CliInputWizard'
 import type { BlueprintCatalog } from '../lib/oci-cli/blueprintTypes.d.mts'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
@@ -1800,6 +1801,7 @@ export default function CliBuilderPage() {
   const [selectedAction, setSelectedAction] = useState<string | null>(null)
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [customOpen, setCustomOpen] = useState(false)
   const [instancePreflightInput, setInstancePreflightInput] = useState('')
   const [instancePreflightError, setInstancePreflightError] = useState('')
@@ -1892,6 +1894,7 @@ export default function CliBuilderPage() {
   }
 
   const cmd = active !== '__custom' ? CAT.commands[active] : null
+  useCliInputWizardShortcut(Boolean(cmd) && sp.get('mode') !== 'blueprint', () => setWizardOpen(true))
   const selectedActionMeta = selectedAction ? cmd?.actions?.[selectedAction] : undefined
   const selectedOperation = selectedActionMeta ?? cmd?.operations?.[crudOperation]
   const formSurface = selectedOperation ?? cmd
@@ -1968,6 +1971,47 @@ export default function CliBuilderPage() {
   const formOptions = [...formSections.flatMap(section => section.options), ...formAdvanced]
   const formOptionsByName = new Map(formOptions.map(option => [option.name, option]))
   const setExecutionVal = (name: string, value: string) => setExecutionValues(current => ({ ...current, [name]: value }))
+  const wizardQuestions = useMemo<CliWizardQuestion[]>(() => {
+    const questions: CliWizardQuestion[] = []
+    const seen = new Set<string>()
+    const add = (option: CliOption, scope: 'context' | 'resource', recommended = false) => {
+      if (seen.has(option.name) || option.deprecated) return
+      seen.add(option.name)
+      const requirement = option.requirement ?? (option.required ? 'required' : 'optional')
+      const spec = JSONSPEC[option.name]
+      questions.push({
+        id: scope + ':' + option.name,
+        valueId: option.name,
+        label: scope === 'context'
+          ? (option.name === '--profile' ? '프로필' : option.name === '--region' ? '리전' : option.name)
+          : (option.displayLabel || option.name),
+        type: option.type,
+        choices: option.choices ?? undefined,
+        optional: requirement === 'optional',
+        recommended,
+        requirement,
+        help: option.help,
+        placeholder: option.placeholder,
+        meta: option,
+        isFilled: current => {
+          if (String(current[option.name] ?? '').trim()) return true
+          if (option.multiSelect && String(current[subKey(option.name, 'custom')] ?? '').trim()) return true
+          return !!spec?.fields?.some(field => String(current[subKey(option.name, field.key)] ?? '').trim())
+        },
+      })
+    }
+    const request = [...requestContextOptions].sort((a, b) => {
+      const order = ['--profile', '--region', '--auth', '--endpoint']
+      return order.indexOf(a.name) - order.indexOf(b.name)
+    })
+    request.forEach(option => add(option as CliOption, 'context', option.name === '--profile' || option.name === '--region'))
+    const resourceOptions = [...visibleFormSections.flatMap(section => section.options), ...visibleFormAdvanced]
+    const priority = (option: CliOption) => option.requirement === 'required' || option.required ? 0 : option.requirement === 'conditional' ? 1 : 2
+    resourceOptions.sort((a, b) => priority(a) - priority(b)).forEach(option => add(option, 'resource'))
+    if (responseContextEnabled) responseContextOptions.forEach(option => add(option as CliOption, 'context'))
+    return questions
+  }, [requestContextOptions, responseContextEnabled, responseContextOptions, visibleFormAdvanced, visibleFormSections])
+  const wizardValues = { ...values, ...executionValues }
   const validationValues = { ...effectiveValues }
   for (const option of formOptions) {
     if (JSONSPEC[option.name]) validationValues[option.name] = buildJsonValue(option.name, values)
@@ -2015,6 +2059,10 @@ export default function CliBuilderPage() {
     }
     return next
   })
+  const setWizardValue = (name: string, value: string) => {
+    if (isExecutionContextName(name) || name.startsWith('--query::')) setExecutionVal(name, value)
+    else setVal(name, value)
+  }
   const setFormVal = (option: CliOption, value: string) => {
     if (option.name !== '--shape') { setVal(option.name, value); return }
     setValues(current => ({
@@ -2316,6 +2364,12 @@ export default function CliBuilderPage() {
                 <span>{executionValues['--auth'] || '기본 인증'}</span>
               </span>
             </button>
+            <div className="cli-context-actions">
+              <button type="button" className="cli-input-wizard-launch" aria-keyshortcuts="Alt+I"
+                onClick={() => setWizardOpen(true)}>
+                입력 마법사 <kbd>Alt+I</kbd><span>프로필·리전 → 필수 → 선택</span>
+              </button>
+            </div>
             {contextOpen && (
               <div className="cli-context-body">
                 <p>이 값은 자원 입력과 분리되며 동적 조회와 실제 명령에 동일하게 전달됩니다. Region을 비우면 프로필 설정을 사용합니다.</p>
@@ -2508,6 +2562,10 @@ export default function CliBuilderPage() {
           </>
         )}
       </aside>
+      {wizardOpen && cmd ? (
+        <CliInputWizard questions={wizardQuestions} values={wizardValues} setValue={setWizardValue}
+          onClose={() => setWizardOpen(false)} title="OCI CLI INPUT" renderControl={renderCliWizardControl} />
+      ) : null}
     </div>
   )
 }
@@ -2895,6 +2953,115 @@ function ImageOptionField({ fieldId, option, label, value, onChange, discoveryCo
       {option.imagePicker?.docs && <a className="cli-image-docs" href={option.imagePicker.docs} target="_blank" rel="noreferrer">Oracle Image LIST 공식 문서 ↗</a>}
     </div>
   )
+}
+
+function renderCliWizardControl(context: CliWizardRenderContext): ReactNode {
+  const option = context.question.meta as CliOption | undefined
+  if (!option) return defaultCliWizardControl(context)
+  const { value, valueId, inputClass, assignRef, setValue, subValue, setSubValue } = context
+  const checked = value !== ''
+  if (option.flag || option.checkbox) {
+    return (
+      <label className="cli-wizard-check">
+        <input ref={assignRef} type="checkbox" checked={checked}
+          onChange={event => setValue(valueId, event.target.checked ? (option.defaultValue ?? 'true') : '')} />
+        <span>{checked ? (option.checkboxLabel || '사용') : '사용 안 함'}</span>
+      </label>
+    )
+  }
+  if (option.type === 'boolean') {
+    return (
+      <select ref={assignRef} className={inputClass} value={value} onChange={event => setValue(valueId, event.target.value)}>
+        {option.requirement === 'optional' ? <option value="">(미설정)</option> : null}
+        <option value="true">예</option><option value="false">아니오</option>
+      </select>
+    )
+  }
+  if (option.multiple && option.choices?.length) {
+    const selected = new Set(value.split(/\r?\n/).map(item => item.trim()).filter(Boolean))
+    return (
+      <div className="cli-wizard-checks" role="group" aria-label={option.name + ' 복수 값 선택'}>
+        {option.choices.map(choice => (
+          <label key={choice} className="cli-multiple-choice">
+            <input type="checkbox" checked={selected.has(choice)} onChange={event => {
+              const next = new Set(selected)
+              if (event.target.checked) next.add(choice); else next.delete(choice)
+              setValue(valueId, [...next].join('\n'))
+            }} />
+            <span>{choice}</span>
+          </label>
+        ))}
+      </div>
+    )
+  }
+  if (option.multiSelect && option.suggestions?.length) {
+    const selected = new Set(value.split(/\r?\n/).map(item => item.trim()).filter(Boolean))
+    const custom = subValue('custom')
+    return (
+      <div className="cli-wizard-checks" role="group" aria-label={option.name + ' 복수 선택'}>
+        {option.suggestions.map(suggestion => (
+          <label key={suggestion} className="cli-multiple-choice">
+            <input type="checkbox" checked={selected.has(suggestion)} disabled={custom.trim() !== ''}
+              onChange={event => {
+                const next = new Set(selected)
+                if (event.target.checked) next.add(suggestion); else next.delete(suggestion)
+                setValue(valueId, [...next].join('\n'))
+              }} />
+            <span>{option.suggestionLabels?.[suggestion] ?? suggestion}</span>
+          </label>
+        ))}
+        <input ref={assignRef} className={inputClass} value={custom} placeholder="직접 JMESPath 입력"
+          onChange={event => setSubValue('custom', event.target.value)} />
+      </div>
+    )
+  }
+  if (!option.multi && option.choices?.length) {
+    return (
+      <select ref={assignRef} className={inputClass} value={value} onChange={event => setValue(valueId, event.target.value)}>
+        {option.requirement !== 'required' ? <option value="">(선택 안 함)</option> : null}
+        {option.choices.map(choice => <option key={choice} value={choice}>{choice}</option>)}
+      </select>
+    )
+  }
+  const spec = JSONSPEC[option.name]
+  if (spec?.list) {
+    return <input ref={assignRef} className={inputClass} value={value} placeholder={spec.ph}
+      onChange={event => setValue(valueId, event.target.value)} />
+  }
+  if (spec?.fields) {
+    return (
+      <div className="cli-wizard-json-fields">
+        {spec.fields.map((field, index) => (
+          <label key={field.key}>
+            <span>{field.label}</span>
+            {field.kind === 'bool'
+              ? <select ref={index === 0 ? assignRef : undefined} className={inputClass} value={subValue(field.key)}
+                  onChange={event => setSubValue(field.key, event.target.value)}>
+                  <option value="">(미설정)</option><option value="true">true</option><option value="false">false</option>
+                </select>
+              : <input ref={index === 0 ? assignRef : undefined} className={inputClass} value={subValue(field.key)}
+                  placeholder={field.ph} onChange={event => setSubValue(field.key, event.target.value)} />}
+          </label>
+        ))}
+      </div>
+    )
+  }
+  if (option.type === 'json' || option.type === 'stringArray' || option.multi) {
+    return <textarea ref={assignRef} className={inputClass + ' bp-wizard-textarea'} rows={5} value={value}
+      placeholder={option.placeholder} onChange={event => setValue(valueId, event.target.value)} />
+  }
+  if (option.suggestions?.length) {
+    const listId = 'cli-wizard-suggestions-' + option.name.replaceAll('-', '')
+    return (
+      <>
+        <input ref={assignRef} className={inputClass} list={listId} value={value} placeholder={option.placeholder}
+          onChange={event => setValue(valueId, event.target.value)} />
+        <datalist id={listId}>{option.suggestions.map(suggestion => <option key={suggestion} value={suggestion} />)}</datalist>
+      </>
+    )
+  }
+  return <input ref={assignRef} className={inputClass} value={value} placeholder={option.placeholder}
+    onChange={event => setValue(valueId, event.target.value)} autoComplete="off" />
 }
 
 function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, imageDiscoveryCommand, currentShape = '', subVal, onSub }: {

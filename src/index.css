@@ -682,6 +682,21 @@ kbd {
 .cli-context-group .cli-field-help { margin-top: 2px; font-size: 9px; line-height: 1.35; }
 .cli-context-group.unavailable { align-self: stretch; opacity: .72; }
 .cli-context-unavailable { margin: 10px 0 12px; color: var(--text-faint); font-size: 11px; line-height: 1.55; }
+.cli-context-actions { display: flex; justify-content: flex-end; padding: 0 14px 10px; }
+.cli-input-wizard-launch { display: inline-flex; align-items: center; gap: 8px; border: 1px solid color-mix(in srgb, var(--accent) 46%, var(--line)); border-radius: 8px; padding: 7px 10px; background: var(--accent-glow); color: var(--accent); font: 700 11px/1.2 inherit; cursor: pointer; }
+.cli-input-wizard-launch:hover, .cli-input-wizard-launch:focus-visible { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, var(--bg-card)); outline: none; }
+.cli-input-wizard-launch kbd { padding: 2px 5px; border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line)); border-radius: 4px; color: var(--text); font: 700 10px/1 var(--mono); }
+.cli-input-wizard-launch span { color: var(--text-faint); font-size: 10px; font-weight: 500; }
+.bp-wizard-question.current small.required { color: #ff9e9e; }
+.bp-wizard-question.current small.conditional { color: #f0c94b; }
+.bp-wizard-question.current small.optional { color: #8993a3; }
+.bp-wizard-question.current small.recommended { color: #50e39a; }
+.cli-wizard-check { display: inline-flex; align-items: center; gap: 9px; color: #e8ecf3; font-size: 1.1rem; }
+.cli-wizard-check input { width: 18px; height: 18px; accent-color: #50e39a; }
+.cli-wizard-checks { display: flex; flex-wrap: wrap; gap: 7px; padding: 9px 10px; border: 1px solid #303847; border-radius: 9px; background: #10151e; }
+.cli-wizard-checks > .bp-wizard-input { flex-basis: 100%; }
+.cli-wizard-json-fields { display: grid; gap: 10px; }
+.cli-wizard-json-fields label { display: grid; grid-template-columns: minmax(130px, .5fr) minmax(0, 1fr); align-items: center; gap: 10px; color: #9ba4b3; font-size: .8rem; }
 @media (max-width: 900px) {
   .cli-context-groups { grid-template-columns: 1fr; }
 }

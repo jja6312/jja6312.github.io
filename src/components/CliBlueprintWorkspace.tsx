@@ -6,6 +6,7 @@ import { buildProvisionalManifest, mergeVerification } from '../lib/oci-cli/blue
 import { sha256Hex } from '../lib/oci-cli/blueprintCanonical.ts'
 import { validateAddressing } from '../lib/oci-cli/cidr.mjs'
 import { findOciRegion, ociRegionLabel, searchOciRegions } from '../data/ociRegions.mjs'
+import CliInputWizard, { defaultCliWizardControl, useCliInputWizardShortcut, type CliWizardQuestion, type CliWizardRenderContext } from './CliInputWizard'
 import type {
   BlueprintCatalog, CliBlueprint, NamingPolicy, InputValues, DiscoveryResult,
   RunResult, VerificationResult, RunManifest, RenderedScript, PlanNode,
@@ -70,10 +71,7 @@ function requiredInputsFor(blueprint: CliBlueprint, inputs: InputValues): Requir
   return items
 }
 
-type WizardQuestion = {
-  id: string; label: string; type: string; valueId?: string; choices?: string[]
-  optional?: boolean; help?: string; placeholder?: string
-}
+type WizardQuestion = CliWizardQuestion
 
 const INPUT_PLACEHOLDERS: Record<string, string> = {
   'execution.profile': '예: DEFAULT',
@@ -115,7 +113,7 @@ function wizardQuestionsFor(blueprint: CliBlueprint, inputs: InputValues, enforc
   } else {
     const separator = fromDef('naming.separator', false)
     if (separator) questions.push(separator)
-    questions.push({ id: 'naming.segments', label: '네이밍 요소 선택·순서', type: 'segments', optional: false, help: '↑↓ 이동, Space 포함/제외, Alt+↑↓ 순서 변경, Enter 확정' })
+    questions.push({ id: 'naming.segments', valueId: 'naming.includedSegments', label: '네이밍 요소 선택·순서', type: 'segments', optional: false, help: '↑↓ 이동, Space 포함/제외, Alt+↑↓ 순서 변경, Enter 확정', isFilled: values => decodeList(values['naming.includedSegments'], []).length > 0 })
     const included = decodeList(inputs['naming.includedSegments'])
     for (const segment of ['customer', 'workload', 'environment', 'regionAlias', 'sequence']) {
       if (!included.includes(segment)) continue
@@ -239,16 +237,7 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
   const requiredInputs = useMemo(() => blueprint ? requiredInputsFor(blueprint, inputs) : [], [blueprint, inputs])
   const wizardQuestions = useMemo(() => blueprint ? wizardQuestionsFor(blueprint, inputs, enforcedKeys) : [], [blueprint, inputs, enforcedKeys])
 
-  useEffect(() => {
-    const openWizard = (event: KeyboardEvent) => {
-      if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'i') {
-        event.preventDefault()
-        setWizardOpen(true)
-      }
-    }
-    window.addEventListener('keydown', openWizard)
-    return () => window.removeEventListener('keydown', openWizard)
-  }, [])
+  useCliInputWizardShortcut(Boolean(blueprint), () => setWizardOpen(true))
 
   const focusInput = (focusId: string) => {
     setTab('design')
@@ -396,7 +385,8 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
           ) : null}
         </aside>
       </div>
-      {wizardOpen && blueprint ? <InputWizard questions={wizardQuestions} inputs={inputs} setInput={setInput} onClose={() => setWizardOpen(false)} /> : null}
+      {wizardOpen && blueprint ? <CliInputWizard questions={wizardQuestions} values={inputs} setValue={setInput}
+        onClose={() => setWizardOpen(false)} title="BLUEPRINT INPUT" renderControl={renderBlueprintWizardControl} /> : null}
     </div>
   )
 }
@@ -746,142 +736,21 @@ function WizardSegmentPicker({ inputs, setInput, onConfirm }: {
   )
 }
 
-function questionHasValue(question: WizardQuestion, inputs: InputValues) {
-  if (question.type === 'segments') return decodeList(inputs['naming.includedSegments'], []).length > 0
-  const value = String(inputs[question.valueId ?? question.id] ?? '').trim()
-  if (question.type === 'boolean') return value === 'true' || value === 'false'
-  return Boolean(value)
-}
-
-function InputWizard({ questions, inputs, setInput, onClose }: {
-  questions: WizardQuestion[]; inputs: InputValues; setInput: (id: string, value: string) => void; onClose: () => void
-}) {
-  const [index, setIndex] = useState(0)
-  const [moving, setMoving] = useState(false)
-  const [blocked, setBlocked] = useState(false)
-  const [completed, setCompleted] = useState<Set<string>>(() => new Set())
-  const inputRef = useRef<HTMLElement | null>(null)
-  const question = questions[Math.min(index, Math.max(0, questions.length - 1))]
-  const questionValueId = question?.valueId ?? question?.id ?? ''
-  const requiredChoiceDefault = !question?.optional ? question?.choices?.[0] : undefined
-
-  useEffect(() => {
-    const before = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = before }
-  }, [])
-  useEffect(() => {
-    if (index >= questions.length && questions.length) setIndex(questions.length - 1)
-  }, [index, questions.length])
-  useEffect(() => {
-    if (!moving && question?.type !== 'segments') window.setTimeout(() => inputRef.current?.focus(), 20)
-    setBlocked(false)
-  }, [question?.id, question?.type, moving])
-  useEffect(() => {
-    if (!questionValueId || !requiredChoiceDefault) return
-    if (!String(inputs[questionValueId] ?? '').trim()) setInput(questionValueId, requiredChoiceDefault)
-  }, [questionValueId, requiredChoiceDefault, inputs, setInput])
-
-  const answered = () => !question || question.optional || questionHasValue(question, inputs)
-  const goTo = (nextIndex: number) => {
-    if (moving) return
-    setIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)))
-    setBlocked(false)
+function renderBlueprintWizardControl(context: CliWizardRenderContext): ReactNode {
+  const { question, value, valueId, inputClass, assignRef, setValue, onAdvance } = context
+  if (question.type === 'segments') {
+    return <WizardSegmentPicker inputs={context.values} setInput={setValue} onConfirm={onAdvance} />
   }
-  const advance = () => {
-    if (moving || !question) return
-    const valueId = question.valueId ?? question.id
-    if (!String(inputs[valueId] ?? '').trim() && !question.optional && question.choices?.[0]) setInput(valueId, question.choices[0])
-    if (!answered() && !(question.choices?.length && !question.optional)) { setBlocked(true); return }
-    setCompleted(previous => new Set(previous).add(question.id))
-    setMoving(true)
-    window.setTimeout(() => {
-      if (index >= questions.length - 1) onClose()
-      else { setIndex(value => value + 1); setMoving(false) }
-    }, 180)
+  if (question.id === 'execution.region') {
+    return <RegionCombobox id="bp-wizard-region" className={inputClass} value={value}
+      onChange={next => setValue(valueId, next)} placeholder={question.placeholder ?? placeholderFor(question.id, question.type)}
+      onCommit={onAdvance} inputRef={element => assignRef(element)} />
   }
-  const goBack = () => goTo(index - 1)
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') { event.preventDefault(); onClose(); return }
-    if (event.altKey && event.key === 'ArrowLeft') { event.preventDefault(); goBack(); return }
-    if (event.altKey && event.key === 'ArrowRight') { event.preventDefault(); advance(); return }
-    if (event.target instanceof HTMLButtonElement) return
-    const multiline = question?.type === 'json' || question?.type === 'stringArray'
-    if (event.key === 'Enter' && !(event.shiftKey && multiline)) {
-      event.preventDefault()
-      advance()
-    }
+  if (question.id === 'metadata.freeformTags' || question.id === 'metadata.definedTags') {
+    return <TagEditor value={value} onChange={next => setValue(valueId, next)}
+      defined={question.id === 'metadata.definedTags'} wizard inputRef={element => assignRef(element)} />
   }
-
-  if (!question) return null
-  const valueId = question.valueId ?? question.id
-  const value = inputs[valueId] ?? ''
-  const filled = questionHasValue(question, inputs)
-  const assignRef = (element: HTMLElement | null) => { inputRef.current = element }
-  const inputClass = `bp-wizard-input${filled ? ' is-filled' : ''}`
-
-  let control: ReactNode
-  if (question.type === 'segments') control = <WizardSegmentPicker inputs={inputs} setInput={setInput} onConfirm={advance} />
-  else if (question.id === 'execution.region') control = (
-    <RegionCombobox id="bp-wizard-region" className={inputClass} value={value} onChange={next => setInput(valueId, next)}
-      placeholder={question.placeholder ?? placeholderFor(question.id, question.type)} onCommit={advance} inputRef={assignRef} />
-  )
-  else if (question.id === 'metadata.freeformTags' || question.id === 'metadata.definedTags') control = (
-    <TagEditor value={value} onChange={next => setInput(valueId, next)} defined={question.id === 'metadata.definedTags'} wizard inputRef={assignRef} />
-  )
-  else if (question.type === 'boolean') control = (
-    <select ref={assignRef} className={inputClass} value={value || 'false'} onChange={event => setInput(valueId, event.target.value)}>
-      <option value="true">예</option><option value="false">아니오</option>
-    </select>
-  )
-  else if (question.choices?.length) control = (
-    <select ref={assignRef} className={inputClass} value={value || (!question.optional ? question.choices[0] : '')} onChange={event => setInput(valueId, event.target.value)}>
-      {[...new Set([...(question.optional ? [''] : []), ...question.choices])].map(choice => <option key={choice || '__empty'} value={choice}>{choice || '선택하지 않음'}</option>)}
-    </select>
-  )
-  else if (question.type === 'json' || question.type === 'stringArray') control = (
-    <textarea ref={assignRef} className={`${inputClass} bp-wizard-textarea`} value={value} onChange={event => setInput(valueId, event.target.value)} placeholder={question.placeholder} />
-  )
-  else control = <input ref={assignRef} className={inputClass} value={value} placeholder={question.placeholder} onChange={event => setInput(valueId, event.target.value)} autoComplete="off" />
-
-  const remaining = Math.max(0, questions.length - index - 1)
-  return (
-    <div className="bp-wizard-overlay" role="dialog" aria-modal="true" aria-label="Blueprint 입력 마법사" onKeyDown={onKeyDown}>
-      <div className="bp-wizard-head">
-        <span>BLUEPRINT INPUT</span><span>{index + 1} / {questions.length} · {remaining}문항 남음</span><button type="button" onClick={onClose}>ESC 닫기</button>
-      </div>
-      <div className="bp-wizard-body">
-        <div className={`bp-wizard-track${moving ? ' moving' : ''}`}>
-          <div className="bp-wizard-current" key={question.id}>
-            <div className="bp-wizard-question current">
-              {question.label}{question.optional ? <small>선택</small> : <small>필수</small>}
-              {filled ? <span className="bp-wizard-filled">✓ 입력됨</span> : null}
-            </div>
-            {question.help ? <p>{question.help}</p> : null}
-            {control}
-            {blocked ? <div className="bp-wizard-required">값을 입력한 뒤 Enter를 누르세요.</div> : null}
-            <div className="bp-wizard-actions">
-              <button type="button" disabled={index === 0} onClick={goBack}>← 이전</button>
-              <span className="bp-wizard-hint">Enter 다음 · Alt+←/→ 이동 · Esc 닫기{question.type === 'stringArray' ? ' · Shift+Enter 줄바꿈' : ''}</span>
-              <button type="button" onClick={advance}>{index === questions.length - 1 ? '완료' : '다음 →'}</button>
-            </div>
-          </div>
-        </div>
-        <nav className="bp-wizard-progress" aria-label="입력 진행 이정표">
-          <strong>{remaining}</strong><small>남음</small>
-          <div className="bp-wizard-progress-list">
-            {questions.map((item, step) => {
-              const done = completed.has(item.id) || step < index
-              const hasValue = questionHasValue(item, inputs)
-              return <button type="button" key={`${item.id}-${step}`} title={`${step + 1}. ${item.label}`} aria-label={`${step + 1}. ${item.label}`}
-                aria-current={step === index ? 'step' : undefined} className={`${done ? 'done ' : ''}${hasValue ? 'filled ' : ''}${step === index ? 'current' : ''}`}
-                onClick={() => goTo(step)}><span /></button>
-            })}
-          </div>
-        </nav>
-      </div>
-    </div>
-  )
+  return defaultCliWizardControl(context)
 }
 
 function PlanRow({ n }: { n: PlanNode }) {

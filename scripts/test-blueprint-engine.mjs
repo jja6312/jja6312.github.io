@@ -24,6 +24,7 @@ const DB = resolve(HERE, '..', '..', 'blog-db', 'knowledge', 'oci-cli')
 const BP = JSON.parse(readFileSync(resolve(DB, 'blueprints', 'network-baseline-2tier.v1.json'), 'utf8'))
 const POL = JSON.parse(readFileSync(resolve(DB, 'naming-policies', 'msp-standard.v1.json'), 'utf8'))
 const WORKSPACE_UI = readFileSync(resolve(HERE, '..', 'src', 'components', 'CliBlueprintWorkspace.tsx'), 'utf8')
+const SHARED_WIZARD = readFileSync(resolve(HERE, '..', 'src', 'components', 'CliInputWizard.tsx'), 'utf8')
 const WORKSPACE_CSS = readFileSync(resolve(HERE, '..', 'src', 'index.css'), 'utf8')
 const INPUTS = {
   'naming.customer': 'ACME Corp', 'naming.workload': 'Web', 'naming.environment': 'prd',
@@ -165,10 +166,11 @@ t('naming: MANUAL 모드는 모든 노드 직접 이름 사용', () => {
 })
 t('UI: 우측 필수입력 패널·Alt+I 전체화면 질답·drag 네이밍 제공', () => {
   assert.ok(WORKSPACE_UI.includes('실행 전 입력 확인'))
-  assert.ok(WORKSPACE_UI.includes('event.altKey') && WORKSPACE_UI.includes("event.key.toLowerCase() === 'i'"))
-  assert.ok(WORKSPACE_UI.includes('role="dialog"') && WORKSPACE_CSS.includes('.bp-wizard-overlay { position: fixed; inset: 0;'))
+  assert.ok(WORKSPACE_UI.includes('useCliInputWizardShortcut'))
+  assert.ok(SHARED_WIZARD.includes('event.altKey') && SHARED_WIZARD.includes("event.key.toLowerCase() === 'i'"))
+  assert.ok(SHARED_WIZARD.includes('role="dialog"') && WORKSPACE_CSS.includes('.bp-wizard-overlay { position: fixed; inset: 0;'))
   assert.ok(WORKSPACE_UI.includes('draggable') && WORKSPACE_UI.includes('naming.segmentOrder'))
-  assert.ok(WORKSPACE_UI.includes('문항 남음') && WORKSPACE_UI.includes('bp-wizard-progress'))
+  assert.ok(SHARED_WIZARD.includes('문항 남음') && SHARED_WIZARD.includes('bp-wizard-progress'))
   assert.ok(WORKSPACE_UI.includes('TagEditor') && !WORKSPACE_UI.includes("question.type === 'json' ? '{}"))
   assert.ok(WORKSPACE_UI.includes('naming.override.'))
 })
