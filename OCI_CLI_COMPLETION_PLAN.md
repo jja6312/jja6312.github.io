@@ -286,9 +286,12 @@
 - [ ] `P3-CS-06` Volume Group Backups
 - [ ] `P3-CS-07` Backup Policies와 Volume 할당 관계
 - [ ] `P3-CS-08` File Storage Snapshots
-- [ ] `P3-CS-09` Object Storage `bulk-upload`·`object sync` — 최초 폴더 업로드, 반복 동기화, dry-run·체크섬·심볼릭 링크 안전 흐름
+- [x] `P3-CS-09` Object Storage `bulk-upload`·`object sync` — 최초 폴더 업로드, 반복 동기화, dry-run·체크섬·심볼릭 링크 안전 흐름
   - 구현: 카탈로그·공식 옵션 계약·메뉴·사용 문서·보호 회귀검증 추가 완료
-  - 남은 조건: `HUB_LOCK_1~3` 환경에서 보호 데이터 bake, lint/build 결과 포함 최종 커밋 및 GitHub Pages 라이브 검증
+  - 완료: 2026-08-23
+  - 검증: OCI CLI v3.90.3 공식 Click 메타데이터·source lock·옵션 관계·명령 생성·블루프린트·lint·build·L1/L2/L3 보호 복호화 회귀 통과
+  - 커밋: 사이트 `24ad8e1` / blog-db `05615eb`
+  - 배포: GitHub Pages deploy run `32645218532` 성공; 라이브 JS `assets/index-c29gjZQD.js`, CSS `assets/index-CaBu59RP.css`, `protected-data.json` SHA-256이 로컬 산출물과 일치
 
 #### Governance·Observability·Cost
 
@@ -432,6 +435,7 @@
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-23 | P3-CS-09 완료 — Object Storage Bulk Upload·Object Sync 메뉴/옵션/안전 관계/문서 추가. 보호 데이터 L1/L2/L3 회귀·lint·build·Pages deploy `32645218532`·라이브 JS/CSS/protected-data SHA-256 일치 검증 | `24ad8e1` / blog-db `05615eb` | Codex |
 | 2026-08-22 | P2.5-06 — Blueprint 입력 UX: SSH 0.0.0.0/0 허용, 선택·구분자·순서·수동 네이밍, 우측 필수입력 포커스, Alt+I 전체화면 키보드 질답, 모바일 overflow 회귀 수정. 엔진/UI 48건·lint·build·보호 데이터·라이브 artifact 일치 검증 | `68d050a` / blog-db `3243e80` | Codex |
 | 2026-08-22 | Phase 2.5 — Blueprint Engine 코드 완료(P2.5-01~04.5): 계약 8스키마+생성기/검증(negative fixture 8), 순수 엔진(naming·derive·resolve·plan·render·manifest, 43 테스트+5 bash -n), 6탭 UI+딥링크, ultracode 5-lens 적대적 리뷰로 CRITICAL 셸 인젝션+HIGH 4건 수정. 6커밋 push·CI deploy success·앱셸 스모크 통과. 라이브 데이터는 HUB_LOCK bake(사용자) 대기 | `7e95601` | Claude |
 | 2026-08-20 | P2-02 회귀 수정 — Announcement LIST `data.items[]` 응답 경로를 반영해 GET 동적 조회의 Bash 조기 종료 제거, 실제 OCI GET·219개 생성 Bash 회귀 검증 | — | Codex |
