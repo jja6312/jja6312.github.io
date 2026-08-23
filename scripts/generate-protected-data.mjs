@@ -93,6 +93,7 @@ const level2 = {
   },
 }
 const level3 = {
+  automationInbox: readJson('automation/inbox.json', { schemaVersion: 1, updatedAt: '', candidates: [], runs: [] }),
   provisioning: readJson('provisioning/contracts.json', { customers: [] }),
   supportHistory: readJsonDocs('support-history/cases'),
   meetings: readDocs('meetings/minutes'),

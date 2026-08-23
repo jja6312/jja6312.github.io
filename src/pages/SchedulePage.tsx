@@ -8,6 +8,7 @@ import TasksView from './schedule/TasksView'
 import TodoView from './schedule/TodoView'
 import GoalsView from './schedule/GoalsView'
 import AiGoalsView from './schedule/AiGoalsView'
+import AutomationInboxView from './schedule/AutomationInboxView'
 import { getPat } from '../lib/githubDb'
 
 const VIEWS = [
@@ -16,6 +17,7 @@ const VIEWS = [
   { id: 'todo', label: 'TODO LIST', desc: '칸반 + 날짜별 일지' },
   { id: 'goals', label: '목표', desc: '2026 목표 · 마감기한' },
   { id: 'ai-goals', label: 'AI 추천 목표', desc: '학습수준 진단 → 3년·1년·4개월' },
+  { id: 'automation-inbox', label: '업무 자동 수집함', desc: 'Outlook·카카오톡 후보 검토 → TODO' },
 ] as const
 
 export default function SchedulePage() {
@@ -53,7 +55,8 @@ export default function SchedulePage() {
           : active === 'calendar' ? <CalendarView />
             : active === 'tasks' ? <TasksView />
               : active === 'todo' ? <TodoView />
-                : active === 'ai-goals' ? <AiGoalsView />
+            : active === 'ai-goals' ? <AiGoalsView />
+                  : active === 'automation-inbox' ? <AutomationInboxView />
                   : <GoalsView />}
       </main>
     </div>

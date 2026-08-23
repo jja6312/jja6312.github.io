@@ -1962,6 +1962,52 @@ select.cli-input { cursor: pointer; }
 .task-thread-del { color: var(--wrong); }
 .task-thread-add { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
 .task-thread-add input { flex: 1; }
+
+/* ── 업무 자동 수집함 ─────────────────────────────── */
+.automation-inbox { display: flex; flex-direction: column; gap: 18px; }
+.automation-readonly { margin: 0; }
+.automation-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.automation-summary > div { display: flex; flex-direction: column; gap: 5px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-card); }
+.automation-summary .px { color: var(--text-faint); font-size: 10px; }
+.automation-summary b { color: var(--text); font-size: 14px; }
+.automation-section { display: flex; flex-direction: column; gap: 10px; }
+.automation-section-head { display: flex; align-items: baseline; gap: 9px; }
+.automation-section-head h2 { margin: 0; font-size: 16px; }
+.automation-section-head > .px { color: var(--text-faint); font-size: 11px; }
+.automation-list { display: flex; flex-direction: column; gap: 12px; }
+.automation-card { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 11px; background: var(--bg-card); padding: 14px; }
+.automation-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.automation-status, .automation-decision { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 700; }
+.automation-status.todo { color: var(--accent); background: var(--accent-glow); }
+.automation-status.doing { color: var(--partial); background: color-mix(in srgb, var(--partial) 15%, transparent); }
+.automation-status.done { color: var(--correct); background: color-mix(in srgb, var(--correct) 15%, transparent); }
+.automation-status.needs_review { color: var(--text-dim); background: var(--bg-inset); }
+.automation-confidence, .automation-created { color: var(--text-faint); font-size: 11px; }
+.automation-fields { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(4, minmax(100px, 1fr)); gap: 8px; }
+.automation-fields label { display: flex; flex-direction: column; gap: 5px; color: var(--text-dim); font-size: 11px; }
+.automation-fields input, .automation-fields select { width: 100%; min-width: 0; }
+.automation-evidence { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--bg-inset); }
+.automation-evidence > .px { color: var(--text-faint); font-size: 10px; }
+.automation-evidence p { margin: 5px 0 0; color: var(--text-dim); font-size: 12px; line-height: 1.5; }
+.automation-evidence b { color: var(--accent); }
+.automation-card-actions { display: flex; justify-content: flex-end; align-items: center; gap: 7px; margin-top: 12px; }
+.automation-history-toggle { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--text-dim); cursor: pointer; font-family: inherit; font-size: 13px; }
+.automation-history-toggle:hover { color: var(--accent); }
+.automation-history { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.automation-history-row { display: grid; grid-template-columns: 80px minmax(0, 1fr) 150px; gap: 10px; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--line-soft); font-size: 12px; }
+.automation-history-row:last-child { border-bottom: 0; }
+.automation-decision.approved { color: var(--correct); }
+.automation-decision.rejected { color: var(--wrong); }
+.automation-decision.pending { color: var(--partial); }
+.automation-history-row .px { color: var(--text-faint); font-size: 10px; text-align: right; }
+.automation-run { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 8px; color: var(--text-dim); font-size: 12px; }
+.automation-run .px { color: var(--text-faint); font-size: 10px; }
+.automation-run-error { color: var(--wrong); font-size: 11px; }
+@media (max-width: 800px) {
+  .automation-summary { grid-template-columns: 1fr; }
+  .automation-fields { grid-template-columns: 1fr 1fr; }
+  .automation-fields label:first-child { grid-column: 1 / -1; }
+}
 @media (max-width: 720px) {
   .task-add, .task-inline-edit { flex-direction: column; align-items: stretch; }
   .task-add-title { min-width: 0; }

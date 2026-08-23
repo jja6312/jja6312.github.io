@@ -37,46 +37,68 @@ export function reconcileTasksToBoard(board, tasks, now = new Date()) {
   const desired = []
   for (const r of tasks.recurring || []) {
     if (!r.active || !withinWindow(r.startDate, r.dueDate)) continue
-    desired.push({ source: `rec:${r.id}:${periodKey(now, r.cadence)}`, text: `${RECURRING_PREFIX}${r.title}` })
+    desired.push({ source: `rec:${r.id}:${periodKey(now, r.cadence)}`, text: `${RECURRING_PREFIX}${r.title}`, column: 'todo' })
   }
   const addWork = list => {
     for (const w of list || []) {
-      if (w.done || !started(w.startDate)) continue
+      if (!started(w.startDate)) continue
       const threads = w.threads ?? []
-      if (threads.length === 0) desired.push({ source: `task:${w.id}`, text: w.title, dueAt: w.dueDate || undefined })
-      else for (const th of threads) if (!th.done && String(th.content ?? '').trim()) desired.push({ source: `thread:${w.id}:${th.id}`, text: `[${w.title}]${th.content}`, dueAt: w.dueDate || undefined })
+      const automation = !!w.automationCandidateId
+      const column = w.status === 'done' && automation ? 'done' : w.status === 'doing' ? 'doing' : 'todo'
+      if (w.done && !automation) continue
+      if (threads.length === 0) {
+        if (!w.done || automation) desired.push({ source: `task:${w.id}`, text: w.title, dueAt: w.dueDate || undefined, column, doneAt: w.completedAt || today })
+      } else for (const th of threads) if (!th.done && String(th.content ?? '').trim()) desired.push({ source: `thread:${w.id}:${th.id}`, text: `[${w.title}]${th.content}`, dueAt: w.dueDate || undefined, column })
     }
   }
   addWork(tasks.oneoff); addWork(tasks.projects)
 
-  const existing = new Set()
-  for (const col of board.columns) for (const c of col.cards) if (c.source) existing.add(c.source)
+  const existing = new Map()
+  for (const col of board.columns) for (const c of col.cards) if (c.source) {
+    if (!existing.has(c.source)) existing.set(c.source, new Set())
+    existing.get(c.source).add(col.id)
+  }
 
-  const additions = []
+  const additions = new Map()
+  for (const col of board.columns) additions.set(col.id, [])
   let seq = 0
   for (const d of desired) {
-    if (existing.has(d.source)) continue
-    additions.push({ id: `task-${now.getTime()}-${seq++}`, text: d.text, created: now.toISOString(), kind: 'task', source: d.source, ...(d.dueAt ? { dueAt: d.dueAt } : {}) })
+    if (existing.get(d.source)?.has(d.column)) continue
+    additions.get(d.column)?.push({ id: `task-${now.getTime()}-${seq++}`, text: d.text, created: now.toISOString(), kind: 'task', source: d.source, ...(d.dueAt ? { dueAt: d.dueAt } : {}), ...(d.column === 'done' ? { doneAt: d.doneAt || today } : {}) })
   }
+  const desiredBySource = new Map(desired.map(d => [d.source, d]))
 
   const recById = new Map((tasks.recurring || []).map(r => [r.id, r]))
   const workById = new Map()
   for (const w of [...(tasks.oneoff || []), ...(tasks.projects || [])]) workById.set(w.id, w)
-  const staleInTodo = c => {
+  const stale = (c, columnId) => {
     if (!c.source) return false
+    const desiredItem = desiredBySource.get(c.source)
+    if (desiredItem) return desiredItem.column !== columnId
     const [kind, id, extra] = c.source.split(':')
-    if (kind === 'rec') { const r = recById.get(id); return !r || !r.active }
-    if (kind === 'task') { const w = workById.get(id); return !w || !!w.done }
-    if (kind === 'thread') { const w = workById.get(id); if (!w || w.done) return true; const th = (w.threads ?? []).find(t => t.id === extra); return !th || !!th.done }
+    if (kind === 'rec') { const r = recById.get(id); return columnId === 'todo' && (!r || !r.active) }
+    if (kind === 'task') {
+      const w = workById.get(id)
+      return w?.automationCandidateId ? !w : columnId === 'todo' && (!w || !!w.done)
+    }
+    if (kind === 'thread') {
+      const w = workById.get(id)
+      if (w?.automationCandidateId) { const th = (w.threads ?? []).find(t => t.id === extra); return !w || !th || !!th.done }
+      if (columnId !== 'todo') return false
+      if (!w || w.done) return true
+      const th = (w.threads ?? []).find(t => t.id === extra)
+      return !th || !!th.done
+    }
     return false
   }
 
   let removed = 0
   const columns = board.columns.map(col => {
-    if (col.id !== 'todo') return col
-    const kept = col.cards.filter(c => { const drop = staleInTodo(c); if (drop) removed++; return !drop })
-    return { ...col, cards: [...kept, ...additions] }
+    const kept = col.cards.filter(c => { const drop = stale(c, col.id); if (drop) removed++; return !drop })
+    const add = additions.get(col.id) ?? []
+    return { ...col, cards: [...kept, ...add] }
   })
-  if (additions.length === 0 && removed === 0) return null
+  const addedCount = [...additions.values()].reduce((sum, items) => sum + items.length, 0)
+  if (addedCount === 0 && removed === 0) return null
   return { columns }
 }

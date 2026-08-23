@@ -97,5 +97,17 @@ t('dueDate 있으면 카드 dueAt 설정', () => {
   const b = reconcileTasksToBoard(emptyBoard(), tasks, NOW)
   assert.equal(todoCards(b)[0].dueAt, '2026-09-01')
 })
+t('자동 후보 진행 중 → 진행 중 칼럼', () => {
+  const tasks = { ...emptyTasks(), oneoff: [{ id: 'auto-1', title: '고객 확인', status: 'doing', automationCandidateId: 'cand-1', threads: [], createdAt: '' }] }
+  const b = reconcileTasksToBoard(emptyBoard(), tasks, NOW)
+  assert.deepEqual(b.columns.find(c => c.id === 'doing').cards.map(c => c.text), ['고객 확인'])
+})
+t('자동 후보 완료 → 완료 칼럼과 완료일', () => {
+  const tasks = { ...emptyTasks(), oneoff: [{ id: 'auto-2', title: 'SR 완료', status: 'done', done: true, completedAt: '2026-08-22', automationCandidateId: 'cand-2', threads: [], createdAt: '' }] }
+  const b = reconcileTasksToBoard(emptyBoard(), tasks, NOW)
+  const card = b.columns.find(c => c.id === 'done').cards[0]
+  assert.equal(card.text, 'SR 완료')
+  assert.equal(card.doneAt, '2026-08-22')
+})
 
 console.log(`\ntask reconcile 테스트 통과 — ${passed}건`)

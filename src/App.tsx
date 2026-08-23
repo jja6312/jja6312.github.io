@@ -35,6 +35,7 @@ const XP_SYSTEMS = [
   { match: /^\/schedule\/tasks/, id: 'tasks', label: '업무관리' },
   { match: /^\/schedule\/todo/, id: 'todo', label: 'TODO LIST' },
   { match: /^\/schedule\/goals/, id: 'goals', label: '목표' },
+  { match: /^\/schedule\/automation-inbox/, id: 'automation-inbox', label: '업무 자동 수집함' },
   { match: /^\/profile/, id: 'profile', label: '프로필' },
 ] as const
 

@@ -36,6 +36,7 @@ const tabs: Tab[] = [
       { to: '/schedule/tasks', label: '업무관리' },
       { to: '/schedule/todo', label: 'TODO LIST' },
       { to: '/schedule/goals', label: '목표' },
+      { to: '/schedule/automation-inbox', label: '업무 자동 수집함' },
     ],
   },
   { to: '/profile', label: '프로필' },

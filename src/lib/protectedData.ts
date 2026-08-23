@@ -55,6 +55,7 @@ export interface ProtectedBundle {
     catalog: ProtectedDoc[]
     snapshots: ProtectedDoc[]
   }
+  automationInbox?: unknown
   provisioning?: unknown
   supportHistory?: SupportHistoryCase[]
 }
@@ -132,6 +133,7 @@ export function protectedJson(bundle: ProtectedBundle | null, path: string): unk
     'schedule/journal.json': bundle.schedule?.journal,
     'schedule/goals.json': bundle.schedule?.goals,
     'schedule/tasks.json': bundle.schedule?.tasks,
+    'automation/inbox.json': bundle.automationInbox,
     'provisioning/contracts.json': bundle.provisioning,
   }
   return map[path]

@@ -196,7 +196,19 @@ export const cadenceLabel = (c: TaskCadence) => CADENCES.find(x => x.id === c)?.
 
 export interface TaskThread { id: string; content: string; done?: boolean }
 export interface RecurringTask { id: string; title: string; cadence: TaskCadence; startDate?: string; dueDate?: string; active: boolean; createdAt: string }
-export interface WorkTask { id: string; title: string; startDate?: string; dueDate?: string; done?: boolean; threads: TaskThread[]; createdAt: string } // 단발성·프로젝트 공용
+export type WorkTaskStatus = 'todo' | 'doing' | 'done' | 'needs_review'
+export interface WorkTask {
+  id: string
+  title: string
+  startDate?: string
+  dueDate?: string
+  done?: boolean
+  status?: WorkTaskStatus
+  completedAt?: string
+  automationCandidateId?: string
+  threads: TaskThread[]
+  createdAt: string
+} // 단발성·프로젝트 공용
 export interface TasksFile { recurring: RecurringTask[]; oneoff: WorkTask[]; projects: WorkTask[] }
 export const EMPTY_TASKS: TasksFile = { recurring: [], oneoff: [], projects: [] }
 
