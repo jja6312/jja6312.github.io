@@ -252,7 +252,9 @@
 - [x] `P2.5-04.5` 적대적 리뷰(ultracode 5-lens 워크플로우) — **CRITICAL 인젝션 수정**: 위조 `__var` 셸 인젝션 → `VarRef` 클래스 + bash 식별자 검증 + `stripReserved`. 그 외: discover 실패→DISCOVERY_ERROR(중복생성 차단), Apply EXIT trap 부분 run-result(resume 가능), rollback get 멱등, verify `--argjson`, ownership 빈 run-id 가드, `--wait-for-state AVAILABLE`, compartment 이중검증, derive ref ancestry 게이트. 보안 regression 테스트 3건 추가(총 43건) 및 Windows Git Bash 경로 호환 수정
 - [x] `P2.5-05` Release — v3.90.3 source lock 검토·갱신, metadata contract/OCI provenance 갱신, HUB_LOCK bake 및 protected-data 검증 완료. 남은 작업 없음
 - [x] `P2.5-06` Blueprint Input UX — SSH source `0.0.0.0/0` 차단 제거 및 실제 ingress rule 회귀 고정. 네이밍 컨벤션의 요소별 포함 체크·구분자(`-`/`_`/`.`/없음)·drag/키보드 순서 변경·전체 MANUAL 이름 입력을 엔진과 UI 계약에 반영했다. 우측 `실행 전 입력 확인`에서 누락 필드를 안내하고 클릭 시 실제 input으로 포커스한다. `Alt+I` 전체화면 질답은 이전/현재/다음 질문 대비, Enter 전환·Esc 종료·자동 종료, 요소 선택/정렬 키보드 조작을 제공한다. 모바일 375px overflow 0 및 우측 패널 하단 재배치를 라이브에서 확인했다.
-- [ ] `P2.5-07` 공통 OCI CLI Alt+I 입력 오케스트레이터 — Blueprint 전용 질답 흐름을 공통 `CliInputWizard` 모듈로 승격한다. 모든 일반 OCI CLI 화면에서 공통 실행 컨텍스트(Profile/Region/Auth/Endpoint) → 필수·조건부 필드 → 선택 필드 순으로 안내하고, 필수/권장/선택 표식·값 입력 상태·진행 이정표·Enter/Esc/Alt+←→ 키보드 이동을 동일하게 제공한다. 서비스별 JSON·복수선택·동적 목록 컨트롤은 공통 렌더 컨텍스트에 주입해 재사용한다. **현재 상태: 구현 및 로컬 회귀 검증 완료, 배포·라이브 검증 대기**
+- [x] `P2.5-07` 공통 OCI CLI Alt+I 입력 오케스트레이터 — Blueprint 전용 질답 흐름을 공통 `CliInputWizard` 모듈로 승격했다. 모든 일반 OCI CLI 화면에서 공통 실행 컨텍스트(Profile/Region/Auth/Endpoint) → 필수·조건부 필드 → 선택 필드 순으로 안내하고, 필수/권장/선택 표식·값 입력 상태·진행 이정표·Enter/Esc/Alt+←→ 키보드 이동을 동일하게 제공한다. 서비스별 JSON·복수선택·동적 목록 컨트롤은 공통 렌더 컨텍스트에 주입해 재사용한다. **완료: 2026-08-24**
+  - 커밋(site): `7b17a33`; GitHub Actions deploy `32649136213` 성공
+  - 라이브 검증: 자물쇠1 → OCI CLI → Compute → Instance → LIST → Alt+I에서 프로필/리전 → 필수 compartment → 선택 필드 순서, 필수 빈값 차단, Esc 종료, Blueprint Alt+I 재사용을 확인했다. 375px에서 `scrollWidth === innerWidth === 375`, console errors 0.
 
 #### Phase 2.5 완료 증거
 
@@ -436,6 +438,7 @@
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-08-24 | P2.5-07 완료 — 모든 일반 OCI CLI에 공통 Alt+I 입력 오케스트레이터 적용. 프로필·리전 권장 입력, 필수/조건부/선택 표식, 서비스별 JSON·복수선택 렌더러, 키보드 이동·진행 이정표·필수값 차단을 공유 모듈로 통합하고 Blueprint와 회귀 검증 | `7b17a33` / blog-db — | Codex |
 | 2026-08-23 | P3-CS-09 완료 — Object Storage Bulk Upload·Object Sync 메뉴/옵션/안전 관계/문서 추가. 보호 데이터 L1/L2/L3 회귀·lint·build·Pages deploy `32645218532`·라이브 JS/CSS/protected-data SHA-256 일치 검증 | `24ad8e1` / blog-db `05615eb` | Codex |
 | 2026-08-22 | P2.5-06 — Blueprint 입력 UX: SSH 0.0.0.0/0 허용, 선택·구분자·순서·수동 네이밍, 우측 필수입력 포커스, Alt+I 전체화면 키보드 질답, 모바일 overflow 회귀 수정. 엔진/UI 48건·lint·build·보호 데이터·라이브 artifact 일치 검증 | `68d050a` / blog-db `3243e80` | Codex |
 | 2026-08-22 | Phase 2.5 — Blueprint Engine 코드 완료(P2.5-01~04.5): 계약 8스키마+생성기/검증(negative fixture 8), 순수 엔진(naming·derive·resolve·plan·render·manifest, 43 테스트+5 bash -n), 6탭 UI+딥링크, ultracode 5-lens 적대적 리뷰로 CRITICAL 셸 인젝션+HIGH 4건 수정. 6커밋 push·CI deploy success·앱셸 스모크 통과. 라이브 데이터는 HUB_LOCK bake(사용자) 대기 | `7e95601` | Claude |
