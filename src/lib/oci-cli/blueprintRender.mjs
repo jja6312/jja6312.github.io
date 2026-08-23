@@ -266,6 +266,8 @@ export function renderVerify({ blueprint, catalog, inputs, naming, manifest }) {
       const idOpt = idOptionOf(catalog, vc.commandRef.resource, vc.commandRef.operation)
       out.push(`${V}_V${vi}=$(${getCmd} ${idOpt} ${shq(id)} ${COMMON} || echo '{}')`)
       for (const a of vc.assertions) {
+        // 검증 단계는 노드 id 만 알 수 있어 하위 출력(예: default-dhcp-options-id)은 해석 불가 → 그런 단언은 스킵(오탐 방지)
+        if (a.expected?.source === 'nodeOutput' && a.expected.path && a.expected.path !== '/data/id') continue
         const expected = resolveCompare(a.expected, { ...ctx, node })
         const av = `${V}_A_${a.id.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}`
         out.push(`${av}=$(echo "$${V}_V${vi}" | jq -c 'getpath(${jqPath(a.actualPointer)})')`)

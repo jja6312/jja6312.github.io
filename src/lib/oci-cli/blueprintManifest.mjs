@@ -19,14 +19,25 @@ function normKeys(v) {
   }
   return v
 }
+// sub 가 sup 에 부분집합으로 포함되는가(정규화 후). 객체는 키/값 포함, 배열은 각 원소가 매칭, 스칼라는 동일.
+// OCI GET 응답이 요청보다 필드가 많은 경우(route-type, cidr-block 등)를 허용하기 위함.
+function deepSubset(sub, sup) {
+  if (Array.isArray(sub)) return Array.isArray(sup) && sub.every(s => sup.some(u => deepSubset(s, u)))
+  if (sub && typeof sub === 'object') {
+    if (!sup || typeof sup !== 'object' || Array.isArray(sup)) return false
+    return Object.entries(sub).every(([k, val]) => deepSubset(val, sup[k]))
+  }
+  return canonicalize(sub) === canonicalize(sup)
+}
 
 export function evaluateAssertion(comparator, expected, actual) {
   switch (comparator) {
     case 'equals': return canonicalize(normKeys(actual)) === canonicalize(normKeys(expected))
     case 'lifecycleAvailable': return String(actual) === String(expected ?? 'AVAILABLE')
     case 'containsSet': {
-      const have = new Set(toSet(actual).map(x => canonicalize(normKeys(x))))
-      return toSet(expected).every(x => have.has(canonicalize(normKeys(x))))
+      // 각 expected 원소가 어떤 actual 원소에 부분집합으로 포함되면 통과(응답의 추가 필드 허용)
+      const acts = toSet(actual).map(normKeys)
+      return toSet(expected).map(normKeys).every(ex => acts.some(ac => deepSubset(ex, ac)))
     }
     case 'tagSubset': {
       if (!actual || typeof actual !== 'object') return false

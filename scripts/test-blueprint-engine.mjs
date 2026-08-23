@@ -346,6 +346,19 @@ t('manifest: evaluateAssertion comparator', () => {
   assert.equal(evaluateAssertion('containsSet', ['a'], ['a', 'b']), true)
   assert.equal(evaluateAssertion('tagSubset', { k: 'v' }, { k: 'v', x: 1 }), true)
 })
+t('manifest: containsSet 부분집합 — OCI 응답의 추가 필드 허용(오탐 방지)', () => {
+  // route rule: 응답에 route-type/cidr-block 추가 필드가 있어도, expected 가 부분집합이면 통과
+  const actual = [{ 'destination': '0.0.0.0/0', 'destination-type': 'CIDR_BLOCK', 'network-entity-id': 'ocid1.igw.x', 'route-type': 'STATIC', 'cidr-block': null }]
+  const expected = [{ destination: '0.0.0.0/0', destinationType: 'CIDR_BLOCK', networkEntityId: 'ocid1.igw.x', description: '' }]
+  assert.equal(evaluateAssertion('containsSet', expected, actual), true)
+  // 부분집합이 아니면(entity 불일치) 실패
+  assert.equal(evaluateAssertion('containsSet', [{ networkEntityId: 'ocid1.igw.OTHER' }], actual), false)
+})
+t('render: Verify 는 해석 불가한 nodeOutput 하위포인터 단언 스킵(dhcp 오탐 방지)', () => {
+  const s = renderVerify({ blueprint: BP, catalog: CATALOG, inputs: INPUTS, naming: nm0, manifest: manifest0 }).content
+  // default-dhcp-options-id 같은 하위 출력 비교는 검증 스크립트에서 생성하지 않는다
+  assert.ok(!s.includes('default-dhcp-options-id'), 'dhcp 하위포인터 단언이 남아있으면 안 됨')
+})
 
 // ── 보안: 위조된 __var 로 셸 인젝션 불가 (adversarial regression) ──
 t('security: 위조 __var 입력은 리터럴 JSON 으로만 처리(인젝션 차단)', () => {
