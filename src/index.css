@@ -1809,13 +1809,19 @@ select.cli-input { cursor: pointer; }
 .bp-tag-row button:hover, .bp-tag-add:hover { border-color: var(--accent); color: var(--accent); }
 /* scripts */
 .bp-script { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-.bp-script-head { display: flex; align-items: center; justify-content: space-between; background: var(--bg-soft); padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.bp-script-head { display: flex; align-items: center; gap: 8px; background: var(--bg-soft); padding: 7px 10px; cursor: pointer; list-style: none; user-select: none; }
+.bp-script-head::-webkit-details-marker { display: none; }
+.bp-script-caret { color: var(--text-faint); font-size: .72rem; transition: transform .15s; }
+.bp-script[open] .bp-script-caret { transform: rotate(90deg); }
+.bp-script[open] .bp-script-head { border-bottom: 1px solid var(--line); }
+.bp-script-hint { color: var(--text-faint); font-size: .74rem; margin-right: auto; }
 .bp-copy { background: var(--accent-dim); color: var(--text); border: none; border-radius: 6px; padding: 3px 10px; font-size: .76rem; cursor: pointer; }
+.bp-copy:hover { background: var(--accent); }
 .bp-pre { margin: 0; padding: 12px; background: var(--code-bg); overflow-x: auto; max-height: 460px; }
 .bp-pre code { font-family: var(--mono); font-size: .78rem; color: var(--text); white-space: pre; }
-.bp-import { display: flex; flex-direction: column; gap: 5px; }
-.bp-import-label { font-size: .82rem; color: var(--text-dim); }
-.bp-textarea { width: 100%; box-sizing: border-box; min-height: 96px; font-family: var(--mono); font-size: .78rem; resize: vertical; }
+.bp-import { display: flex; flex-direction: column; gap: 5px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); border-radius: 8px; padding: 10px 12px; }
+.bp-import-label { font-size: .82rem; color: var(--text-dim); font-weight: 600; }
+.bp-textarea { width: 100%; box-sizing: border-box; min-height: 110px; font-family: var(--mono); font-size: .78rem; resize: vertical; }
 .bp-details { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
 .bp-details summary { cursor: pointer; color: var(--text-dim); font-size: .84rem; }
 /* plan */

@@ -132,18 +132,26 @@ function wizardQuestionsFor(blueprint: CliBlueprint, inputs: InputValues, enforc
 function CopyButton({ text }: { text: string }) {
   const [done, setDone] = useState(false)
   return (
-    <button type="button" className="bp-copy" onClick={() => {
+    <button type="button" className="bp-copy" onClick={e => {
+      e.preventDefault(); e.stopPropagation() // <summary> 안에서 눌러도 접기/펼치기 토글 안 되게
       void navigator.clipboard?.writeText(text).then(() => { setDone(true); setTimeout(() => setDone(false), 1200) })
     }}>{done ? '복사됨 ✓' : '복사'}</button>
   )
 }
 
-function ScriptBlock({ script }: { script: RenderedScript }) {
+// 스크립트는 기본 접힘 — 붙여넣기/결과 영역을 가리지 않게. 필요할 때만 펼쳐서 보고 복사.
+function ScriptBlock({ script, defaultOpen }: { script: RenderedScript; defaultOpen?: boolean }) {
+  const lineCount = script.content.split('\n').length
   return (
-    <div className="bp-script">
-      <div className="bp-script-head"><span className="bp-mono">{script.name}</span><CopyButton text={script.content} /></div>
+    <details className="bp-script" open={defaultOpen}>
+      <summary className="bp-script-head">
+        <span className="bp-script-caret" aria-hidden>▸</span>
+        <span className="bp-mono">{script.name}</span>
+        <span className="bp-script-hint">스크립트 보기 · {lineCount}줄</span>
+        <CopyButton text={script.content} />
+      </summary>
       <pre className="bp-pre"><code>{script.content}</code></pre>
-    </div>
+    </details>
   )
 }
 
