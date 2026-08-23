@@ -30,7 +30,7 @@ STRUCTURE = [
   ('03-storage', 'Storage', [
     ('Block Storage', ['block-volume', 'boot-volume', 'volume-group', 'volume-backup-policy']),
     ('File Storage', ['file-system', 'mount-target', 'export']),
-    ('Object Storage', ['bucket']),
+    ('Object Storage', ['bucket', 'object-bulk-upload', 'object-sync']),
   ]),
   ('04-network', 'Networking', [
     ('Virtual Cloud Networks', ['vcn', 'subnet', 'route-table', 'dhcp-options']),
@@ -64,7 +64,8 @@ RES_LABEL = {
   'dedicated-vm-host': 'Dedicated VM Host', 'capacity-reservation': 'Capacity Reservation', 'compute-cluster': 'Compute Cluster',
   'custom-image': 'Custom Image', 'block-volume': 'Block Volume', 'boot-volume': 'Boot Volume', 'volume-group': 'Volume Group',
   'volume-backup-policy': 'Volume Backup Policy', 'file-system': 'File System', 'mount-target': 'Mount Target', 'export': 'Export',
-  'bucket': 'Bucket', 'vcn': 'VCN', 'subnet': 'Subnet', 'route-table': 'Route Table', 'dhcp-options': 'DHCP Options',
+  'bucket': 'Bucket', 'object-bulk-upload': 'Bulk Upload', 'object-sync': 'Object Sync',
+  'vcn': 'VCN', 'subnet': 'Subnet', 'route-table': 'Route Table', 'dhcp-options': 'DHCP Options',
   'security-list': 'Security List', 'nsg': 'Network Security Group', 'internet-gateway': 'Internet Gateway',
   'nat-gateway': 'NAT Gateway', 'service-gateway': 'Service Gateway', 'drg': 'DRG', 'drg-attachment': 'DRG Attachment',
   'local-peering-gateway': 'Local Peering Gateway', 'remote-peering-connection': 'Remote Peering Connection',
@@ -157,6 +158,24 @@ CURATION = {
       ('기본 정보', ['--name', '--compartment-id', '--namespace-name']),
       ('설정', ['--public-access-type', '--storage-tier', '--versioning', '--auto-tiering', '--object-events-enabled']),
       ('암호화', ['--kms-key-id']),
+    ],
+  },
+  'object-bulk-upload': {
+    'sections': [
+      ('대상과 경로', ['--namespace', '--bucket-name', '--src-dir', '--prefix']),
+      ('업로드 정책', ['--overwrite', '--no-overwrite', '--dry-run', '--verify-checksum', '--include', '--exclude', '--no-follow-symlinks']),
+      ('전송 성능', ['--no-multipart', '--part-size', '--parallel-upload-count', '--disable-parallel-uploads']),
+      ('객체 메타데이터', ['--metadata', '--content-type', '--content-language', '--content-encoding', '--cache-control', '--content-disposition']),
+      ('암호화와 저장 계층', ['--storage-tier', '--encryption-key-file', '--opc-sse-kms-key-id']),
+    ],
+  },
+  'object-sync': {
+    'sections': [
+      ('동기화 방향', ['--namespace', '--bucket-name', '--src-dir', '--dest-dir', '--prefix']),
+      ('동기화 정책', ['--dry-run', '--delete', '--include', '--exclude', '--no-follow-symlinks']),
+      ('전송 성능', ['--no-multipart', '--part-size', '--parallel-operations-count']),
+      ('객체 메타데이터', ['--metadata', '--content-type', '--content-language', '--content-encoding', '--cache-control', '--content-disposition']),
+      ('암호화와 저장 계층', ['--storage-tier', '--encryption-key-file']),
     ],
   },
   'load-balancer': {
@@ -373,6 +392,30 @@ OPTION_RULES_BY_COMMAND = {
             'id': 'instance-boot-size-requires-image', 'kind': 'requires',
             'when': '--boot-volume-size-in-gbs', 'requires': ['--image-id'],
             'message': '--boot-volume-size-in-gbs를 사용하려면 --image-id를 선택해야 합니다.',
+        },
+    ],
+    'oci os object bulk-upload': [
+        {
+            'id': 'bulk-upload-overwrite-policy', 'kind': 'mutuallyExclusive',
+            'options': ['--overwrite', '--no-overwrite'],
+            'message': '--overwrite와 --no-overwrite는 함께 사용할 수 없습니다.',
+        },
+        {
+            'id': 'bulk-upload-file-filter', 'kind': 'mutuallyExclusive',
+            'options': ['--include', '--exclude'],
+            'message': '--include와 --exclude는 함께 사용할 수 없습니다.',
+        },
+    ],
+    'oci os object sync': [
+        {
+            'id': 'object-sync-direction', 'kind': 'oneOf',
+            'options': ['--src-dir', '--dest-dir'],
+            'message': '업로드는 --src-dir, 다운로드는 --dest-dir 중 정확히 하나를 지정합니다.',
+        },
+        {
+            'id': 'object-sync-file-filter', 'kind': 'mutuallyExclusive',
+            'options': ['--include', '--exclude'],
+            'message': '--include와 --exclude는 함께 사용할 수 없습니다.',
         },
     ],
 }
@@ -631,6 +674,7 @@ catalog['source'].update({
 MANUAL_CATEGORY_RESOURCES = {
     'instance-maintenance-reboot', 'instance-boot-volume-backup',
     'iam-user', 'iam-group', 'iam-policy',
+    'object-bulk-upload', 'object-sync',
 }
 placed = set()
 for cat_id, cat_label, groups in STRUCTURE:
@@ -772,7 +816,7 @@ for res, d in raw.items():
         'cmd': cmd, 'help': (primary.get('help') or '').strip()[:200],
         'sections': sections, 'advanced': advanced, 'operations': operations,
     }
-    for metadata_key in ('preferredOperation', 'disableDynamic', 'rootTenancyLookup'):
+    for metadata_key in ('preferredOperation', 'disableDynamic', 'rootTenancyLookup', 'safeCreateOnly'):
         if metadata_key in d:
             catalog_command[metadata_key] = d[metadata_key]
     catalog['commands'][res] = catalog_command

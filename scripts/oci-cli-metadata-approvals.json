@@ -5,7 +5,9 @@
     "commit": "4bdc3beb2d0b4a3187ef8392fff19537aba1178d"
   },
   "officialManualResources": [
-    "mysql-backup"
+    "mysql-backup",
+    "object-bulk-upload",
+    "object-sync"
   ],
   "approvedDifferences": [
     {

@@ -50,6 +50,10 @@ for (const [resource, command] of Object.entries(catalog.commands)) {
     fail(`${resource}: catalog preferredOperation must be ${expected}, got ${command.preferredOperation ?? '(missing)'}`)
   }
   if (actual !== expected) fail(`${resource}: UI default must be ${expected}, got ${actual}`)
+  if (command.safeCreateOnly) {
+    if (actual !== 'create') fail(`${resource}: safe create-only workflow must default to CREATE`)
+    continue
+  }
   if ((operations.list || operations.get) && ['create', 'update', 'delete'].includes(actual)) {
     fail(`${resource}: mutating operation ${actual} selected while a read operation exists`)
   }

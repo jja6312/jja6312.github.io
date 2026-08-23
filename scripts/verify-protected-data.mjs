@@ -233,6 +233,34 @@ for (const level of [1, 2, 3]) {
       throw new Error(`L${level} MySQL Backup optional field marked required: ${name}`)
     }
   }
+  const storageCategory = bundle.cliCatalog.categories.find(category => category.id === '03-storage')
+  const objectStorageGroup = storageCategory?.groups.find(group => group.label === 'Object Storage')
+  if (JSON.stringify(objectStorageGroup?.resources) !== JSON.stringify(['bucket', 'object-bulk-upload', 'object-sync'])) {
+    throw new Error(`L${level} Storage > Object Storage menu invalid`)
+  }
+  const bulkUpload = bundle.cliCatalog.commands['object-bulk-upload']
+  const objectSync = bundle.cliCatalog.commands['object-sync']
+  if (bulkUpload?.operations?.create?.cmd !== 'oci os object bulk-upload'
+    || objectSync?.operations?.create?.cmd !== 'oci os object sync') {
+    throw new Error(`L${level} Object Storage transfer commands invalid`)
+  }
+  if (bulkUpload.safeCreateOnly !== true || objectSync.safeCreateOnly !== true) {
+    throw new Error(`L${level} Object Storage transfer safety metadata invalid`)
+  }
+  if (JSON.stringify(requiredNames(bulkUpload.operations.create)) !== JSON.stringify(['--bucket-name', '--namespace', '--src-dir']))
+    throw new Error(`L${level} Bulk Upload required fields invalid`)
+  if (JSON.stringify(requiredNames(objectSync.operations.create)) !== JSON.stringify(['--bucket-name', '--namespace']))
+    throw new Error(`L${level} Object Sync required fields invalid`)
+  for (const name of ['--dry-run', '--verify-checksum', '--no-follow-symlinks']) {
+    if (!publicOptionNames(bulkUpload.operations.create).has(name)) throw new Error(`L${level} Bulk Upload option missing: ${name}`)
+  }
+  for (const name of ['--src-dir', '--dest-dir', '--delete', '--dry-run']) {
+    if (!publicOptionNames(objectSync.operations.create).has(name)) throw new Error(`L${level} Object Sync option missing: ${name}`)
+  }
+  if (bulkUpload.operations.create.rules?.find(rule => rule.id === 'bulk-upload-overwrite-policy')?.kind !== 'mutuallyExclusive'
+    || objectSync.operations.create.rules?.find(rule => rule.id === 'object-sync-direction')?.kind !== 'oneOf') {
+    throw new Error(`L${level} Object Storage transfer option rules invalid`)
+  }
   const governanceCategory = bundle.cliCatalog.categories.find(category => category.id === '07-governance')
   const accountManagementGroup = governanceCategory?.groups.find(group => group.label === 'Account Management')
   if (JSON.stringify(accountManagementGroup?.resources) !== JSON.stringify(['announcement'])) {

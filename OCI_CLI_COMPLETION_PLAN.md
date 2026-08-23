@@ -286,6 +286,9 @@
 - [ ] `P3-CS-06` Volume Group Backups
 - [ ] `P3-CS-07` Backup Policies와 Volume 할당 관계
 - [ ] `P3-CS-08` File Storage Snapshots
+- [ ] `P3-CS-09` Object Storage `bulk-upload`·`object sync` — 최초 폴더 업로드, 반복 동기화, dry-run·체크섬·심볼릭 링크 안전 흐름
+  - 구현: 카탈로그·공식 옵션 계약·메뉴·사용 문서·보호 회귀검증 추가 완료
+  - 남은 조건: `HUB_LOCK_1~3` 환경에서 보호 데이터 bake, lint/build 결과 포함 최종 커밋 및 GitHub Pages 라이브 검증
 
 #### Governance·Observability·Cost
 
@@ -423,7 +426,7 @@
 
 ## 5. 다음 작업
 
-사용자 우선순위 변경(2026-08-22)으로 다음 착수 항목은 `Phase 2.5 — Blueprint Foundation`(`P2.5-01`부터)이다. `P2-03`은 Blueprint Foundation 완료 후 재개한다.
+사용자 요청으로 `P3-CS-09` Object Storage 전송 흐름을 우선 구현했다. 현재 카탈로그·문서·로컬 검증은 완료했으며 `HUB_LOCK_1~3`을 사용한 보호 데이터 bake와 GitHub Pages 배포 검증 후 완료 처리한다. 그 다음 미완료 우선순위는 `P3-CS-01`이다.
 
 ## 6. 변경 이력
 

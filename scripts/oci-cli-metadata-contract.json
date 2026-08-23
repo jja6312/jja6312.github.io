@@ -14059,6 +14059,398 @@
         }
       }
     },
+    "object-bulk-upload": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci os object bulk-upload",
+      "operations": {
+        "create": {
+          "command": "oci os object bulk-upload",
+          "options": {
+            "--bucket-name": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--cache-control": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--content-disposition": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--content-encoding": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--content-language": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--content-type": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--disable-parallel-uploads": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": true
+            },
+            "--dry-run": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--encryption-key-file": {
+              "required": false,
+              "type": "file",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--exclude": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": true,
+              "choices": null,
+              "deprecated": false
+            },
+            "--include": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": true,
+              "choices": null,
+              "deprecated": false
+            },
+            "--metadata": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--namespace": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--no-follow-symlinks": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--no-multipart": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--no-overwrite": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--opc-sse-kms-key-id": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--overwrite": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--parallel-upload-count": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--part-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--prefix": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--src-dir": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--storage-tier": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "Archive",
+                "InfrequentAccess",
+                "Standard"
+              ],
+              "deprecated": false
+            },
+            "--verify-checksum": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
+    "object-sync": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci os object sync",
+      "operations": {
+        "create": {
+          "command": "oci os object sync",
+          "options": {
+            "--bucket-name": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--cache-control": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--content-disposition": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--content-encoding": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--content-language": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--content-type": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--delete": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--dest-dir": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--dry-run": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--encryption-key-file": {
+              "required": false,
+              "type": "file",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--exclude": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": true,
+              "choices": null,
+              "deprecated": false
+            },
+            "--include": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": true,
+              "choices": null,
+              "deprecated": false
+            },
+            "--metadata": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--namespace": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--no-follow-symlinks": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--no-multipart": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--parallel-operations-count": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--part-size": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--prefix": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--src-dir": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--storage-tier": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "Archive",
+                "InfrequentAccess",
+                "Standard"
+              ],
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
     "public-ip": {
       "sourceKind": "generated",
       "coverage": "derived-crud",
