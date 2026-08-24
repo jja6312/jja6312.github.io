@@ -55,6 +55,17 @@
 .wiz-slotpick button { background: var(--accent-dim); border: none; border-radius: 6px; padding: 3px 10px; cursor: pointer; color: var(--text); font-size: .78rem; }
 
 .wiz-inspector .wiz-ins-label { display: flex; flex-direction: column; gap: 3px; font-size: .78rem; color: var(--text-dim); margin-bottom: 8px; }
+/* 인스펙터 연결(관계) 편집 */
+.wiz-ins-slots { margin: 10px 0; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.wiz-slot { display: flex; flex-direction: column; gap: 4px; }
+.wiz-slot-label { font-size: .78rem; color: var(--text); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.wiz-slot-multi { font-size: 10px; color: var(--text-faint); font-weight: 400; }
+.wiz-slot-empty { font-size: .72rem; color: var(--text-faint); font-style: italic; }
+.wiz-slot-checks { display: flex; flex-direction: column; gap: 3px; }
+.wiz-slot-check { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--text-dim); background: var(--bg-inset); border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; cursor: pointer; }
+.wiz-slot-check.on { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 8%, var(--bg-inset)); }
+.wiz-slot-used { margin-top: 4px; }
+.wiz-slot-useditem { font-size: .74rem; color: var(--text-dim); }
 .wiz-ins-edges { margin: 10px 0; display: flex; flex-direction: column; gap: 3px; }
 .wiz-ins-edge { display: flex; align-items: center; gap: 4px; font-size: .76rem; color: var(--text-dim); }
 .wiz-ins-edge .wiz-node-x { margin-left: auto; }

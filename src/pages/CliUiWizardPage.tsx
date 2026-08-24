@@ -149,8 +149,6 @@ export default function CliUiWizardPage() {
   const protectedState = useProtectedData()
   const [graph, setGraph] = useState<WizardGraph>(loadGraph)
   const [sel, setSel] = useState<{ kind: 'node' | 'edge'; id: string } | null>(null)
-  const [connectFrom, setConnectFrom] = useState<string | null>(null)
-  const [slotPick, setSlotPick] = useState<{ options: { from: string; to: string; slot: string }[] } | null>(null)
   const [discoverRaw, setDiscoverRaw] = useState(''); const [runRaw, setRunRaw] = useState(''); const [verifyRaw, setVerifyRaw] = useState('')
   const [planDigest, setPlanDigest] = useState('')
   const drag = useRef<{ id: string; dx: number; dy: number; pid: number } | null>(null)
@@ -200,23 +198,18 @@ export default function CliUiWizardPage() {
   const setNodeInput = (id: string, key: string, v: string) => setGraph(prev => ({ ...prev, nodes: prev.nodes.map(x => x.id === id ? { ...x, inputs: { ...x.inputs, [key]: v } } : x) }))
 
   const nodeById = (id: string) => graph.nodes.find(n => n.id === id)
-  // 방향 무관 연결: A·B 중 어느 쪽이 다른 쪽을 소비하든 유효한 슬롯을 찾는다(클릭 순서 상관없음)
-  const tryConnect = (b: string) => {
-    const a = connectFrom; setConnectFrom(null); if (!a || a === b) return
-    const aType = nodeById(a)?.moduleType, bType = nodeById(b)?.moduleType
-    const modA = WIZARD_MODULES[aType || ''], modB = WIZARD_MODULES[bType || '']
-    if (!modA || !modB || !aType || !bType) return
-    const opts: { from: string; to: string; slot: string }[] = []
-    for (const es of modB.edgeSlots) if ((Array.isArray(es.target) ? es.target : [es.target]).includes(aType)) opts.push({ from: a, to: b, slot: es.slot })
-    for (const es of modA.edgeSlots) if ((Array.isArray(es.target) ? es.target : [es.target]).includes(bType)) opts.push({ from: b, to: a, slot: es.slot })
-    const uniq = opts.filter((o, i) => opts.findIndex(x => x.from === o.from && x.to === o.to && x.slot === o.slot) === i)
-    if (uniq.length === 0) return
-    if (uniq.length === 1) addEdge(uniq[0].from, uniq[0].to, uniq[0].slot)
-    else setSlotPick({ options: uniq })
+  // 연결은 인스펙터에서 슬롯별 드롭다운/체크박스로 만든다(직관적·확실). 엣지 방향: from=소스, to=소비자(선택노드).
+  const toggleEdge = (from: string, to: string, slot: string, on: boolean) => {
+    setGraph(prev => {
+      const rest = prev.edges.filter(e => !(e.from === from && e.to === to && e.slot === slot))
+      return { ...prev, edges: on ? [...rest, { id: uid('e'), from, to, slot }] : rest }
+    })
   }
-  const addEdge = (from: string, to: string, slot: string) => {
-    setGraph(prev => ({ ...prev, edges: [...prev.edges.filter(e => !(e.from === from && e.to === to && e.slot === slot)), { id: uid('e'), from, to, slot }] }))
-    setSlotPick(null)
+  const setSingleEdge = (to: string, slot: string, from: string) => {
+    setGraph(prev => {
+      const rest = prev.edges.filter(e => !(e.to === to && e.slot === slot))
+      return { ...prev, edges: from ? [...rest, { id: uid('e'), from, to, slot }] : rest }
+    })
   }
 
   // 드래그 이동
@@ -267,25 +260,22 @@ export default function CliUiWizardPage() {
               {mods.map(m => <button key={m.type} className="wiz-pitem" onClick={() => addNode(m.type)}>+ {m.label}</button>)}
             </div>
           ))}
-          <p className="bp-dim wiz-hint">노드의 <b>연결</b>을 누르고 대상 노드를 클릭하면 관계가 이어집니다.</p>
+          <p className="bp-dim wiz-hint">리소스를 클릭해 선택하면, 우측 <b>연결(관계 설정)</b>에서 어떤 자원에 붙일지 고릅니다.</p>
         </aside>
 
-        {/* 캔버스 — 컨테인먼트 다이어그램 */}
-        <div className="wiz-canvas" ref={canvasRef} onPointerMove={onCanvasPointerMove} onPointerUp={onCanvasPointerUp} onClick={() => { setSel(null); setConnectFrom(null) }}>
+        {/* 캔버스 — 컨테인먼트 다이어그램 (연결은 노드 선택 후 우측 인스펙터에서) */}
+        <div className="wiz-canvas" ref={canvasRef} onPointerMove={onCanvasPointerMove} onPointerUp={onCanvasPointerUp} onClick={() => setSel(null)}>
           <div className="wiz-stage" style={{ width: layout.width, height: layout.height }}>
             {/* VCN 컨테이너 상자 (뒤) */}
             {layout.containers.map(c => {
               const r = c.rect
               return (
-                <div key={c.vcn.id} className={`wiz-vcn${sel?.kind === 'node' && sel.id === c.vcn.id ? ' on' : ''}${connectFrom === c.vcn.id ? ' connecting' : ''}`}
+                <div key={c.vcn.id} className={`wiz-vcn${sel?.kind === 'node' && sel.id === c.vcn.id ? ' on' : ''}`}
                   style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
-                  onClick={ev => { ev.stopPropagation(); if (connectFrom) tryConnect(c.vcn.id); else setSel({ kind: 'node', id: c.vcn.id }) }}>
+                  onClick={ev => { ev.stopPropagation(); setSel({ kind: 'node', id: c.vcn.id }) }}>
                   <div className="wiz-vcn-head" onPointerDown={ev => onNodePointerDown(ev, c.vcn.id)}>
                     <span className="wiz-vcn-badge">VCN · {c.vcn.label}</span>
-                    <span className="wiz-vcn-tools">
-                      <button className="wiz-connect" onClick={ev => { ev.stopPropagation(); setConnectFrom(c.vcn.id) }}>연결</button>
-                      <button className="wiz-node-x" title="삭제" onClick={ev => { ev.stopPropagation(); delNode(c.vcn.id) }}>✕</button>
-                    </span>
+                    <button className="wiz-node-x" title="삭제" onClick={ev => { ev.stopPropagation(); delNode(c.vcn.id) }}>✕</button>
                   </div>
                   {c.subnets.length === 0 && c.gateways.length === 0 && c.shared.length === 0 && <div className="wiz-vcn-hint">이 VCN 안에 subnet·gateway·route-table 를 추가하세요</div>}
                 </div>
@@ -307,31 +297,21 @@ export default function CliUiWizardPage() {
               const m = WIZARD_MODULES[n.moduleType]
               const draggable = kind === 'float'
               return (
-                <div key={n.id} className={`wiz-box wiz-${kind}${sel?.kind === 'node' && sel.id === n.id ? ' on' : ''}${connectFrom === n.id ? ' connecting' : ''}`}
+                <div key={n.id} className={`wiz-box wiz-${kind}${sel?.kind === 'node' && sel.id === n.id ? ' on' : ''}`}
                   style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
                   onPointerDown={draggable ? ev => onNodePointerDown(ev, n.id) : undefined}
-                  onClick={ev => { ev.stopPropagation(); if (connectFrom) tryConnect(n.id); else setSel({ kind: 'node', id: n.id }) }}>
+                  onClick={ev => { ev.stopPropagation(); setSel({ kind: 'node', id: n.id }) }}>
                   <div className="wiz-box-top">
                     <span className="wiz-box-badge">{m?.label ?? n.moduleType}</span>
                     <button className="wiz-node-x" title="삭제" onClick={ev => { ev.stopPropagation(); delNode(n.id) }}>✕</button>
                   </div>
                   <div className="wiz-box-bot">
                     <span className="wiz-box-name">{n.label}{n.role && n.role !== 'main' ? ` · ${n.role}` : ''}</span>
-                    <button className="wiz-connect" onClick={ev => { ev.stopPropagation(); setConnectFrom(n.id) }}>연결</button>
                   </div>
                 </div>
               )
             })}
-
-            {slotPick && (
-              <div className="wiz-slotpick" onClick={ev => ev.stopPropagation()}>
-                <span className="px">연결 종류</span>
-                {slotPick.options.map((o, i) => <button key={i} onClick={() => addEdge(o.from, o.to, o.slot)}>{SLOT_LABEL[o.slot] ?? o.slot}</button>)}
-                <button className="iconbtn" onClick={() => setSlotPick(null)}>취소</button>
-              </div>
-            )}
           </div>
-          {connectFrom && <div className="wiz-connect-banner">연결 대상 노드를 클릭하세요 · <button className="iconbtn" onClick={ev => { ev.stopPropagation(); setConnectFrom(null) }}>취소</button></div>}
           {graph.nodes.length === 0 && <div className="wiz-empty">왼쪽에서 <b>VCN</b> 을 먼저 추가하고, 그 안에 subnet·gateway 를 넣으세요 · 또는 <b>예시 불러오기</b></div>}
         </div>
 
@@ -351,10 +331,37 @@ export default function CliUiWizardPage() {
                     : <input className="bp-field-input" value={selNode.inputs?.[si.key] ?? si.default ?? ''} onChange={e => setNodeInput(selNode.id, si.key, e.target.value)} placeholder={si.default} />}
                 </label>
               ))}
-              <div className="wiz-ins-edges">
-                <div className="px bp-dim">연결</div>
-                {graph.edges.filter(e => e.to === selNode.id).map(e => <div key={e.id} className="wiz-ins-edge">← {nodeById(e.from)?.label} <span className="px">({e.slot})</span><button className="wiz-node-x" onClick={() => delEdge(e.id)}>✕</button></div>)}
-                {graph.edges.filter(e => e.from === selNode.id).map(e => <div key={e.id} className="wiz-ins-edge">→ {nodeById(e.to)?.label} <span className="px">({e.slot})</span><button className="wiz-node-x" onClick={() => delEdge(e.id)}>✕</button></div>)}
+              <div className="wiz-ins-slots">
+                <div className="px bp-dim">연결 (관계 설정)</div>
+                {selMod.edgeSlots.length === 0 && <div className="wiz-slot-empty">이 자원은 다른 자원에 연결하지 않습니다(루트).</div>}
+                {selMod.edgeSlots.map(es => {
+                  const targets = Array.isArray(es.target) ? es.target : [es.target]
+                  const candidates = graph.nodes.filter(n => n.id !== selNode.id && targets.includes(n.moduleType))
+                  const current = graph.edges.filter(e => e.to === selNode.id && e.slot === es.slot).map(e => e.from)
+                  const label = SLOT_LABEL[es.slot] ?? es.slot
+                  return (
+                    <div key={es.slot} className="wiz-slot">
+                      <div className="wiz-slot-label">{label}{es.required ? <span className="bp-req">*</span> : null}{es.multiple ? <span className="wiz-slot-multi">여러 개 선택</span> : null}</div>
+                      {candidates.length === 0
+                        ? <div className="wiz-slot-empty">먼저 «{targets.map(t => WIZARD_MODULES[t]?.label ?? t).join('/')}» 를 캔버스에 추가하세요</div>
+                        : es.multiple
+                          ? <div className="wiz-slot-checks">{candidates.map(c => (
+                              <label key={c.id} className={`wiz-slot-check${current.includes(c.id) ? ' on' : ''}`}>
+                                <input type="checkbox" checked={current.includes(c.id)} onChange={ev => toggleEdge(c.id, selNode.id, es.slot, ev.target.checked)} /> {c.label}
+                              </label>))}</div>
+                          : <select className="bp-field-input" value={current[0] ?? ''} onChange={ev => setSingleEdge(selNode.id, es.slot, ev.target.value)}>
+                              <option value="">(선택 안 함)</option>
+                              {candidates.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                            </select>}
+                    </div>
+                  )
+                })}
+                {graph.edges.filter(e => e.from === selNode.id && e.slot !== 'vcn').length > 0 && (
+                  <div className="wiz-slot-used">
+                    <div className="px bp-dim">이 자원을 참조하는 곳</div>
+                    {graph.edges.filter(e => e.from === selNode.id && e.slot !== 'vcn').map(e => <div key={e.id} className="wiz-slot-useditem">→ {nodeById(e.to)?.label} <span className="px bp-dim">({SLOT_LABEL[e.slot] ?? e.slot})</span></div>)}
+                  </div>
+                )}
               </div>
               <button className="iconbtn" onClick={() => delNode(selNode.id)}>노드 삭제</button>
             </>
