@@ -12,9 +12,63 @@ import type { NamingPolicy, RenderedScript, PlanNode, DiscoveryResult, RunResult
 
 type Catalog = { commands: Record<string, unknown> }
 const LS_KEY = 'cli-wizard-graph.v1'
-const NODE_W = 168, NODE_H = 70
 const GROUP_LABEL: Record<string, string> = { network: '네트워크', compute: '컴퓨트', database: '데이터베이스', operations: '운영' }
+const SLOT_LABEL: Record<string, string> = { vcn: 'VCN 소속', 'route-target': '라우팅 대상', 'route-table': '라우트테이블', 'security-list': '시큐리티리스트' }
 const uid = (p: string) => `${p}-${Math.random().toString(36).slice(2, 8)}`
+
+// ── 컨테인먼트(포함) 레이아웃: VCN 큰 상자 안에 subnet, 경계에 gateway, 안쪽에 route-table/security-list ──
+type Rect = { x: number; y: number; w: number; h: number }
+const GW = { w: 138, h: 46 }, SUB = { w: 168, h: 60 }, SH = { w: 152, h: 46 }
+const PAD = 16, HEADER = 34, GAP = 12
+const isGateway = (t: string) => t === 'internet-gateway' || t === 'nat-gateway' || t === 'service-gateway'
+const isShared = (t: string) => t === 'route-table' || t === 'security-list'
+
+interface Container { vcn: WizardNode; rect: Rect; gateways: WizardNode[]; subnets: WizardNode[]; shared: WizardNode[] }
+interface Layout { containers: Container[]; floating: WizardNode[]; rects: Map<string, Rect>; width: number; height: number }
+
+function vcnOfNode(graph: WizardGraph, nodeId: string): string | null {
+  const byId = new Map(graph.nodes.map(n => [n.id, n]))
+  for (const e of graph.edges) if (e.slot === 'vcn' && e.to === nodeId && byId.get(e.from)?.moduleType === 'vcn') return e.from
+  return null
+}
+
+function layoutGraph(graph: WizardGraph): Layout {
+  const memberVcn = new Map<string, string>()
+  const byId = new Map(graph.nodes.map(n => [n.id, n]))
+  for (const e of graph.edges) if (e.slot === 'vcn' && byId.get(e.from)?.moduleType === 'vcn') memberVcn.set(e.to, e.from)
+  const rects = new Map<string, Rect>()
+  const containers: Container[] = []
+  for (const vcn of graph.nodes.filter(n => n.moduleType === 'vcn')) {
+    const members = graph.nodes.filter(n => memberVcn.get(n.id) === vcn.id)
+    const gateways = members.filter(n => isGateway(n.moduleType))
+    const subnets = members.filter(n => n.moduleType === 'subnet')
+    const shared = members.filter(n => isShared(n.moduleType))
+    const subCols = subnets.length > 2 ? 2 : Math.max(1, subnets.length)
+    const subRows = Math.ceil(subnets.length / subCols) || 0
+    const subAreaW = subnets.length ? subCols * SUB.w + (subCols - 1) * GAP : 0
+    const subAreaH = subRows ? subRows * SUB.h + (subRows - 1) * GAP : 0
+    const shAreaW = shared.length ? SH.w : 0
+    const shAreaH = shared.length ? shared.length * SH.h + (shared.length - 1) * 8 : 0
+    const gwW = gateways.length ? gateways.length * (GW.w + GAP) - GAP : 0
+    const bodyW = Math.max(subAreaW + (shAreaW ? GAP + shAreaW : 0), gwW, 240)
+    const bodyH = Math.max(subAreaH, shAreaH, 64)
+    const w = bodyW + PAD * 2, h = HEADER + bodyH + PAD * 2
+    const ox = vcn.x ?? 40, oy = vcn.y ?? 40
+    rects.set(vcn.id, { x: ox, y: oy, w, h })
+    gateways.forEach((g, i) => rects.set(g.id, { x: ox + PAD + i * (GW.w + GAP), y: oy - GW.h / 2, w: GW.w, h: GW.h }))
+    subnets.forEach((s, i) => { const r = Math.floor(i / subCols), c = i % subCols; rects.set(s.id, { x: ox + PAD + c * (SUB.w + GAP), y: oy + HEADER + PAD + r * (SUB.h + GAP), w: SUB.w, h: SUB.h }) })
+    shared.forEach((s, i) => rects.set(s.id, { x: ox + PAD + subAreaW + GAP, y: oy + HEADER + PAD + i * (SH.h + 8), w: SH.w, h: SH.h }))
+    containers.push({ vcn, rect: { x: ox, y: oy, w, h }, gateways, subnets, shared })
+  }
+  const floating = graph.nodes.filter(n => n.moduleType !== 'vcn' && !memberVcn.has(n.id))
+  const bottomOfContainers = containers.length ? Math.max(...containers.map(c => c.rect.y + c.rect.h)) : 80
+  floating.forEach((n, i) => rects.set(n.id, { x: 24 + i * (SUB.w + GAP), y: bottomOfContainers + 36, w: SUB.w, h: SUB.h }))
+  const all = [...rects.values()]
+  const width = all.length ? Math.max(...all.map(r => r.x + r.w)) + 40 : 400
+  const height = all.length ? Math.max(...all.map(r => r.y + r.h)) + 40 : 300
+  return { containers, floating, rects, width, height }
+}
+const rectCenter = (r?: Rect) => ({ x: (r?.x ?? 0) + (r?.w ?? 0) / 2, y: (r?.y ?? 0) + (r?.h ?? 0) / 2 })
 
 function emptyGraph(): WizardGraph {
   return {
@@ -96,7 +150,7 @@ export default function CliUiWizardPage() {
   const [graph, setGraph] = useState<WizardGraph>(loadGraph)
   const [sel, setSel] = useState<{ kind: 'node' | 'edge'; id: string } | null>(null)
   const [connectFrom, setConnectFrom] = useState<string | null>(null)
-  const [slotPick, setSlotPick] = useState<{ from: string; to: string; slots: string[] } | null>(null)
+  const [slotPick, setSlotPick] = useState<{ options: { from: string; to: string; slot: string }[] } | null>(null)
   const [discoverRaw, setDiscoverRaw] = useState(''); const [runRaw, setRunRaw] = useState(''); const [verifyRaw, setVerifyRaw] = useState('')
   const [planDigest, setPlanDigest] = useState('')
   const drag = useRef<{ id: string; dx: number; dy: number; pid: number } | null>(null)
@@ -127,8 +181,17 @@ export default function CliUiWizardPage() {
   const addNode = (moduleType: string) => {
     const m = WIZARD_MODULES[moduleType]; if (!m) return
     const id = uid(moduleType.replace(/[^a-z]/g, '').slice(0, 4) || 'n')
-    const n = graph.nodes.length
-    setGraph(prev => ({ ...prev, nodes: [...prev.nodes, { id, moduleType, role: m.defaultRole, label: id, x: 40 + (n % 4) * 60, y: 40 + (n % 6) * 40, inputs: {} }] }))
+    const vcns = graph.nodes.filter(x => x.moduleType === 'vcn')
+    if (moduleType === 'vcn') {
+      setGraph(prev => ({ ...prev, nodes: [...prev.nodes, { id, moduleType, role: m.defaultRole, label: id, x: 40 + vcns.length * 60, y: 40 + vcns.length * 60, inputs: {} }] }))
+      setSel({ kind: 'node', id }); return
+    }
+    // VCN 하위 리소스는 활성 VCN 안에 자동 배치(containment 엣지 자동 생성)
+    const selN = sel?.kind === 'node' ? graph.nodes.find(x => x.id === sel.id) : null
+    const vcnId = selN?.moduleType === 'vcn' ? selN.id : (selN ? vcnOfNode(graph, selN.id) : null) || (vcns.length ? vcns[vcns.length - 1].id : null)
+    const newNode: WizardNode = { id, moduleType, role: m.defaultRole, label: id, x: 40, y: 40, inputs: {} }
+    const newEdges = vcnId ? [{ id: uid('e'), from: vcnId, to: id, slot: 'vcn' }] : []
+    setGraph(prev => ({ ...prev, nodes: [...prev.nodes, newNode], edges: [...prev.edges, ...newEdges] }))
     setSel({ kind: 'node', id })
   }
   const delNode = (id: string) => setGraph(prev => ({ ...prev, nodes: prev.nodes.filter(x => x.id !== id), edges: prev.edges.filter(e => e.from !== id && e.to !== id) }))
@@ -137,14 +200,19 @@ export default function CliUiWizardPage() {
   const setNodeInput = (id: string, key: string, v: string) => setGraph(prev => ({ ...prev, nodes: prev.nodes.map(x => x.id === id ? { ...x, inputs: { ...x.inputs, [key]: v } } : x) }))
 
   const nodeById = (id: string) => graph.nodes.find(n => n.id === id)
-  const tryConnect = (to: string) => {
-    const from = connectFrom; setConnectFrom(null); if (!from || from === to) return
-    const fromType = nodeById(from)?.moduleType; const toMod = WIZARD_MODULES[nodeById(to)?.moduleType || '']
-    if (!toMod || !fromType) return
-    const slots = toMod.edgeSlots.filter(es => (Array.isArray(es.target) ? es.target : [es.target]).includes(fromType)).map(es => es.slot)
-    if (slots.length === 0) return
-    if (slots.length === 1) addEdge(from, to, slots[0])
-    else setSlotPick({ from, to, slots })
+  // 방향 무관 연결: A·B 중 어느 쪽이 다른 쪽을 소비하든 유효한 슬롯을 찾는다(클릭 순서 상관없음)
+  const tryConnect = (b: string) => {
+    const a = connectFrom; setConnectFrom(null); if (!a || a === b) return
+    const aType = nodeById(a)?.moduleType, bType = nodeById(b)?.moduleType
+    const modA = WIZARD_MODULES[aType || ''], modB = WIZARD_MODULES[bType || '']
+    if (!modA || !modB || !aType || !bType) return
+    const opts: { from: string; to: string; slot: string }[] = []
+    for (const es of modB.edgeSlots) if ((Array.isArray(es.target) ? es.target : [es.target]).includes(aType)) opts.push({ from: a, to: b, slot: es.slot })
+    for (const es of modA.edgeSlots) if ((Array.isArray(es.target) ? es.target : [es.target]).includes(bType)) opts.push({ from: b, to: a, slot: es.slot })
+    const uniq = opts.filter((o, i) => opts.findIndex(x => x.from === o.from && x.to === o.to && x.slot === o.slot) === i)
+    if (uniq.length === 0) return
+    if (uniq.length === 1) addEdge(uniq[0].from, uniq[0].to, uniq[0].slot)
+    else setSlotPick({ options: uniq })
   }
   const addEdge = (from: string, to: string, slot: string) => {
     setGraph(prev => ({ ...prev, edges: [...prev.edges.filter(e => !(e.from === from && e.to === to && e.slot === slot)), { id: uid('e'), from, to, slot }] }))
@@ -168,7 +236,8 @@ export default function CliUiWizardPage() {
 
   const selNode = sel?.kind === 'node' ? nodeById(sel.id) : null
   const selMod = selNode ? WIZARD_MODULES[selNode.moduleType] : null
-  const center = (n?: WizardNode) => ({ x: (n?.x ?? 0) + NODE_W / 2, y: (n?.y ?? 0) + NODE_H / 2 })
+  const layout = layoutGraph(graph)
+  const rects = layout.rects
   const prefix = graph.id || 'wizard'
   const renderArgs = composed && naming ? { blueprint: composed.blueprint, catalog: catalog as Catalog, inputs: composed.inputs, naming } : null
 
@@ -201,39 +270,69 @@ export default function CliUiWizardPage() {
           <p className="bp-dim wiz-hint">노드의 <b>연결</b>을 누르고 대상 노드를 클릭하면 관계가 이어집니다.</p>
         </aside>
 
-        {/* 캔버스 */}
+        {/* 캔버스 — 컨테인먼트 다이어그램 */}
         <div className="wiz-canvas" ref={canvasRef} onPointerMove={onCanvasPointerMove} onPointerUp={onCanvasPointerUp} onClick={() => { setSel(null); setConnectFrom(null) }}>
-          <svg className="wiz-edges" aria-hidden>
-            {graph.edges.map(e => {
-              const a = center(nodeById(e.from)), b = center(nodeById(e.to))
-              const midX = (a.x + b.x) / 2
-              return <path key={e.id} d={`M${a.x},${a.y} C${midX},${a.y} ${midX},${b.y} ${b.x},${b.y}`} className={`wiz-edge${sel?.kind === 'edge' && sel.id === e.id ? ' on' : ''}`} onClick={ev => { ev.stopPropagation(); setSel({ kind: 'edge', id: e.id }) }} />
+          <div className="wiz-stage" style={{ width: layout.width, height: layout.height }}>
+            {/* VCN 컨테이너 상자 (뒤) */}
+            {layout.containers.map(c => {
+              const r = c.rect
+              return (
+                <div key={c.vcn.id} className={`wiz-vcn${sel?.kind === 'node' && sel.id === c.vcn.id ? ' on' : ''}${connectFrom === c.vcn.id ? ' connecting' : ''}`}
+                  style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
+                  onClick={ev => { ev.stopPropagation(); if (connectFrom) tryConnect(c.vcn.id); else setSel({ kind: 'node', id: c.vcn.id }) }}>
+                  <div className="wiz-vcn-head" onPointerDown={ev => onNodePointerDown(ev, c.vcn.id)}>
+                    <span className="wiz-vcn-badge">VCN · {c.vcn.label}</span>
+                    <span className="wiz-vcn-tools">
+                      <button className="wiz-connect" onClick={ev => { ev.stopPropagation(); setConnectFrom(c.vcn.id) }}>연결</button>
+                      <button className="wiz-node-x" title="삭제" onClick={ev => { ev.stopPropagation(); delNode(c.vcn.id) }}>✕</button>
+                    </span>
+                  </div>
+                  {c.subnets.length === 0 && c.gateways.length === 0 && c.shared.length === 0 && <div className="wiz-vcn-hint">이 VCN 안에 subnet·gateway·route-table 를 추가하세요</div>}
+                </div>
+              )
             })}
-          </svg>
-          {graph.nodes.map(n => {
-            const m = WIZARD_MODULES[n.moduleType]
-            return (
-              <div key={n.id} className={`wiz-node${sel?.kind === 'node' && sel.id === n.id ? ' on' : ''}${connectFrom === n.id ? ' connecting' : ''}`} style={{ left: n.x, top: n.y, width: NODE_W }}
-                onClick={ev => { ev.stopPropagation(); if (connectFrom) tryConnect(n.id); else setSel({ kind: 'node', id: n.id }) }}>
-                <div className="wiz-node-head" onPointerDown={ev => onNodePointerDown(ev, n.id)}>
-                  <span className="wiz-node-badge">{m?.label ?? n.moduleType}</span>
-                  <button className="wiz-node-x" title="삭제" onClick={ev => { ev.stopPropagation(); delNode(n.id) }}>✕</button>
+
+            {/* 관계선 (vcn 소속선 제외) */}
+            <svg className="wiz-edges" width={layout.width} height={layout.height} aria-hidden>
+              {graph.edges.filter(e => e.slot !== 'vcn').map(e => {
+                const a = rectCenter(rects.get(e.from)), b = rectCenter(rects.get(e.to))
+                const midY = (a.y + b.y) / 2
+                return <path key={e.id} d={`M${a.x},${a.y} C${a.x},${midY} ${b.x},${midY} ${b.x},${b.y}`} className={`wiz-edge${sel?.kind === 'edge' && sel.id === e.id ? ' on' : ''}`} onClick={ev => { ev.stopPropagation(); setSel({ kind: 'edge', id: e.id }) }} />
+              })}
+            </svg>
+
+            {/* 자식 노드(게이트웨이/서브넷/공유) + 부유 노드 */}
+            {[...layout.containers.flatMap(c => [...c.gateways.map(n => ['gw', n] as const), ...c.subnets.map(n => ['subnet', n] as const), ...c.shared.map(n => ['shared', n] as const)]), ...layout.floating.map(n => ['float', n] as const)].map(([kind, n]) => {
+              const r = rects.get(n.id); if (!r) return null
+              const m = WIZARD_MODULES[n.moduleType]
+              const draggable = kind === 'float'
+              return (
+                <div key={n.id} className={`wiz-box wiz-${kind}${sel?.kind === 'node' && sel.id === n.id ? ' on' : ''}${connectFrom === n.id ? ' connecting' : ''}`}
+                  style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
+                  onPointerDown={draggable ? ev => onNodePointerDown(ev, n.id) : undefined}
+                  onClick={ev => { ev.stopPropagation(); if (connectFrom) tryConnect(n.id); else setSel({ kind: 'node', id: n.id }) }}>
+                  <div className="wiz-box-top">
+                    <span className="wiz-box-badge">{m?.label ?? n.moduleType}</span>
+                    <button className="wiz-node-x" title="삭제" onClick={ev => { ev.stopPropagation(); delNode(n.id) }}>✕</button>
+                  </div>
+                  <div className="wiz-box-bot">
+                    <span className="wiz-box-name">{n.label}{n.role && n.role !== 'main' ? ` · ${n.role}` : ''}</span>
+                    <button className="wiz-connect" onClick={ev => { ev.stopPropagation(); setConnectFrom(n.id) }}>연결</button>
+                  </div>
                 </div>
-                <div className="wiz-node-body">
-                  <span className="wiz-node-role px">{n.role}</span>
-                  <button className="wiz-connect" onClick={ev => { ev.stopPropagation(); setConnectFrom(n.id) }}>연결 →</button>
-                </div>
+              )
+            })}
+
+            {slotPick && (
+              <div className="wiz-slotpick" onClick={ev => ev.stopPropagation()}>
+                <span className="px">연결 종류</span>
+                {slotPick.options.map((o, i) => <button key={i} onClick={() => addEdge(o.from, o.to, o.slot)}>{SLOT_LABEL[o.slot] ?? o.slot}</button>)}
+                <button className="iconbtn" onClick={() => setSlotPick(null)}>취소</button>
               </div>
-            )
-          })}
-          {slotPick && (
-            <div className="wiz-slotpick" onClick={ev => ev.stopPropagation()}>
-              <span className="px">연결 종류</span>
-              {slotPick.slots.map(s => <button key={s} onClick={() => addEdge(slotPick.from, slotPick.to, s)}>{s}</button>)}
-              <button className="iconbtn" onClick={() => setSlotPick(null)}>취소</button>
-            </div>
-          )}
-          {graph.nodes.length === 0 && <div className="wiz-empty">왼쪽에서 리소스를 추가해 아키텍처를 그리세요 · 또는 <b>예시 불러오기</b></div>}
+            )}
+          </div>
+          {connectFrom && <div className="wiz-connect-banner">연결 대상 노드를 클릭하세요 · <button className="iconbtn" onClick={ev => { ev.stopPropagation(); setConnectFrom(null) }}>취소</button></div>}
+          {graph.nodes.length === 0 && <div className="wiz-empty">왼쪽에서 <b>VCN</b> 을 먼저 추가하고, 그 안에 subnet·gateway 를 넣으세요 · 또는 <b>예시 불러오기</b></div>}
         </div>
 
         {/* 인스펙터 */}

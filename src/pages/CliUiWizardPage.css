@@ -16,24 +16,42 @@
 .wiz-hint { font-size: 11px; margin-top: 10px; }
 
 .wiz-canvas { position: relative; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-inset); min-height: 480px; max-height: 560px; overflow: auto; touch-action: none; }
-.wiz-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.wiz-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 2; }
+.wiz-edges .wiz-edge { pointer-events: stroke; }
 .wiz-edge { fill: none; stroke: var(--text-faint); stroke-width: 2; pointer-events: stroke; cursor: pointer; opacity: .7; }
 .wiz-edge:hover { stroke: var(--accent); opacity: 1; }
 .wiz-edge.on { stroke: var(--accent); opacity: 1; stroke-width: 3; }
-.wiz-node { position: absolute; background: var(--bg-card); border: 1px solid var(--border); border-radius: 9px; box-shadow: var(--shadow); user-select: none; }
-.wiz-node.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
-.wiz-node.connecting { border-color: var(--partial); }
-.wiz-node-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; cursor: grab; border-bottom: 1px solid var(--line-soft); }
-.wiz-node-head:active { cursor: grabbing; }
-.wiz-node-badge { font-size: .74rem; font-weight: 600; color: var(--accent); }
-.wiz-node-x { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: .72rem; }
+.wiz-stage { position: relative; min-width: 100%; min-height: 100%; }
+/* VCN 컨테이너 (뒤) */
+.wiz-vcn { position: absolute; border: 2px solid var(--accent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 7%, var(--bg-inset)); z-index: 1; }
+.wiz-vcn.on { box-shadow: 0 0 0 2px var(--accent-dim); }
+.wiz-vcn.connecting { border-style: dashed; }
+.wiz-vcn-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; height: 34px; box-sizing: border-box; cursor: grab; }
+.wiz-vcn-head:active { cursor: grabbing; }
+.wiz-vcn-badge { font-size: .78rem; font-weight: 700; color: var(--accent); }
+.wiz-vcn-tools { display: flex; gap: 6px; align-items: center; }
+.wiz-vcn-hint { position: absolute; left: 8px; right: 8px; top: 48px; text-align: center; color: var(--text-faint); font-size: .74rem; pointer-events: none; }
+/* 자식 박스 (앞) */
+.wiz-box { position: absolute; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); z-index: 3; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; user-select: none; }
+.wiz-box.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+.wiz-box.connecting { border-color: var(--partial); }
+.wiz-box-top { display: flex; align-items: center; justify-content: space-between; padding: 3px 7px 0; }
+.wiz-box-badge { font-size: .72rem; font-weight: 600; color: var(--accent); }
+.wiz-box-bot { display: flex; align-items: center; justify-content: space-between; padding: 0 7px 4px; gap: 4px; }
+.wiz-box-name { font-size: .74rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wiz-gw { border-color: var(--pixel); background: color-mix(in srgb, var(--pixel) 12%, var(--bg-card)); z-index: 4; }
+.wiz-gw .wiz-box-badge { color: var(--pixel); }
+.wiz-subnet { border-left: 3px solid var(--correct); }
+.wiz-shared { border-left: 3px solid var(--partial); }
+.wiz-float { border-style: dashed; cursor: grab; }
+.wiz-node-x { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: .72rem; line-height: 1; }
 .wiz-node-x:hover { color: var(--wrong); }
-.wiz-node-body { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; }
-.wiz-node-role { font-size: 11px; color: var(--text-dim); }
-.wiz-connect { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 11px; cursor: pointer; color: var(--text-dim); }
+.wiz-connect { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; font-size: 11px; cursor: pointer; color: var(--text-dim); }
 .wiz-connect:hover { border-color: var(--accent); color: var(--text); }
+.wiz-connect-banner { position: sticky; bottom: 6px; left: 6px; margin: 6px; display: inline-flex; gap: 8px; align-items: center; background: var(--partial); color: #1a1a1a; border-radius: 8px; padding: 4px 10px; font-size: .8rem; z-index: 10; }
+.wiz-connect-banner .iconbtn { background: rgba(0,0,0,.15); }
 .wiz-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: .9rem; pointer-events: none; padding: 20px; text-align: center; }
-.wiz-slotpick { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; background: var(--bg-card); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 10px; box-shadow: var(--shadow); z-index: 5; }
+.wiz-slotpick { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; background: var(--bg-card); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 10px; box-shadow: var(--shadow); z-index: 20; flex-wrap: wrap; }
 .wiz-slotpick button { background: var(--accent-dim); border: none; border-radius: 6px; padding: 3px 10px; cursor: pointer; color: var(--text); font-size: .78rem; }
 
 .wiz-inspector .wiz-ins-label { display: flex; flex-direction: column; gap: 3px; font-size: .78rem; color: var(--text-dim); margin-bottom: 8px; }
