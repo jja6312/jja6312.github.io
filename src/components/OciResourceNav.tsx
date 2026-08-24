@@ -43,6 +43,14 @@ function categoryForPolicy(category: string, categories: OciNavCategory[]) {
   })
 }
 
+function categoryForPolicyResource(resource: string) {
+  const key = normalize(resource)
+  if (key === 'announcement' || key === 'announcements' || key === 'announcementsubscriptions' || key === 'allresources') return 'Governance & Administration'
+  if (key === 'onstopics') return 'Observability'
+  if (key === 'usagereport') return 'Billing & Cost Management'
+  return guessCategory(resource)
+}
+
 function policyRecords(statements: OciPolicyNavStatement[]) {
   const seen = new Set<string>()
   const records: Array<{ resource: string; label: string; category: string }> = []
@@ -61,7 +69,7 @@ function policyRecords(statements: OciPolicyNavStatement[]) {
     records.push({
       resource,
       label: parsed.kind === 'advanced' ? `${parsed.keyword?.toUpperCase()} policy` : resource,
-      category: parsed.kind === 'advanced' ? 'Security' : guessCategory(parsed.resourceType ?? ''),
+      category: parsed.kind === 'advanced' ? 'Security' : categoryForPolicyResource(parsed.resourceType ?? ''),
     })
   }
   return records
@@ -155,14 +163,8 @@ export default function OciResourceNav({
   footer?: ReactNode
 }) {
   const categories = buildOciResourceNav(catalog, statements)
-  const availableCount = categories.flatMap(category => category.groups.flatMap(group => group.entries)).filter(entry => surface === 'cli' ? !!entry.cliResource : !!entry.policyResource).length
   return (
     <div className="oci-resource-nav" aria-label={`${surface === 'cli' ? 'OCI CLI' : 'OCI Policy'} 리소스 메뉴`}>
-      <div className="oci-nav-legend">
-        <span className="oci-nav-legend-current">● 현재 화면 등록</span>
-        <span>● 회색: 반대 화면만 등록</span>
-        <b>{availableCount}</b>
-      </div>
       {categories.map(category => {
         const entries = category.groups.flatMap(group => group.entries)
         const available = entries.some(entry => surface === 'cli' ? !!entry.cliResource : !!entry.policyResource)
