@@ -24,10 +24,12 @@ export default function TasksView() {
 
   // 업무 → TODO 보드 조정: 진입/변경 시 미완료 항목을 카드로 생성, 완료·삭제분은 '할 일'에서 제거
   useEffect(() => {
-    if (!board.writable) return
+    // board/tasks가 실제 GitHub 데이터를 읽기 전에 EMPTY_BOARD를 저장하지 않는다.
+    // 이 경합이 수동 TODO 카드를 지우고 주기성 카드만 남기는 원인이었다.
+    if (!board.writable || board.sync === 'loading' || tasks.sync === 'loading') return
     const next = reconcileTasksToBoard(board.data, data)
     if (next) board.update(next)
-  }, [data, board])
+  }, [data, tasks.sync, board])
 
   const [tab, setTab] = useState<Tab>('recurring')
 

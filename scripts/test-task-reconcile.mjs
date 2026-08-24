@@ -11,6 +11,13 @@ const todoTexts = b => b.columns.find(c => c.id === 'todo').cards.map(c => c.tex
 const todoCards = b => b.columns.find(c => c.id === 'todo').cards
 const NOW = new Date('2026-08-23T09:00:00')
 
+t('수동 카드(source 없음)는 업무 조정에서도 보존', () => {
+  const board = { columns: [{ id: 'todo', title: '할 일', cards: [{ id: 'manual', text: '수동 등록', created: '2026-08-23T00:00:00Z' }] }, { id: 'doing', title: '진행 중', cards: [] }, { id: 'done', title: '완료', cards: [] }] }
+  const tasks = { ...emptyTasks(), recurring: [{ id: 'r1', title: '주간보고', cadence: 'weekly', active: true, createdAt: '' }] }
+  const next = reconcileTasksToBoard(board, tasks, NOW)
+  assert.ok(todoTexts(next).includes('수동 등록'))
+})
+
 t('변경 없으면 null', () => {
   assert.equal(reconcileTasksToBoard(emptyBoard(), emptyTasks(), NOW), null)
 })

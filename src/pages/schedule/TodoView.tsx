@@ -23,15 +23,18 @@ export default function TodoView() {
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, 'todo: 보드 갱신')
   const journal = useSyncedJson<Journal>('schedule/journal.json', EMPTY_JOURNAL, 'journal: 일지 갱신')
-  const tasksData = useSyncedJson<TasksFile>('schedule/tasks.json', EMPTY_TASKS, '').data
+  const tasks = useSyncedJson<TasksFile>('schedule/tasks.json', EMPTY_TASKS, '')
+  const tasksData = tasks.data
   const writable = board.writable && journal.writable
 
   // TODO 를 열 때 업무관리 미완료 항목을 카드로 반영(주기성은 주기마다). 변경 없으면 no-op.
   useEffect(() => {
-    if (!board.writable) return
+    // 두 파일이 모두 실제 데이터를 읽기 전에 조정하면 EMPTY_BOARD에 주기성 카드만
+    // 합쳐 저장하면서 수동 카드가 덮어써질 수 있다. 로딩 완료 후에만 reconcile한다.
+    if (!board.writable || board.sync === 'loading' || tasks.sync === 'loading') return
     const next = reconcileTasksToBoard(board.data, tasksData)
     if (next) board.update(next)
-  }, [tasksData, board])
+  }, [tasksData, tasks.sync, board])
 
   const [date, setDate] = useState(todayIso())
   const [inputs, setInputs] = useState<Record<string, string>>({})
