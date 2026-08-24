@@ -80,6 +80,7 @@ const level1 = {
   cliCatalog: JSON.parse(readFileSync(CACHE, 'utf8')),
   cliVerified: readJson('knowledge/oci-cli/verified.json', { verified: [] }).verified ?? [],
   cliBlueprints: JSON.parse(readFileSync(BLUEPRINT_CACHE, 'utf8')),
+  ociPolicy: readJson('knowledge/oci-policy/policies.json', { statements: [], bundles: [] }),
   terraformDocs: readDocs('knowledge/terraform'),
   quoteHtml: readText('tools/quote_form.html'),
 }

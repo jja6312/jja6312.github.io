@@ -41,6 +41,7 @@ export interface ProtectedBundle {
   cliCatalog?: unknown
   cliVerified?: string[]
   cliBlueprints?: unknown
+  ociPolicy?: unknown
   terraformDocs?: ProtectedDoc[]
   quoteHtml?: string
   schedule?: {
@@ -128,6 +129,7 @@ export function useProtectedData() {
 export function protectedJson(bundle: ProtectedBundle | null, path: string): unknown {
   if (!bundle) return undefined
   const map: Record<string, unknown> = {
+    'knowledge/oci-policy/policies.json': bundle.ociPolicy,
     'profile/calendar.json': bundle.schedule?.calendar,
     'todo/board.json': bundle.schedule?.board,
     'schedule/journal.json': bundle.schedule?.journal,
