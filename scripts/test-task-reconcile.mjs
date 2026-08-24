@@ -78,6 +78,15 @@ t('주기성 과거 주기 카드 유지 + 현재 주기 추가', () => {
   assert.ok(sources.includes('rec:r1:2026-W01'), '과거 주기 유지')
   assert.ok(sources.includes(`rec:r1:${periodKey(NOW, 'weekly')}`), '현재 주기 추가')
 })
+t('주기성 카드를 다른 칼럼으로 옮기면 자동 조정이 되돌리지 않음', () => {
+  const board = { columns: [
+    { id: 'todo', title: '할 일', cards: [] },
+    { id: 'doing', title: '진행 중', cards: [{ id: 'moved', text: `${RECURRING_PREFIX}주간보고`, created: '', source: `rec:r1:${periodKey(NOW, 'weekly')}` }] },
+    { id: 'done', title: '완료', cards: [] },
+  ] }
+  const tasks = { ...emptyTasks(), recurring: [{ id: 'r1', title: '주간보고', cadence: 'weekly', active: true, createdAt: '' }] }
+  assert.equal(reconcileTasksToBoard(board, tasks, NOW), null)
+})
 t('비활성 주기성 → 할 일 카드 제거 + 신규 생성 안 함', () => {
   const board = { columns: [{ id: 'todo', title: '할 일', cards: [{ id: 'old', text: 'x', created: '', source: 'rec:r1:2026-W01' }] }, { id: 'doing', title: 'x', cards: [] }, { id: 'done', title: 'y', cards: [] }] }
   const tasks = { ...emptyTasks(), recurring: [{ id: 'r1', title: '주간보고', cadence: 'weekly', active: false, createdAt: '' }] }

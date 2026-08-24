@@ -63,7 +63,10 @@ export function reconcileTasksToBoard(board, tasks, now = new Date()) {
   for (const col of board.columns) additions.set(col.id, [])
   let seq = 0
   for (const d of desired) {
-    if (existing.get(d.source)?.has(d.column)) continue
+    const existingColumns = existing.get(d.source)
+    // 주기성 카드는 사용자가 진행 중/완료로 옮긴 상태를 보존한다.
+    // 다른 칼럼에 이미 있으면 할 일에 복제하지 않는다.
+    if (existingColumns?.has(d.column) || (d.source.startsWith('rec:') && existingColumns?.size)) continue
     additions.get(d.column)?.push({ id: `task-${now.getTime()}-${seq++}`, text: d.text, created: now.toISOString(), kind: 'task', source: d.source, ...(d.dueAt ? { dueAt: d.dueAt } : {}), ...(d.column === 'done' ? { doneAt: d.doneAt || today } : {}) })
   }
   const desiredBySource = new Map(desired.map(d => [d.source, d]))
@@ -74,7 +77,12 @@ export function reconcileTasksToBoard(board, tasks, now = new Date()) {
   const stale = (c, columnId) => {
     if (!c.source) return false
     const desiredItem = desiredBySource.get(c.source)
-    if (desiredItem) return desiredItem.column !== columnId
+    if (desiredItem) {
+      // 주기성 카드는 자동 생성의 시작 칼럼만 할 일일 뿐, 사용자가 옮긴 뒤에는
+      // reconcile이 다시 되돌리지 않는다.
+      if (c.source.startsWith('rec:')) return false
+      return desiredItem.column !== columnId
+    }
     const [kind, id, extra] = c.source.split(':')
     if (kind === 'rec') { const r = recById.get(id); return columnId === 'todo' && (!r || !r.active) }
     if (kind === 'task') {
