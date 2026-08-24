@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import CliBlueprintWorkspace from '../components/CliBlueprintWorkspace'
 import CliInputWizard, { defaultCliWizardControl, useCliInputWizardShortcut, type CliWizardQuestion, type CliWizardRenderContext } from '../components/CliInputWizard'
+import OciResourceNav, { extractOciPolicyNavStatements } from '../components/OciResourceNav'
 import type { BlueprintCatalog } from '../lib/oci-cli/blueprintTypes.d.mts'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
@@ -2118,7 +2119,6 @@ export default function CliBuilderPage() {
     }
     requestAnimationFrame(() => requestAnimationFrame(focusField))
   }
-  const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
 
   const copy = useCallback(async () => {
     if (!commandReady) {
@@ -2267,24 +2267,16 @@ export default function CliBuilderPage() {
             </div>
           )}
         </div>
-        {CAT.categories.map(c => (
-          <div key={c.id} className="cli-cat">
-            <button className="cli-cat-toggle" onClick={() => toggleCat(c.id)}>
-              <span className={`caret${openCats[c.id] ? ' open' : ''}`}>▸</span> {c.label}
-            </button>
-            {openCats[c.id] && c.groups.map(g => (
-              <div key={g.label} className="cli-group">
-                <div className="cli-group-label px">{g.label}</div>
-                {g.resources.map(r => (
-                  <button key={r} className={`cli-navitem${active === r ? ' on' : ''}${isResourceVerified(r) ? ' verified' : ''}`} onClick={() => selectResource(r)}>
-                    {CAT.commands[r].label}
-                    {isResourceVerified(r) && <span className="cli-vmark" title="하나 이상의 명령 검증됨">✓</span>}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        ))}
+        <OciResourceNav
+          catalog={CAT}
+          statements={extractOciPolicyNavStatements(protectedState.data?.ociPolicy)}
+          surface="cli"
+          activeKey={active}
+          openCategories={openCats}
+          onToggleCategory={id => setOpenCats(s => ({ ...s, [id]: !s[id] }))}
+          onSelect={entry => { if (entry.cliResource) selectResource(entry.cliResource) }}
+          isEntryVerified={entry => !!entry.cliResource && isResourceVerified(entry.cliResource)}
+        />
         {favs.length > 0 && (
           <div className="cli-cat">
             <div className="cli-cat-label px">FAVORITES</div>

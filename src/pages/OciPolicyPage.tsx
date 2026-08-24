@@ -8,6 +8,8 @@ import type { PolicyStatement, PolicyBundle, PolicyDb, ParsedPolicy } from '../l
 import { renderPolicyScripts } from '../lib/oci-cli/policyRender.mjs'
 import type { PolicyScriptSet, RenderedPolicyScript } from '../lib/oci-cli/policyRender.d.mts'
 import CliInputWizard, { useCliInputWizardShortcut, type CliWizardQuestion } from '../components/CliInputWizard'
+import OciResourceNav, { extractOciPolicyNavStatements, type OciNavEntry } from '../components/OciResourceNav'
+import { useProtectedData } from '../lib/protectedData'
 
 const DB_PATH = 'knowledge/oci-policy/policies.json'
 const CART_KEY = 'oci-policy-cart.v1'
@@ -49,6 +51,7 @@ function Badges({ p }: { p: ParsedPolicy }) {
 
 export default function OciPolicyPage() {
   const { data, update, sync, writable } = useSyncedJson<PolicyDb>(DB_PATH, EMPTY_POLICY_DB, 'policy: 라이브러리 갱신')
+  const protectedState = useProtectedData()
   // data 는 저장 시에만 바뀌므로 배열을 memo 로 고정해야 아래 useMemo 들이 매 렌더 재계산되지 않는다.
   const statements = useMemo(() => data.statements ?? [], [data])
   const bundles = useMemo(() => data.bundles ?? [], [data])
@@ -87,14 +90,27 @@ export default function OciPolicyPage() {
   /* 필터 */
   const [q, setQ] = useState('')
   const [verbFilter, setVerbFilter] = useState<string>('')
+  const [navResourceFilter, setNavResourceFilter] = useState('')
+  const [navActiveKey, setNavActiveKey] = useState('')
+  const [navOpenCategories, setNavOpenCategories] = useState<Record<string, boolean>>({})
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return statements.filter(s => {
-      if (verbFilter && parsePolicyStatement(s.statement).verb !== verbFilter) return false
+      const parsed = parsePolicyStatement(s.statement)
+      if (verbFilter && parsed.verb !== verbFilter) return false
+      if (navResourceFilter && (parsed.resourceType ?? `policy-${parsed.keyword ?? ''}`) !== navResourceFilter) return false
       if (!needle) return true
       return `${s.label} ${s.statement} ${(s.tags || []).join(' ')} ${s.description || ''}`.toLowerCase().includes(needle)
     })
-  }, [statements, q, verbFilter])
+  }, [statements, q, verbFilter, navResourceFilter])
+
+  const selectPolicyNavEntry = (entry: OciNavEntry) => {
+    if (!entry.policyResource) return
+    setNavActiveKey(entry.key)
+    setNavResourceFilter(entry.policyResource)
+    setQ('')
+    setVerbFilter('')
+  }
 
   /* 묶음 만들기 */
   const [bundleName, setBundleName] = useState('')
@@ -131,7 +147,17 @@ export default function OciPolicyPage() {
   ]
 
   return (
-    <div className="pol-wrap">
+    <div className="pol-shell">
+      <OciResourceNav
+        catalog={protectedState.data?.cliCatalog as { categories?: Array<{ id: string; label: string; groups: Array<{ label: string; resources: string[] }> }>; commands?: Record<string, { label: string }> } | undefined}
+        statements={extractOciPolicyNavStatements(data)}
+        surface="policy"
+        activeKey={navActiveKey}
+        openCategories={navOpenCategories}
+        onToggleCategory={id => setNavOpenCategories(current => ({ ...current, [id]: !current[id] }))}
+        onSelect={selectPolicyNavEntry}
+      />
+      <div className="pol-wrap">
       <div className="pol-top">
         <div>
           <div className="pol-title">OCI Policy 라이브러리</div>
@@ -292,6 +318,7 @@ export default function OciPolicyPage() {
       )}
 
       {wizOpen && <CliInputWizard title="OCI POLICY CREATE" questions={genQuestions} values={gen} setValue={setGenVal} onClose={() => setWizOpen(false)} />}
+      </div>
     </div>
   )
 }
