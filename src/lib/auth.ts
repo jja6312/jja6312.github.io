@@ -11,6 +11,7 @@ export const LOCKS: { prefix: string; level: Level }[] = [
   { prefix: '/knowledge/announcements', level: 3 },
   { prefix: '/knowledge/provisioning', level: 3 },
   { prefix: '/knowledge/support-history', level: 3 },
+  { prefix: '/knowledge/sr', level: 3 },
   { prefix: '/schedule/calendar', level: 2 },
   { prefix: '/schedule/tasks', level: 2 },
   { prefix: '/schedule/todo', level: 2 },

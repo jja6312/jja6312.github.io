@@ -6,6 +6,7 @@ import CliBuilderPage from './CliBuilderPage'
 import CliUiWizardPage from './CliUiWizardPage'
 import OciPolicyPage from './OciPolicyPage'
 import OciGrammarPage from './OciGrammarPage'
+import SrPage from './SrPage'
 import QuotePage from './QuotePage'
 import MeetingsPage from './MeetingsPage'
 import ProvisioningPage from './ProvisioningPage'
@@ -23,6 +24,7 @@ const SECTIONS = [
   { id: 'terraform', label: 'Terraform', kbd: 'g t' },
   { id: 'troubleshooting', label: '트러블슈팅', kbd: 'g s' },
   { id: 'support-history', label: '지원이력', kbd: 'g h', locked: true },
+  { id: 'sr', label: 'SR', kbd: 'g e', locked: true },
   { id: 'quote', label: '견적', kbd: 'g q', locked: true },
   { id: 'provisioning', label: '프로비저닝 관리', kbd: 'g v', locked: true },
   { id: 'meetings', label: '회의록', kbd: 'g m', locked: true },
@@ -74,6 +76,7 @@ export default function KnowledgePage() {
       ) : <>
         {active === 'troubleshooting' && <TroubleshootingPage />}
         {active === 'support-history' && <SupportHistoryPage />}
+        {active === 'sr' && <SrPage />}
         {active === 'announcements' && <AnnouncementsPage />}
         {active === 'oci-cli' && <OciCliSection mode={cliMode} />}
         {active === 'oci-policy' && <OciPolicyPage />}

@@ -88,6 +88,7 @@ function Hotkeys() {
         else if (e.key === 'k') nav('/knowledge')
         else if (e.key === 's') nav('/knowledge/troubleshooting')
         else if (e.key === 'h') nav('/knowledge/support-history')
+        else if (e.key === 'e') nav('/knowledge/sr')           // SR(Service Request) 목록
         else if (e.key === 'a') nav('/knowledge/announcements')
         else if (e.key === 'c') nav('/knowledge/oci-cli')
         else if (e.key === 'w') nav('/knowledge/cli-wizard')

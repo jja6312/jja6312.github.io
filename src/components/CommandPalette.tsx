@@ -27,6 +27,7 @@ export default function CommandPalette() {
     { id: 'sched-automation', label: '일정관리 — 업무 자동 수집함', run: () => nav('/schedule/automation-inbox') },
     { id: 'ts', label: '지식모음 — 트러블슈팅', kbd: 'g s', run: () => nav('/knowledge/troubleshooting') },
     { id: 'support-history', label: '지식모음 — 지원이력', kbd: 'g h', run: () => nav('/knowledge/support-history') },
+    { id: 'sr', label: '지식모음 — SR (고객별 Service Request 목록)', kbd: 'g e', run: () => nav('/knowledge/sr') },
     { id: 'ann', label: '지식모음 — Announcement', kbd: 'g a', run: () => nav('/knowledge/announcements') },
     { id: 'cli', label: '지식모음 — OCI CLI 레시피', kbd: 'g c', run: () => nav('/knowledge/oci-cli') },
     { id: 'cli-wizard', label: '지식모음 — OCI CLI › UI Wizard (아키텍처 드로잉)', kbd: 'g w', run: () => nav('/knowledge/cli-wizard') },

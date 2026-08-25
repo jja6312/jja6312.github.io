@@ -59,6 +59,7 @@ export interface ProtectedBundle {
   }
   automationInbox?: unknown
   provisioning?: unknown
+  sr?: unknown
   supportHistory?: SupportHistoryCase[]
 }
 
@@ -139,6 +140,7 @@ export function protectedJson(bundle: ProtectedBundle | null, path: string): unk
     'schedule/tasks.json': bundle.schedule?.tasks,
     'automation/inbox.json': bundle.automationInbox,
     'provisioning/contracts.json': bundle.provisioning,
+    'sr/incidents.json': bundle.sr,
   }
   return map[path]
 }
