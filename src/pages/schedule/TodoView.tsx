@@ -197,17 +197,26 @@ export default function TodoView() {
                 const g = goalOf(card.goalId)
                 const kc = kindColor(card.kind)
                 const editing = editId === card.id
+                const isRecurringCard = taskSourceFromCard(card.source)?.kind === 'recurring'
                 const overdue = Boolean(card.dueAt && col.id !== 'done' && new Date(card.dueAt).getTime() < Date.now())
                 return (
-                  <div key={card.id} className={`kcard${overdue ? ' overdue' : ''}`} draggable={!editing && writable}
+                  <div key={card.id} className={`kcard${overdue ? ' overdue' : ''}${isRecurringCard ? ' recurring-card' : ''}`} draggable={!editing && writable && !isRecurringCard}
                     style={kc ? { borderLeft: `3px solid ${kc}` } : undefined}
                     onDragStart={e => {
+                      if (isRecurringCard) return
                       dragRef.current = { colId: col.id, cardId: card.id }
                       startTodoCardDrag(e.dataTransfer, card.id)
                     }}
                     onDragEnd={() => { dragRef.current = null }}
-                    onDragOver={e => { e.preventDefault(); allowTodoCardDrop(e.dataTransfer) }}
-                    onDrop={e => { e.preventDefault(); e.stopPropagation(); moveCard(col.id, card.id) }}>
+                    onDragOver={e => {
+                      // 주기성 업무는 고정 항목이다. 다른 카드의 삽입 위치로도 쓰지 않는다.
+                      if (isRecurringCard) { e.preventDefault(); e.stopPropagation(); return }
+                      e.preventDefault(); allowTodoCardDrop(e.dataTransfer)
+                    }}
+                    onDrop={e => {
+                      if (isRecurringCard) { e.preventDefault(); e.stopPropagation(); return }
+                      e.preventDefault(); e.stopPropagation(); moveCard(col.id, card.id)
+                    }}>
                     {editing ? (
                       <div className="kcard-edit-form">
                         <input className="cli-input kcard-edit" autoFocus value={editText}
@@ -242,7 +251,8 @@ export default function TodoView() {
                         </div>
                       </div>
                     ) : (
-                      <div className="kcard-main" onDoubleClick={() => startEdit(card)} title="더블클릭하여 수정">
+                      <div className="kcard-main" onDoubleClick={isRecurringCard ? undefined : () => startEdit(card)}
+                        title={isRecurringCard ? '수정 버튼을 눌러 수정' : '더블클릭하여 수정'}>
                         <div>
                           {card.kind && <span className="kind-chip" style={{ background: kc }}>{CARD_KINDS.find(k => k.id === card.kind)?.label}</span>}
                           <span>{card.text}</span>
