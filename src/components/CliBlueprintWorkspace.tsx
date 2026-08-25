@@ -237,7 +237,7 @@ export default function CliBlueprintWorkspace({ catalog, blueprintCatalog, initi
   const requiredInputs = useMemo(() => blueprint ? requiredInputsFor(blueprint, inputs) : [], [blueprint, inputs])
   const wizardQuestions = useMemo(() => blueprint ? wizardQuestionsFor(blueprint, inputs, enforcedKeys) : [], [blueprint, inputs, enforcedKeys])
 
-  useCliInputWizardShortcut(Boolean(blueprint), () => setWizardOpen(true))
+  useCliInputWizardShortcut(Boolean(blueprint) && !wizardOpen, () => setWizardOpen(true))
 
   const focusInput = (focusId: string) => {
     setTab('design')

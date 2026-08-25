@@ -45,7 +45,7 @@ STRUCTURE = [
     ('MySQL HeatWave', ['mysql', 'mysql-backup']),
   ]),
   ('06-identity-security', 'Identity & Security', [
-    ('Identity', ['iam-user', 'iam-group', 'iam-policy']),
+    ('Identity', ['iam-compartment', 'iam-user', 'iam-group', 'iam-policy']),
   ]),
   ('06-observability', 'Observability', [
     ('Monitoring', ['alarm']),
@@ -72,7 +72,7 @@ RES_LABEL = {
   'public-ip': 'Public IP', 'load-balancer': 'Load Balancer', 'network-load-balancer': 'Network Load Balancer',
   'autonomous-database': 'Autonomous Database', 'base-db': 'Base Database System', 'mysql': 'MySQL DB System',
   'mysql-backup': 'MySQL Backup',
-  'iam-user': 'Users', 'iam-group': 'Groups', 'iam-policy': 'Policies',
+  'iam-compartment': 'Compartments', 'iam-user': 'Users', 'iam-group': 'Groups', 'iam-policy': 'Policies',
   'subscription-list': 'Subscriptions', 'subscription-balance': 'Subscription Balance',
   'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription', 'announcement': 'Announcements',
 }
@@ -673,7 +673,7 @@ catalog['source'].update({
 })
 MANUAL_CATEGORY_RESOURCES = {
     'instance-maintenance-reboot', 'instance-boot-volume-backup',
-    'iam-user', 'iam-group', 'iam-policy',
+    'iam-compartment', 'iam-user', 'iam-group', 'iam-policy',
     'object-bulk-upload', 'object-sync',
 }
 placed = set()
@@ -923,6 +923,89 @@ def _iam_op(cmd, help_text, sections, advanced=None, **metadata):
     operation = {'cmd': cmd, 'help': help_text, 'sections': sections, 'advanced': advanced or []}
     operation.update(metadata)
     return operation
+
+def _iam_compartment():
+    compartment_id = _io('--compartment-id', True,
+        '대상 Compartment OCID. 동적 조회가 켜져 있으면 정확한 이름, ROOT 또는 직접 OCID를 입력합니다.',
+        'prod 또는 ROOT', shellQuote=True)
+    tags = [
+        _io('--freeform-tags', False, '간단한 키·값 태그. 구조화 입력기로 JSON 필드를 구성합니다.',
+            '구조화 입력기로 JSON 필드를 구성하세요.', type='json', shellQuote=True),
+        _io('--defined-tags', False, '정의된 태그 namespace와 키·값. 구조화 입력기로 JSON 필드를 구성합니다.',
+            '구조화 입력기로 JSON 필드를 구성하세요.', type='json', shellQuote=True),
+    ]
+    wait_active = [
+        _io('--wait-for-state', False, '생성 뒤 지정 lifecycle state까지 대기',
+            choices=['ACTIVE', 'CREATING', 'DELETED', 'DELETING', 'INACTIVE']),
+        _io('--max-wait-seconds', False, '대기 최대 시간(초)', '1200', shellQuote=True),
+        _io('--wait-interval-seconds', False, '상태 재확인 간격(초)', '30', shellQuote=True),
+    ]
+    return {
+        'resource': 'iam-compartment', 'label': 'Compartments', 'cmd': 'oci iam compartment create', 'iamResource': 'compartment',
+        'preferredOperation': 'list',
+        'help': ('Identity & Security > Identity > Compartments. Compartment는 권한, 비용, 자원 격리의 기본 경계입니다. '
+                 '생성 후에는 lifecycle-state가 ACTIVE가 된 것을 확인한 뒤 자원을 배치하세요.'),
+        'sections': [], 'advanced': [],
+        'operations': {
+            'get': _iam_op('oci iam compartment get', 'Compartment 한 건의 이름, 부모, 상태, 태그를 조회합니다. 내부 자원 목록은 별도 리소스 LIST로 확인합니다.', [
+                {'label': '대상 Compartment', 'options': [compartment_id]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'list': _iam_op('oci iam compartment list', 'ROOT를 기준으로 ACTIVE 하위 Compartment 전체를 이름순으로 조회합니다. 상위 Compartment를 지정하면 직계 하위만 조회하세요.', [
+                {'label': '조회 범위 · 필터', 'options': [
+                    _io('--compartment-id', False, 'ROOT, 상위 Compartment 이름 또는 OCID. 비우면 프로필의 root tenancy가 기본입니다.',
+                        'ROOT', default='ROOT', shellQuote=True),
+                    _io('--compartment-id-in-subtree', False, 'ROOT 조회에서 모든 하위 Compartment까지 포함합니다. 상위 Compartment를 지정했다면 false로 두세요.',
+                        choices=['true', 'false'], default='true', shellQuote=True),
+                    _io('--access-level', False, 'ACCESSIBLE은 현재 권한으로 접근 가능한 Compartment만 표시합니다.',
+                        choices=['ACCESSIBLE', 'ANY'], default='ACCESSIBLE'),
+                    _io('--name', False, '정확히 일치하는 Compartment 이름만 조회', 'prod', shellQuote=True),
+                    _io('--lifecycle-state', False, 'Compartment 수명주기 상태',
+                        choices=['ACTIVE', 'CREATING', 'INACTIVE', 'DELETING', 'DELETED'], default='ACTIVE'),
+                    _io('--include-root', False, 'root tenancy도 결과에 포함', flag=True),
+                    _io('--all', False, '--limit과 함께 사용할 수 없는 전체 페이지 조회', flag=True, default='true'),
+                    _io('--sort-by', False, '정렬 기준', choices=['NAME', 'TIMECREATED'], default='NAME'),
+                    _io('--sort-order', False, '정렬 순서', choices=['ASC', 'DESC'], default='ASC'),
+                    _io('--output', False, '결과 출력 형식', choices=['table', 'json'], default='table'),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'create': _iam_op('oci iam compartment create', '지정한 상위 Compartment 또는 ROOT tenancy 아래에 새 Compartment를 생성합니다.', [
+                {'label': '상위 위치', 'options': [
+                    _io('--compartment-id', True, '새 Compartment를 담을 상위 Compartment. ROOT면 프로필에서 tenancy OCID를 자동 조회합니다.',
+                        'ROOT', default='ROOT', shellQuote=True),
+                ]},
+                {'label': 'Compartment 정보', 'options': [
+                    _io('--name', True, '테넌시에서 고유한 Compartment 이름. 영문·숫자·마침표·하이픈·밑줄만 사용하세요.', 'prod-app', shellQuote=True),
+                    _io('--description', True, 'Compartment 용도와 소유 팀을 설명합니다. 빈 문자열도 허용됩니다.', 'Production application resources', shellQuote=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ], advanced=[dict(option) for option in tags + wait_active]),
+            'update': _iam_op('oci iam compartment update', 'Compartment의 이름, 설명 또는 태그를 변경합니다. root tenancy는 수정할 수 없습니다.', [
+                {'label': '대상 Compartment', 'options': [compartment_id]},
+                {'label': '변경 값', 'options': [
+                    _io('--name', False, '새 Compartment 이름', 'prod-app-renamed', shellQuote=True),
+                    _io('--description', False, '새 설명', 'Production application resources', shellQuote=True),
+                    _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 수정', 'etag-value', shellQuote=True),
+                    _io('--force', False, '변경 값 확인 프롬프트 없이 수정', flag=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ], advanced=[dict(option) for option in tags + wait_active]),
+            'delete': _iam_op('oci iam compartment delete', '비어 있는 Compartment만 삭제합니다. 하위 Compartment, 자원, 부착된 Policy를 먼저 확인하세요.', [
+                {'label': '대상 Compartment', 'options': [
+                    compartment_id,
+                    _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 삭제', 'etag-value', shellQuote=True),
+                    _io('--force', False, '확인 프롬프트 없이 삭제', flag=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ], advanced=[
+                _io('--wait-for-state', False, '삭제 work request가 지정 상태가 될 때까지 대기',
+                    choices=['ACCEPTED', 'CANCELED', 'CANCELING', 'FAILED', 'IN_PROGRESS', 'SUCCEEDED']),
+                _io('--max-wait-seconds', False, '대기 최대 시간(초)', '1200', shellQuote=True),
+                _io('--wait-interval-seconds', False, '상태 재확인 간격(초)', '30', shellQuote=True),
+            ]),
+        },
+    }
 
 def _iam_user():
     user_id = _io('--user-id', True, '대상 User OCID. 동적 조회에서는 정확한 User 이름을 입력합니다.', 'operator@example.com', shellQuote=True)
@@ -1245,6 +1328,7 @@ EXTRA = {
     'compartment-resource-cleansing': _compartment_cleanup(),
     'all-subscription-balances': _all_subscription_balances(),
     'iam-user-mfa-reset': _iam_mfa_reset(),
+    'iam-compartment': _iam_compartment(),
     'iam-user': _iam_user(),
     'iam-group': _iam_group(),
     'iam-policy': _iam_policy(),

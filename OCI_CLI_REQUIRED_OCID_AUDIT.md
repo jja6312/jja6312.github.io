@@ -1,8 +1,8 @@
 # OCI CLI 필수 OCID 동적 조회 전수표
 
 - 생성 기준: Oracle OCI CLI 3.90.3 (v3.90.3, 4bdc3beb2d0b4a3187ef8392fff19537aba1178d)
-- 필수 OCID 입력: 232회 / 48종
-- 동적·전용 안전 조회: 220회
+- 필수 OCID 입력: 236회 / 48종
+- 동적·전용 안전 조회: 224회
 - 보안·제품 제약상 직접 입력: 12회
 - 미분류: 0회
 
@@ -235,6 +235,10 @@
 | volume-group | delete | `--volume-group-id` | dynamic-exact-name | oci bv volume-group list |
 | compartment-resource-cleansing | custom | `--compartment-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
 | iam-user-mfa-reset | custom | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
+| iam-compartment | get | `--compartment-id` | dynamic-compartment | oci iam compartment list |
+| iam-compartment | create | `--compartment-id` | dynamic-compartment | oci iam compartment list |
+| iam-compartment | update | `--compartment-id` | dynamic-compartment | oci iam compartment list |
+| iam-compartment | delete | `--compartment-id` | dynamic-compartment | oci iam compartment list |
 | iam-user | get | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-user | update | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-user | delete | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |

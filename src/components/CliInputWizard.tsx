@@ -1,5 +1,5 @@
 /* eslint-disable react/only-export-components -- this file is the intentionally shared wizard module. */
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 
 export type CliWizardRequirement = 'required' | 'optional' | 'conditional'
 
@@ -31,6 +31,11 @@ export type CliWizardRenderContext = {
   onAdvance: () => void
 }
 
+export function isCliWizardRequired(question: CliWizardQuestion) {
+  return question.requirement === 'required' || question.requirement === 'conditional'
+    || (!question.optional && !question.recommended)
+}
+
 export function questionHasValue(question: CliWizardQuestion, values: Record<string, string>) {
   if (question.isFilled) return question.isFilled(values)
   const value = String(values[question.valueId ?? question.id] ?? '').trim()
@@ -40,7 +45,7 @@ export function questionHasValue(question: CliWizardQuestion, values: Record<str
 
 export function defaultCliWizardControl(context: CliWizardRenderContext): ReactNode {
   const { question, value, valueId, inputClass, assignRef, setValue } = context
-  const required = question.requirement === 'required' || question.requirement === 'conditional' || (!question.optional && !question.recommended)
+  const required = isCliWizardRequired(question)
   if (question.type === 'boolean') {
     return (
       <select ref={assignRef} className={inputClass} value={value} onChange={event => setValue(valueId, event.target.value)}>
@@ -110,11 +115,13 @@ export default function CliInputWizard({
   const [moving, setMoving] = useState(false)
   const [blocked, setBlocked] = useState(false)
   const [completed, setCompleted] = useState<Set<string>>(() => new Set())
+  const [requiredOnly, setRequiredOnly] = useState(false)
   const inputRef = useRef<HTMLElement | null>(null)
-  const question = questions[Math.min(index, Math.max(0, questions.length - 1))]
+  const requiredQuestions = useMemo(() => questions.filter(isCliWizardRequired), [questions])
+  const visibleQuestions = requiredOnly && requiredQuestions.length > 0 ? requiredQuestions : questions
+  const question = visibleQuestions[Math.min(index, Math.max(0, visibleQuestions.length - 1))]
   const valueId = question?.valueId ?? question?.id ?? ''
-  const required = !!question && (question.requirement === 'required' || question.requirement === 'conditional'
-    || (!question.optional && !question.recommended))
+  const required = !!question && isCliWizardRequired(question)
 
   useEffect(() => {
     const before = document.body.style.overflow
@@ -122,8 +129,8 @@ export default function CliInputWizard({
     return () => { document.body.style.overflow = before }
   }, [])
   useEffect(() => {
-    if (index >= questions.length && questions.length) setIndex(questions.length - 1)
-  }, [index, questions.length])
+    if (index >= visibleQuestions.length && visibleQuestions.length) setIndex(visibleQuestions.length - 1)
+  }, [index, visibleQuestions.length])
   useEffect(() => {
     if (!moving && question?.type !== 'segments') window.setTimeout(() => inputRef.current?.focus(), 20)
     setBlocked(false)
@@ -134,9 +141,28 @@ export default function CliInputWizard({
   const assignRef = (element: HTMLElement | null) => { inputRef.current = element }
   const goTo = (nextIndex: number) => {
     if (moving) return
-    setIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)))
+    setIndex(Math.max(0, Math.min(visibleQuestions.length - 1, nextIndex)))
     setBlocked(false)
   }
+  const toggleRequiredOnly = useCallback(() => {
+    const nextRequiredOnly = !requiredOnly && requiredQuestions.length > 0
+    const nextQuestions = nextRequiredOnly ? requiredQuestions : questions
+    const currentIndex = Math.max(0, nextQuestions.findIndex(item => item.id === question?.id))
+    setRequiredOnly(nextRequiredOnly)
+    setIndex(currentIndex)
+    setBlocked(false)
+  }, [question?.id, questions, requiredOnly, requiredQuestions])
+  useEffect(() => {
+    const toggleMode = (event: KeyboardEvent) => {
+      if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'i') {
+        event.preventDefault()
+        event.stopPropagation()
+        toggleRequiredOnly()
+      }
+    }
+    window.addEventListener('keydown', toggleMode, true)
+    return () => window.removeEventListener('keydown', toggleMode, true)
+  }, [toggleRequiredOnly])
   const advance = () => {
     if (moving || !question) return
     if (!String(values[valueId] ?? '').trim() && required && question.choices?.[0]) setValue(valueId, question.choices[0])
@@ -147,7 +173,7 @@ export default function CliInputWizard({
     setCompleted(previous => new Set(previous).add(question.id))
     setMoving(true)
     window.setTimeout(() => {
-      if (index >= questions.length - 1) onClose()
+      if (index >= visibleQuestions.length - 1) onClose()
       else { setIndex(current => current + 1); setMoving(false) }
     }, 180)
   }
@@ -164,7 +190,7 @@ export default function CliInputWizard({
   }
 
   if (!question) return null
-  const remaining = Math.max(0, questions.length - index - 1)
+  const remaining = Math.max(0, visibleQuestions.length - index - 1)
   const inputClass = 'bp-wizard-input' + (filled ? ' is-filled' : '')
   const context: CliWizardRenderContext = {
     question, value, valueId, values, inputClass, assignRef, setValue,
@@ -179,7 +205,10 @@ export default function CliInputWizard({
       aria-label={title + ' 입력 마법사'} onKeyDown={onKeyDown}>
       <div className="bp-wizard-head">
         <span>{title}</span>
-        <span>{index + 1} / {questions.length} · {remaining}문항 남음</span>
+        <button type="button" className={'bp-wizard-mode' + (requiredOnly ? ' required-only' : '')} onClick={toggleRequiredOnly}>
+          {requiredOnly ? '필수 입력 모드 · Alt+I 전체 보기' : '전체 입력 · Alt+I 필수만'}
+        </button>
+        <span>{index + 1} / {visibleQuestions.length} · {remaining}문항 남음</span>
         <button type="button" onClick={onClose}>ESC 닫기</button>
       </div>
       <div className="bp-wizard-body">
@@ -197,15 +226,15 @@ export default function CliInputWizard({
             {blocked ? <div className="bp-wizard-required">필수값을 입력한 뒤 Enter를 누르세요.</div> : null}
             <div className="bp-wizard-actions">
               <button type="button" disabled={index === 0} onClick={() => goTo(index - 1)}>← 이전</button>
-              <span className="bp-wizard-hint">Enter 다음 · Alt+←/→ 이동 · Esc 닫기</span>
-              <button type="button" onClick={advance}>{index === questions.length - 1 ? '완료' : '다음 →'}</button>
+              <span className="bp-wizard-hint">Enter 다음 · Alt+I 필수/전체 · Alt+←/→ 이동 · Esc 닫기</span>
+              <button type="button" onClick={advance}>{index === visibleQuestions.length - 1 ? '완료' : '다음 →'}</button>
             </div>
           </div>
         </div>
         <nav className="bp-wizard-progress" aria-label="입력 진행 이정표">
           <strong>{remaining}</strong><small>남음</small>
           <div className="bp-wizard-progress-list">
-            {questions.map((item, step) => {
+            {visibleQuestions.map((item, step) => {
               const done = completed.has(item.id) || step < index
               const hasValue = questionHasValue(item, values)
               return <button type="button" key={item.id + '-' + step} title={(step + 1) + '. ' + item.label}

@@ -350,10 +350,11 @@ for (const level of [1, 2, 3]) {
   }
   const identityCategory = bundle.cliCatalog.categories.find(category => category.id === '06-identity-security')
   const identityGroup = identityCategory?.groups.find(group => group.label === 'Identity')
-  if (JSON.stringify(identityGroup?.resources) !== JSON.stringify(['iam-user', 'iam-group', 'iam-policy'])) {
+  if (JSON.stringify(identityGroup?.resources) !== JSON.stringify(['iam-compartment', 'iam-user', 'iam-group', 'iam-policy'])) {
     throw new Error(`L${level} Identity & Security > Identity menu invalid`)
   }
   const expectedIamCommands = {
+    'iam-compartment': 'oci iam compartment',
     'iam-user': 'oci iam user', 'iam-group': 'oci iam group', 'iam-policy': 'oci iam policy',
   }
   for (const [resource, prefix] of Object.entries(expectedIamCommands)) {
@@ -369,6 +370,19 @@ for (const level of [1, 2, 3]) {
     }
   }
   const iamUser = bundle.cliCatalog.commands['iam-user']
+  const iamCompartment = bundle.cliCatalog.commands['iam-compartment']
+  if (JSON.stringify(requiredNames(iamCompartment.operations.create))
+    !== JSON.stringify(['--compartment-id', '--description', '--name'])) {
+    throw new Error(`L${level} IAM Compartment CREATE required fields invalid`)
+  }
+  const compartmentListOptions = iamCompartment.operations.list.sections.flatMap(section => section.options)
+  const compartmentListOption = name => compartmentListOptions.find(option => option.name === name)
+  if (compartmentListOption('--compartment-id')?.defaultValue !== 'ROOT'
+    || compartmentListOption('--compartment-id-in-subtree')?.defaultValue !== 'true'
+    || compartmentListOption('--access-level')?.defaultValue !== 'ACCESSIBLE'
+    || !compartmentListOption('--all')?.flag) {
+    throw new Error(`L${level} IAM Compartment LIST defaults invalid`)
+  }
   if (JSON.stringify(requiredNames(iamUser.operations.create)) !== JSON.stringify(['--description', '--name'])) {
     throw new Error(`L${level} IAM User CREATE required fields invalid`)
   }
@@ -414,7 +428,10 @@ for (const level of [1, 2, 3]) {
   }
   const fullCrudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations
     && ['get', 'list', 'create', 'update', 'delete'].every(operation => command.operations[operation]?.cmd))
-  if (fullCrudCommands.length !== 41) throw new Error(`L${level} full CRUD resource count invalid: ${fullCrudCommands.length}`)
+  if (fullCrudCommands.length !== 42) throw new Error(`L${level} full CRUD resource count invalid: ${fullCrudCommands.length}`)
+  if (!fullCrudCommands.some(command => command.resource === 'iam-compartment')) {
+    throw new Error(`L${level} IAM Compartment CRUD metadata missing`)
+  }
   for (const command of fullCrudCommands) {
     for (const operation of ['get', 'list', 'create', 'update', 'delete']) {
       if (!command.operations[operation]?.cmd) throw new Error(`L${level} ${command.resource} ${operation} 명령 누락`)
@@ -606,6 +623,7 @@ if (!context.dynamicGetScript.includes('oci mysql db-system list')
 const iamBuilderStart = cliBuilder.indexOf('function buildIamCommand')
 const iamBuilderEnd = cliBuilder.indexOf('\nfunction buildCli', iamBuilderStart)
 if (iamBuilderStart < 0 || iamBuilderEnd < 0) throw new Error('IAM builder source extraction failed')
+const iamCompartmentCatalog = generatedCliCatalog.commands['iam-compartment']
 const iamUserCatalog = generatedCliCatalog.commands['iam-user']
 const iamPolicyCatalog = generatedCliCatalog.commands['iam-policy']
 const iamHarness = `
@@ -613,8 +631,16 @@ const allOptions = c => [...c.sections.flatMap(s => s.options), ...c.advanced]
 const DYNAMIC = {'--compartment-id': {}, '--user-id': {}, '--group-id': {}, '--policy-id': {}}
 const isDynamic = (dyn, name) => name in DYNAMIC ? (dyn[name] ?? true) : false
 ${cliBuilder.slice(iamBuilderStart, iamBuilderEnd)}
+const compartmentCommand = ${JSON.stringify(iamCompartmentCatalog)}
 const userCommand = ${JSON.stringify(iamUserCatalog)}
 const policyCommand = ${JSON.stringify(iamPolicyCatalog)}
+globalThis.compartmentCreate = buildIamCommand(compartmentCommand, compartmentCommand.operations.create, {
+  '--compartment-id': 'ROOT', '--name': 'prod-app', '--description': 'Production application resources',
+  '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+}, {}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
+globalThis.compartmentGetDirect = buildIamCommand(compartmentCommand, compartmentCommand.operations.get, {
+  '--compartment-id': 'ocid1.compartment.oc1..example', '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+}, {}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
 globalThis.userCreate = buildIamCommand(userCommand, userCommand.operations.create, {
   '--name': 'ops.user@example.com', '--description': 'OCI operations', '--email': 'ops.user@example.com',
   '--profile': 'ADMIN', '--region': 'ap-seoul-1',
@@ -648,6 +674,8 @@ vm.runInNewContext(ts.transpileModule(iamHarness, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
 }).outputText, iamContext)
 const iamScripts = {
+  compartmentCreate: iamContext.compartmentCreate,
+  compartmentGetDirect: iamContext.compartmentGetDirect,
   userCreate: iamContext.userCreate,
   passwordReset: iamContext.passwordReset,
   groupAssign: iamContext.groupAssign,
@@ -661,6 +689,8 @@ for (const [name, script] of Object.entries(iamScripts)) {
   if (syntax.status !== 0) throw new Error(`IAM ${name} bash syntax invalid: ${syntax.stderr}`)
 }
 for (const [name, expected] of Object.entries({
+  compartmentCreate: 'oci iam compartment create',
+  compartmentGetDirect: 'oci iam compartment get',
   userCreate: 'oci iam user create',
   passwordReset: 'oci iam user ui-password create-or-reset',
   groupAssign: 'oci iam group add-user',
@@ -669,7 +699,7 @@ for (const [name, expected] of Object.entries({
 })) {
   if (!iamScripts[name].includes(expected)) throw new Error(`IAM ${name} command missing: ${expected}`)
 }
-for (const script of [iamContext.userCreate, iamContext.passwordReset, iamContext.groupAssign, iamContext.policyCreate]) {
+for (const script of [iamContext.compartmentCreate, iamContext.compartmentGetDirect, iamContext.userCreate, iamContext.passwordReset, iamContext.groupAssign, iamContext.policyCreate]) {
   for (const expected of ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token']) {
     if (!script.includes(expected)) throw new Error(`IAM request context missing: ${expected}`)
   }
@@ -688,6 +718,16 @@ if (!iamContext.policyCreate.includes('TENANCY_ID=$(oci iam availability-domain 
   || !iamContext.policyCreate.includes('--compartment-id "$TENANCY_ID"')
   || !iamContext.policyCreate.includes('--statements "[\\"Allow group OCI-Operators')) {
   throw new Error('IAM Policy ROOT tenancy or statement handling invalid')
+}
+if (!iamContext.compartmentCreate.includes('TENANCY_ID=$(oci iam availability-domain list')
+  || !iamContext.compartmentCreate.includes('--compartment-id "$TENANCY_ID"')
+  || !iamContext.compartmentCreate.includes('--name "prod-app"')
+  || !iamContext.compartmentCreate.includes('--description "Production application resources"')) {
+  throw new Error('IAM Compartment ROOT parent or required input handling invalid')
+}
+if (!iamContext.compartmentGetDirect.includes('--compartment-id "ocid1.compartment.oc1..example"')
+  || iamContext.compartmentGetDirect.includes('oci iam compartment list')) {
+  throw new Error('IAM Compartment direct OCID must not trigger a name lookup')
 }
 for (const script of [iamContext.mfaPreview, iamContext.mfaReset]) {
   for (const expected of ['oci iam mfa-totp-device list', 'oci iam mfa-totp-device delete', '--mfa-totp-device-id "$MFA_ID"', '--force']) {

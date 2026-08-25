@@ -130,7 +130,7 @@ export default function OciPolicyPage() {
   const [wizOpen, setWizOpen] = useState(false)
   const openGen = (b: PolicyBundle) => { setGen({ compartment: '', policyName: b.name, description: b.description || '', profile: 'DEFAULT', region: '' }); setGenId(b.id) }
   const setGenVal = (k: string, v: string) => setGen(g => ({ ...g, [k]: v }))
-  useCliInputWizardShortcut(!!genId, () => setWizOpen(true))
+  useCliInputWizardShortcut(!!genId && !wizOpen, () => setWizOpen(true))
 
   const genStatements = useMemo(() => genBundle ? genBundle.statementIds.map(id => byId.get(id)?.statement).filter((x): x is string => !!x) : [], [genBundle, byId])
   const scripts = useMemo<PolicyScriptSet | null>(() => {

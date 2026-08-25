@@ -124,7 +124,7 @@ interface CliCommand {
   disableDynamic?: boolean
   rootTenancyLookup?: boolean
   compartmentSupportsRoot?: boolean
-  iamResource?: 'user' | 'group' | 'policy'
+  iamResource?: 'compartment' | 'user' | 'group' | 'policy'
   iamMfaReset?: boolean
   allSubscriptionBalances?: boolean
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
@@ -1404,6 +1404,9 @@ function buildIamCommand(
     if (input.toUpperCase() === 'ROOT') {
       ensureTenancy(); resolved.set(variable, '"$TENANCY_ID"'); return
     }
+    if (input.startsWith('ocid1.compartment.') || input.startsWith('ocid1.tenancy.')) {
+      resolved.set(variable, q(input)); return
+    }
     ensureTenancy()
     const nameVariable = `${variable}_NAME`
     const countVariable = `${variable}_COUNT`
@@ -1897,7 +1900,7 @@ export default function CliBuilderPage() {
   }
 
   const cmd = active !== '__custom' ? CAT.commands[active] : null
-  useCliInputWizardShortcut(Boolean(cmd) && sp.get('mode') !== 'blueprint', () => setWizardOpen(true))
+  useCliInputWizardShortcut(Boolean(cmd) && sp.get('mode') !== 'blueprint' && !wizardOpen, () => setWizardOpen(true))
   const selectedActionMeta = selectedAction ? cmd?.actions?.[selectedAction] : undefined
   const selectedOperation = selectedActionMeta ?? cmd?.operations?.[crudOperation]
   const formSurface = selectedOperation ?? cmd
