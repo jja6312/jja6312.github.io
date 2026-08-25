@@ -9,6 +9,47 @@ export function recurringTaskIdFromSource(source) {
   return match?.[1] ?? null
 }
 
+/** 자동 TODO 카드가 가리키는 업무 원본. 수동 카드와 잘못된 source는 null이다. */
+export function taskSourceFromCard(source) {
+  const [kind, taskId, threadId] = String(source ?? '').split(':')
+  if (kind === 'rec' && taskId && threadId) return { kind: 'recurring', taskId }
+  if (kind === 'task' && taskId && !threadId) return { kind: 'work', taskId }
+  if (kind === 'thread' && taskId && threadId) return { kind: 'thread', taskId, threadId }
+  return null
+}
+
+/** TODO에서 자동 생성 카드를 삭제할 때 원본 업무에도 같은 삭제를 반영한다. */
+export function removeTaskSource(tasks, source) {
+  const target = taskSourceFromCard(source)
+  if (!target) return null
+  if (target.kind === 'recurring') {
+    const item = (tasks.recurring || []).find(task => task.id === target.taskId)
+    if (!item) return null
+    return { tasks: { ...tasks, recurring: tasks.recurring.filter(task => task.id !== item.id) }, label: item.title, kind: '주기성 업무' }
+  }
+  for (const [key, kind] of [['oneoff', '단발성 업무'], ['projects', '프로젝트']]) {
+    const list = tasks[key] || []
+    const item = list.find(task => task.id === target.taskId)
+    if (!item) continue
+    if (target.kind === 'work') {
+      return { tasks: { ...tasks, [key]: list.filter(task => task.id !== item.id) }, label: item.title, kind }
+    }
+    const thread = (item.threads || []).find(value => value.id === target.threadId)
+    if (!thread) return null
+    const threads = item.threads.filter(value => value.id !== thread.id)
+    // 마지막 세부 작업을 지우면 제목 카드가 새로 생기지 않도록 부모 업무도 함께 지운다.
+    const next = threads.length === 0
+      ? list.filter(task => task.id !== item.id)
+      : list.map(task => task.id === item.id ? { ...task, threads } : task)
+    return {
+      tasks: { ...tasks, [key]: next },
+      label: threads.length === 0 ? item.title : `${item.title} · ${thread.content}`,
+      kind: threads.length === 0 ? `${kind} (마지막 세부 작업)` : '세부 작업',
+    }
+  }
+  return null
+}
+
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 // ISO 8601 주차(월요일 시작, 목요일 기준 연도)

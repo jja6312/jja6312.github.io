@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 업무관리 → TODO 보드 reconcile 순수 로직 테스트 (러너 없이 node:assert)
 import assert from 'node:assert/strict'
-import { reconcileTasksToBoard, periodKey, RECURRING_PREFIX, recurringTaskIdFromSource } from '../src/lib/taskReconcile.mjs'
+import { reconcileTasksToBoard, periodKey, RECURRING_PREFIX, recurringTaskIdFromSource, removeTaskSource, taskSourceFromCard } from '../src/lib/taskReconcile.mjs'
 import { allowTodoCardDrop, startTodoCardDrag } from '../src/lib/todoDnd.mjs'
 
 let passed = 0
@@ -65,6 +65,28 @@ t('TODO에서 주기성 카드를 삭제하면 원본 업무도 제거되어 재
 t('잘못된 주기성 source는 원본 업무를 삭제하지 않음', () => {
   assert.equal(recurringTaskIdFromSource('task:r1'), null)
   assert.equal(recurringTaskIdFromSource('rec::2026-W35'), null)
+})
+t('단발성 TODO 삭제는 원본 단발성 업무까지 지워 재생성하지 않음', () => {
+  const tasks = { ...emptyTasks(), oneoff: [{ id: 'o1', title: '단발 업무', threads: [], createdAt: '' }] }
+  const card = reconcileTasksToBoard(emptyBoard(), tasks, NOW).columns[0].cards[0]
+  const removal = removeTaskSource(tasks, card.source)
+  assert.equal(taskSourceFromCard(card.source)?.kind, 'work')
+  assert.deepEqual(removal?.tasks.oneoff, [])
+  assert.equal(reconcileTasksToBoard(emptyBoard(), removal.tasks, NOW), null)
+})
+t('프로젝트 세부 작업 삭제는 해당 스레드만 지우고 다른 스레드는 보존', () => {
+  const tasks = { ...emptyTasks(), projects: [{ id: 'p1', title: '구축 프로젝트', threads: [{ id: 't1', content: '설계' }, { id: 't2', content: '검증' }], createdAt: '' }] }
+  const removal = removeTaskSource(tasks, 'thread:p1:t1')
+  assert.equal(taskSourceFromCard('thread:p1:t1')?.kind, 'thread')
+  assert.deepEqual(removal?.tasks.projects[0].threads.map(thread => thread.id), ['t2'])
+  const next = reconcileTasksToBoard(emptyBoard(), removal.tasks, NOW)
+  assert.deepEqual(todoTexts(next), ['[구축 프로젝트]검증'])
+})
+t('마지막 프로젝트 세부 작업 삭제는 부모 프로젝트까지 지워 제목 카드 재생성을 막음', () => {
+  const tasks = { ...emptyTasks(), projects: [{ id: 'p1', title: '구축 프로젝트', threads: [{ id: 't1', content: '설계' }], createdAt: '' }] }
+  const removal = removeTaskSource(tasks, 'thread:p1:t1')
+  assert.deepEqual(removal?.tasks.projects, [])
+  assert.equal(reconcileTasksToBoard(emptyBoard(), removal.tasks, NOW), null)
 })
 t('멱등: 이미 있으면 재추가 안 함 → null', () => {
   const tasks = { ...emptyTasks(), oneoff: [{ id: 'o1', title: 'A', threads: [], createdAt: '' }] }

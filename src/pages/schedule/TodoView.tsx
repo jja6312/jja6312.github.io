@@ -5,7 +5,7 @@ import {
   type Board, type Card, type CardKind, type Journal, type GoalsFile, type TasksFile,
 } from '../../lib/scheduleDb'
 import { allowTodoCardDrop, startTodoCardDrag } from '../../lib/todoDnd.mjs'
-import { recurringTaskIdFromSource } from '../../lib/taskReconcile.mjs'
+import { removeTaskSource, taskSourceFromCard } from '../../lib/taskReconcile.mjs'
 import { useHub } from '../../store'
 
 const isoOf = (d: Date) =>
@@ -81,13 +81,13 @@ export default function TodoView() {
   }
   const removeCard = (colId: string, cardId: string) => {
     const card = board.data.columns.find(column => column.id === colId)?.cards.find(item => item.id === cardId)
-    const recurringId = recurringTaskIdFromSource(card?.source)
-    if (recurringId) {
-      const recurring = tasksData.recurring.find(item => item.id === recurringId)
+    const source = taskSourceFromCard(card?.source)
+    if (source) {
+      const removal = removeTaskSource(tasksData, card?.source)
       // 업무 파일을 아직 읽지 못한 상태에서 카드만 지우면 reconcile이 다시 생성한다.
-      if (!recurring) { showToast('주기성 업무를 불러오는 중입니다. 잠시 후 다시 삭제해 주세요.'); return }
-      if (!confirm(`「${recurring.title}」 주기성 업무와 현재 TODO 카드를 함께 삭제할까요?`)) return
-      tasks.update({ ...tasksData, recurring: tasksData.recurring.filter(item => item.id !== recurringId) })
+      if (!removal) { showToast('원본 업무를 불러오는 중입니다. 잠시 후 다시 삭제해 주세요.'); return }
+      if (!confirm(`「${removal.label}」 ${removal.kind}과(와) 현재 TODO 카드를 함께 삭제할까요?`)) return
+      tasks.update(removal.tasks)
     }
     board.update({ columns: board.data.columns.map(column => column.id === colId ? { ...column, cards: column.cards.filter(item => item.id !== cardId) } : column) })
   }
@@ -260,7 +260,7 @@ export default function TodoView() {
                     {!editing && writable && (
                       <div className="kcard-btns">
                         <button className="kedit" onClick={() => startEdit(card)} title="내용·마감·완료일 수정">✎</button>
-                        <button className="kdel" onClick={() => removeCard(col.id, card.id)} title="삭제">✕</button>
+                        <button className="kdel" onClick={() => removeCard(col.id, card.id)} title={taskSourceFromCard(card.source) ? '원본 업무와 함께 삭제' : '삭제'}>✕</button>
                       </div>
                     )}
                   </div>
