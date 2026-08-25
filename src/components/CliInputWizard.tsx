@@ -152,17 +152,6 @@ export default function CliInputWizard({
     setIndex(currentIndex)
     setBlocked(false)
   }, [question?.id, questions, requiredOnly, requiredQuestions])
-  useEffect(() => {
-    const toggleMode = (event: KeyboardEvent) => {
-      if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'i') {
-        event.preventDefault()
-        event.stopPropagation()
-        toggleRequiredOnly()
-      }
-    }
-    window.addEventListener('keydown', toggleMode, true)
-    return () => window.removeEventListener('keydown', toggleMode, true)
-  }, [toggleRequiredOnly])
   const advance = () => {
     if (moving || !question) return
     if (!String(values[valueId] ?? '').trim() && required && question.choices?.[0]) setValue(valueId, question.choices[0])
@@ -178,6 +167,12 @@ export default function CliInputWizard({
     }, 180)
   }
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'i') {
+      event.preventDefault()
+      event.stopPropagation()
+      toggleRequiredOnly()
+      return
+    }
     if (event.key === 'Escape') { event.preventDefault(); onClose(); return }
     if (event.altKey && event.key === 'ArrowLeft') { event.preventDefault(); goTo(index - 1); return }
     if (event.altKey && event.key === 'ArrowRight') { event.preventDefault(); advance(); return }
@@ -202,7 +197,7 @@ export default function CliInputWizard({
 
   return (
     <div className="bp-wizard-overlay cli-input-wizard" role="dialog" aria-modal="true"
-      aria-label={title + ' 입력 마법사'} onKeyDown={onKeyDown}>
+      aria-label={title + ' 입력 마법사'} onKeyDownCapture={onKeyDown}>
       <div className="bp-wizard-head">
         <span>{title}</span>
         <button type="button" className={'bp-wizard-mode' + (requiredOnly ? ' required-only' : '')} onClick={toggleRequiredOnly}>
