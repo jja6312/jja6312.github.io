@@ -3,6 +3,12 @@
 
 export const RECURRING_PREFIX = '[주기성업무]'
 
+/** 자동 생성된 주기성 카드의 원본 업무 ID. 잘못된 source는 null로 안전하게 무시한다. */
+export function recurringTaskIdFromSource(source) {
+  const match = /^rec:([^:]+):/.exec(String(source ?? ''))
+  return match?.[1] ?? null
+}
+
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 // ISO 8601 주차(월요일 시작, 목요일 기준 연도)

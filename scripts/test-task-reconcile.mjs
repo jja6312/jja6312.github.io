@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 업무관리 → TODO 보드 reconcile 순수 로직 테스트 (러너 없이 node:assert)
 import assert from 'node:assert/strict'
-import { reconcileTasksToBoard, periodKey, RECURRING_PREFIX } from '../src/lib/taskReconcile.mjs'
+import { reconcileTasksToBoard, periodKey, RECURRING_PREFIX, recurringTaskIdFromSource } from '../src/lib/taskReconcile.mjs'
 import { allowTodoCardDrop, startTodoCardDrag } from '../src/lib/todoDnd.mjs'
 
 let passed = 0
@@ -54,6 +54,17 @@ t('주기성 → [주기성업무]제목 · 현재 주기 1건', () => {
   const b = reconcileTasksToBoard(emptyBoard(), tasks, NOW)
   assert.deepEqual(todoTexts(b), [`${RECURRING_PREFIX}주간보고`])
   assert.equal(todoCards(b)[0].source, `rec:r1:${periodKey(NOW, 'weekly')}`)
+})
+t('TODO에서 주기성 카드를 삭제하면 원본 업무도 제거되어 재생성하지 않음', () => {
+  const tasks = { ...emptyTasks(), recurring: [{ id: 'r1', title: '주간보고', cadence: 'weekly', active: true, createdAt: '' }] }
+  const card = reconcileTasksToBoard(emptyBoard(), tasks, NOW).columns[0].cards[0]
+  assert.equal(recurringTaskIdFromSource(card.source), 'r1')
+  const afterDelete = { ...tasks, recurring: tasks.recurring.filter(item => item.id !== recurringTaskIdFromSource(card.source)) }
+  assert.equal(reconcileTasksToBoard(emptyBoard(), afterDelete, NOW), null)
+})
+t('잘못된 주기성 source는 원본 업무를 삭제하지 않음', () => {
+  assert.equal(recurringTaskIdFromSource('task:r1'), null)
+  assert.equal(recurringTaskIdFromSource('rec::2026-W35'), null)
 })
 t('멱등: 이미 있으면 재추가 안 함 → null', () => {
   const tasks = { ...emptyTasks(), oneoff: [{ id: 'o1', title: 'A', threads: [], createdAt: '' }] }

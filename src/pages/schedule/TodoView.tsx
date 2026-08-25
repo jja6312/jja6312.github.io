@@ -5,6 +5,7 @@ import {
   type Board, type Card, type CardKind, type Journal, type GoalsFile, type TasksFile,
 } from '../../lib/scheduleDb'
 import { allowTodoCardDrop, startTodoCardDrag } from '../../lib/todoDnd.mjs'
+import { recurringTaskIdFromSource } from '../../lib/taskReconcile.mjs'
 import { useHub } from '../../store'
 
 const isoOf = (d: Date) =>
@@ -26,7 +27,7 @@ export default function TodoView() {
   const journal = useSyncedJson<Journal>('schedule/journal.json', EMPTY_JOURNAL, 'journal: 일지 갱신')
   const tasks = useSyncedJson<TasksFile>('schedule/tasks.json', EMPTY_TASKS, '')
   const tasksData = tasks.data
-  const writable = board.writable && journal.writable
+  const writable = board.writable && journal.writable && tasks.writable
 
   // TODO 를 열 때 업무관리 미완료 항목을 카드로 반영(주기성은 주기마다). 변경 없으면 no-op.
   useEffect(() => {
@@ -78,8 +79,18 @@ export default function TodoView() {
     setDueInputs({ ...dueInputs, [colId]: '' })
     setDueUndated({ ...dueUndated, [colId]: true })
   }
-  const removeCard = (colId: string, cardId: string) =>
-    board.update({ columns: board.data.columns.map(c => c.id === colId ? { ...c, cards: c.cards.filter(x => x.id !== cardId) } : c) })
+  const removeCard = (colId: string, cardId: string) => {
+    const card = board.data.columns.find(column => column.id === colId)?.cards.find(item => item.id === cardId)
+    const recurringId = recurringTaskIdFromSource(card?.source)
+    if (recurringId) {
+      const recurring = tasksData.recurring.find(item => item.id === recurringId)
+      // 업무 파일을 아직 읽지 못한 상태에서 카드만 지우면 reconcile이 다시 생성한다.
+      if (!recurring) { showToast('주기성 업무를 불러오는 중입니다. 잠시 후 다시 삭제해 주세요.'); return }
+      if (!confirm(`「${recurring.title}」 주기성 업무와 현재 TODO 카드를 함께 삭제할까요?`)) return
+      tasks.update({ ...tasksData, recurring: tasksData.recurring.filter(item => item.id !== recurringId) })
+    }
+    board.update({ columns: board.data.columns.map(column => column.id === colId ? { ...column, cards: column.cards.filter(item => item.id !== cardId) } : column) })
+  }
   const patchCard = (cardId: string, patch: Partial<Card>) =>
     board.update({ columns: board.data.columns.map(c => ({ ...c, cards: c.cards.map(x => x.id === cardId ? { ...x, ...patch } : x) })) })
   const saveEdit = () => {
