@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // 업무관리 → TODO 보드 reconcile 순수 로직 테스트 (러너 없이 node:assert)
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { reconcileTasksToBoard, periodKey, RECURRING_PREFIX, recurringTaskIdFromSource, removeTaskSource, taskSourceFromCard } from '../src/lib/taskReconcile.mjs'
 import { allowTodoCardDrop, startTodoCardDrag } from '../src/lib/todoDnd.mjs'
 
@@ -113,6 +114,42 @@ t('진행중/완료 칼럼의 source 카드는 건드리지 않음(사용자 소
   const tasks = { ...emptyTasks(), oneoff: [{ id: 'o1', title: 'A', threads: [], done: true, createdAt: '' }] }
   const b = reconcileTasksToBoard(board, tasks, NOW)
   assert.equal(b, null) // 완료된 업무지만 doing 카드는 유지 → 변경 없음
+})
+t('활성 단발성 카드를 진행 중으로 옮겨도 할 일로 되돌리거나 제거하지 않음', () => {
+  const board = { columns: [
+    { id: 'todo', title: '할 일', cards: [] },
+    { id: 'doing', title: '진행 중', cards: [{ id: 'moved', text: '고객 확인', created: '', source: 'task:o1' }] },
+    { id: 'done', title: '완료', cards: [] },
+  ] }
+  const tasks = { ...emptyTasks(), oneoff: [{ id: 'o1', title: '고객 확인', threads: [], createdAt: '' }] }
+  assert.equal(reconcileTasksToBoard(board, tasks, NOW), null)
+})
+t('활성 프로젝트 세부 작업을 완료로 옮겨도 카드 위치를 보존', () => {
+  const board = { columns: [
+    { id: 'todo', title: '할 일', cards: [] },
+    { id: 'doing', title: '진행 중', cards: [] },
+    { id: 'done', title: '완료', cards: [{ id: 'moved', text: '[구축]검증', created: '', doneAt: '2026-08-23', source: 'thread:p1:t1' }] },
+  ] }
+  const tasks = { ...emptyTasks(), projects: [{ id: 'p1', title: '구축', threads: [{ id: 't1', content: '검증' }], createdAt: '' }] }
+  assert.equal(reconcileTasksToBoard(board, tasks, NOW), null)
+})
+t('세부 작업이 생긴 업무의 오래된 제목 카드는 제거하고 세부 작업 카드만 유지', () => {
+  const board = { columns: [
+    { id: 'todo', title: '할 일', cards: [{ id: 'old-title', text: '구축', created: '', source: 'task:p1' }] },
+    { id: 'doing', title: '진행 중', cards: [] },
+    { id: 'done', title: '완료', cards: [] },
+  ] }
+  const tasks = { ...emptyTasks(), projects: [{ id: 'p1', title: '구축', threads: [{ id: 't1', content: '검증' }], createdAt: '' }] }
+  const next = reconcileTasksToBoard(board, tasks, NOW)
+  assert.deepEqual(todoCards(next).map(card => card.source), ['thread:p1:t1'])
+})
+t('업무관리 주기성 편집은 hover가 아니라 명시적인 수정 버튼으로 연다', () => {
+  const tasksView = readFileSync(new URL('../src/pages/schedule/TasksView.tsx', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
+  assert.match(tasksView, /task-recurring-card/)
+  assert.match(tasksView, /aria-expanded=\{editId === r\.id\}/)
+  assert.match(css, /\.task-card:not\(\.task-recurring-card\):hover \.task-inline-edit/)
+  assert.match(css, /\.task-recurring-card \.task-inline-edit\.open/)
 })
 t('주기성 과거 주기 카드 유지 + 현재 주기 추가', () => {
   const board = { columns: [{ id: 'todo', title: '할 일', cards: [{ id: 'old', text: `${RECURRING_PREFIX}주간보고`, created: '', source: 'rec:r1:2026-W01' }] }, { id: 'doing', title: 'x', cards: [] }, { id: 'done', title: 'y', cards: [] }] }

@@ -111,9 +111,9 @@ export function reconcileTasksToBoard(board, tasks, now = new Date()) {
   let seq = 0
   for (const d of desired) {
     const existingColumns = existing.get(d.source)
-    // 주기성 카드는 사용자가 진행 중/완료로 옮긴 상태를 보존한다.
-    // 다른 칼럼에 이미 있으면 할 일에 복제하지 않는다.
-    if (existingColumns?.has(d.column) || (d.source.startsWith('rec:') && existingColumns?.size)) continue
+    // 자동 생성 카드도 사용자가 옮긴 뒤에는 그 위치가 현재 상태다.
+    // 어느 칼럼이든 이미 존재하면 기본 칼럼에 다시 만들지 않는다.
+    if (existingColumns?.size) continue
     additions.get(d.column)?.push({ id: `task-${now.getTime()}-${seq++}`, text: d.text, created: now.toISOString(), kind: 'task', source: d.source, ...(d.dueAt ? { dueAt: d.dueAt } : {}), ...(d.column === 'done' ? { doneAt: d.doneAt || today } : {}) })
   }
   const desiredBySource = new Map(desired.map(d => [d.source, d]))
@@ -125,16 +125,17 @@ export function reconcileTasksToBoard(board, tasks, now = new Date()) {
     if (!c.source) return false
     const desiredItem = desiredBySource.get(c.source)
     if (desiredItem) {
-      // 주기성 카드는 자동 생성의 시작 칼럼만 할 일일 뿐, 사용자가 옮긴 뒤에는
-      // reconcile이 다시 되돌리지 않는다.
-      if (c.source.startsWith('rec:')) return false
-      return desiredItem.column !== columnId
+      // desiredItem.column은 최초 생성 위치다. 이후 위치는 사용자의 칸반 상태를 보존한다.
+      return false
     }
     const [kind, id, extra] = c.source.split(':')
     if (kind === 'rec') { const r = recById.get(id); return columnId === 'todo' && (!r || !r.active) }
     if (kind === 'task') {
       const w = workById.get(id)
-      return w?.automationCandidateId ? !w : columnId === 'todo' && (!w || !!w.done)
+      if (columnId !== 'todo') return false
+      if (!w || w.done) return true
+      // 제목만 있던 업무에 세부 작업이 추가되면 예전 제목 카드는 더 이상 유효하지 않다.
+      return (w.threads ?? []).some(thread => !thread.done && String(thread.content ?? '').trim())
     }
     if (kind === 'thread') {
       const w = workById.get(id)

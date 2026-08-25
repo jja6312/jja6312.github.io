@@ -80,6 +80,7 @@ function RecurringPanel({ items, writable, onChange, reward }: { items: Recurrin
   const [cadence, setCadence] = useState<TaskCadence>('weekly')
   const [start, setStart] = useState('')
   const [due, setDue] = useState('')
+  const [editId, setEditId] = useState<string | null>(null)
 
   const add = () => {
     if (!title.trim()) return
@@ -88,7 +89,11 @@ function RecurringPanel({ items, writable, onChange, reward }: { items: Recurrin
     setTitle(''); setStart(''); setDue('')
   }
   const patch = (id: string, p: Partial<RecurringTask>) => onChange(items.map(r => r.id === id ? { ...r, ...p } : r))
-  const remove = (id: string) => { if (confirm('이 주기성 업무를 삭제할까요? (TODO의 미완료 카드도 정리됩니다)')) onChange(items.filter(r => r.id !== id)) }
+  const remove = (id: string) => {
+    if (!confirm('이 주기성 업무를 삭제할까요? (TODO의 미완료 카드도 정리됩니다)')) return
+    if (editId === id) setEditId(null)
+    onChange(items.filter(r => r.id !== id))
+  }
 
   return (
     <div className="task-panel">
@@ -105,18 +110,20 @@ function RecurringPanel({ items, writable, onChange, reward }: { items: Recurrin
       {items.length === 0 && <div className="cmt-empty" style={{ padding: '24px 0' }}>주기성 업무 없음 — 반복 업무를 추가하면 주기마다 TODO에 자동 등록됩니다.</div>}
       <div className="task-list">
         {items.map(r => (
-          <div key={r.id} className={`task-card${r.active ? '' : ' task-inactive'}`}>
+          <div key={r.id} className={`task-card task-recurring-card${r.active ? '' : ' task-inactive'}`}>
             <div className="task-card-top">
               <span className="task-badge rec">{cadenceLabel(r.cadence)}</span>
               <b className="task-title">{r.title}</b>
               <span className="px task-range">{fmtDate(r.startDate)} ~ {fmtDate(r.dueDate)}</span>
               {writable && <div className="task-actions">
                 <label className="task-toggle px" title="비활성화하면 TODO 자동 생성이 멈춥니다"><input type="checkbox" checked={r.active} onChange={e => patch(r.id, { active: e.target.checked })} /> {r.active ? '활성' : '중지'}</label>
+                <button className="iconbtn" title={editId === r.id ? '수정 닫기' : '수정'} aria-expanded={editId === r.id}
+                  onClick={() => setEditId(current => current === r.id ? null : r.id)}>✎</button>
                 <button className="iconbtn" title="삭제" onClick={() => remove(r.id)}>🗑</button>
               </div>}
             </div>
             {writable && (
-              <div className="task-inline-edit">
+              <div className={`task-inline-edit${editId === r.id ? ' open' : ''}`}>
                 <input className="cli-input" defaultValue={r.title} onBlur={e => { const v = e.target.value.trim(); if (v && v !== r.title) patch(r.id, { title: v }) }} />
                 <select className="cli-input task-cadence" value={r.cadence} onChange={e => patch(r.id, { cadence: e.target.value as TaskCadence })}>{CADENCES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
                 <DateRange start={r.startDate} due={r.dueDate} onStart={v => patch(r.id, { startDate: v || undefined })} onDue={v => patch(r.id, { dueDate: v || undefined })} />
