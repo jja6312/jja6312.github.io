@@ -1,8 +1,8 @@
 # OCI CLI 필수 OCID 동적 조회 전수표
 
 - 생성 기준: Oracle OCI CLI 3.90.3 (v3.90.3, 4bdc3beb2d0b4a3187ef8392fff19537aba1178d)
-- 필수 OCID 입력: 240회 / 48종
-- 동적·전용 안전 조회: 228회
+- 필수 OCID 입력: 246회 / 50종
+- 동적·전용 안전 조회: 234회
 - 보안·제품 제약상 직접 입력: 12회
 - 미분류: 0회
 
@@ -35,6 +35,12 @@
 | alarm | create | `--metric-compartment-id` | dynamic-compartment | oci iam compartment list |
 | alarm | update | `--alarm-id` | dynamic-exact-name | oci monitoring alarm list |
 | alarm | delete | `--alarm-id` | dynamic-exact-name | oci monitoring alarm list |
+| announcement-subscription | get | `--announcement-subscription-id` | dynamic-exact-name | oci announce announcement-subscription list |
+| announcement-subscription | list | `--compartment-id` | dynamic-compartment | oci iam compartment list |
+| announcement-subscription | create | `--compartment-id` | dynamic-compartment | oci iam compartment list |
+| announcement-subscription | create | `--ons-topic-id` | dynamic-exact-name | oci ons topic list |
+| announcement-subscription | update | `--announcement-subscription-id` | dynamic-exact-name | oci announce announcement-subscription list |
+| announcement-subscription | delete | `--announcement-subscription-id` | dynamic-exact-name | oci announce announcement-subscription list |
 | announcement | get | `--announcement-id` | dynamic-exact-name | oci announce announcements list |
 | announcement | list | `--compartment-id` | dynamic-compartment | oci iam compartment list |
 | autonomous-database | get | `--autonomous-database-id` | dynamic-exact-name | oci db autonomous-database list |

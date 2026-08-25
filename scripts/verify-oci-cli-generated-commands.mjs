@@ -143,7 +143,7 @@ for (const [resource, command] of Object.entries(catalog.commands)) {
     records.push({ resource, command, operation: command.preferredOperation ?? 'get', action, surface })
   }
 }
-if (records.length !== 230) fail(`Expected 230 command surfaces, got ${records.length}`)
+if (records.length !== 236) fail(`Expected 236 command surfaces, got ${records.length}`)
 
 let requiredGuards = 0
 let actionScripts = 0

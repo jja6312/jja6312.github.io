@@ -18227,6 +18227,36 @@
       "presentInPinnedClickTree": false
     },
     {
+      "resource": "announcement-subscription",
+      "operation": "create",
+      "command": "oci announce announcement-subscription create",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "announcement-subscription",
+      "operation": "delete",
+      "command": "oci announce announcement-subscription delete",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "announcement-subscription",
+      "operation": "get",
+      "command": "oci announce announcement-subscription get",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "announcement-subscription",
+      "operation": "list",
+      "command": "oci announce announcement-subscription list",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "announcement-subscription",
+      "operation": "update",
+      "command": "oci announce announcement-subscription update",
+      "presentInPinnedClickTree": false
+    },
+    {
       "resource": "iam-compartment",
       "operation": "create",
       "command": "oci iam compartment create",

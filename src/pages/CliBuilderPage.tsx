@@ -130,6 +130,7 @@ interface CliCommand {
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
   maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
   compartmentCleanup?: boolean // scoped resource cleanup PREVIEW/DELETE script
+  monitoringComposition?: boolean // Topic→구독→알람15 일괄등록 조립
   manualBackup?: 'instance-boot-volume' | 'mysql'
   operations?: Partial<Record<CrudVerb, CliOperation>>
   actions?: Record<string, CliAction>
@@ -988,6 +989,81 @@ function buildMysqlDbSystemGet(
 }
 
 /* Build a safety-gated Bash cleanup script for one exact compartment. */
+/* MSP 모니터링 일괄등록 — Topic(재사용) → Email 구독 → 표준 알람 15개를 compartment 서브트리 전체에.
+   compartment 이름 비우면 root(테넌시 전체). 메트릭은 공식 레퍼런스 검증분(2026-07). */
+const WIZBASE_ALARMS = [
+  'compute-cpu-90|oci_computeagent|CRITICAL|PT5M|CpuUtilization[1m].mean() > 90',
+  'compute-mem-90|oci_computeagent|WARNING|PT5M|MemoryUtilization[1m].mean() > 90',
+  'basedb-cpu-85|oci_database|CRITICAL|PT5M|CpuUtilization[1m].mean() > 85',
+  'basedb-storage-85|oci_database|WARNING|PT5M|StorageUtilization[1m].mean() > 85',
+  'basedb-down-absence|oci_database|CRITICAL|PT5M|CpuUtilization[5m].absent()',
+  'adb-cpu-85|oci_autonomous_database|WARNING|PT5M|CpuUtilization[1m].mean() > 85',
+  'adb-storage-85|oci_autonomous_database|WARNING|PT5M|StorageUtilization[1m].mean() > 85',
+  'lb-unhealthy-backend|oci_lbaas|CRITICAL|PT5M|unhealthyBackendServers[1m].mean() > 0',
+  'nlb-unhealthy-backend|oci_nlb|CRITICAL|PT5M|UnhealthyBackendsPerNlb[1m].mean() > 0',
+  'blockvol-throttled-io|oci_blockstore|WARNING|PT5M|VolumeThrottledIOs[1m].mean() > 0',
+  'vpn-tunnel-down|oci_vpn|CRITICAL|PT5M|TunnelState[1m].mean() < 1',
+  'fastconnect-down|oci_fastconnect|CRITICAL|PT5M|ConnectionState[1m].mean() < 1',
+  'natgw-sessions-high|oci_nat_gateway|WARNING|PT5M|ConnectionsEstablished[5m].sum() > 50000',
+  'mysql-cpu-90|oci_mysql_database|CRITICAL|PT5M|CPUUtilization[1m].mean() > 90',
+  'mysql-storage-85|oci_mysql_database|WARNING|PT5M|DbVolumeUtilization[1m].mean() > 85',
+]
+function buildWizbaseMonitoring(values: Record<string, string>, requestContext: string[] = []): string {
+  const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
+  const q = (raw: string) => `'${raw.replaceAll("'", `'\\''`)}'`
+  const emails = (values['--emails'] || '').split(/\r?\n/).map(e => e.trim()).filter(Boolean)
+  const topicName = v('--topic-name', 'MSP_Alarm_Topic')
+  return [
+    '#!/usr/bin/env bash',
+    '# MSP 모니터링 일괄 등록 — Topic → Email 구독 → 표준 알람 15',
+    '# 위→아래 순서로 실행됩니다. Topic 은 이름으로 재사용(idempotent), 구독은 각 수신함 확인 링크 클릭 후 활성화됩니다.',
+    'set -uo pipefail',
+    '',
+    `TOPIC_NAME=${q(topicName)}`,
+    `COMPARTMENT_NAME=${q(v('--compartment-name'))}   # 비우면 root(테넌시 전체)`,
+    `EMAILS=(${emails.map(q).join(' ')})`,
+    `CTX=(${requestContext.join(' ')})`,
+    '',
+    '# compartment 해석 — 비우면 root(테넌시), 이름이면 tenancy 전체에서 ACTIVE 정확히 1개를 OCID 로 변환',
+    `C=$(oci iam availability-domain list --query 'data[0]."compartment-id"' --raw-output "\${CTX[@]}" | tr -d '\\r')`,
+    'if [ -n "$COMPARTMENT_NAME" ]; then',
+    `  CNT=$(oci iam compartment list --compartment-id "$C" --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --query 'length(data)' --raw-output "\${CTX[@]}" | tr -d '\\r')`,
+    '  if [ "$CNT" != "1" ]; then echo "[ABORT] ACTIVE compartment 이름은 tenancy 전체에서 정확히 1개여야 합니다: $COMPARTMENT_NAME (found=$CNT)" >&2; exit 1; fi',
+    `  C=$(oci iam compartment list --compartment-id "$C" --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --query 'data[0].id' --raw-output "\${CTX[@]}" | tr -d '\\r')`,
+    'fi',
+    'echo "COMPARTMENT=$C"',
+    '',
+    '# 1) Notification Topic (이름으로 재사용, 없으면 생성)',
+    `TOPIC=$(oci ons topic list -c "$C" --name "$TOPIC_NAME" --query 'data[0]."topic-id"' --raw-output "\${CTX[@]}" 2>/dev/null | tr -d '\\r')`,
+    'if [ -z "$TOPIC" ] || [ "$TOPIC" = "null" ]; then',
+    `  TOPIC=$(oci ons topic create -c "$C" --name "$TOPIC_NAME" --query 'data."topic-id"' --raw-output "\${CTX[@]}" | tr -d '\\r')`,
+    'fi',
+    'echo "TOPIC=$TOPIC"',
+    '',
+    '# 2) Email 구독 (각 수신함의 확인 링크를 눌러야 PENDING→ACTIVE)',
+    'for EM in "${EMAILS[@]}"; do',
+    '  oci ons subscription create -c "$C" --topic-id "$TOPIC" --protocol EMAIL --subscription-endpoint "$EM" "${CTX[@]}"',
+    'done',
+    '',
+    '# 3) 표준 알람 15 — 전부 위 Topic 으로 발송, 서브트리 전체 감시(--metric-compartment-id-in-subtree true)',
+    `printf '["%s"]' "$TOPIC" > dest.json`,
+    'ALARMS=(',
+    ...WIZBASE_ALARMS.map(row => `  ${q(row)}`),
+    ')',
+    'for row in "${ALARMS[@]}"; do',
+    `  IFS='|' read -r NAME NS SEV PEND QT <<< "$row"`,
+    '  oci monitoring alarm create \\',
+    '    --compartment-id "$C" --metric-compartment-id "$C" --metric-compartment-id-in-subtree true \\',
+    '    --display-name "$NAME" --namespace "$NS" --query-text "$QT" \\',
+    '    --severity "$SEV" --pending-duration "$PEND" \\',
+    '    --destinations file://dest.json --is-enabled true \\',
+    '    --body "$NAME 임계 초과 감지" "${CTX[@]}"',
+    'done',
+    'rm -f dest.json',
+    'echo "[OK] Topic/구독/알람 15 등록 완료 — 이메일 구독은 확인 링크 클릭 필요. database/adb/vpn 메트릭은 리전 런타임에서 재확인 권장."',
+  ].join('\n')
+}
+
 function buildCompartmentCleanup(values: Record<string, string>, requestContext: string[] = []): string {
   const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
   const enabled = (key: string) => values[key] === 'true' ? 'true' : 'false'
@@ -1572,6 +1648,7 @@ function buildCli(
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values, requestContext)
   if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, dyn, operation === 'update' ? 'update' : 'get', requestContext)
   if (cmd.compartmentCleanup) return buildCompartmentCleanup(values, requestContext)
+  if (cmd.monitoringComposition) return buildWizbaseMonitoring(values, requestContext)
   if (cmd.allSubscriptionBalances) return buildAllSubscriptionBalances(values, requestContext)
   if (cmd.iamMfaReset) return buildIamMfaReset(values, requestContext)
   if (cmd.resource === 'mysql' && operation === 'get') return buildMysqlDbSystemGet(values, dyn, requestContext, responseContext)
@@ -1863,7 +1940,7 @@ export default function CliBuilderPage() {
     const operation = defaultCliOperation(CAT.commands[rParam])
     const surface = selectedSurface(CAT.commands[rParam], operation)
     setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setCrudOperation(operation); setSelectedAction(null)
-    if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances || CAT.commands[rParam].iamMfaReset) setCustomOpen(true)
+    if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances || CAT.commands[rParam].iamMfaReset || CAT.commands[rParam].monitoringComposition) setCustomOpen(true)
     const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
   }, [rParam, CAT])
@@ -2186,7 +2263,7 @@ export default function CliBuilderPage() {
           ...(f.context ?? legacy.context),
         })
         setShowDeprecated(allOptions(favoriteOperation).some(option => option.deprecated && isCliOptionValueActive(option, legacy.resource[option.name] ?? '')))
-        if (favoriteCommand.crossCopy || favoriteCommand.compartmentCleanup || favoriteCommand.allSubscriptionBalances || favoriteCommand.iamMfaReset) setCustomOpen(true)
+        if (favoriteCommand.crossCopy || favoriteCommand.compartmentCleanup || favoriteCommand.allSubscriptionBalances || favoriteCommand.iamMfaReset || favoriteCommand.monitoringComposition) setCustomOpen(true)
       }
     }
   }
@@ -2195,15 +2272,18 @@ export default function CliBuilderPage() {
 
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
-  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.compartmentCleanup || cmd?.manualBackup || cmd?.iamMfaReset)
-  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup || c.allSubscriptionBalances || c.iamMfaReset)
+  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.compartmentCleanup || cmd?.manualBackup || cmd?.iamMfaReset || cmd?.monitoringComposition)
+  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup || c.allSubscriptionBalances || c.iamMfaReset || c.monitoringComposition)
   const field = (o: CliOption, optional?: boolean) => {
     const mysqlBackupTarget = cmd?.resource === 'mysql-backup' && crudOperation === 'create'
     const mysqlDbSystemGet = cmd?.resource === 'mysql' && crudOperation === 'get'
     const iamDynamic = !!cmd?.iamResource && ['--user-id', '--group-id', '--policy-id', '--compartment-id'].includes(o.name)
     const catalogDynamic = !!o.dynamicLookup
     const legacyDynamic = o.name in DYNAMIC && (iamDynamic || o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
-    const dynamicAllowed = !noDyn && (catalogDynamic || legacyDynamic)
+    // compartment 동적조회(이름→OCID)는 disableDynamic/특수빌더여도 항상 허용 — 사용자가 compartment 를 OCID 로만 입력하도록 강요하지 않는다.
+    // (DIRECT_ONLY_LOOKUPS 의 compartment 는 dynamicLookup 자체가 없어 여기서 자연히 제외된다.)
+    const compartmentDynamic = o.dynamicLookup?.kind === 'compartment'
+    const dynamicAllowed = (catalogDynamic || legacyDynamic) && (compartmentDynamic || !noDyn)
     return <Field key={o.name} o={o} value={o.name === '--shape-config' ? (effectiveValues[o.name] || '') : (values[o.name] || '')} onChange={v => setFormVal(o, v)} optional={optional}
       dynamic={dynamicAllowed && isDynamic(dyn, o.name, true)}
       rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}

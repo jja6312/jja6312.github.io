@@ -52,7 +52,7 @@ STRUCTURE = [
     ('Notifications', ['topic', 'subscription']),
   ]),
   ('07-governance', 'Governance & Administration', [
-    ('Account Management', ['announcement']),
+    ('Account Management', ['announcement', 'announcement-subscription']),
     ('Support', ['support-incident']),
   ]),
   ('08-billing', 'Billing & Cost Management', [
@@ -76,7 +76,9 @@ RES_LABEL = {
   'iam-compartment': 'Compartments', 'iam-user': 'Users', 'iam-group': 'Groups', 'iam-policy': 'Policies',
   'subscription-list': 'Subscriptions', 'subscription-balance': 'Subscription Balance',
   'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription', 'announcement': 'Announcements',
+  'announcement-subscription': 'Announcement Subscription',
   'support-incident': 'Service Request (SR)',
+  'wizbase-monitoring-setup': 'MSP 모니터링 일괄등록',
 }
 
 # 항상 '고급'으로 보내는 옵션 (콘솔에서도 고급/태그 영역)
@@ -254,6 +256,8 @@ RESOURCE_ID_TARGETS = {
     '--subnet-ids': 'subnet',
     '--subscription-id': 'subscription',
     '--topic-id': 'topic',
+    '--ons-topic-id': 'topic',
+    '--announcement-subscription-id': 'announcement-subscription',
     '--user-id': 'iam-user',
     '--vcn-id': 'vcn',
     '--volume-group-id': 'volume-group',
@@ -1326,7 +1330,33 @@ def _instance_boot_volume_backup():
         'advanced': [],
     }
 
+def _wizbase_monitoring():
+    return {
+        'resource': 'wizbase-monitoring-setup',
+        'label': 'MSP 모니터링 일괄등록 (Topic→구독→알람15)',
+        'cmd': 'oci monitoring alarm create',
+        'monitoringComposition': True,
+        'preferredOperation': 'create',
+        'help': ('Notification Topic 1개 + Email 구독 + 표준 알람 15개(Compute/DB/LB/Storage/Network/MySQL)를 '
+                 'compartment 서브트리 전체에 한 번에 등록하는 Bash 스크립트를 생성합니다. '
+                 'compartment 이름을 비우면 root(테넌시 전체)를 감시하며, 새 고객 온보딩 시 테넌시당 1회만 실행하면 됩니다. '
+                 'Topic은 이름으로 재사용(idempotent)하고, Email 구독은 각 수신함의 확인 링크를 눌러야 활성화됩니다.'),
+        'sections': [
+            {'label': '토픽 · 수신', 'options': [
+                _co('--topic-name', True, '생성/재사용할 Notification Topic 이름', 'MSP_Alarm_Topic'),
+                _co('--emails', False, '알림 받을 이메일 (여러 개는 줄바꿈). 확인 링크 클릭 후 활성화됩니다.', 'ops@wizbase.co.kr', multi=True),
+                _co('--compartment-name', False, '알람/토픽을 만들 compartment 이름. 비우면 root(테넌시 전체) 감시', 'heuron'),
+            ]},
+            {'label': '실행 환경', 'options': [
+                _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT'),
+                _co('--region', True, 'Topic/구독/알람을 만들 리전 (멀티리전이면 리전별 반복)', 'ap-seoul-1', default='ap-seoul-1'),
+            ]},
+        ],
+        'advanced': [],
+    }
+
 EXTRA = {
+    'wizbase-monitoring-setup': _wizbase_monitoring(),
     'compartment-resource-cleansing': _compartment_cleanup(),
     'all-subscription-balances': _all_subscription_balances(),
     'iam-user-mfa-reset': _iam_mfa_reset(),
