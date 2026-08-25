@@ -263,7 +263,7 @@ for (const level of [1, 2, 3]) {
   }
   const governanceCategory = bundle.cliCatalog.categories.find(category => category.id === '07-governance')
   const accountManagementGroup = governanceCategory?.groups.find(group => group.label === 'Account Management')
-  if (JSON.stringify(accountManagementGroup?.resources) !== JSON.stringify(['announcement'])) {
+  if (JSON.stringify(accountManagementGroup?.resources) !== JSON.stringify(['announcement', 'announcement-subscription'])) {
     throw new Error(`L${level} Governance & Administration > Account Management menu invalid`)
   }
   const billingCategory = bundle.cliCatalog.categories.find(category => category.id === '08-billing')
@@ -428,7 +428,7 @@ for (const level of [1, 2, 3]) {
   }
   const fullCrudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations
     && ['get', 'list', 'create', 'update', 'delete'].every(operation => command.operations[operation]?.cmd))
-  if (fullCrudCommands.length !== 42) throw new Error(`L${level} full CRUD resource count invalid: ${fullCrudCommands.length}`)
+  if (fullCrudCommands.length !== 43) throw new Error(`L${level} full CRUD resource count invalid: ${fullCrudCommands.length}`)
   if (!fullCrudCommands.some(command => command.resource === 'iam-compartment')) {
     throw new Error(`L${level} IAM Compartment CRUD metadata missing`)
   }
