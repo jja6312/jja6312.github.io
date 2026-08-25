@@ -10,6 +10,7 @@
     "test:kanban": "node -e \"const fs=require('fs');const css=fs.readFileSync('src/index.css','utf8');const rule=css.match(/\\.kanban\\s*\\{([^}]*)\\}/s)?.[1]??'';if(!/align-items:\\s*stretch/.test(rule))throw new Error('Kanban columns must stretch to the tallest column');console.log('kanban columns share the tallest height')\"",
     "test:blueprint": "node scripts/generate-cli-blueprints.mjs && node scripts/verify-oci-cli-blueprints.mjs && node scripts/test-blueprint-engine.mjs",
     "test:tasks": "node scripts/test-task-reconcile.mjs",
+    "test:schedule-write": "node scripts/test-schedule-write-access.mjs",
     "test:cidr": "node scripts/test-cidr.mjs",
     "test:wizard": "node scripts/test-wizard-compose.mjs",
     "test:policy": "node scripts/test-policy.mjs",

@@ -47,7 +47,9 @@ export default function SchedulePage() {
       <main className="sched-main">
         {!locked && !pat && (
           <div className="cross-note" style={{ marginBottom: 16 }}>
-            자물쇠 비밀번호로 암호화 스냅샷을 열었습니다. 현재는 <b>읽기 전용</b>이며, 수정·GitHub 동기화에만 PAT가 필요합니다.
+            {authLevel === 3
+              ? <>자물쇠 3 <b>관리자 모드</b>입니다. TODO 수정과 드래그 이동은 바로 가능하며, 변경 내용은 <b>이 브라우저에 임시 저장</b>됩니다. PAT를 등록하면 자동으로 GitHub에 반영됩니다.</>
+              : <>자물쇠 비밀번호로 암호화 스냅샷을 열었습니다. 현재는 <b>읽기 전용</b>이며, 수정·GitHub 동기화에만 PAT가 필요합니다.</>}
           </div>
         )}
         {locked

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getPat, getFile, putFile } from './githubDb'
 import { protectedJson, useProtectedData } from './protectedData'
 import { useHub } from '../store'
+import { canWriteSchedule } from './scheduleWriteAccess.mjs'
 
 const activityLabel = (path: string) => path.startsWith('todo/') ? 'TODO 저장'
   : path.includes('calendar') ? '일정 저장'
@@ -12,39 +13,50 @@ const activityLabel = (path: string) => path.startsWith('todo/') ? 'TODO 저장'
           : '업무 데이터 저장'
 
 /* ── 동기화 상태 ─────────────────────────────────────── */
-export type Sync = 'loading' | 'synced' | 'readonly' | 'dirty' | 'saving' | 'error'
+export type Sync = 'loading' | 'synced' | 'local' | 'readonly' | 'dirty' | 'saving' | 'error'
 export const SYNC_LABEL: Record<Sync, string> = {
   loading: '불러오는 중…', synced: '✓ 동기화됨', dirty: '● 변경됨 (곧 commit)',
-  readonly: '🔒 읽기 전용 · 수정은 PAT 필요', saving: '↑ commit 중…', error: '⚠ 저장 실패',
+  local: '◎ 이 브라우저에 임시 저장', readonly: '🔒 읽기 전용 · 수정은 PAT 필요',
+  saving: '↑ commit 중…', error: '⚠ 저장 실패',
+}
+
+const LOCAL_DRAFT_PREFIX = 'hub-schedule-draft:'
+const draftKey = (path: string) => `${LOCAL_DRAFT_PREFIX}${path}`
+const readLocalDraft = <T,>(path: string): T | undefined => {
+  try {
+    const raw = localStorage.getItem(draftKey(path))
+    return raw ? JSON.parse(raw) as T : undefined
+  } catch { return undefined }
+}
+const writeLocalDraft = <T,>(path: string, value: T) => {
+  try { localStorage.setItem(draftKey(path), JSON.stringify(value)) } catch { /* 저장 공간/브라우저 설정 문제 */ }
+}
+const clearLocalDraft = (path: string) => {
+  try { localStorage.removeItem(draftKey(path)) } catch { /* 저장소 접근 불가 */ }
 }
 
 /* blog-db JSON 파일 1개를 로드→편집→3초 debounce commit 하는 범용 훅.
    월간일정/칸반/일지/목표가 전부 이 패턴 — TodoPage·Calendar 의 중복을 하나로. */
 export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
   const pat = getPat()
+  const authLevel = useHub(s => s.authLevel)
   const protectedState = useProtectedData()
   const [data, setData] = useState<T>(empty)
   const [sync, setSync] = useState<Sync>('loading')
+  const [patVersion, setPatVersion] = useState(0)
   const shaRef = useRef<string | undefined>(undefined)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const emptyRef = useRef(empty)
   const ref = useRef(data)
   ref.current = data
+  const snapshot = protectedJson(protectedState.data, path)
+  const canWriteLocal = canWriteSchedule({ hasPat: !!pat, authLevel, hasSnapshot: snapshot !== undefined })
 
   useEffect(() => {
-    if (!pat) {
-      const snapshot = protectedJson(protectedState.data, path)
-      if (snapshot !== undefined) { setData(snapshot as T); setSync('readonly') }
-      else if (!protectedState.loading) setSync('error')
-      return
-    }
-    let alive = true
-    getFile(pat, path).then(f => {
-      if (!alive) return
-      if (f) { shaRef.current = f.sha; try { setData(JSON.parse(f.content)) } catch { /* keep empty */ } }
-      setSync('synced')
-    }).catch(() => { if (alive) setSync('error') })
-    return () => { alive = false }
-  }, [pat, path, protectedState.data, protectedState.loading])
+    const onPatChanged = () => setPatVersion(version => version + 1)
+    window.addEventListener('hub-pat-changed', onPatChanged)
+    return () => window.removeEventListener('hub-pat-changed', onPatChanged)
+  }, [])
 
   const save = useCallback(async () => {
     if (!pat) { setSync('readonly'); return }
@@ -52,6 +64,7 @@ export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
     const body = JSON.stringify(ref.current, null, 2) + '\n'
     try {
       shaRef.current = await putFile(pat, path, body, commitMsg, shaRef.current)
+      clearLocalDraft(path)
       setSync('synced')
       useHub.getState().rewardActivity(`save:${path}`, 5, activityLabel(path))
     } catch {
@@ -59,21 +72,63 @@ export function useSyncedJson<T>(path: string, empty: T, commitMsg: string) {
       try {
         const f = await getFile(pat, path)
         shaRef.current = await putFile(pat, path, body, commitMsg, f?.sha)
+        clearLocalDraft(path)
         setSync('synced')
         useHub.getState().rewardActivity(`save:${path}`, 5, activityLabel(path))
       } catch { setSync('error') }
     }
   }, [pat, path, commitMsg])
 
+  useEffect(() => {
+    if (!pat) {
+      if (snapshot !== undefined) {
+        const localDraft = authLevel === 3 ? readLocalDraft<T>(path) : undefined
+        const next = localDraft ?? snapshot as T
+        ref.current = next
+        setData(next)
+        setSync(authLevel === 3 ? 'local' : 'readonly')
+      }
+      else if (!protectedState.loading) setSync('error')
+      return
+    }
+    let alive = true
+    getFile(pat, path).then(f => {
+      if (!alive) return
+      let remote = emptyRef.current
+      if (f) {
+        shaRef.current = f.sha
+        try { remote = JSON.parse(f.content) as T } catch { /* keep empty */ }
+      }
+      const localDraft = readLocalDraft<T>(path)
+      const next = localDraft ?? remote
+      ref.current = next
+      setData(next)
+      if (localDraft !== undefined) {
+        setSync('dirty')
+        if (timer.current) clearTimeout(timer.current)
+        timer.current = setTimeout(save, 0)
+      } else setSync('synced')
+    }).catch(() => { if (alive) setSync('error') })
+    return () => { alive = false }
+  }, [pat, patVersion, path, snapshot, protectedState.loading, authLevel, save])
+
   const update = useCallback((next: T) => {
-    if (!pat) { setSync('readonly'); return }
+    if (!pat) {
+      if (!canWriteLocal) { setSync('readonly'); return }
+      ref.current = next
+      setData(next)
+      writeLocalDraft(path, next)
+      setSync('local')
+      return
+    }
+    ref.current = next
     setData(next)
     setSync('dirty')
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(save, 3000)
-  }, [pat, save])
+  }, [pat, path, save, canWriteLocal])
 
-  return { data, update, sync, writable: !!pat }
+  return { data, update, sync, writable: canWriteLocal }
 }
 
 /* ── 목표 ────────────────────────────────────────────── */
