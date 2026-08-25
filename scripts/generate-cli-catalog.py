@@ -53,6 +53,7 @@ STRUCTURE = [
   ]),
   ('07-governance', 'Governance & Administration', [
     ('Account Management', ['announcement']),
+    ('Support', ['support-incident']),
   ]),
   ('08-billing', 'Billing & Cost Management', [
     ('Billing', ['subscription-list', 'subscription-balance']),
@@ -75,6 +76,7 @@ RES_LABEL = {
   'iam-compartment': 'Compartments', 'iam-user': 'Users', 'iam-group': 'Groups', 'iam-policy': 'Policies',
   'subscription-list': 'Subscriptions', 'subscription-balance': 'Subscription Balance',
   'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription', 'announcement': 'Announcements',
+  'support-incident': 'Service Request (SR)',
 }
 
 # 항상 '고급'으로 보내는 옵션 (콘솔에서도 고급/태그 영역)

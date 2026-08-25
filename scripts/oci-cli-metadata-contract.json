@@ -18227,6 +18227,36 @@
       "presentInPinnedClickTree": false
     },
     {
+      "resource": "iam-compartment",
+      "operation": "create",
+      "command": "oci iam compartment create",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "iam-compartment",
+      "operation": "delete",
+      "command": "oci iam compartment delete",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "iam-compartment",
+      "operation": "get",
+      "command": "oci iam compartment get",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "iam-compartment",
+      "operation": "list",
+      "command": "oci iam compartment list",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "iam-compartment",
+      "operation": "update",
+      "command": "oci iam compartment update",
+      "presentInPinnedClickTree": false
+    },
+    {
       "resource": "iam-group",
       "operation": "create",
       "command": "oci iam group create",
@@ -18326,6 +18356,30 @@
       "resource": "subscription-list",
       "operation": "list",
       "command": "oci onesubscription organization-subscription organization-subscription list",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "support-incident",
+      "operation": "create",
+      "command": "oci support incident create",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "support-incident",
+      "operation": "get",
+      "command": "oci support incident get",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "support-incident",
+      "operation": "list",
+      "command": "oci support incident list",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "support-incident",
+      "operation": "update",
+      "command": "oci support incident update",
       "presentInPinnedClickTree": false
     }
   ]
