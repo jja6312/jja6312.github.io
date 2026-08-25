@@ -1995,6 +1995,7 @@ export default function CliBuilderPage() {
         choices: option.choices ?? undefined,
         optional: requirement === 'optional',
         recommended,
+        essential: scope === 'context' && (option.name === '--profile' || option.name === '--region'),
         requirement,
         help: option.help,
         placeholder: option.placeholder,

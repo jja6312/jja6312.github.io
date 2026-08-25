@@ -11,6 +11,7 @@ export type CliWizardQuestion = {
   choices?: string[]
   optional?: boolean
   recommended?: boolean
+  essential?: boolean
   requirement?: CliWizardRequirement
   help?: string
   placeholder?: string
@@ -32,7 +33,7 @@ export type CliWizardRenderContext = {
 }
 
 export function isCliWizardRequired(question: CliWizardQuestion) {
-  return question.requirement === 'required' || question.requirement === 'conditional'
+  return question.essential || question.requirement === 'required' || question.requirement === 'conditional'
     || (!question.optional && !question.recommended)
 }
 
@@ -211,8 +212,8 @@ export default function CliInputWizard({
           <div className="bp-wizard-current" key={question.id}>
             <div className="bp-wizard-question current">
               {question.label}
-              <small className={question.recommended ? 'recommended' : required ? 'required' : 'optional'}>
-                {question.recommended ? '권장' : question.requirement === 'conditional' ? '△ 조건부 필수' : required ? '* 필수' : '선택'}
+              <small className={question.essential ? 'essential' : question.recommended ? 'recommended' : required ? 'required' : 'optional'}>
+                {question.essential ? '* 공통 필수' : question.recommended ? '권장' : question.requirement === 'conditional' ? '△ 조건부 필수' : required ? '* 필수' : '선택'}
               </small>
               {filled ? <span className="bp-wizard-filled">✓ 입력됨</span> : null}
             </div>

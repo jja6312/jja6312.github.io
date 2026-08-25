@@ -142,8 +142,8 @@ export default function OciPolicyPage() {
     { id: 'compartment', label: '대상 compartment (이름 또는 OCID)', type: 'string', requirement: 'required', placeholder: 'prod  또는  ocid1.compartment.oc1..aaa', help: '이름이면 실행 시 테넌시 하위에서 ACTIVE 1개를 OCID 로 자동 조회합니다.' },
     { id: 'policyName', label: '정책 이름 (--name)', type: 'string', requirement: 'required', placeholder: 'net-baseline' },
     { id: 'description', label: '설명 (--description)', type: 'string', requirement: 'optional', placeholder: '네트워크 기본 정책' },
-    { id: 'profile', label: 'OCI CLI 프로파일', type: 'string', requirement: 'optional', placeholder: 'DEFAULT' },
-    { id: 'region', label: '리전 (정책은 홈 리전에서만 생성 가능)', type: 'string', requirement: 'optional', placeholder: 'ap-seoul-1' },
+    { id: 'profile', label: 'OCI CLI 프로파일', type: 'string', requirement: 'optional', essential: true, placeholder: 'DEFAULT' },
+    { id: 'region', label: '리전 (정책은 홈 리전에서만 생성 가능)', type: 'string', requirement: 'optional', essential: true, placeholder: 'ap-seoul-1' },
   ]
 
   return (

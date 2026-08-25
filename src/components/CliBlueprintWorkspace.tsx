@@ -102,7 +102,9 @@ function wizardQuestionsFor(blueprint: CliBlueprint, inputs: InputValues, enforc
   const fromDef = (id: string, optional?: boolean): WizardQuestion | null => {
     const def = byId.get(id)
     if (!def || enforcedKeys.has(id)) return null
-    return { id, label: def.label, type: def.type, choices: def.choices?.map(String), optional: optional ?? def.requirement !== 'required', help: def.help, placeholder: placeholderFor(id, def.type) }
+    const essential = id === 'execution.profile' || id === 'execution.region'
+    return { id, label: def.label, type: def.type, choices: def.choices?.map(String), essential,
+      optional: essential ? false : optional ?? def.requirement !== 'required', help: def.help, placeholder: placeholderFor(id, def.type) }
   }
   const questions: WizardQuestion[] = []
   const modeQuestion = fromDef('naming.mode', false)

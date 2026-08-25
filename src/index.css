@@ -712,6 +712,7 @@ kbd {
 .cli-input-wizard-launch span { color: var(--text-faint); font-size: 10px; font-weight: 500; }
 .bp-wizard-question.current small.required { color: #ff9e9e; }
 .bp-wizard-question.current small.conditional { color: #f0c94b; }
+.bp-wizard-question.current small.essential { color: #87e6ff; }
 .bp-wizard-question.current small.optional { color: #8993a3; }
 .bp-wizard-question.current small.recommended { color: #50e39a; }
 .cli-wizard-check { display: inline-flex; align-items: center; gap: 9px; color: #e8ecf3; font-size: 1.1rem; }
