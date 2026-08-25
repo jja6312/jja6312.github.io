@@ -2,6 +2,7 @@
 // 업무관리 → TODO 보드 reconcile 순수 로직 테스트 (러너 없이 node:assert)
 import assert from 'node:assert/strict'
 import { reconcileTasksToBoard, periodKey, RECURRING_PREFIX } from '../src/lib/taskReconcile.mjs'
+import { allowTodoCardDrop, startTodoCardDrag } from '../src/lib/todoDnd.mjs'
 
 let passed = 0
 const t = (name, fn) => { fn(); passed += 1; console.log(`  ok  ${name}`) }
@@ -10,6 +11,16 @@ const emptyTasks = () => ({ recurring: [], oneoff: [], projects: [] })
 const todoTexts = b => b.columns.find(c => c.id === 'todo').cards.map(c => c.text)
 const todoCards = b => b.columns.find(c => c.id === 'todo').cards
 const NOW = new Date('2026-08-23T09:00:00')
+
+t('TODO 드래그는 브라우저 payload와 이동 효과를 명시', () => {
+  const sent = []
+  const transfer = { effectAllowed: '', dropEffect: '', setData: (format, value) => sent.push([format, value]) }
+  startTodoCardDrag(transfer, 'recurring-card')
+  allowTodoCardDrop(transfer)
+  assert.equal(transfer.effectAllowed, 'move')
+  assert.equal(transfer.dropEffect, 'move')
+  assert.deepEqual(sent, [['text/plain', 'recurring-card']])
+})
 
 t('수동 카드(source 없음)는 업무 조정에서도 보존', () => {
   const board = { columns: [{ id: 'todo', title: '할 일', cards: [{ id: 'manual', text: '수동 등록', created: '2026-08-23T00:00:00Z' }] }, { id: 'doing', title: '진행 중', cards: [] }, { id: 'done', title: '완료', cards: [] }] }

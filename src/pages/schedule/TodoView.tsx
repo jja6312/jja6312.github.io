@@ -4,6 +4,7 @@ import {
   CARD_KINDS, kindColor, cardDoneDate, reconcileTasksToBoard,
   type Board, type Card, type CardKind, type Journal, type GoalsFile, type TasksFile,
 } from '../../lib/scheduleDb'
+import { allowTodoCardDrop, startTodoCardDrag } from '../../lib/todoDnd.mjs'
 import { useHub } from '../../store'
 
 const isoOf = (d: Date) =>
@@ -175,7 +176,7 @@ export default function TodoView() {
           const cards = col.id === 'done' ? col.cards.filter(c => cardDoneDate(c) === date) : col.cards
           return (
             <div key={col.id} className="kcol"
-              onDragOver={e => e.preventDefault()}
+              onDragOver={e => { e.preventDefault(); allowTodoCardDrop(e.dataTransfer) }}
               onDrop={e => { e.preventDefault(); moveCard(col.id) }}>
               <div className="kcol-hd">
                 <b>{col.title}</b>
@@ -189,8 +190,12 @@ export default function TodoView() {
                 return (
                   <div key={card.id} className={`kcard${overdue ? ' overdue' : ''}`} draggable={!editing && writable}
                     style={kc ? { borderLeft: `3px solid ${kc}` } : undefined}
-                    onDragStart={() => { dragRef.current = { colId: col.id, cardId: card.id } }}
-                    onDragOver={e => e.preventDefault()}
+                    onDragStart={e => {
+                      dragRef.current = { colId: col.id, cardId: card.id }
+                      startTodoCardDrag(e.dataTransfer, card.id)
+                    }}
+                    onDragEnd={() => { dragRef.current = null }}
+                    onDragOver={e => { e.preventDefault(); allowTodoCardDrop(e.dataTransfer) }}
                     onDrop={e => { e.preventDefault(); e.stopPropagation(); moveCard(col.id, card.id) }}>
                     {editing ? (
                       <div className="kcard-edit-form">
