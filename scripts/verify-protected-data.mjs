@@ -233,7 +233,7 @@ for (const level of [1, 2, 3]) {
       throw new Error(`L${level} MySQL Backup optional field marked required: ${name}`)
     }
   }
-  const storageCategory = bundle.cliCatalog.categories.find(category => category.id === '03-storage')
+  const storageCategory = bundle.cliCatalog.categories.find(category => category.id === '02-storage')
   const objectStorageGroup = storageCategory?.groups.find(group => group.label === 'Object Storage')
   if (JSON.stringify(objectStorageGroup?.resources) !== JSON.stringify(['bucket', 'object-bulk-upload', 'object-sync'])) {
     throw new Error(`L${level} Storage > Object Storage menu invalid`)
@@ -261,10 +261,10 @@ for (const level of [1, 2, 3]) {
     || objectSync.operations.create.rules?.find(rule => rule.id === 'object-sync-direction')?.kind !== 'oneOf') {
     throw new Error(`L${level} Object Storage transfer option rules invalid`)
   }
-  const governanceCategory = bundle.cliCatalog.categories.find(category => category.id === '07-governance')
-  const accountManagementGroup = governanceCategory?.groups.find(group => group.label === 'Account Management')
-  if (JSON.stringify(accountManagementGroup?.resources) !== JSON.stringify(['announcement', 'announcement-subscription'])) {
-    throw new Error(`L${level} Governance & Administration > Account Management menu invalid`)
+  const governanceCategory = bundle.cliCatalog.categories.find(category => category.id === '10-governance')
+  const announcementsGroup = governanceCategory?.groups.find(group => group.label === 'Announcements')
+  if (JSON.stringify(announcementsGroup?.resources) !== JSON.stringify(['announcement', 'announcement-subscription'])) {
+    throw new Error(`L${level} Governance & Administration > Announcements menu invalid`)
   }
   const billingCategory = bundle.cliCatalog.categories.find(category => category.id === '08-billing')
   const billingGroup = billingCategory?.groups.find(group => group.label === 'Billing')

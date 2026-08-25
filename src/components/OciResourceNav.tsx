@@ -46,7 +46,7 @@ function categoryForPolicy(category: string, categories: OciNavCategory[]) {
 function categoryForPolicyResource(resource: string) {
   const key = normalize(resource)
   if (key === 'announcement' || key === 'announcements' || key === 'announcementsubscriptions' || key === 'allresources') return 'Governance & Administration'
-  if (key === 'onstopics') return 'Observability'
+  if (key === 'onstopics') return 'Developer Services'
   if (key === 'usagereport') return 'Billing & Cost Management'
   return guessCategory(resource)
 }

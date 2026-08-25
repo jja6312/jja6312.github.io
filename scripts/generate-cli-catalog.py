@@ -21,42 +21,50 @@ ensure_source()
 CLICK_TREE = load_click_tree()
 CLICK_COMMANDS = CLICK_TREE['commands']
 
+# OCI 콘솔 햄버거 네비게이션 메뉴 구조를 그대로 미러링(2026-08-25, 공식문서 검증).
+# 최상위 카테고리명은 콘솔 verbatim, 순서도 콘솔 관찰 순서. 우리 리소스가 없는 카테고리
+# (Analytics & AI, Hybrid, Migration & DR 등)는 생략. 콘솔에서 서브리소스인 subnet/route-table/
+# security-list/nsg/게이트웨이는 콘솔대로 'Virtual Cloud Networks' 그룹 안에 둔다.
+# Announcements/Support 는 콘솔 헤더(별도) 항목이지만 문서 분류상 Governance & Administration.
 STRUCTURE = [
-  ('02-compute', 'Compute', [
+  ('01-compute', 'Compute', [
     ('Instances', ['instance', 'instance-boot-volume-backup', 'instance-maintenance-reboot', 'instance-configuration', 'instance-pool']),
     ('Dedicated Infrastructure', ['dedicated-vm-host', 'capacity-reservation', 'compute-cluster']),
-    ('Images', ['custom-image']),
+    ('Custom Images', ['custom-image']),
   ]),
-  ('03-storage', 'Storage', [
+  ('02-storage', 'Storage', [
     ('Block Storage', ['block-volume', 'boot-volume', 'volume-group', 'volume-backup-policy']),
     ('File Storage', ['file-system', 'mount-target', 'export']),
     ('Object Storage', ['bucket', 'object-bulk-upload', 'object-sync']),
   ]),
-  ('04-network', 'Networking', [
-    ('Virtual Cloud Networks', ['vcn', 'subnet', 'route-table', 'dhcp-options']),
-    ('Security', ['security-list', 'nsg']),
-    ('Gateways', ['internet-gateway', 'nat-gateway', 'service-gateway', 'drg', 'drg-attachment', 'local-peering-gateway', 'remote-peering-connection']),
+  ('03-networking', 'Networking', [
+    ('Virtual Cloud Networks', ['vcn', 'subnet', 'route-table', 'dhcp-options', 'security-list', 'nsg', 'internet-gateway', 'nat-gateway', 'service-gateway', 'local-peering-gateway']),
+    ('Customer Connectivity', ['drg', 'drg-attachment', 'remote-peering-connection']),
     ('IP Management', ['public-ip']),
     ('Load Balancers', ['load-balancer', 'network-load-balancer']),
   ]),
-  ('05-database', 'Database', [
+  ('04-oracle-database', 'Oracle Database', [
     ('Autonomous Database', ['autonomous-database']),
-    ('Oracle Base Database', ['base-db']),
+    ('Base Database Service', ['base-db']),
+  ]),
+  ('05-databases', 'Databases', [
     ('MySQL HeatWave', ['mysql', 'mysql-backup']),
   ]),
-  ('06-identity-security', 'Identity & Security', [
+  ('06-developer-services', 'Developer Services', [
+    ('Application Integration', ['topic', 'subscription']),
+  ]),
+  ('07-identity-security', 'Identity & Security', [
     ('Identity', ['iam-compartment', 'iam-user', 'iam-group', 'iam-policy']),
   ]),
-  ('06-observability', 'Observability', [
+  ('08-observability', 'Observability & Management', [
     ('Monitoring', ['alarm']),
-    ('Notifications', ['topic', 'subscription']),
   ]),
-  ('07-governance', 'Governance & Administration', [
-    ('Account Management', ['announcement', 'announcement-subscription']),
-    ('Support', ['support-incident']),
-  ]),
-  ('08-billing', 'Billing & Cost Management', [
+  ('09-billing', 'Billing & Cost Management', [
     ('Billing', ['subscription-list', 'subscription-balance']),
+  ]),
+  ('10-governance', 'Governance & Administration', [
+    ('Announcements', ['announcement', 'announcement-subscription']),
+    ('Support', ['support-incident']),
   ]),
 ]
 
