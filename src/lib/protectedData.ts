@@ -42,6 +42,7 @@ export interface ProtectedBundle {
   cliVerified?: string[]
   cliBlueprints?: unknown
   ociPolicy?: unknown
+  ociGrammar?: unknown
   terraformDocs?: ProtectedDoc[]
   quoteHtml?: string
   schedule?: {
@@ -130,6 +131,7 @@ export function protectedJson(bundle: ProtectedBundle | null, path: string): unk
   if (!bundle) return undefined
   const map: Record<string, unknown> = {
     'knowledge/oci-policy/policies.json': bundle.ociPolicy,
+    'knowledge/oci-grammar/grammar.json': bundle.ociGrammar,
     'profile/calendar.json': bundle.schedule?.calendar,
     'todo/board.json': bundle.schedule?.board,
     'schedule/journal.json': bundle.schedule?.journal,

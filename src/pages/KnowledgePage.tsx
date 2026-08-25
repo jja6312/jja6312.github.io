@@ -5,6 +5,7 @@ import KnowledgeDocsPage from './KnowledgeDocsPage'
 import CliBuilderPage from './CliBuilderPage'
 import CliUiWizardPage from './CliUiWizardPage'
 import OciPolicyPage from './OciPolicyPage'
+import OciGrammarPage from './OciGrammarPage'
 import QuotePage from './QuotePage'
 import MeetingsPage from './MeetingsPage'
 import ProvisioningPage from './ProvisioningPage'
@@ -19,6 +20,7 @@ const SECTIONS = [
   { id: 'oci-cli', label: 'OCI CLI', kbd: 'g c' },
   { id: 'cli-wizard', label: 'CLI UI Wizard', kbd: 'g w' },
   { id: 'oci-policy', label: 'OCI Policy', kbd: 'g i' },
+  { id: 'oci-grammar', label: 'OCI Grammar', kbd: 'g u' },
   { id: 'terraform', label: 'Terraform', kbd: 'g t' },
   { id: 'troubleshooting', label: '트러블슈팅', kbd: 'g s' },
   { id: 'support-history', label: '지원이력', kbd: 'g h', locked: true },
@@ -61,6 +63,7 @@ export default function KnowledgePage() {
         {active === 'oci-cli' && <CliBuilderPage />}
         {active === 'cli-wizard' && <CliUiWizardPage />}
         {active === 'oci-policy' && <OciPolicyPage />}
+        {active === 'oci-grammar' && <OciGrammarPage />}
         {active === 'terraform' && (
           <KnowledgeDocsPage crumb="TERRAFORM" title="OCI Terraform" badge="TF"
             desc="모듈 라이브러리 사용법 — 플레이북·모듈 카탈로그·apply 함정 모음."

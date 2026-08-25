@@ -1,0 +1,58 @@
+/* OCI Grammar (gr-*). pol-* (OciPolicyPage.css) + bp-* (index.css) 재사용. */
+.gr-shell { display: grid; grid-template-columns: minmax(200px, 250px) minmax(0, 1fr); gap: 10px; max-width: 1600px; margin: 0 auto; padding: 24px 24px 80px; align-items: start; }
+.gr-shell > .oci-resource-nav { position: sticky; top: 66px; max-height: calc(100vh - 90px); overflow-y: auto; padding-right: 4px; }
+.gr-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-width: 860px) {
+  .gr-shell { grid-template-columns: 1fr; padding: 16px 14px 60px; }
+  .gr-shell > .oci-resource-nav { position: static; max-height: none; overflow: visible; }
+}
+.gr-navcount { display: inline-block; margin-left: 6px; background: var(--bg-inset); border-radius: 999px; padding: 0 6px; font-size: .66rem; color: var(--text-dim); }
+
+/* 언어 참조 카드 */
+.gr-ref { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-card); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.gr-ref-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gr-ref-title { font-weight: 700; font-size: 1rem; }
+.gr-ref-svc { font-size: .72rem; color: var(--text-dim); border: 1px solid var(--border); border-radius: 5px; padding: 1px 7px; }
+.gr-ref-ok { font-size: .7rem; color: var(--correct); }
+.gr-ref-doc { font-size: .74rem; color: var(--accent); text-decoration: none; margin-left: auto; }
+.gr-ref-doc:hover { text-decoration: underline; }
+.gr-ref-purpose { font-size: .84rem; color: var(--text-dim); }
+.gr-ref-run { font-size: .76rem; color: var(--text-faint); }
+.gr-skeleton { margin: 0; background: var(--bg-inset); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-family: var(--mono, ui-monospace, monospace); font-size: .8rem; color: var(--text); overflow-x: auto; white-space: pre; }
+.gr-clauses { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.gr-clauses li { font-size: .78rem; color: var(--text-dim); }
+
+.gr-sub-h { font-weight: 600; font-size: .86rem; margin-top: 2px; display: flex; align-items: center; gap: 8px; }
+.gr-sub-h2 { font-weight: 600; font-size: .78rem; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
+.gr-examples { display: flex; flex-direction: column; gap: 6px; }
+.gr-example { display: flex; flex-direction: column; gap: 3px; }
+.gr-save-ex { align-self: flex-start; background: var(--bg-soft); border: 1px solid var(--accent-dim); border-radius: 6px; padding: 2px 9px; font-size: .72rem; cursor: pointer; color: var(--accent); }
+.gr-save-ex:hover { background: color-mix(in srgb, var(--accent) 14%, var(--bg-soft)); }
+.gr-hint { font-size: .68rem; color: var(--text-faint); font-weight: 400; }
+
+/* 컴포저 */
+.gr-composer { border: 1px solid var(--accent-dim); border-radius: 10px; background: color-mix(in srgb, var(--accent) 4%, var(--bg-card)); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.gr-composer textarea, .gr-composer input, .gr-composer select { font-family: var(--mono, ui-monospace, monospace); }
+.gr-where { display: flex; flex-direction: column; gap: 5px; }
+.gr-where-row { display: grid; grid-template-columns: 64px minmax(0, 1.4fr) 70px minmax(0, 1fr) 28px; gap: 5px; align-items: center; }
+.gr-where-row input, .gr-where-row select { padding: 4px 7px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .8rem; }
+.gr-join-first { font-size: .74rem; color: var(--text-faint); text-align: center; }
+.gr-addrow { align-self: flex-start; padding: 3px 10px; font-size: .76rem; }
+.gr-warn { font-size: .74rem; color: var(--partial); background: color-mix(in srgb, var(--partial) 12%, transparent); border-radius: 6px; padding: 5px 8px; }
+.gr-sort { display: flex; align-items: flex-end; gap: 8px; }
+.gr-sort select { padding: 5px 8px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .8rem; }
+.gr-inline { flex-direction: row; align-items: center; gap: 6px; }
+.gr-inline input { width: 150px; }
+.gr-asm { white-space: pre; min-height: 28px; }
+.gr-assembled { display: flex; flex-direction: column; gap: 4px; }
+.gr-scripts { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.gr-profile-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.gr-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gr-form-grid select { padding: 5px 8px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: .84rem; }
+.gr-lib { display: flex; flex-direction: column; gap: 8px; }
+
+@media (max-width: 620px) {
+  .gr-where-row { grid-template-columns: 50px 1fr 60px 1fr 24px; }
+  .gr-form-grid { grid-template-columns: 1fr; }
+}

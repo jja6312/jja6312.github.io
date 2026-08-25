@@ -92,6 +92,7 @@ function Hotkeys() {
         else if (e.key === 'c') nav('/knowledge/oci-cli')
         else if (e.key === 'w') nav('/knowledge/cli-wizard')
         else if (e.key === 'i') nav('/knowledge/oci-policy')   // IAM policy 라이브러리
+        else if (e.key === 'u') nav('/knowledge/oci-grammar')  // 쿼리 문법 (qUery)
         else if (e.key === 't') nav('/knowledge/terraform')
         else if (e.key === 'q') nav('/knowledge/quote')
         else if (e.key === 'v') nav('/knowledge/provisioning')

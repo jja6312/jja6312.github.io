@@ -13,6 +13,7 @@
     "test:cidr": "node scripts/test-cidr.mjs",
     "test:wizard": "node scripts/test-wizard-compose.mjs",
     "test:policy": "node scripts/test-policy.mjs",
+    "test:grammar": "node scripts/test-grammar.mjs",
     "test:oci-msp": "node scripts/verify-oci-msp-learning.mjs",
     "test:oci-source": "python scripts/verify-oci-cli-source.py",
     "test:oci-click": "python scripts/verify-oci-cli-click.py",
