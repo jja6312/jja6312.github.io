@@ -266,7 +266,7 @@ for (const level of [1, 2, 3]) {
   if (JSON.stringify(announcementsGroup?.resources) !== JSON.stringify(['announcement', 'announcement-subscription'])) {
     throw new Error(`L${level} Governance & Administration > Announcements menu invalid`)
   }
-  const billingCategory = bundle.cliCatalog.categories.find(category => category.id === '08-billing')
+  const billingCategory = bundle.cliCatalog.categories.find(category => category.id === '09-billing')
   const billingGroup = billingCategory?.groups.find(group => group.label === 'Billing')
   if (JSON.stringify(billingGroup?.resources) !== JSON.stringify(['subscription-list', 'subscription-balance'])) {
     throw new Error(`L${level} Billing & Cost Management > Billing menu invalid`)
@@ -348,7 +348,7 @@ for (const level of [1, 2, 3]) {
   for (const field of ['reference-ticket-number', 'announcement-type', 'affected-regions', 'time-one-value']) {
     if (!announcementQuery.includes(field)) throw new Error(`L${level} Announcements query missing ${field}`)
   }
-  const identityCategory = bundle.cliCatalog.categories.find(category => category.id === '06-identity-security')
+  const identityCategory = bundle.cliCatalog.categories.find(category => category.id === '07-identity-security')
   const identityGroup = identityCategory?.groups.find(group => group.label === 'Identity')
   if (JSON.stringify(identityGroup?.resources) !== JSON.stringify(['iam-compartment', 'iam-user', 'iam-group', 'iam-policy'])) {
     throw new Error(`L${level} Identity & Security > Identity menu invalid`)
