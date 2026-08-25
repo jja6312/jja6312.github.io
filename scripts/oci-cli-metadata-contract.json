@@ -16712,7 +16712,15 @@
               "type": "str",
               "flag": false,
               "multiple": false,
-              "choices": null,
+              "choices": [
+                "CUSTOM_HTTPS",
+                "EMAIL",
+                "HTTPS",
+                "ORACLE_FUNCTIONS",
+                "PAGERDUTY",
+                "SLACK",
+                "SMS"
+              ],
               "deprecated": false
             },
             "--subscription-endpoint": {

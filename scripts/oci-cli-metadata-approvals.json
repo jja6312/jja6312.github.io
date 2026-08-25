@@ -31,6 +31,14 @@
       "guard": {
         "lookupOnly": true
       }
+    },
+    {
+      "id": "subscription:create:choices:--protocol",
+      "kind": "choices",
+      "resource": "subscription",
+      "operation": "create",
+      "subject": "--protocol",
+      "reason": "OCI CLI는 --protocol을 free-string(StringParamType)으로 선언하지만 실제 유효값은 고정 enum입니다. 공식 cmdref(ons/subscription/create) 확인분(EMAIL/CUSTOM_HTTPS/PAGERDUTY/SLACK/SMS/ORACLE_FUNCTIONS/HTTPS)을 CHOICE_OVERRIDES로 명시해 선택 실수를 방지합니다."
     }
   ]
 }

@@ -313,6 +313,12 @@ DIRECT_ONLY_LOOKUPS = {
     ('block-volume-cross-copy', '--source-volume-id'): '여러 원본 tenancy volume을 순회하므로 검증된 OCID 목록을 직접 입력합니다.',
 }
 
+# OCI CLI 가 free-string(StringParamType)으로 선언하지만 실제로는 고정 enum 인 옵션.
+# 공식 cmdref 검증분만 등록. (resource, option-name) → choices. 첫 값이 사실상 기본값.
+CHOICE_OVERRIDES = {
+    ('subscription', '--protocol'): ['EMAIL', 'CUSTOM_HTTPS', 'PAGERDUTY', 'SLACK', 'SMS', 'ORACLE_FUNCTIONS', 'HTTPS'],
+}
+
 def recipe_cmd(res):
     p = os.path.join(RECIPE, 'ocicli_%s.md' % res)
     if not os.path.exists(p):
@@ -322,22 +328,52 @@ def recipe_cmd(res):
     return m.group(0) if m else None
 
 def placeholder(name, typ):
+    """옵션 입력 힌트(예시값). 이 시스템은 placeholder 가 비는 것을 허용하지 않는다 —
+    어떤 이름/타입이 와도 마지막 폴백까지 반드시 비어있지 않은 값을 돌려준다.
+    (bool/flag/choices 옵션은 select 로 렌더되어 placeholder 를 쓰지 않으므로 예외)."""
     n = name.lstrip('-')
-    if n.endswith('-id') or 'compartment' in n:
-        return 'ocid1.' + n.replace('-id', '').replace('-', '') + '.oc1..xxxx'
-    if n in ('display-name', 'name'):
+    if n.endswith('-id') or n.endswith('-ids') or 'compartment' in n:
+        base = n.replace('-ids', '').replace('-id', '').replace('-', '') or 'resource'
+        return 'ocid1.%s.oc1..xxxx' % base
+    if n in ('display-name', 'name') or n.endswith('-name'):
         return 'my-resource'
     if typ == 'json':
         return '{ }'
     if typ == 'file':
         return './path/to/file'
-    if typ == 'datetime':
+    if typ == 'datetime' or n.startswith('time-') or n.endswith('-time'):
         return '2026-08-30T23:18:00Z'
     if 'cidr' in n:
         return '10.0.0.0/16'
     if 'shape' in n:
         return 'VM.Standard.E4.Flex'
-    return ''
+    if 'protocol' in n:
+        return 'EMAIL'
+    if 'email' in n:
+        return 'ops@example.com'
+    if 'endpoint' in n or 'url' in n or n.endswith('-uri'):
+        return 'ops@example.com 또는 https://example.com'
+    if 'namespace' in n:
+        return 'my_namespace'
+    if 'availability-domain' in n or n == 'ad':
+        return '1 또는 xxxx:AP-SEOUL-1-AD-1'
+    if 'region' in n:
+        return 'ap-seoul-1'
+    if 'password' in n or 'secret' in n:
+        return '••••••••'
+    if 'port' in n:
+        return '443'
+    if n.endswith('-path') or n == 'path':
+        return '/mnt/data'
+    if 'bucket' in n:
+        return 'my-bucket'
+    if typ in ('int', 'float') or n.endswith('-seconds') or n.endswith('-count') or n.endswith('-size') \
+            or n.endswith('-in-gbs') or n.endswith('-in-mbps') or 'limit' in n or 'number' in n or 'ocpus' in n:
+        return '0'
+    if typ == 'bool':
+        return ''  # select 로 렌더 — placeholder 불필요
+    # 최종 폴백: 절대 빈 문자열을 돌려주지 않는다.
+    return '<%s>' % n
 
 raw = {}
 for f in glob.glob(os.path.join(DATA, '*.json')):
@@ -1490,6 +1526,20 @@ def annotate_dynamic_lookups(resource, surface):
     if lookup_inputs:
         surface['lookupInputs'] = list(lookup_inputs.values())
 
+def ensure_option_completeness(resource, surface):
+    """이 시스템은 옵션 메타데이터가 비는 것을 허용하지 않는다(사용자 규칙, 2026-08-25).
+    - CLI 가 선언 안 한 enum 은 CHOICE_OVERRIDES 로 choices 를 채운다.
+    - placeholder 는 select(bool/flag/choices)가 아닌 한 반드시 비어있지 않게 채운다.
+    generated/manual/custom(EXTRA) 모든 surface 에 최종 정규화로 적용."""
+    for option in surface_options(surface):
+        if option.get('choices') is None:
+            override = CHOICE_OVERRIDES.get((resource, option['name']))
+            if override:
+                option['choices'] = list(override)
+        is_select = bool(option.get('flag') or option.get('type') == 'bool' or option.get('choices'))
+        if not is_select and not option.get('placeholder'):
+            option['placeholder'] = placeholder(option['name'], option.get('type', 'str'))
+
 def set_safe_preferred_operation(command):
     """Persist the same LIST > GET > mutation default enforced by the UI."""
     if command.get('maintenanceReboot'):
@@ -1505,12 +1555,15 @@ for resource, command in catalog['commands'].items():
     set_safe_preferred_operation(command)
     annotate_dynamic_lookups(resource, command)
     annotate_option_relationships(command)
+    ensure_option_completeness(resource, command)
     for operation in command.get('operations', {}).values():
         annotate_dynamic_lookups(resource, operation)
         annotate_option_relationships(operation)
+        ensure_option_completeness(resource, operation)
     for action in command.get('actions', {}).values():
         annotate_dynamic_lookups(resource, action)
         annotate_option_relationships(action)
+        ensure_option_completeness(resource, action)
     annotate_json_inputs(command)
     for operation in command.get('operations', {}).values():
         annotate_json_inputs(operation)
