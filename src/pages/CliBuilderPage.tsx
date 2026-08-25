@@ -1749,6 +1749,13 @@ function buildCli(
   }
 
   const resolveExactName = (option: CliOption, lookup: CliDynamicLookup, rawName: string, suffix = '') => {
+    // 입력이 이미 OCID 면 조회를 건너뛰고 그대로 사용한다.
+    // exactName 조회는 지정 compartment 범위 안에서만 매칭하므로, 다른 compartment 의 자원
+    // OCID 를 붙여넣으면 found=0 으로 실패했다. OCID 는 이미 확정 식별자이니 통과시킨다.
+    const trimmedName = (rawName || '').trim()
+    if (/^ocid1\.[a-z0-9-]+\./i.test(trimmedName)) {
+      return quoteCliValue(trimmedName, true)
+    }
     ensureJq()
     const variableBase = `LOOKUP_${option.name.slice(2).replaceAll('-', '_').toUpperCase()}${suffix}`
     const inputVariable = `${variableBase}_NAME`
