@@ -532,6 +532,18 @@ kbd {
 .ksec-btn:hover { color: var(--text); }
 .ksec-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
 
+/* OCI CLI 모드 토글 (CLI 빌더 ↔ UI Wizard) */
+.cli-mode-tabs { display: flex; gap: 4px; max-width: 1600px; margin: 8px auto 0; padding: 0 24px; }
+.cli-mode-tab {
+  border: 1px solid var(--line); background: var(--bg-inset); color: var(--text-dim);
+  border-radius: 8px; padding: 5px 14px; font-size: 13px; cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 6px; transition: all .14s;
+}
+.cli-mode-tab:hover { color: var(--text); }
+.cli-mode-tab.on { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); font-weight: 600; }
+.cli-mode-kbd { font-size: 10px; opacity: .7; }
+@media (max-width: 860px) { .cli-mode-tabs { padding: 0 14px; } }
+
 /* ─────────── OCI CLI 빌더 ─────────── */
 .cli-layout {
   display: grid; grid-template-columns: var(--cli-left-width, 220px) 14px minmax(0, 1fr) 14px var(--cli-right-width, 280px);

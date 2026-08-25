@@ -29,7 +29,7 @@ export default function CommandPalette() {
     { id: 'support-history', label: '지식모음 — 지원이력', kbd: 'g h', run: () => nav('/knowledge/support-history') },
     { id: 'ann', label: '지식모음 — Announcement', kbd: 'g a', run: () => nav('/knowledge/announcements') },
     { id: 'cli', label: '지식모음 — OCI CLI 레시피', kbd: 'g c', run: () => nav('/knowledge/oci-cli') },
-    { id: 'cli-wizard', label: '지식모음 — CLI UI Wizard (아키텍처 드로잉)', kbd: 'g w', run: () => nav('/knowledge/cli-wizard') },
+    { id: 'cli-wizard', label: '지식모음 — OCI CLI › UI Wizard (아키텍처 드로잉)', kbd: 'g w', run: () => nav('/knowledge/cli-wizard') },
     { id: 'oci-policy', label: '지식모음 — OCI Policy (문법 라이브러리·묶음→CLI)', kbd: 'g i', run: () => nav('/knowledge/oci-policy') },
     { id: 'oci-grammar', label: '지식모음 — OCI Grammar (쿼리 문법·조합)', kbd: 'g u', run: () => nav('/knowledge/oci-grammar') },
     { id: 'tf', label: '지식모음 — Terraform', kbd: 'g t', run: () => nav('/knowledge/terraform') },

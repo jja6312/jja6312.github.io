@@ -18,7 +18,6 @@ import { useHub } from '../store'
 // 지식모음 — 쌓이는 지식·도구 계열. 자물쇠 레벨은 auth.LOCKS 에서 파생.
 const SECTIONS = [
   { id: 'oci-cli', label: 'OCI CLI', kbd: 'g c' },
-  { id: 'cli-wizard', label: 'CLI UI Wizard', kbd: 'g w' },
   { id: 'oci-policy', label: 'OCI Policy', kbd: 'g i' },
   { id: 'oci-grammar', label: 'OCI Grammar', kbd: 'g u' },
   { id: 'terraform', label: 'Terraform', kbd: 'g t' },
@@ -30,11 +29,27 @@ const SECTIONS = [
   { id: 'announcements', label: 'Announcement', kbd: 'g a', locked: true },
 ] as const
 
+// OCI CLI 섹션 — CLI 빌더와 UI Wizard 를 한 섹션 안에서 토글. (CLI UI Wizard 는 OCI CLI 하위)
+function OciCliSection({ mode }: { mode: 'builder' | 'wizard' }) {
+  const nav = useNavigate()
+  return (
+    <div>
+      <div className="cli-mode-tabs" role="tablist" aria-label="OCI CLI 모드">
+        <button type="button" role="tab" aria-selected={mode === 'builder'} className={`cli-mode-tab${mode === 'builder' ? ' on' : ''}`} onClick={() => nav('/knowledge/oci-cli')}>CLI 빌더</button>
+        <button type="button" role="tab" aria-selected={mode === 'wizard'} className={`cli-mode-tab${mode === 'wizard' ? ' on' : ''}`} onClick={() => nav('/knowledge/cli-wizard')}>UI Wizard<span className="px cli-mode-kbd">g w</span></button>
+      </div>
+      {mode === 'builder' ? <CliBuilderPage /> : <CliUiWizardPage />}
+    </div>
+  )
+}
+
 export default function KnowledgePage() {
   const nav = useNavigate()
   const { section } = useParams()
   const { authLevel, openAuth } = useHub()
-  const active = SECTIONS.find(s => s.id === section)?.id ?? 'oci-cli'
+  // cli-wizard 는 최상위 탭이 아니라 OCI CLI 섹션의 한 모드 → active 는 oci-cli 로 수렴.
+  const cliMode: 'builder' | 'wizard' = section === 'cli-wizard' ? 'wizard' : 'builder'
+  const active = section === 'cli-wizard' ? 'oci-cli' : (SECTIONS.find(s => s.id === section)?.id ?? 'oci-cli')
   const activeLevel = requiredLevel(`/knowledge/${active}`)
   const locked = activeLevel > authLevel
 
@@ -60,8 +75,7 @@ export default function KnowledgePage() {
         {active === 'troubleshooting' && <TroubleshootingPage />}
         {active === 'support-history' && <SupportHistoryPage />}
         {active === 'announcements' && <AnnouncementsPage />}
-        {active === 'oci-cli' && <CliBuilderPage />}
-        {active === 'cli-wizard' && <CliUiWizardPage />}
+        {active === 'oci-cli' && <OciCliSection mode={cliMode} />}
         {active === 'oci-policy' && <OciPolicyPage />}
         {active === 'oci-grammar' && <OciGrammarPage />}
         {active === 'terraform' && (
