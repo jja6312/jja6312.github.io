@@ -353,6 +353,35 @@ for (const level of [1, 2, 3]) {
   if (JSON.stringify(identityGroup?.resources) !== JSON.stringify(['iam-compartment', 'iam-user', 'iam-group', 'iam-policy'])) {
     throw new Error(`L${level} Identity & Security > Identity menu invalid`)
   }
+  const regionsGroup = identityCategory?.groups.find(group => group.label === 'Regions')
+  if (JSON.stringify(regionsGroup?.resources) !== JSON.stringify(['iam-region-subscription'])) {
+    throw new Error(`L${level} Identity & Security > Regions menu invalid`)
+  }
+  const regionSubscription = bundle.cliCatalog.commands['iam-region-subscription']
+  if (regionSubscription?.preferredOperation !== 'list'
+    || JSON.stringify(Object.keys(regionSubscription.operations ?? {})) !== JSON.stringify(['list'])) {
+    throw new Error(`L${level} Region Subscriptions LIST metadata invalid`)
+  }
+  const regionSubscriptionList = regionSubscription.operations.list
+  if (regionSubscriptionList.cmd !== 'oci iam region-subscription list'
+    || JSON.stringify(requiredNames(regionSubscriptionList)) !== JSON.stringify([])) {
+    throw new Error(`L${level} Region Subscriptions command or required fields invalid`)
+  }
+  const regionSubscriptionOptions = regionSubscriptionList.sections.flatMap(section => section.options)
+  const regionSubscriptionOption = name => regionSubscriptionOptions.find(option => option.name === name)
+    ?? contextOption(regionSubscriptionList, name)
+  if (regionSubscriptionOption('--tenancy-id')?.required !== false
+    || !regionSubscriptionOption('--all')?.flag
+    || regionSubscriptionOption('--all')?.defaultValue !== 'true'
+    || regionSubscriptionOption('--output')?.defaultValue !== 'table') {
+    throw new Error(`L${level} Region Subscriptions option defaults invalid`)
+  }
+  const regionSubscriptionQuery = regionSubscriptionOption('--query')?.defaultValue ?? ''
+  for (const field of ['region-name', 'region-key', 'status', 'is-home-region']) {
+    if (!regionSubscriptionQuery.includes(field)) {
+      throw new Error(`L${level} Region Subscriptions query missing ${field}`)
+    }
+  }
   const expectedIamCommands = {
     'iam-compartment': 'oci iam compartment',
     'iam-user': 'oci iam user', 'iam-group': 'oci iam group', 'iam-policy': 'oci iam policy',

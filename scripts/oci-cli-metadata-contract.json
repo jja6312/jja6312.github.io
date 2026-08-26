@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "source": {
-    "tag": "v3.90.3",
-    "version": "3.90.3",
-    "commit": "4bdc3beb2d0b4a3187ef8392fff19537aba1178d",
+    "tag": "v3.91.0",
+    "version": "3.91.0",
+    "commit": "fbff93ae6744ed23671b974fd876adb239545cea",
     "collector": "final-click-tree"
   },
   "resources": {
@@ -18352,6 +18352,12 @@
       "resource": "iam-policy",
       "operation": "update",
       "command": "oci iam policy update",
+      "presentInPinnedClickTree": false
+    },
+    {
+      "resource": "iam-region-subscription",
+      "operation": "list",
+      "command": "oci iam region-subscription list",
       "presentInPinnedClickTree": false
     },
     {

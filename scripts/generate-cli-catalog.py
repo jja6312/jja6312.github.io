@@ -55,6 +55,7 @@ STRUCTURE = [
   ]),
   ('07-identity-security', 'Identity & Security', [
     ('Identity', ['iam-compartment', 'iam-user', 'iam-group', 'iam-policy']),
+    ('Regions', ['iam-region-subscription']),
   ]),
   ('08-observability', 'Observability & Management', [
     ('Monitoring', ['alarm']),
@@ -82,6 +83,7 @@ RES_LABEL = {
   'autonomous-database': 'Autonomous Database', 'base-db': 'Base Database System', 'mysql': 'MySQL DB System',
   'mysql-backup': 'MySQL Backup',
   'iam-compartment': 'Compartments', 'iam-user': 'Users', 'iam-group': 'Groups', 'iam-policy': 'Policies',
+  'iam-region-subscription': 'Region Subscriptions',
   'subscription-list': 'Subscriptions', 'subscription-balance': 'Subscription Balance',
   'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription', 'announcement': 'Announcements',
   'announcement-subscription': 'Announcement Subscription',
@@ -723,7 +725,7 @@ catalog['source'].update({
 })
 MANUAL_CATEGORY_RESOURCES = {
     'instance-maintenance-reboot', 'instance-boot-volume-backup',
-    'iam-compartment', 'iam-user', 'iam-group', 'iam-policy',
+    'iam-compartment', 'iam-user', 'iam-group', 'iam-policy', 'iam-region-subscription',
     'object-bulk-upload', 'object-sync',
 }
 placed = set()
@@ -1230,6 +1232,43 @@ def _iam_policy():
         },
     }
 
+def _iam_region_subscription():
+    query = 'sort_by(data,&"region-name")[].{Region:"region-name",Key:"region-key",Status:status,Home:"is-home-region"}'
+    return {
+        'resource': 'iam-region-subscription',
+        'label': 'Region Subscriptions',
+        'cmd': 'oci iam region-subscription list',
+        'preferredOperation': 'list',
+        'help': ('OCI Console의 Region 메뉴 > Manage regions에 대응합니다. 선택한 프로필의 테넌시가 구독한 리전과 '
+                 'READY/IN_PROGRESS 상태, 홈 리전 여부를 조회합니다.'),
+        'sections': [],
+        'advanced': [],
+        'operations': {
+            'list': _iam_op(
+                'oci iam region-subscription list',
+                ('선택한 프로필의 테넌시가 구독한 모든 리전을 조회합니다. --tenancy-id를 비우면 OCI config의 '
+                 'tenancy OCID가 자동으로 사용됩니다.'),
+                [
+                    {'label': '조회 범위', 'options': [
+                        _io('--tenancy-id', False,
+                            '다른 테넌시를 명시적으로 조회할 때만 입력합니다. 비우면 선택한 프로필의 tenancy OCID를 사용합니다.',
+                            'ocid1.tenancy.oc1..xxxx', shellQuote=True),
+                        _io('--all', False, '페이지가 나뉘어도 구독 리전을 모두 조회합니다.',
+                            flag=True, default='true'),
+                    ]},
+                    {'label': '결과 표시', 'options': [
+                        _io('--query', False,
+                            '리전명, 리전 키, 구독 상태, 홈 리전 여부만 이름순으로 표시합니다.',
+                            query, default=query, shellQuote=True),
+                        _io('--output', False, 'table은 요약 표, json은 JSON 응답을 출력합니다.',
+                            choices=['table', 'json'], default='table'),
+                    ]},
+                    {'label': '실행 환경', 'options': _iam_env()},
+                ],
+            ),
+        },
+    }
+
 def _iam_mfa_reset():
     return {
         'resource': 'iam-user-mfa-reset', 'label': 'IAM User — MFA Reset',
@@ -1408,6 +1447,7 @@ EXTRA = {
     'iam-user': _iam_user(),
     'iam-group': _iam_group(),
     'iam-policy': _iam_policy(),
+    'iam-region-subscription': _iam_region_subscription(),
     'instance-maintenance-reboot': _maintenance_reboot(),
     'instance-boot-volume-backup': _instance_boot_volume_backup(),
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),

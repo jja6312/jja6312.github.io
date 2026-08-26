@@ -7,7 +7,7 @@ colorama==0.4.6
 crc32c==2.8
 cryptography==49.0.0
 jmespath==1.0.1
-oci==2.184.1
+oci==2.185.0
 prompt-toolkit==3.0.43
 pycparser==3.0
 PyJWT==2.13.0
