@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import CliBlueprintWorkspace from '../components/CliBlueprintWorkspace'
 import CliInputWizard, { defaultCliWizardControl, useCliInputWizardShortcut, type CliWizardQuestion, type CliWizardRenderContext } from '../components/CliInputWizard'
+import OciOfficialCommandNav from '../components/OciOfficialCommandNav'
 import OciResourceNav, { extractOciPolicyNavStatements } from '../components/OciResourceNav'
 import type { BlueprintCatalog } from '../lib/oci-cli/blueprintTypes.d.mts'
 import { useHub } from '../store'
@@ -20,6 +21,7 @@ import {
   type ExecutionContextSchema,
 } from '../lib/cliExecutionContext'
 import { resolveRegion, REGIONS } from '../lib/oci-cli/regionAliases'
+import { loadOfficialCliCommand, type OfficialCliCommand, type OfficialCliOption } from '../lib/oci-cli/officialCatalog'
 
 interface CliOption {
   name: string
@@ -89,7 +91,7 @@ interface CliLookupPrerequisite {
   kind: 'availabilityDomain' | 'value'
 }
 interface CliDynamicLookup {
-  kind: 'exactName' | 'compartment'
+  kind: 'exactName' | 'compartment' | 'tenancy'
   target?: string
   listCommand?: string
   nameField?: string
@@ -148,6 +150,49 @@ interface Catalog {
   executionContext: ExecutionContextSchema
   categories: { id: string; label: string; groups: { label: string; resources: string[] }[] }[]
   commands: Record<string, CliCommand>
+}
+interface CuratedCliTarget { resource: string; operation?: CrudVerb; action?: string }
+
+function officialOptionPlaceholder(option: OfficialCliOption): string {
+  if (option.type === 'json') return '구조화 입력기로 JSON 필드를 구성하세요.'
+  if (option.type === 'datetime') return '예: 2026-08-30T23:18:00Z'
+  if (option.type === 'int' || option.type === 'float') return '숫자 입력'
+  if (option.multiple) return '값을 줄바꿈으로 여러 개 입력'
+  if (option.name.endsWith('-id')) return 'ocid1...'
+  return option.required ? '필수 값 입력' : '선택 값 입력'
+}
+
+function officialOptionToBuilder(path: string, option: OfficialCliOption): CliOption {
+  return {
+    name: option.name,
+    required: option.required,
+    requirement: option.required ? 'required' : 'optional',
+    type: option.type,
+    choices: option.choices ?? null,
+    help: option.help,
+    placeholder: officialOptionPlaceholder(option),
+    flag: option.flag,
+    multiple: option.multiple,
+    deprecated: option.deprecated,
+    deprecation: option.deprecation,
+    ...(option.type === 'json' ? {
+      jsonTemplateCommand: `${path} --generate-param-json-input ${option.name.replace(/^--/, '')}`,
+    } : {}),
+  }
+}
+
+function officialCommandToBuilder(command: OfficialCliCommand): CliCommand {
+  const options = command.options.map(option => officialOptionToBuilder(command.path, option))
+  const required = options.filter(option => option.required)
+  const optional = options.filter(option => !option.required)
+  return {
+    resource: `official:${command.path}`,
+    label: command.segments.join(' › '),
+    cmd: command.path,
+    help: command.help,
+    sections: required.length ? [{ label: '공식 필수 입력', options: required }] : [],
+    advanced: optional,
+  }
 }
 const EMPTY_CATALOG: Catalog = {
   executionContext: { source: { kind: 'final-click-root', tag: '', version: '', commit: '', runtimeFile: '' }, request: [], response: [] },
@@ -1832,6 +1877,10 @@ function buildCli(
       continue
     }
     if (o.dynamicLookup && isDynamic(dyn, o.name, true)) {
+      if (o.dynamicLookup.kind === 'tenancy') {
+        args.push(`  ${o.name} ${ensureRootTenancy()}`)
+        continue
+      }
       if (o.dynamicLookup.kind === 'compartment') {
         const resolved = resolveCompartment(o.name, `LOOKUP_${o.name.slice(2).replaceAll('-', '_').toUpperCase()}`)
         args.push(`  ${o.name} ${resolved}`)
@@ -1880,6 +1929,7 @@ export default function CliBuilderPage() {
   const nav = useNavigate()
   const rParam = sp.get('r')                                  // Ctrl+K 딥링크: ?r=<resource>
   const [active, setActive] = useState<string>('__custom')
+  const [officialCommand, setOfficialCommand] = useState<OfficialCliCommand | null>(null)
   const [values, setValues] = useState<Record<string, string>>({})
   const [executionValues, setExecutionValues] = useState<Record<string, string>>({})
   const [dyn, setDyn] = useState<Record<string, boolean>>({})
@@ -1894,6 +1944,7 @@ export default function CliBuilderPage() {
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
   const [wizardOpen, setWizardOpen] = useState(false)
   const [customOpen, setCustomOpen] = useState(false)
+  const [curatedOpen, setCuratedOpen] = useState(false)
   const [instancePreflightInput, setInstancePreflightInput] = useState('')
   const [instancePreflightError, setInstancePreflightError] = useState('')
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => loadCliSidebarWidth('left'))
@@ -1947,7 +1998,7 @@ export default function CliBuilderPage() {
     if (!rParam || !CAT.commands[rParam]) return
     const operation = defaultCliOperation(CAT.commands[rParam])
     const surface = selectedSurface(CAT.commands[rParam], operation)
-    setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setCrudOperation(operation); setSelectedAction(null)
+    setOfficialCommand(null); setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setCrudOperation(operation); setSelectedAction(null); setCuratedOpen(true)
     if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances || CAT.commands[rParam].iamMfaReset || CAT.commands[rParam].monitoringComposition) setCustomOpen(true)
     const cat = catOfResource(CAT, rParam)
     if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
@@ -1969,7 +2020,7 @@ export default function CliBuilderPage() {
   const usesCrudVerification = (command: CliCommand | null | undefined) => !!command
     && !command.crossCopy && !command.compartmentCleanup && !command.allSubscriptionBalances
     && (!!command.maintenanceReboot || !!command.operations)
-  const verificationKey = (r: string, operation: string) => usesCrudVerification(CAT.commands[r]) ? `${r}:${operation}` : r
+  const verificationKey = (r: string, operation: string) => !r.startsWith('official:') && usesCrudVerification(CAT.commands[r]) ? `${r}:${operation}` : r
   const isOperationVerified = (r: string, operation: string) => verified.includes(verificationKey(r, operation))
   const isResourceVerified = (r: string) => verified.includes(r) || verified.some(key => key.startsWith(`${r}:`))
   const toggleVerified = async (r: string, operation: string) => {
@@ -1984,7 +2035,21 @@ export default function CliBuilderPage() {
     } catch (e) { showToast(`저장 실패: ${explainGhError(e)}`); setVerified(prev) }
   }
 
-  const cmd = active !== '__custom' ? CAT.commands[active] : null
+  const curatedPathMap = useMemo(() => {
+    const result = new Map<string, CuratedCliTarget>()
+    const add = (path: string | undefined, target: CuratedCliTarget) => { if (path && !result.has(path)) result.set(path, target) }
+    for (const [resource, command] of Object.entries(CAT.commands)) {
+      Object.entries(command.operations ?? {}).forEach(([operation, surface]) =>
+        add(surface?.cmd, { resource, operation: operation as CrudVerb }))
+      Object.entries(command.actions ?? {}).forEach(([action, surface]) =>
+        add(surface?.cmd, { resource, action }))
+      add(command.cmd, { resource })
+    }
+    return result
+  }, [CAT])
+  const officialBuilderCommand = useMemo(() => officialCommand ? officialCommandToBuilder(officialCommand) : null, [officialCommand])
+  const cmd = officialBuilderCommand ?? (active !== '__custom' ? CAT.commands[active] : null)
+  const activeVerificationResource = officialCommand ? `official:${officialCommand.path}` : active
   useCliInputWizardShortcut(Boolean(cmd) && sp.get('mode') !== 'blueprint' && !wizardOpen, () => setWizardOpen(true))
   const selectedActionMeta = selectedAction ? cmd?.actions?.[selectedAction] : undefined
   const selectedOperation = selectedActionMeta ?? cmd?.operations?.[crudOperation]
@@ -2012,7 +2077,7 @@ export default function CliBuilderPage() {
     .filter(section => section.options.length > 0)
   const visibleFormAdvanced = formAdvanced.filter(option => !option.deprecated)
   const hasCrud = usesCrudVerification(cmd)
-  const currentVerificationOperation = selectedAction ? `action:${selectedAction}` : crudOperation
+  const currentVerificationOperation = officialCommand ? 'command' : selectedAction ? `action:${selectedAction}` : crudOperation
   const isOperationAvailable = (operation: CrudVerb) => supportsOperation(cmd, operation)
   const operationHelp = cmd?.maintenanceReboot
     ? crudOperation === 'update'
@@ -2043,14 +2108,25 @@ export default function CliBuilderPage() {
     ? buildCli(cmd, effectiveValues, dyn, crudOperation, selectedAction ?? undefined, requestContextArguments, responseContextArguments)
     : customText
 
-  const selectResource = (res: string) => {
+  const selectResource = (res: string, requestedOperation?: CrudVerb, requestedAction?: string) => {
     const next = CAT.commands[res]
-    setActive(res); setDyn({}); setShowOptional(false); setShowDeprecated(false); setSelectedAction(null); setInstancePreflightInput(''); setInstancePreflightError('')
+    setOfficialCommand(null); setActive(res); setDyn({}); setShowOptional(false); setShowDeprecated(false); setSelectedAction(null); setInstancePreflightInput(''); setInstancePreflightError('')
+    setCuratedOpen(true)
     if (next) {
-      const operation = defaultCliOperation(next)
-      const surface = selectedSurface(next, operation)
-      setCrudOperation(operation); setValues(operationDefaults(next, operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides))
+      const operation = requestedOperation && supportsOperation(next, requestedOperation) ? requestedOperation : defaultCliOperation(next)
+      const action = requestedAction && next.actions?.[requestedAction] ? requestedAction : undefined
+      const surface = selectedSurface(next, operation, action)
+      setCrudOperation(operation); setSelectedAction(action ?? null)
+      setValues(action ? actionDefaults(next, action) : operationDefaults(next, operation))
+      setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides))
     } else { setValues({}); setExecutionValues({}) }
+  }
+  const selectOfficialCommand = (command: OfficialCliCommand, savedValues?: Record<string, string>, savedContext?: Record<string, string>) => {
+    setOfficialCommand(command); setActive('__official'); setDyn({}); setShowOptional(false); setShowDeprecated(false)
+    setSelectedAction(null); setCrudOperation('list'); setValues(savedValues ?? {})
+    setExecutionValues(savedContext ?? executionContextDefaults(CAT.executionContext, {}))
+    setInstancePreflightInput(''); setInstancePreflightError('')
+    requestAnimationFrame(() => document.getElementById('cli-command-workspace')?.scrollIntoView({ block: 'start' }))
   }
   const selectOperation = (operation: CrudVerb) => {
     if (!isOperationAvailable(operation)) return
@@ -2112,6 +2188,11 @@ export default function CliBuilderPage() {
   }
   if (cmd?.rootTenancyLookup && isDynamic(dyn, '--compartment-id')) {
     validationValues['--compartment-id'] = '__root-tenancy-from-profile__'
+  }
+  for (const option of formOptions) {
+    if (option.dynamicLookup?.kind === 'tenancy' && isDynamic(dyn, option.name, true)) {
+      validationValues[option.name] = '__root-tenancy-from-profile__'
+    }
   }
   if (formOptionsByName.has('--availability-domain') && isDynamic(dyn, '--availability-domain')) {
     validationValues['--availability-domain'] = values['--availability-domain']?.trim() || '1'
@@ -2249,8 +2330,9 @@ export default function CliBuilderPage() {
     }
     const name = prompt('즐겨찾기 이름', cmd ? `${cmd.label} ${values['--display-name'] || ''}`.trim() : 'custom')
     if (!name) return
+    const favoriteResource = officialCommand ? `official:${officialCommand.path}` : active
     const fav: Favorite = {
-      id: `fav-${favs.length}-${name}`, name, resource: active,
+      id: `fav-${favs.length}-${name}`, name, resource: favoriteResource,
       values: active === '__custom' ? { __custom: customText } : values,
       context: active === '__custom' ? undefined : executionValues,
       dyn, operation: crudOperation, action: selectedAction ?? undefined,
@@ -2258,10 +2340,16 @@ export default function CliBuilderPage() {
     const next = [...favs, fav]; setFavs(next); saveFavs(next); showToast('즐겨찾기 저장됨')
   }
   const loadFav = (f: Favorite) => {
-    if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci '); setExecutionValues({}); setCustomOpen(true) }
+    if (f.resource === '__custom') { setOfficialCommand(null); setActive('__custom'); setCustomText(f.values.__custom || 'oci '); setExecutionValues({}); setCustomOpen(true) }
+    else if (f.resource.startsWith('official:')) {
+      const path = f.resource.slice('official:'.length)
+      loadOfficialCliCommand(path)
+        .then(command => selectOfficialCommand(command, f.values, f.context))
+        .catch(error => showToast(error instanceof Error ? error.message : String(error)))
+    }
     else {
       const legacy = splitLegacyExecutionContext(f.values)
-      setActive(f.resource); setValues(legacy.resource); setDyn(f.dyn ?? {}); setShowOptional(true); setShowDeprecated(false); setSelectedAction(null)
+      setOfficialCommand(null); setActive(f.resource); setValues(legacy.resource); setDyn(f.dyn ?? {}); setShowOptional(true); setShowDeprecated(false); setSelectedAction(null)
       const favoriteCommand = CAT.commands[f.resource]
       if (favoriteCommand) {
         const operation = f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultCliOperation(favoriteCommand)
@@ -2337,40 +2425,50 @@ export default function CliBuilderPage() {
     <div className="cli-layout" style={cliLayoutStyle}>
       {/* 좌측 계층 네비 — 대분류 아코디언 (기본 닫힘) */}
       <aside id="cli-resource-nav" className="cli-nav">
-        <div className="cli-cat cli-blueprint-cat">
-          <button className="cli-cat-toggle" onClick={() => nav('/knowledge/oci-cli?mode=blueprint')} title="선언형 자원 조립 — 여러 자원을 한 번에 계획·생성">
-            <span className="cli-bp-mark">◆</span> Blueprints
+        <OciOfficialCommandNav activePath={officialCommand?.path} curatedPaths={curatedPathMap}
+          onSelect={selectOfficialCommand} />
+        <div className="cli-cat cli-curated-cat">
+          <button className="cli-cat-toggle cli-curated-toggle" onClick={() => setCuratedOpen(open => !open)} aria-expanded={curatedOpen}>
+            <span className={`caret${curatedOpen ? ' open' : ''}`}>▸</span> 운영 Overlay
+            <small>동적 조회·안전 흐름</small>
           </button>
-        </div>
-        <div className="cli-cat cli-custom-cat">
-          <button className="cli-cat-toggle" onClick={() => setCustomOpen(open => !open)}>
-            <span className={`caret${customOpen ? ' open' : ''}`}>▸</span> Custom CLI
-          </button>
-          {customOpen && (
-            <div className="cli-group">
-              <button className={`cli-navitem${active === '__custom' ? ' on' : ''}`} onClick={() => setActive('__custom')}>
-                Custom Command
+          {curatedOpen && <div className="cli-curated-body">
+            <div className="cli-cat cli-blueprint-cat">
+              <button className="cli-cat-toggle" onClick={() => nav('/knowledge/oci-cli?mode=blueprint')} title="선언형 자원 조립 — 여러 자원을 한 번에 계획·생성">
+                <span className="cli-bp-mark">◆</span> Blueprints
               </button>
-              {SPECIAL_COMMANDS.map(c => (
-                <button key={c.resource} className={`cli-navitem${active === c.resource ? ' on' : ''}${isResourceVerified(c.resource) ? ' verified' : ''}`}
-                  onClick={() => selectResource(c.resource)}>
-                  {c.label}
-                  {isResourceVerified(c.resource) && <span className="cli-vmark" title="검증됨">✓</span>}
-                </button>
-              ))}
             </div>
-          )}
+            <div className="cli-cat cli-custom-cat">
+              <button className="cli-cat-toggle" onClick={() => setCustomOpen(open => !open)}>
+                <span className={`caret${customOpen ? ' open' : ''}`}>▸</span> Custom CLI
+              </button>
+              {customOpen && (
+                <div className="cli-group">
+                  <button className={`cli-navitem${active === '__custom' && !officialCommand ? ' on' : ''}`} onClick={() => { setOfficialCommand(null); setActive('__custom') }}>
+                    Custom Command
+                  </button>
+                  {SPECIAL_COMMANDS.map(c => (
+                    <button key={c.resource} className={`cli-navitem${active === c.resource && !officialCommand ? ' on' : ''}${isResourceVerified(c.resource) ? ' verified' : ''}`}
+                      onClick={() => selectResource(c.resource)}>
+                      {c.label}
+                      {isResourceVerified(c.resource) && <span className="cli-vmark" title="검증됨">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <OciResourceNav
+              catalog={CAT}
+              statements={extractOciPolicyNavStatements(protectedState.data?.ociPolicy)}
+              surface="cli"
+              activeKey={officialCommand ? undefined : active}
+              openCategories={openCats}
+              onToggleCategory={id => setOpenCats(s => ({ ...s, [id]: !s[id] }))}
+              onSelect={entry => { if (entry.cliResource) selectResource(entry.cliResource) }}
+              isEntryVerified={entry => !!entry.cliResource && isResourceVerified(entry.cliResource)}
+            />
+          </div>}
         </div>
-        <OciResourceNav
-          catalog={CAT}
-          statements={extractOciPolicyNavStatements(protectedState.data?.ociPolicy)}
-          surface="cli"
-          activeKey={active}
-          openCategories={openCats}
-          onToggleCategory={id => setOpenCats(s => ({ ...s, [id]: !s[id] }))}
-          onSelect={entry => { if (entry.cliResource) selectResource(entry.cliResource) }}
-          isEntryVerified={entry => !!entry.cliResource && isResourceVerified(entry.cliResource)}
-        />
         {favs.length > 0 && (
           <div className="cli-cat">
             <div className="cli-cat-label px">FAVORITES</div>
@@ -2396,21 +2494,21 @@ export default function CliBuilderPage() {
 
       {/* 우측 폼 + 결과 */}
       <main id="cli-command-workspace" className="cli-main">
-        <div className="crumb"><span className="px">OCI CLI</span> / {cmd ? cmd.label : 'Custom'}</div>
-        <h1 className={`sheet-h1${cmd && isOperationVerified(active, currentVerificationOperation) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
+        <div className="crumb"><span className="px">OCI CLI</span> / {officialCommand ? `Official / ${officialCommand.path}` : cmd ? cmd.label : 'Custom'}</div>
+        <h1 className={`sheet-h1${cmd && isOperationVerified(activeVerificationResource, currentVerificationOperation) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
         {hasCrud && (
           <div className="cli-crud-strip" aria-label={`${cmd?.label} 명령 선택`}>
             {CRUD_OPERATIONS.map(operation => {
               const available = isOperationAvailable(operation.verb)
               return (
               <button type="button" key={operation.verb} disabled={!available}
-                className={`cli-crud-op verb-${operation.verb}${!selectedAction && crudOperation === operation.verb ? ' selected' : ''}${available && isOperationVerified(active, operation.verb) ? ' verified' : ''}`}
+                className={`cli-crud-op verb-${operation.verb}${!selectedAction && crudOperation === operation.verb ? ' selected' : ''}${available && isOperationVerified(activeVerificationResource, operation.verb) ? ' verified' : ''}`}
                 aria-pressed={available ? !selectedAction && crudOperation === operation.verb : undefined}
                 title={`${operation.verb.toUpperCase()}${available ? ' 명령 선택' : ' 명령 없음'}`}
                 onClick={() => selectOperation(operation.verb)}>
                 <span className="cli-crud-icon" aria-hidden="true">{operation.icon}</span>
                 <span className="cli-crud-verb">{operation.verb.toUpperCase()}</span>
-                {available && isOperationVerified(active, operation.verb) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
+                {available && isOperationVerified(activeVerificationResource, operation.verb) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
               </button>
               )
             })}
@@ -2421,12 +2519,12 @@ export default function CliBuilderPage() {
             <span className="cli-action-label px">ACTIONS</span>
             {Object.entries(cmd.actions).map(([key, action]) => (
               <button type="button" key={key}
-                className={`cli-action-op tone-${action.tone ?? 'create'}${selectedAction === key ? ' selected' : ''}${isOperationVerified(active, `action:${key}`) ? ' verified' : ''}`}
+                className={`cli-action-op tone-${action.tone ?? 'create'}${selectedAction === key ? ' selected' : ''}${isOperationVerified(activeVerificationResource, `action:${key}`) ? ' verified' : ''}`}
                 aria-pressed={selectedAction === key}
                 onClick={() => selectAction(key)}>
                 <span aria-hidden="true">{action.icon ?? '→'}</span>
                 <span>{action.label}</span>
-                {isOperationVerified(active, `action:${key}`) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
+                {isOperationVerified(activeVerificationResource, `action:${key}`) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
               </button>
             ))}
           </div>
@@ -2434,10 +2532,26 @@ export default function CliBuilderPage() {
         {cmd
           ? <p className="cli-help">{operationHelp}</p>
           : <p className="cli-help">자유 입력 — 직접 작성하거나, 왼쪽에서 자원을 골라 폼으로 만드세요. 저장하면 즐겨찾기로 재사용됩니다.</p>}
+        {officialCommand && (
+          <div className="cli-official-source">
+            <span className="cli-official-source-badge">공식 수록</span>
+            <code>OCI CLI v{officialCommand.docsUrl.match(/oci-cli\/([^/]+)\//)?.[1] ?? 'pinned'}</code>
+            <span>최종 Click 트리에서 자동 생성</span>
+            <a href={officialCommand.docsUrl} target="_blank" rel="noreferrer">Oracle 명령 문서 ↗</a>
+            {curatedPathMap.get(officialCommand.path) && (
+              <button type="button" onClick={() => {
+                const target = curatedPathMap.get(officialCommand.path)
+                if (target) selectResource(target.resource, target.operation, target.action)
+              }}>
+                운영 Overlay 열기
+              </button>
+            )}
+          </div>
+        )}
         {cmd && (
           <label className="cli-verify">
-            <input type="checkbox" checked={isOperationVerified(active, currentVerificationOperation)} onChange={() => toggleVerified(active, currentVerificationOperation)} />
-            <span>현재 <b>{selectedActionMeta?.label ?? (hasCrud ? crudOperation.toUpperCase() : 'CUSTOM')}</b> 명령을 직접 실행해 확인함 — 확인한 동작만 <b className="cli-verified">파란색</b>으로 표시</span>
+            <input type="checkbox" checked={isOperationVerified(activeVerificationResource, currentVerificationOperation)} onChange={() => toggleVerified(activeVerificationResource, currentVerificationOperation)} />
+            <span>현재 <b>{officialCommand ? 'OFFICIAL' : selectedActionMeta?.label ?? (hasCrud ? crudOperation.toUpperCase() : 'CUSTOM')}</b> 명령을 직접 실행해 확인함 — 확인한 동작만 <b className="cli-verified">파란색</b>으로 표시</span>
           </label>
         )}
 

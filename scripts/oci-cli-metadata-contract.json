@@ -698,6 +698,588 @@
         }
       }
     },
+    "announcement": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci announce announcements list",
+      "operations": {
+        "get": {
+          "command": "oci announce announcements get",
+          "options": {
+            "--announcement-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "list": {
+          "command": "oci announce announcements list",
+          "options": {
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--announcement-type": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--chain-id": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--environment-name": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--exclude-announcement-types": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": true,
+              "choices": null,
+              "deprecated": false
+            },
+            "--is-banner": {
+              "required": false,
+              "type": "bool",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "false",
+                "true"
+              ],
+              "deprecated": false
+            },
+            "--lifecycle-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACTIVE",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--limit": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--platform-type": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "IAAS",
+                "PAAS",
+                "SAAS"
+              ],
+              "deprecated": false
+            },
+            "--service": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--should-show-only-latest-in-chain": {
+              "required": false,
+              "type": "bool",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "false",
+                "true"
+              ],
+              "deprecated": false
+            },
+            "--sort-by": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "announcementType",
+                "referenceTicketNumber",
+                "summary",
+                "timeCreated",
+                "timeOneValue",
+                "timeTwoValue"
+              ],
+              "deprecated": false
+            },
+            "--sort-order": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ASC",
+                "DESC"
+              ],
+              "deprecated": false
+            },
+            "--time-one-earliest-time": {
+              "required": false,
+              "type": "datetime",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--time-one-latest-time": {
+              "required": false,
+              "type": "datetime",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
+    "announcement-subscription": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci announce announcement-subscription create",
+      "operations": {
+        "create": {
+          "command": "oci announce announcement-subscription create",
+          "options": {
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--display-name": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--filter-groups": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--ons-topic-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--preferred-language": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--preferred-time-zone": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "DELETED",
+                "FAILED"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "delete": {
+          "command": "oci announce announcement-subscription delete",
+          "options": {
+            "--announcement-subscription-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "DELETED",
+                "FAILED"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "get": {
+          "command": "oci announce announcement-subscription get",
+          "options": {
+            "--announcement-subscription-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "list": {
+          "command": "oci announce announcement-subscription list",
+          "options": {
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--display-name": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--id": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--lifecycle-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACTIVE",
+                "DELETED",
+                "FAILED"
+              ],
+              "deprecated": false
+            },
+            "--limit": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--sort-by": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "displayName",
+                "timeCreated"
+              ],
+              "deprecated": false
+            },
+            "--sort-order": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ASC",
+                "DESC"
+              ],
+              "deprecated": false
+            }
+          }
+        },
+        "update": {
+          "command": "oci announce announcement-subscription update",
+          "options": {
+            "--announcement-subscription-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--display-name": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--ons-topic-id": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--preferred-language": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--preferred-time-zone": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "DELETED",
+                "FAILED"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
     "autonomous-database": {
       "sourceKind": "generated",
       "coverage": "derived-crud",
@@ -8083,6 +8665,1446 @@
                 "DELETING",
                 "FAILED",
                 "UPDATING"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
+    "iam-compartment": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci iam compartment create",
+      "operations": {
+        "create": {
+          "command": "oci iam compartment create",
+          "options": {
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--name": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "delete": {
+          "command": "oci iam compartment delete",
+          "options": {
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACCEPTED",
+                "CANCELED",
+                "CANCELING",
+                "FAILED",
+                "IN_PROGRESS",
+                "SUCCEEDED"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "get": {
+          "command": "oci iam compartment get",
+          "options": {
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "list": {
+          "command": "oci iam compartment list",
+          "options": {
+            "--access-level": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACCESSIBLE",
+                "ANY"
+              ],
+              "deprecated": false
+            },
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id-in-subtree": {
+              "required": false,
+              "type": "bool",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "false",
+                "true"
+              ],
+              "deprecated": false
+            },
+            "--include-root": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--lifecycle-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--limit": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--name": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--sort-by": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "NAME",
+                "TIMECREATED"
+              ],
+              "deprecated": false
+            },
+            "--sort-order": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ASC",
+                "DESC"
+              ],
+              "deprecated": false
+            }
+          }
+        },
+        "update": {
+          "command": "oci iam compartment update",
+          "options": {
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--name": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
+    "iam-group": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci iam group create",
+      "operations": {
+        "create": {
+          "command": "oci iam group create",
+          "options": {
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--name": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "delete": {
+          "command": "oci iam group delete",
+          "options": {
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--group-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "get": {
+          "command": "oci iam group get",
+          "options": {
+            "--group-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "list": {
+          "command": "oci iam group list",
+          "options": {
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--lifecycle-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--limit": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--name": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--sort-by": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "NAME",
+                "TIMECREATED"
+              ],
+              "deprecated": false
+            },
+            "--sort-order": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ASC",
+                "DESC"
+              ],
+              "deprecated": false
+            }
+          }
+        },
+        "update": {
+          "command": "oci iam group update",
+          "options": {
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--group-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
+    "iam-policy": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci iam policy create",
+      "operations": {
+        "create": {
+          "command": "oci iam policy create",
+          "options": {
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--name": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--statements": {
+              "required": true,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--version-date": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "delete": {
+          "command": "oci iam policy delete",
+          "options": {
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--lookup-compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false,
+              "lookupOnly": true
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--policy-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "get": {
+          "command": "oci iam policy get",
+          "options": {
+            "--lookup-compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false,
+              "lookupOnly": true
+            },
+            "--policy-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "list": {
+          "command": "oci iam policy list",
+          "options": {
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--lifecycle-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--limit": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--name": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--sort-by": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "NAME",
+                "TIMECREATED"
+              ],
+              "deprecated": false
+            },
+            "--sort-order": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ASC",
+                "DESC"
+              ],
+              "deprecated": false
+            }
+          }
+        },
+        "update": {
+          "command": "oci iam policy update",
+          "options": {
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--lookup-compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false,
+              "lookupOnly": true
+            },
+            "--policy-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--statements": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--version-date": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
+    "iam-region-subscription": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci iam region-subscription list",
+      "operations": {
+        "list": {
+          "command": "oci iam region-subscription list",
+          "options": {
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--tenancy-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
+    "iam-user": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci iam user create",
+      "operations": {
+        "create": {
+          "command": "oci iam user create",
+          "options": {
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--email": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--name": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "delete": {
+          "command": "oci iam user delete",
+          "options": {
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--user-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--wait-interval-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "get": {
+          "command": "oci iam user get",
+          "options": {
+            "--user-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "list": {
+          "command": "oci iam user list",
+          "options": {
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--external-identifier": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--identity-provider-id": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--lifecycle-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
+              ],
+              "deprecated": false
+            },
+            "--limit": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--name": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--sort-by": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "NAME",
+                "TIMECREATED"
+              ],
+              "deprecated": false
+            },
+            "--sort-order": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ASC",
+                "DESC"
+              ],
+              "deprecated": false
+            }
+          }
+        },
+        "update": {
+          "command": "oci iam user update",
+          "options": {
+            "--db-user-name": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--defined-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--email": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--freeform-tags": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--max-wait-seconds": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--user-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--wait-for-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": true,
+              "choices": [
+                "ACTIVE",
+                "CREATING",
+                "DELETED",
+                "DELETING",
+                "INACTIVE"
               ],
               "deprecated": false
             },
@@ -17463,6 +19485,663 @@
         }
       }
     },
+    "subscription-balance": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci onesubscription subscribed-service subscribed-service list",
+      "operations": {
+        "list": {
+          "command": "oci onesubscription subscribed-service subscribed-service list",
+          "options": {
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--limit": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--order-line-id": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--sort-by": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ORDERNUMBER",
+                "TIMEINVOICING"
+              ],
+              "deprecated": false
+            },
+            "--sort-order": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ASC",
+                "DESC"
+              ],
+              "deprecated": false
+            },
+            "--status": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--subscription-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
+    "subscription-list": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci onesubscription organization-subscription organization-subscription list",
+      "operations": {
+        "list": {
+          "command": "oci onesubscription organization-subscription organization-subscription list",
+          "options": {
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--limit": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--sort-by": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ORDERNUMBER",
+                "TIMEINVOICING"
+              ],
+              "deprecated": false
+            },
+            "--sort-order": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ASC",
+                "DESC"
+              ],
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
+    "support-incident": {
+      "sourceKind": "manual-curation",
+      "coverage": "explicit-official",
+      "primaryCommand": "oci support incident create",
+      "operations": {
+        "create": {
+          "command": "oci support incident create",
+          "options": {
+            "--bearertoken": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--bearertokentype": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--contacts": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--description": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--domainid": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--homeregion": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--idtoken": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--ocid": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--problem-type": {
+              "required": true,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACCOUNT",
+                "LEGACY_LIMIT",
+                "LIMIT",
+                "TAXONOMY",
+                "TECH"
+              ],
+              "deprecated": false
+            },
+            "--referrer": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--severity": {
+              "required": true,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "HIGH",
+                "HIGHEST",
+                "LOW",
+                "MEDIUM"
+              ],
+              "deprecated": false
+            },
+            "--title": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--user-group-id": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "get": {
+          "command": "oci support incident get",
+          "options": {
+            "--bearertoken": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--bearertokentype": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--domainid": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--homeregion": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--idtoken": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--incident-key": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--ocid": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--problemtype": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "list": {
+          "command": "oci support incident list",
+          "options": {
+            "--all": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--bearertoken": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--bearertokentype": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--domainid": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--homeregion": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--idtoken": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--lifecycle-state": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACTIVE",
+                "CLOSED"
+              ],
+              "deprecated": false
+            },
+            "--limit": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--ocid": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--page-size": {
+              "required": false,
+              "type": "int",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--problem-type": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--sort-by": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "dateUpdated",
+                "severity"
+              ],
+              "deprecated": false
+            },
+            "--sort-order": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ASC",
+                "DESC"
+              ],
+              "deprecated": false
+            },
+            "--time-updated-greater-than-or-equal-to": {
+              "required": false,
+              "type": "datetime",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        },
+        "update": {
+          "command": "oci support incident update",
+          "options": {
+            "--activity-type": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--bearertoken": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--bearertokentype": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--comments": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--compartment-id": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--contact": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--domainid": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--force": {
+              "required": false,
+              "type": "bool",
+              "flag": true,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--homeregion": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--idtoken": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--if-match": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--incident-key": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--ocid": {
+              "required": false,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--problem-type": {
+              "required": false,
+              "type": "choice",
+              "flag": false,
+              "multiple": false,
+              "choices": [
+                "ACCOUNT",
+                "LEGACY_LIMIT",
+                "LIMIT",
+                "TAXONOMY",
+                "TECH"
+              ],
+              "deprecated": false
+            },
+            "--type": {
+              "required": true,
+              "type": "str",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            }
+          }
+        }
+      }
+    },
     "topic": {
       "sourceKind": "generated",
       "coverage": "derived-crud",
@@ -18745,210 +21424,5 @@
       }
     }
   },
-  "manualSurfaces": [
-    {
-      "resource": "announcement",
-      "operation": "get",
-      "command": "oci announce announcements get",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "announcement",
-      "operation": "list",
-      "command": "oci announce announcements list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "announcement-subscription",
-      "operation": "create",
-      "command": "oci announce announcement-subscription create",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "announcement-subscription",
-      "operation": "delete",
-      "command": "oci announce announcement-subscription delete",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "announcement-subscription",
-      "operation": "get",
-      "command": "oci announce announcement-subscription get",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "announcement-subscription",
-      "operation": "list",
-      "command": "oci announce announcement-subscription list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "announcement-subscription",
-      "operation": "update",
-      "command": "oci announce announcement-subscription update",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-compartment",
-      "operation": "create",
-      "command": "oci iam compartment create",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-compartment",
-      "operation": "delete",
-      "command": "oci iam compartment delete",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-compartment",
-      "operation": "get",
-      "command": "oci iam compartment get",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-compartment",
-      "operation": "list",
-      "command": "oci iam compartment list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-compartment",
-      "operation": "update",
-      "command": "oci iam compartment update",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-group",
-      "operation": "create",
-      "command": "oci iam group create",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-group",
-      "operation": "delete",
-      "command": "oci iam group delete",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-group",
-      "operation": "get",
-      "command": "oci iam group get",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-group",
-      "operation": "list",
-      "command": "oci iam group list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-group",
-      "operation": "update",
-      "command": "oci iam group update",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-policy",
-      "operation": "create",
-      "command": "oci iam policy create",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-policy",
-      "operation": "delete",
-      "command": "oci iam policy delete",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-policy",
-      "operation": "get",
-      "command": "oci iam policy get",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-policy",
-      "operation": "list",
-      "command": "oci iam policy list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-policy",
-      "operation": "update",
-      "command": "oci iam policy update",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-region-subscription",
-      "operation": "list",
-      "command": "oci iam region-subscription list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-user",
-      "operation": "create",
-      "command": "oci iam user create",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-user",
-      "operation": "delete",
-      "command": "oci iam user delete",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-user",
-      "operation": "get",
-      "command": "oci iam user get",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-user",
-      "operation": "list",
-      "command": "oci iam user list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "iam-user",
-      "operation": "update",
-      "command": "oci iam user update",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "subscription-balance",
-      "operation": "list",
-      "command": "oci onesubscription subscribed-service subscribed-service list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "subscription-list",
-      "operation": "list",
-      "command": "oci onesubscription organization-subscription organization-subscription list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "support-incident",
-      "operation": "create",
-      "command": "oci support incident create",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "support-incident",
-      "operation": "get",
-      "command": "oci support incident get",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "support-incident",
-      "operation": "list",
-      "command": "oci support incident list",
-      "presentInPinnedClickTree": false
-    },
-    {
-      "resource": "support-incident",
-      "operation": "update",
-      "command": "oci support incident update",
-      "presentInPinnedClickTree": false
-    }
-  ]
+  "manualSurfaces": []
 }

@@ -1,8 +1,8 @@
 # OCI CLI 필수 OCID 동적 조회 전수표
 
 - 생성 기준: Oracle OCI CLI 3.91.0 (v3.91.0, fbff93ae6744ed23671b974fd876adb239545cea)
-- 필수 OCID 입력: 246회 / 50종
-- 동적·전용 안전 조회: 234회
+- 필수 OCID 입력: 252회 / 51종
+- 동적·전용 안전 조회: 240회
 - 보안·제품 제약상 직접 입력: 12회
 - 미분류: 0회
 
@@ -246,10 +246,13 @@
 | compartment-resource-cleansing | custom | `--compartment-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
 | iam-user-mfa-reset | custom | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-compartment | get | `--compartment-id` | dynamic-compartment | oci iam compartment list |
+| iam-compartment | list | `--compartment-id` | dynamic-compartment | oci iam compartment list |
 | iam-compartment | create | `--compartment-id` | dynamic-compartment | oci iam compartment list |
 | iam-compartment | update | `--compartment-id` | dynamic-compartment | oci iam compartment list |
 | iam-compartment | delete | `--compartment-id` | dynamic-compartment | oci iam compartment list |
 | iam-user | get | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
+| iam-user | list | `--compartment-id` | dynamic-compartment | oci iam compartment list |
+| iam-user | create | `--compartment-id` | dynamic-compartment | oci iam compartment list |
 | iam-user | update | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-user | delete | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-user | action:reset-password | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
@@ -257,6 +260,8 @@
 | iam-user | action:assign-group | `--group-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-user | action:upload-api-key | `--user-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-group | get | `--group-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
+| iam-group | list | `--compartment-id` | dynamic-compartment | oci iam compartment list |
+| iam-group | create | `--compartment-id` | dynamic-compartment | oci iam compartment list |
 | iam-group | update | `--group-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-group | delete | `--group-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-policy | get | `--policy-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
@@ -264,6 +269,7 @@
 | iam-policy | create | `--compartment-id` | dynamic-compartment | oci iam compartment list |
 | iam-policy | update | `--policy-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-policy | delete | `--policy-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
+| iam-region-subscription | list | `--tenancy-id` | dynamic-tenancy | oci iam availability-domain list |
 | instance-maintenance-reboot | custom | `--instance-id` | dynamic-exact-name | oci compute instance list |
 | boot-volume-cross-copy | custom | `--compartment-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
 | boot-volume-cross-copy | custom | `--source-tenancy-id` | direct-only | 선행 LIST 확인 후 직접 입력 |

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && python scripts/verify-oci-cli-deploy-assets.py",
     "lint": "oxlint",
     "test:kanban": "node -e \"const fs=require('fs');const css=fs.readFileSync('src/index.css','utf8');const rule=css.match(/\\.kanban\\s*\\{([^}]*)\\}/s)?.[1]??'';if(!/align-items:\\s*stretch/.test(rule))throw new Error('Kanban columns must stretch to the tallest column');console.log('kanban columns share the tallest height')\"",
     "test:blueprint": "node scripts/generate-cli-blueprints.mjs && node scripts/verify-oci-cli-blueprints.mjs && node scripts/test-blueprint-engine.mjs",
@@ -27,10 +27,13 @@
     "test:oci-lookups": "node scripts/verify-oci-cli-dynamic-lookups.mjs",
     "test:oci-metadata": "python scripts/verify-oci-cli-metadata.py --self-test",
     "test:oci-commands": "node scripts/verify-oci-cli-generated-commands.mjs",
+    "test:oci-reference": "python scripts/verify-oci-cli-official-reference.py",
+    "test:oci-reference-ui": "node scripts/verify-oci-cli-official-ui.mjs",
+    "gen:oci-reference": "python scripts/generate-oci-cli-official-reference.py",
     "check:oci-source": "python scripts/check-oci-cli-source-update.py",
     "normalize:oci-source": "python scripts/normalize-oci-cli-source-metadata.py",
     "test:protected": "node scripts/verify-protected-data.mjs",
-    "gen:protected": "python scripts/generate-cli-catalog.py && node scripts/verify-oci-cli-dynamic-lookups.mjs --write-report && python scripts/verify-oci-cli-metadata.py --write-contract --self-test && python scripts/check-oci-cli-source-update.py --fail-on-update --output .protected-cache/oci-cli-source-update-report.json && python scripts/verify-oci-cli-source.py && python scripts/verify-oci-cli-click.py && node scripts/verify-oci-cli-option-model.mjs && node scripts/verify-oci-cli-option-completeness.mjs && python scripts/verify-oci-cli-requirements.py && node scripts/verify-oci-cli-validation.mjs && node scripts/verify-oci-cli-context.mjs && node scripts/verify-oci-cli-safe-defaults.mjs && node scripts/verify-oci-cli-generated-commands.mjs && node scripts/generate-cli-blueprints.mjs && node scripts/verify-oci-cli-blueprints.mjs && node scripts/generate-protected-data.mjs",
+    "gen:protected": "python scripts/generate-cli-catalog.py && python scripts/generate-oci-cli-official-reference.py && python scripts/verify-oci-cli-official-reference.py && node scripts/verify-oci-cli-official-ui.mjs && node scripts/verify-oci-cli-dynamic-lookups.mjs --write-report && python scripts/verify-oci-cli-metadata.py --write-contract --self-test && python scripts/check-oci-cli-source-update.py --fail-on-update --output .protected-cache/oci-cli-source-update-report.json && python scripts/verify-oci-cli-source.py && python scripts/verify-oci-cli-click.py && node scripts/verify-oci-cli-option-model.mjs && node scripts/verify-oci-cli-option-completeness.mjs && python scripts/verify-oci-cli-requirements.py && node scripts/verify-oci-cli-validation.mjs && node scripts/verify-oci-cli-context.mjs && node scripts/verify-oci-cli-safe-defaults.mjs && node scripts/verify-oci-cli-generated-commands.mjs && node scripts/generate-cli-blueprints.mjs && node scripts/verify-oci-cli-blueprints.mjs && node scripts/generate-protected-data.mjs",
     "preview": "vite preview",
     "gen": "node scripts/generate-data.mjs"
   },

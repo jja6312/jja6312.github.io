@@ -5,12 +5,22 @@
     "commit": "fbff93ae6744ed23671b974fd876adb239545cea"
   },
   "officialManualResources": [
+    "announcement-subscription",
+    "announcement",
+    "iam-compartment",
+    "iam-group",
+    "iam-policy",
+    "iam-region-subscription",
+    "iam-user",
     "mysql-backup",
     "object-bulk-upload",
     "object-sync",
     "object-put",
     "object-get",
-    "object-bulk-download"
+    "object-bulk-download",
+    "subscription-balance",
+    "subscription-list",
+    "support-incident"
   ],
   "approvedDifferences": [
     {
@@ -31,6 +41,39 @@
       "operation": "get",
       "subject": "--lookup-compartment-id",
       "reason": "DB System 이름을 안전하게 OCID로 해석하기 위한 UI 전용 조회 범위이며 최종 OCI 명령에는 직렬화하지 않습니다.",
+      "guard": {
+        "lookupOnly": true
+      }
+    },
+    {
+      "id": "iam-policy:delete:extraOption:--lookup-compartment-id",
+      "kind": "extraOption",
+      "resource": "iam-policy",
+      "operation": "delete",
+      "subject": "--lookup-compartment-id",
+      "reason": "Policy 이름은 부착 compartment 안에서만 고유하게 찾을 수 있으므로 조회 범위를 먼저 받아 Policy OCID로 변환합니다. 최종 delete 명령에는 직렬화하지 않습니다.",
+      "guard": {
+        "lookupOnly": true
+      }
+    },
+    {
+      "id": "iam-policy:get:extraOption:--lookup-compartment-id",
+      "kind": "extraOption",
+      "resource": "iam-policy",
+      "operation": "get",
+      "subject": "--lookup-compartment-id",
+      "reason": "Policy 이름은 부착 compartment 안에서만 고유하게 찾을 수 있으므로 조회 범위를 먼저 받아 Policy OCID로 변환합니다. 최종 get 명령에는 직렬화하지 않습니다.",
+      "guard": {
+        "lookupOnly": true
+      }
+    },
+    {
+      "id": "iam-policy:update:extraOption:--lookup-compartment-id",
+      "kind": "extraOption",
+      "resource": "iam-policy",
+      "operation": "update",
+      "subject": "--lookup-compartment-id",
+      "reason": "Policy 이름은 부착 compartment 안에서만 고유하게 찾을 수 있으므로 조회 범위를 먼저 받아 Policy OCID로 변환합니다. 최종 update 명령에는 직렬화하지 않습니다.",
       "guard": {
         "lookupOnly": true
       }

@@ -38,11 +38,16 @@ def configuration_digest(config: dict) -> str:
 
 def runtime_configuration(lock: dict) -> dict:
     config = lock.get("clickTree")
-    required = {"schemaVersion", "wheel", "services", "servicePackages", "pythonRequirements"}
+    required = {"schemaVersion", "wheel", "pythonRequirements"}
     if not isinstance(config, dict) or required - config.keys():
         raise RuntimeError("OCI CLI source lock is missing the final Click-tree runtime configuration")
-    if config["schemaVersion"] != 1:
+    if config["schemaVersion"] not in {1, 2}:
         raise RuntimeError(f"Unsupported OCI CLI Click-tree schema: {config['schemaVersion']}")
+    if config["schemaVersion"] == 1:
+        if {"services", "servicePackages"} - config.keys():
+            raise RuntimeError("OCI CLI Click-tree v1 requires selected services and packages")
+    elif config.get("scope") != "all-public-services" or not isinstance(config.get("expectedServiceCount"), int):
+        raise RuntimeError("OCI CLI Click-tree v2 must pin the complete public service scope")
     if config["pythonRequirements"] != REQUIREMENTS.name:
         raise RuntimeError("OCI CLI Click-tree requirements file does not match the source lock")
     return config
@@ -57,7 +62,8 @@ def extract_runtime(lock: dict, release_asset: Path) -> Path:
     expected_manifest = {
         "releaseAssetSha256": lock["releaseAsset"]["sha256"],
         "wheelSha256": config["wheel"]["sha256"],
-        "servicePackages": config["servicePackages"],
+        "scope": config.get("scope", "selected-services"),
+        "servicePackages": config.get("servicePackages", ["*"]),
     }
     try:
         current = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -91,7 +97,9 @@ def extract_runtime(lock: dict, release_asset: Path) -> Path:
         finally:
             temporary.unlink(missing_ok=True)
 
-    service_prefixes = tuple(f"services/{name}/" for name in config["servicePackages"])
+    service_prefixes = ("services/",) if config.get("scope") == "all-public-services" else tuple(
+        f"services/{name}/" for name in config["servicePackages"]
+    )
     selected_prefixes = service_prefixes + CORE_PREFIXES
     with zipfile.ZipFile(wheel_path) as wheel:
         for entry in wheel.infolist():
@@ -157,6 +165,12 @@ def load_click_tree(force: bool = False) -> dict:
             result = json.loads(cache.read_text(encoding="utf-8"))
         except (FileNotFoundError, json.JSONDecodeError):
             result = None
+        complete_scope = config.get("scope") == "all-public-services"
+        services_match = (
+            result.get("scope") == "all-public-services"
+            and len(result.get("services", [])) == config.get("expectedServiceCount")
+            and len(result.get("serviceMap", {})) == config.get("expectedServiceCount")
+        ) if complete_scope else result.get("services") == config["services"]
         if result and all((
             result.get("schemaVersion") == config["schemaVersion"],
             result.get("tag") == lock["tag"],
@@ -164,13 +178,14 @@ def load_click_tree(force: bool = False) -> dict:
             result.get("collectorSha256") == collector_hash,
             result.get("requirementsSha256") == requirements_hash,
             result.get("runtimeLockSha256") == runtime_lock_hash,
-            result.get("services") == config["services"],
+            services_match,
         )):
             return result
 
     release_asset = ensure_release_asset()
     runtime = extract_runtime(lock, release_asset)
     python = ensure_python_runtime(lock)
+    collector_scope = ["--all-services"] if config.get("scope") == "all-public-services" else config["services"]
     subprocess.run([
         str(python), str(COLLECTOR),
         "--runtime", str(runtime),
@@ -181,11 +196,13 @@ def load_click_tree(force: bool = False) -> dict:
         "--collector-sha256", collector_hash,
         "--requirements-sha256", requirements_hash,
         "--runtime-lock-sha256", runtime_lock_hash,
-        *config["services"],
+        *collector_scope,
     ], check=True)
     result = json.loads(cache.read_text(encoding="utf-8"))
     if result.get("version") != lock["version"] or not result.get("commands"):
         raise RuntimeError("OCI CLI final Click-tree collection produced invalid metadata")
+    if config.get("scope") == "all-public-services" and len(result.get("services", [])) != config["expectedServiceCount"]:
+        raise RuntimeError("OCI CLI complete service count differs from the pinned source contract")
     return result
 
 

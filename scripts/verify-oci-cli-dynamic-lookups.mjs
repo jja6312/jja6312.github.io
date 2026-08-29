@@ -29,8 +29,13 @@ for (const [resource, command] of Object.entries(catalog.commands)) {
       let lookup = ''
       let reason = ''
       if (option.dynamicLookup) {
-        status = option.dynamicLookup.kind === 'compartment' ? 'dynamic-compartment' : 'dynamic-exact-name'
-        lookup = option.dynamicLookup.listCommand ?? 'oci iam compartment list'
+        status = option.dynamicLookup.kind === 'compartment'
+          ? 'dynamic-compartment'
+          : option.dynamicLookup.kind === 'tenancy'
+            ? 'dynamic-tenancy'
+            : 'dynamic-exact-name'
+        lookup = option.dynamicLookup.listCommand
+          ?? (option.dynamicLookup.kind === 'tenancy' ? 'oci iam availability-domain list' : 'oci iam compartment list')
         reason = option.dynamicLookup.note
       } else if (option.dynamicLookupImplementedBy === 'dedicated-builder') {
         status = 'dynamic-dedicated'

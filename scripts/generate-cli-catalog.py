@@ -1247,12 +1247,12 @@ def _iam_region_subscription():
         'operations': {
             'list': _iam_op(
                 'oci iam region-subscription list',
-                ('선택한 프로필의 테넌시가 구독한 모든 리전을 조회합니다. --tenancy-id를 비우면 OCI config의 '
-                 'tenancy OCID가 자동으로 사용됩니다.'),
+                ('선택한 프로필의 테넌시가 구독한 모든 리전을 조회합니다. OCI CLI에서 --tenancy-id는 필수지만, '
+                 '화면 입력을 비우면 선택한 프로필로 tenancy OCID를 조회·검증해 자동으로 전달합니다.'),
                 [
                     {'label': '조회 범위', 'options': [
-                        _io('--tenancy-id', False,
-                            '다른 테넌시를 명시적으로 조회할 때만 입력합니다. 비우면 선택한 프로필의 tenancy OCID를 사용합니다.',
+                        _io('--tenancy-id', True,
+                            'OCI CLI 필수 옵션입니다. 직접 입력하지 않으면 선택한 프로필의 tenancy OCID를 안전하게 조회해 사용합니다.',
                             'ocid1.tenancy.oc1..xxxx', shellQuote=True),
                         _io('--all', False, '페이지가 나뉘어도 구독 리전을 모두 조회합니다.',
                             flag=True, default='true'),
@@ -1465,6 +1465,59 @@ def surface_options(surface):
         for option in section.get('options', [])
     ] + surface.get('advanced', [])
 
+OFFICIAL_OVERLAY_MANIFEST = os.path.join(HERE, 'oci-cli-metadata-approvals.json')
+OFFICIAL_OVERLAY_RESOURCES = set(
+    json.load(open(OFFICIAL_OVERLAY_MANIFEST, encoding='utf-8')).get('officialManualResources', [])
+)
+
+def synchronize_official_overlay(resource, surface):
+    """Keep the OCI command surface exact while preserving presentation metadata.
+
+    Hand-curated resources are an overlay, not a second command schema.  Required,
+    type, flag, multiple, choices and deprecation always come from the pinned final
+    Click tree.  Friendly labels/defaults/lookups remain local, and official options
+    omitted from the curated layout are appended to Advanced automatically.
+    """
+    official = CLICK_COMMANDS.get(surface.get('cmd'))
+    if not official:
+        raise RuntimeError('%s: official overlay command is absent from pinned Click tree: %s'
+                           % (resource, surface.get('cmd')))
+    official_by_name = {option['name']: option for option in official.get('options', [])}
+    present = set()
+    for option in surface_options(surface):
+        name = option['name']
+        source = official_by_name.get(name)
+        if not source:
+            if option.get('lookupOnly') or name in COMMON_CONTEXT_NAMES:
+                continue
+            raise RuntimeError('%s: non-official option must be lookupOnly: %s %s'
+                               % (resource, surface.get('cmd'), name))
+        authoritative = build_option(source)
+        presentation = {
+            key: value for key, value in option.items()
+            if key not in {
+                'required', 'requirement', 'type', 'choices', 'flag', 'multiple',
+                'deprecated', 'deprecation',
+            }
+        }
+        option.clear()
+        option.update(authoritative)
+        option.update(presentation)
+        present.add(name)
+    for source in official.get('options', []):
+        if source['name'] not in present:
+            surface.setdefault('advanced', []).append(build_option(source))
+
+def synchronize_official_overlays(catalog):
+    missing_resources = sorted(OFFICIAL_OVERLAY_RESOURCES - set(catalog.get('commands', {})))
+    if missing_resources:
+        raise RuntimeError('Official overlay resources are absent from catalog: %s'
+                           % ', '.join(missing_resources))
+    for resource in sorted(OFFICIAL_OVERLAY_RESOURCES):
+        command = catalog['commands'][resource]
+        for surface in command.get('operations', {}).values():
+            synchronize_official_overlay(resource, surface)
+
 def lookup_input(name, label, help_text, placeholder='', default=None, choices=None):
     option = {
         'name': name, 'required': False, 'requirement': 'optional',
@@ -1498,6 +1551,15 @@ def annotate_dynamic_lookups(resource, surface):
         direct_reason = DIRECT_ONLY_LOOKUPS.get((resource, option_name))
         if direct_reason:
             option['directLookupReason'] = direct_reason
+            continue
+        if option_name == '--tenancy-id':
+            option['dynamicLookup'] = {
+                'kind': 'tenancy',
+                'inputLabel': '현재 프로필의 Tenancy',
+                'inputPlaceholder': '비우면 OCI config의 tenancy를 안전하게 조회',
+                'note': '선택한 profile로 Availability Domain을 조회해 응답의 tenancy OCID를 검증한 뒤 사용합니다.',
+                'scope': 'tenancy',
+            }
             continue
         if option_name == '--compartment-id':
             option['dynamicLookup'] = {
@@ -1599,6 +1661,8 @@ def set_safe_preferred_operation(command):
         if operation in operations:
             command['preferredOperation'] = operation
             return
+
+synchronize_official_overlays(catalog)
 
 for resource, command in catalog['commands'].items():
     set_safe_preferred_operation(command)

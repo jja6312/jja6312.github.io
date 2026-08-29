@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 INFRASTRUCTURE_OPTIONS = {"--from-json", "--help"}
 REQUIRED_MARKER = re.compile(r"\s*\[required\]\s*$", re.IGNORECASE)
 DEPRECATED_MARKER = re.compile(r"^\s*(?:\[|\*\*)?\s*deprecated(?:\]|\*\*)?[\s.:]", re.IGNORECASE)
@@ -119,7 +119,8 @@ def main() -> None:
     parser.add_argument("--collector-sha256", required=True)
     parser.add_argument("--requirements-sha256", required=True)
     parser.add_argument("--runtime-lock-sha256", required=True)
-    parser.add_argument("services", nargs="+")
+    parser.add_argument("--all-services", action="store_true")
+    parser.add_argument("services", nargs="*")
     args = parser.parse_args()
 
     sys.path.insert(0, str(Path(args.runtime).resolve()))
@@ -127,16 +128,23 @@ def main() -> None:
     # arguments as a service invocation.
     sys.argv = ["oci"]
     from oci_cli import cli_root, dynamic_loader
+    from oci_cli.service_mapping import service_mapping
     from oci_cli.version import __version__
     import oci
 
     if __version__ != args.version:
         raise RuntimeError(f"OCI CLI runtime mismatch: expected {args.version}, got {__version__}")
-    for service in args.services:
-        dynamic_loader.load_service(service)
+    services = sorted(service_mapping) if args.all_services else args.services
+    if not services:
+        raise RuntimeError("At least one OCI CLI service is required")
+    for service in services:
+        try:
+            dynamic_loader.load_service(service)
+        except Exception as error:
+            raise RuntimeError(f"OCI CLI service load failed: {service}") from error
 
     commands: dict[str, dict] = {}
-    for service in args.services:
+    for service in services:
         root = cli_root.cli.commands.get(service)
         if root is None:
             raise RuntimeError(f"OCI CLI Click tree did not register service: {service}")
@@ -150,7 +158,16 @@ def main() -> None:
         "collectorSha256": args.collector_sha256,
         "requirementsSha256": args.requirements_sha256,
         "runtimeLockSha256": args.runtime_lock_sha256,
-        "services": args.services,
+        "scope": "all-public-services" if args.all_services else "selected-services",
+        "services": services,
+        "serviceMap": {
+            service: {
+                "package": service_mapping[service][0],
+                "label": service_mapping[service][1],
+                "group": service_mapping[service][2],
+            }
+            for service in services
+        },
         "python": ".".join(map(str, sys.version_info[:3])),
         "click": importlib.metadata.version("click"),
         "ociSdk": oci.__version__,
@@ -161,7 +178,7 @@ def main() -> None:
     output.write_text(json.dumps(result, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(json.dumps({
         "version": args.version,
-        "services": len(args.services),
+        "services": len(services),
         "commands": len(commands),
         "output": str(output),
     }, ensure_ascii=False))

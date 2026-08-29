@@ -364,13 +364,14 @@ for (const level of [1, 2, 3]) {
   }
   const regionSubscriptionList = regionSubscription.operations.list
   if (regionSubscriptionList.cmd !== 'oci iam region-subscription list'
-    || JSON.stringify(requiredNames(regionSubscriptionList)) !== JSON.stringify([])) {
+    || JSON.stringify(requiredNames(regionSubscriptionList)) !== JSON.stringify(['--tenancy-id'])) {
     throw new Error(`L${level} Region Subscriptions command or required fields invalid`)
   }
   const regionSubscriptionOptions = regionSubscriptionList.sections.flatMap(section => section.options)
   const regionSubscriptionOption = name => regionSubscriptionOptions.find(option => option.name === name)
     ?? contextOption(regionSubscriptionList, name)
-  if (regionSubscriptionOption('--tenancy-id')?.required !== false
+  if (regionSubscriptionOption('--tenancy-id')?.required !== true
+    || regionSubscriptionOption('--tenancy-id')?.dynamicLookup?.kind !== 'tenancy'
     || !regionSubscriptionOption('--all')?.flag
     || regionSubscriptionOption('--all')?.defaultValue !== 'true'
     || regionSubscriptionOption('--output')?.defaultValue !== 'table') {
@@ -553,7 +554,10 @@ if (!cliBuilder.includes('cli-action-strip') || !cliBuilder.includes('action:${s
 if (!cliBuilder.includes('Custom CLI') || !cliBuilder.includes('setCustomOpen(open => !open)')) {
   throw new Error('Custom CLI accordion missing')
 }
-if (!cliBuilder.includes('`${r}:${operation}`') || !cliBuilder.includes('isOperationVerified(active, operation.verb)')) {
+if (!cliBuilder.includes('const verificationKey = (r: string, operation: string)')
+  || !cliBuilder.includes('`${r}:${operation}`')
+  || !cliBuilder.includes('isOperationVerified(activeVerificationResource, operation.verb)')
+  || !cliBuilder.includes('currentVerificationOperation')) {
   throw new Error('CRUD-level verification controls missing')
 }
 if (!cliBuilder.includes('function buildMysqlBackupCreate')

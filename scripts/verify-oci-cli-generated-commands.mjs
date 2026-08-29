@@ -272,8 +272,9 @@ for (const record of records) {
   const script = buildCli(command, values, dynamic, operation, action,
     ["--profile 'DEFAULT'"], command.maintenanceReboot ? [] : ['--output json'])
   const key = `${resource}:${action ? `action:${action}` : operation}`
-  const rootOnly = command.rootTenancyLookup
-    && dynamicOptions.every(option => option.dynamicLookup.kind === 'compartment')
+  const rootOnly = dynamicOptions.every(option => option.dynamicLookup.kind === 'tenancy')
+    || (command.rootTenancyLookup
+      && dynamicOptions.every(option => option.dynamicLookup.kind === 'compartment'))
   if (rootOnly) {
     if (!script.includes('ocid1.tenancy.*')) fail(`${key}: root tenancy derivation lacks OCID validation`)
   } else if (!script.includes('found=$') || !script.includes('exit 1')) {
@@ -297,6 +298,7 @@ const dynamicFlowAssertions = [
   ['export:create', ['oci fs export-set list', 'oci fs file-system list', 'oci iam availability-domain list']],
   ['load-balancer:create', ['oci network subnet list', 'LOOKUP_SUBNET_IDS_JSON']],
   ['instance-maintenance-reboot:get', ['oci compute instance list', 'INSTANCE_COUNT']],
+  ['iam-region-subscription:list', ['oci iam availability-domain list', 'ocid1.tenancy.*', '--tenancy-id "$TENANCY_ID"']],
 ]
 for (const [key, markers] of dynamicFlowAssertions) {
   const script = dynamicScriptMap.get(key)
