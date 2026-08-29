@@ -165,22 +165,23 @@ def load_click_tree(force: bool = False) -> dict:
             result = json.loads(cache.read_text(encoding="utf-8"))
         except (FileNotFoundError, json.JSONDecodeError):
             result = None
-        complete_scope = config.get("scope") == "all-public-services"
-        services_match = (
-            result.get("scope") == "all-public-services"
-            and len(result.get("services", [])) == config.get("expectedServiceCount")
-            and len(result.get("serviceMap", {})) == config.get("expectedServiceCount")
-        ) if complete_scope else result.get("services") == config["services"]
-        if result and all((
-            result.get("schemaVersion") == config["schemaVersion"],
-            result.get("tag") == lock["tag"],
-            result.get("commit") == lock["commit"],
-            result.get("collectorSha256") == collector_hash,
-            result.get("requirementsSha256") == requirements_hash,
-            result.get("runtimeLockSha256") == runtime_lock_hash,
-            services_match,
-        )):
-            return result
+        if result:
+            complete_scope = config.get("scope") == "all-public-services"
+            services_match = (
+                result.get("scope") == "all-public-services"
+                and len(result.get("services", [])) == config.get("expectedServiceCount")
+                and len(result.get("serviceMap", {})) == config.get("expectedServiceCount")
+            ) if complete_scope else result.get("services") == config["services"]
+            if all((
+                result.get("schemaVersion") == config["schemaVersion"],
+                result.get("tag") == lock["tag"],
+                result.get("commit") == lock["commit"],
+                result.get("collectorSha256") == collector_hash,
+                result.get("requirementsSha256") == requirements_hash,
+                result.get("runtimeLockSha256") == runtime_lock_hash,
+                services_match,
+            )):
+                return result
 
     release_asset = ensure_release_asset()
     runtime = extract_runtime(lock, release_asset)
