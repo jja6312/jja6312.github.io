@@ -19,6 +19,7 @@ import {
   type ExecutionContextOverrides,
   type ExecutionContextSchema,
 } from '../lib/cliExecutionContext'
+import { resolveRegion, REGION_SUGGESTIONS, REGION_LABEL } from '../lib/oci-cli/regionAliases'
 
 interface CliOption {
   name: string
@@ -2024,6 +2025,8 @@ export default function CliBuilderPage() {
   const responseContextOptions = executionContextOptions(CAT.executionContext, contextOverrides, 'response')
   const responseContextEnabled = supportsResponseContext(cmd)
   const resolvedExecutionValues = { ...executionValues }
+  // 리전은 도시명(서울/도쿄/시드니…)을 입력해도 식별자(ap-seoul-1)로 해석해 명령에 넣는다.
+  if (resolvedExecutionValues['--region']) resolvedExecutionValues['--region'] = resolveRegion(resolvedExecutionValues['--region'])
   const queryContextOption = responseContextOptions.find(option => option.name === '--query')
   if (queryContextOption?.multiSelect) {
     const customQuery = (executionValues[subKey('--query', 'custom')] ?? '').trim()
@@ -2083,7 +2086,7 @@ export default function CliBuilderPage() {
         requirement,
         help: option.help,
         placeholder: option.placeholder,
-        meta: option,
+        meta: option.name === '--region' ? { ...option, suggestions: REGION_SUGGESTIONS, suggestionLabels: REGION_LABEL } : option,
         isFilled: current => {
           if (String(current[option.name] ?? '').trim()) return true
           if (option.multiSelect && String(current[subKey(option.name, 'custom')] ?? '').trim()) return true
@@ -2165,7 +2168,7 @@ export default function CliBuilderPage() {
   }
   const preflightMeta = executionSurface?.instanceLaunchPreflight
   const instancePreflightCommand = preflightMeta
-    ? buildInstanceLaunchPreflightCommand(values, dyn, requestContextArguments, executionValues)
+    ? buildInstanceLaunchPreflightCommand(values, dyn, requestContextArguments, resolvedExecutionValues)
     : ''
   const applyInstanceLaunchPreflight = () => {
     const parsed = parseInstanceLaunchPreflight(instancePreflightInput)
@@ -2300,13 +2303,19 @@ export default function CliBuilderPage() {
       subVal={k => values[subKey(o.name, k)] || ''}
       onSub={(k, v) => setVal(subKey(o.name, k), v)} />
   }
-  const executionField = (option: CliOption) => (
-    <Field key={option.name} o={option} value={executionValues[option.name] || ''}
-      onChange={value => setExecutionVal(option.name, value)} optional
-      dynamic={false} onToggleDynamic={undefined}
-      subVal={key => executionValues[subKey(option.name, key)] || ''}
-      onSub={(key, value) => setExecutionVal(subKey(option.name, key), value)} />
-  )
+  const executionField = (option: CliOption) => {
+    // 리전은 도시명(서울/도쿄/시드니…) 자동완성 + blur 시 식별자로 해석.
+    const o = option.name === '--region'
+      ? { ...option, suggestions: REGION_SUGGESTIONS, suggestionLabels: REGION_LABEL }
+      : option
+    return (
+      <Field key={o.name} o={o} value={executionValues[option.name] || ''}
+        onChange={value => setExecutionVal(option.name, value)} optional
+        dynamic={false} onToggleDynamic={undefined}
+        subVal={key => executionValues[subKey(option.name, key)] || ''}
+        onSub={(key, value) => setExecutionVal(subKey(option.name, key), value)} />
+    )
+  }
 
   if (!protectedState.data) return (
     <div className="cli-main">
@@ -3140,8 +3149,9 @@ function renderCliWizardControl(context: CliWizardRenderContext): ReactNode {
     return (
       <>
         <input ref={assignRef} className={inputClass} list={listId} value={value} placeholder={option.placeholder}
-          onChange={event => setValue(valueId, event.target.value)} />
-        <datalist id={listId}>{option.suggestions.map(suggestion => <option key={suggestion} value={suggestion} />)}</datalist>
+          onChange={event => setValue(valueId, event.target.value)}
+          onBlur={option.name === '--region' ? event => { const r = resolveRegion(event.target.value); if (r !== event.target.value) setValue(valueId, r) } : undefined} />
+        <datalist id={listId}>{option.suggestions.map(suggestion => <option key={suggestion} value={suggestion} label={option.suggestionLabels?.[suggestion]} />)}</datalist>
       </>
     )
   }
@@ -3358,9 +3368,10 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
       <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <input className="cli-input" list={listId} value={value} placeholder={o.placeholder}
-          onChange={e => onChange(e.target.value)} />
+          onChange={e => onChange(e.target.value)}
+          onBlur={o.name === '--region' ? e => { const r = resolveRegion(e.target.value); if (r !== e.target.value) onChange(r) } : undefined} />
         <datalist id={listId}>
-          {o.suggestions.map(suggestion => <option key={suggestion} value={suggestion} />)}
+          {o.suggestions.map(suggestion => <option key={suggestion} value={suggestion} label={o.suggestionLabels?.[suggestion]} />)}
         </datalist>
       </div>
     )
