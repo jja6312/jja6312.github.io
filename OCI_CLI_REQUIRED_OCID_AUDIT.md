@@ -1,6 +1,6 @@
 # OCI CLI 필수 OCID 동적 조회 전수표
 
-- 생성 기준: Oracle OCI CLI 3.90.3 (v3.90.3, 4bdc3beb2d0b4a3187ef8392fff19537aba1178d)
+- 생성 기준: Oracle OCI CLI 3.91.0 (v3.91.0, fbff93ae6744ed23671b974fd876adb239545cea)
 - 필수 OCID 입력: 246회 / 50종
 - 동적·전용 안전 조회: 234회
 - 보안·제품 제약상 직접 입력: 12회

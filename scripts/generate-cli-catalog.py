@@ -35,7 +35,7 @@ STRUCTURE = [
   ('02-storage', 'Storage', [
     ('Block Storage', ['block-volume', 'boot-volume', 'volume-group', 'volume-backup-policy']),
     ('File Storage', ['file-system', 'mount-target', 'export']),
-    ('Object Storage', ['bucket', 'object-bulk-upload', 'object-sync']),
+    ('Object Storage', ['bucket', 'object-put', 'object-get', 'object-bulk-upload', 'object-bulk-download', 'object-sync']),
   ]),
   ('03-networking', 'Networking', [
     ('Virtual Cloud Networks', ['vcn', 'subnet', 'route-table', 'dhcp-options', 'security-list', 'nsg', 'internet-gateway', 'nat-gateway', 'service-gateway', 'local-peering-gateway']),
@@ -74,7 +74,8 @@ RES_LABEL = {
   'dedicated-vm-host': 'Dedicated VM Host', 'capacity-reservation': 'Capacity Reservation', 'compute-cluster': 'Compute Cluster',
   'custom-image': 'Custom Image', 'block-volume': 'Block Volume', 'boot-volume': 'Boot Volume', 'volume-group': 'Volume Group',
   'volume-backup-policy': 'Volume Backup Policy', 'file-system': 'File System', 'mount-target': 'Mount Target', 'export': 'Export',
-  'bucket': 'Bucket', 'object-bulk-upload': 'Bulk Upload', 'object-sync': 'Object Sync',
+  'bucket': 'Bucket', 'object-put': 'Object Upload', 'object-get': 'Object Download',
+  'object-bulk-upload': 'Bulk Upload', 'object-bulk-download': 'Bulk Download', 'object-sync': 'Object Sync',
   'vcn': 'VCN', 'subnet': 'Subnet', 'route-table': 'Route Table', 'dhcp-options': 'DHCP Options',
   'security-list': 'Security List', 'nsg': 'Network Security Group', 'internet-gateway': 'Internet Gateway',
   'nat-gateway': 'NAT Gateway', 'service-gateway': 'Service Gateway', 'drg': 'DRG', 'drg-attachment': 'DRG Attachment',

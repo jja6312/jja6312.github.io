@@ -235,7 +235,7 @@ for (const level of [1, 2, 3]) {
   }
   const storageCategory = bundle.cliCatalog.categories.find(category => category.id === '02-storage')
   const objectStorageGroup = storageCategory?.groups.find(group => group.label === 'Object Storage')
-  if (JSON.stringify(objectStorageGroup?.resources) !== JSON.stringify(['bucket', 'object-bulk-upload', 'object-sync'])) {
+  if (JSON.stringify(objectStorageGroup?.resources) !== JSON.stringify(['bucket', 'object-put', 'object-get', 'object-bulk-upload', 'object-bulk-download', 'object-sync'])) {
     throw new Error(`L${level} Storage > Object Storage menu invalid`)
   }
   const bulkUpload = bundle.cliCatalog.commands['object-bulk-upload']
