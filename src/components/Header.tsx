@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-import { activityDay, useHub, xpNeeded } from '../store'
+import { useHub, xpNeeded } from '../store'
 import { requiredLevel } from '../lib/auth'
 import LockIcon from './LockIcon'
 import Locks from './Locks'
@@ -46,9 +46,9 @@ const tabs: Tab[] = [
 ]
 
 export default function Header() {
-  const { xp, level, streak, activityAwards, toggleTheme, setHelpOpen, authLevel, openAuth, adjustUiScale } = useHub()
+  const { xp, level, activityDays, toggleTheme, setHelpOpen, authLevel, openAuth, adjustUiScale } = useHub()
   const req = xpNeeded(level)
-  const todaySystems = Object.entries(activityAwards).filter(([id, day]) => id.startsWith('system:') && day === activityDay()).length
+  const daysUsed = activityDays.length   // 이 시스템을 사용한 누적 일수(고유 날짜, 리셋 없음)
   const [menuOpen, setMenuOpen] = useState(false)
 
   // 네비 + 게이트 + (모바일)드로어 닫기 를 한 번에
@@ -86,8 +86,8 @@ export default function Header() {
       </nav>
 
       <div className="hdr-right">
-        <span className="streak px hide-mobile" title="오늘 처음 사용한 시스템마다 +3 XP">
-          {streak}일차 · 오늘 {todaySystems}곳
+        <span className="streak px hide-mobile" title="이 업무허브를 사용한 누적 일수(리셋 없음)">
+          누적 {daysUsed}일
         </span>
         <div className="flex items-center gap-[10px] hide-mobile">
           <span className="lvbadge px">Lv.{level}</span>
