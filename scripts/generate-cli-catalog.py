@@ -51,7 +51,7 @@ STRUCTURE = [
     ('MySQL HeatWave', ['mysql', 'mysql-backup']),
   ]),
   ('06-developer-services', 'Developer Services', [
-    ('Application Integration', ['topic', 'subscription']),
+    ('Notifications', ['topic', 'subscription']),
   ]),
   ('07-identity-security', 'Identity & Security', [
     ('Identity', ['iam-compartment', 'iam-user', 'iam-group', 'iam-policy']),

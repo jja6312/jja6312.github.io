@@ -1,6 +1,6 @@
 /* eslint-disable react/only-export-components -- the model and renderer intentionally share one menu contract. */
 import type { ReactNode } from 'react'
-import { guessCategory, parsePolicyStatement } from '../lib/oci-cli/policyParse.mjs'
+import { parsePolicyStatement } from '../lib/oci-cli/policyParse.mjs'
 
 export type OciNavCatalog = {
   categories?: Array<{
@@ -31,51 +31,75 @@ export type OciNavCategory = {
 
 export type OciNavSurface = 'cli' | 'policy'
 
-const normalize = (value: unknown) => String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
-
-function categoryForPolicy(category: string, categories: OciNavCategory[]) {
-  const needle = normalize(category)
-  return categories.find(item => {
-    const haystack = normalize(`${item.id} ${item.label}`)
-    if (needle === normalize('Networking') && /network/.test(haystack)) return true
-    if (needle === normalize('Security') && /identitysecurity|security/.test(haystack)) return true
-    return haystack.includes(needle) || needle.includes(haystack)
-  })
+// 정책 resource-type(family/specific) → 콘솔 좌측 메뉴의 CLI 리소스 키.
+// 정책이 걸린 자원을 별도 그룹이 아니라 동일한 콘솔 메뉴 항목에 표시하기 위한 매핑
+// (자산 없으면 회색, 있으면 활성). 새 리소스 추가 시 여기에 매핑을 더한다.
+const POLICY_RESOURCE_TO_CLI: Record<string, string[]> = {
+  'instance-family': ['instance', 'instance-configuration', 'instance-pool', 'dedicated-vm-host', 'capacity-reservation', 'compute-cluster', 'custom-image'],
+  'instances': ['instance'],
+  'instance-images': ['custom-image'],
+  'instance-configurations': ['instance-configuration'],
+  'instance-pools': ['instance-pool'],
+  'dedicated-vm-hosts': ['dedicated-vm-host'],
+  'compute-capacity-reservations': ['capacity-reservation'],
+  'compute-clusters': ['compute-cluster'],
+  'volume-family': ['block-volume', 'boot-volume', 'volume-group', 'volume-backup-policy'],
+  'volumes': ['block-volume'],
+  'boot-volumes': ['boot-volume'],
+  'volume-groups': ['volume-group'],
+  'volume-backups': ['volume-backup-policy'],
+  'backup-policies': ['volume-backup-policy'],
+  'object-family': ['bucket'],
+  'buckets': ['bucket'],
+  'objects': ['bucket'],
+  'file-family': ['file-system', 'mount-target', 'export'],
+  'file-systems': ['file-system'],
+  'mount-targets': ['mount-target'],
+  'exports': ['export'],
+  'virtual-network-family': ['vcn', 'subnet', 'route-table', 'dhcp-options', 'security-list', 'nsg', 'internet-gateway', 'nat-gateway', 'service-gateway', 'local-peering-gateway', 'drg', 'drg-attachment', 'remote-peering-connection', 'public-ip'],
+  'vcns': ['vcn'],
+  'subnets': ['subnet'],
+  'route-tables': ['route-table'],
+  'dhcp-options': ['dhcp-options'],
+  'security-lists': ['security-list'],
+  'network-security-groups': ['nsg'],
+  'internet-gateways': ['internet-gateway'],
+  'nat-gateways': ['nat-gateway'],
+  'service-gateways': ['service-gateway'],
+  'local-peering-gateways': ['local-peering-gateway'],
+  'drgs': ['drg', 'drg-attachment'],
+  'remote-peering-connections': ['remote-peering-connection'],
+  'public-ips': ['public-ip'],
+  'load-balancers': ['load-balancer'],
+  'network-load-balancers': ['network-load-balancer'],
+  'autonomous-database-family': ['autonomous-database'],
+  'autonomous-databases': ['autonomous-database'],
+  'database-family': ['base-db'],
+  'db-systems': ['base-db'],
+  'mysql-family': ['mysql', 'mysql-backup'],
+  'mysql-db-systems': ['mysql'],
+  'mysql-backups': ['mysql-backup'],
+  'ons-family': ['topic', 'subscription'],
+  'ons-topics': ['topic'],
+  'ons-subscriptions': ['subscription'],
+  'users': ['iam-user'],
+  'groups': ['iam-group'],
+  'dynamic-groups': ['iam-group'],
+  'policies': ['iam-policy'],
+  'compartments': ['iam-compartment'],
+  'alarms': ['alarm'],
+  'metrics': ['alarm'],
+  'announcement-family': ['announcement', 'announcement-subscription'],
+  'announcements': ['announcement'],
+  'announcement-subscriptions': ['announcement-subscription'],
+  'incident-family': ['support-incident'],
+  'incidents': ['support-incident'],
+  'usage-reports': ['subscription-list'],
+  'usage-budgets': ['subscription-list'],
 }
 
-function categoryForPolicyResource(resource: string) {
-  const key = normalize(resource)
-  if (key === 'announcement' || key === 'announcements' || key === 'announcementsubscriptions' || key === 'allresources') return 'Governance & Administration'
-  if (key === 'onstopics') return 'Developer Services'
-  if (key === 'usagereport') return 'Billing & Cost Management'
-  return guessCategory(resource)
-}
-
-function policyRecords(statements: OciPolicyNavStatement[]) {
-  const seen = new Set<string>()
-  const records: Array<{ resource: string; label: string; category: string }> = []
-  for (const item of statements) {
-    const parsed = parsePolicyStatement(item.statement ?? '')
-    if (!parsed.valid) continue
-    const resource = parsed.kind === 'allow' && parsed.resourceType
-      ? parsed.resourceType
-      : parsed.kind === 'advanced' && parsed.keyword
-        ? `policy-${parsed.keyword}`
-        : ''
-    if (!resource) continue
-    const key = resource.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    records.push({
-      resource,
-      label: parsed.kind === 'advanced' ? `${parsed.keyword?.toUpperCase()} policy` : resource,
-      category: parsed.kind === 'advanced' ? 'Security' : categoryForPolicyResource(parsed.resourceType ?? ''),
-    })
-  }
-  return records
-}
-
-/** CLI 카탈로그와 Policy 등록 resource type을 같은 좌측 트리로 합친다. */
+/** 콘솔 STRUCTURE 를 좌측 트리로 만들고, 저장된 policy 를 같은 메뉴 항목에 표시한다(별도 그룹 없음).
+    CLI·Policy 가 동일 메뉴를 공유하며, 각 surface 에서 자산 없는 항목은 회색으로 보인다. */
 export function buildOciResourceNav(catalog: OciNavCatalog | undefined, statements: OciPolicyNavStatement[] = []): OciNavCategory[] {
   const categories: OciNavCategory[] = (catalog?.categories ?? []).map(category => ({
     id: category.id,
@@ -97,39 +121,22 @@ export function buildOciResourceNav(catalog: OciNavCatalog | undefined, statemen
     allCli.set(entry.cliResource ?? entry.key, entry)
   }
 
-  const additions = new Map<string, { category: OciNavCategory; record: { resource: string; label: string; category: string } }>()
-  for (const record of policyRecords(statements)) {
-    const matched = allCli.get(record.resource)
-    if (matched) {
-      matched.policyResource = record.resource
-      matched.policyLabel = record.label
-      continue
+  // 저장된 policy 문장의 resource-type 을 콘솔 메뉴 항목에 매핑해 활성 표시(별도 'Policy 등록' 그룹 없음).
+  const seen = new Set<string>()
+  for (const item of statements) {
+    const parsed = parsePolicyStatement(item.statement ?? '')
+    if (!parsed.valid || parsed.kind !== 'allow' || !parsed.resourceType) continue
+    const rt = parsed.resourceType.toLowerCase()
+    if (seen.has(rt)) continue
+    seen.add(rt)
+    const targets = POLICY_RESOURCE_TO_CLI[rt] ?? (allCli.has(rt) ? [rt] : [])
+    for (const key of targets) {
+      const entry = allCli.get(key)
+      if (!entry) continue
+      // 실제 policy 가 있는 resource-type 을 저장(클릭 시 그 타입으로 라이브러리 필터). 먼저 매칭된 것 유지.
+      entry.policyResource = entry.policyResource ?? rt
+      entry.policyLabel = entry.label
     }
-    let category = categoryForPolicy(record.category, categories)
-    if (!category) {
-      const id = `policy-${normalize(record.category) || 'other'}`
-      category = categories.find(item => item.id === id)
-      if (!category) {
-        category = { id, label: record.category || '기타', groups: [] }
-        categories.push(category)
-      }
-    }
-    let target = additions.get(`${category.id}:${record.resource}`)
-    if (!target) {
-      target = { category, record }
-      additions.set(`${category.id}:${record.resource}`, target)
-    }
-  }
-  for (const { category, record } of additions.values()) {
-    const group = category.groups.find(item => item.label === 'Policy 등록')
-      ?? (() => { const next = { label: 'Policy 등록', entries: [] as OciNavEntry[] }; category.groups.push(next); return next })()
-    group.entries.push({
-      key: `policy:${record.resource}`,
-      label: record.label,
-      categoryId: category.id,
-      groupLabel: group.label,
-      policyResource: record.resource,
-    })
   }
   return categories
 }
