@@ -758,6 +758,25 @@ kbd {
 .cli-input::placeholder { color: var(--text-faint); }
 select.cli-input { cursor: pointer; }
 .cli-json { min-height: 60px; resize: vertical; }
+
+/* 리전 검색 콤보박스 (RegionSelect) — 사이트 스타일 드롭다운 하나로 통일 */
+.region-select { position: relative; }
+.region-menu {
+  position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px;
+  list-style: none; max-height: 260px; overflow-y: auto;
+  background: var(--bg-card, var(--code-bg)); border: 1px solid var(--accent); border-radius: 9px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+.region-menu li { margin: 0; }
+.region-opt {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px; width: 100%;
+  background: none; border: none; border-radius: 6px; padding: 6px 9px; cursor: pointer;
+  color: var(--text); text-align: left; font-family: inherit; font-size: 13px;
+}
+.region-opt:hover, .region-opt.on { background: var(--accent-glow, rgba(90,200,250,.12)); }
+.region-opt.sel { outline: 1px solid var(--accent-dim); }
+.region-opt .region-city { color: var(--text); }
+.region-opt .region-id { color: var(--text-faint); font-family: Consolas, monospace; font-size: 12px; white-space: nowrap; }
 .cli-structured-json, .cli-image-picker, .cli-shape-picker { padding: 12px; border: 1px solid var(--line-soft); background: var(--bg-inset); }
 .cli-json-toolbar { display: flex; gap: 6px; margin: 8px 0; }
 .cli-json-toolbar button, .cli-json-variant-tabs button, .cli-json-add, .cli-json-array-head button, .cli-json-apply {

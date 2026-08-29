@@ -19,7 +19,7 @@ import {
   type ExecutionContextOverrides,
   type ExecutionContextSchema,
 } from '../lib/cliExecutionContext'
-import { resolveRegion, REGION_SUGGESTIONS, REGION_LABEL } from '../lib/oci-cli/regionAliases'
+import { resolveRegion, REGIONS } from '../lib/oci-cli/regionAliases'
 
 interface CliOption {
   name: string
@@ -2086,7 +2086,7 @@ export default function CliBuilderPage() {
         requirement,
         help: option.help,
         placeholder: option.placeholder,
-        meta: option.name === '--region' ? { ...option, suggestions: REGION_SUGGESTIONS, suggestionLabels: REGION_LABEL } : option,
+        meta: option,
         isFilled: current => {
           if (String(current[option.name] ?? '').trim()) return true
           if (option.multiSelect && String(current[subKey(option.name, 'custom')] ?? '').trim()) return true
@@ -2303,19 +2303,13 @@ export default function CliBuilderPage() {
       subVal={k => values[subKey(o.name, k)] || ''}
       onSub={(k, v) => setVal(subKey(o.name, k), v)} />
   }
-  const executionField = (option: CliOption) => {
-    // 리전은 도시명(서울/도쿄/시드니…) 자동완성 + blur 시 식별자로 해석.
-    const o = option.name === '--region'
-      ? { ...option, suggestions: REGION_SUGGESTIONS, suggestionLabels: REGION_LABEL }
-      : option
-    return (
-      <Field key={o.name} o={o} value={executionValues[option.name] || ''}
-        onChange={value => setExecutionVal(option.name, value)} optional
-        dynamic={false} onToggleDynamic={undefined}
-        subVal={key => executionValues[subKey(option.name, key)] || ''}
-        onSub={(key, value) => setExecutionVal(subKey(option.name, key), value)} />
-    )
-  }
+  const executionField = (option: CliOption) => (
+    <Field key={option.name} o={option} value={executionValues[option.name] || ''}
+      onChange={value => setExecutionVal(option.name, value)} optional
+      dynamic={false} onToggleDynamic={undefined}
+      subVal={key => executionValues[subKey(option.name, key)] || ''}
+      onSub={(key, value) => setExecutionVal(subKey(option.name, key), value)} />
+  )
 
   if (!protectedState.data) return (
     <div className="cli-main">
@@ -3054,6 +3048,9 @@ function renderCliWizardControl(context: CliWizardRenderContext): ReactNode {
   if (!option) return defaultCliWizardControl(context)
   const { value, valueId, inputClass, assignRef, setValue, subValue, setSubValue } = context
   const checked = value !== ''
+  if (option.name === '--region') {
+    return <RegionSelect value={value} onChange={v => setValue(valueId, v)} inputClass={inputClass} assignRef={assignRef} />
+  }
   if (option.flag || option.checkbox) {
     return (
       <label className="cli-wizard-check">
@@ -3149,14 +3146,66 @@ function renderCliWizardControl(context: CliWizardRenderContext): ReactNode {
     return (
       <>
         <input ref={assignRef} className={inputClass} list={listId} value={value} placeholder={option.placeholder}
-          onChange={event => setValue(valueId, event.target.value)}
-          onBlur={option.name === '--region' ? event => { const r = resolveRegion(event.target.value); if (r !== event.target.value) setValue(valueId, r) } : undefined} />
-        <datalist id={listId}>{option.suggestions.map(suggestion => <option key={suggestion} value={suggestion} label={option.suggestionLabels?.[suggestion]} />)}</datalist>
+          onChange={event => setValue(valueId, event.target.value)} />
+        <datalist id={listId}>{option.suggestions.map(suggestion => <option key={suggestion} value={suggestion} />)}</datalist>
       </>
     )
   }
   return <input ref={assignRef} className={inputClass} value={value} placeholder={option.placeholder}
     onChange={event => setValue(valueId, event.target.value)} autoComplete="off" />
+}
+
+// 리전 검색 콤보박스 — "서" 입력 시 서울이 필터되고(한국어 부분일치), 선택하면 식별자(ap-seoul-1)가
+// 값으로 들어간다. 별도 datalist/네이티브 select 대신 사이트 스타일에 맞춘 드롭다운 하나로 통일.
+function RegionSelect({ value, onChange, inputClass = 'cli-input', assignRef }: {
+  value: string; onChange: (v: string) => void; inputClass?: string
+  assignRef?: (element: HTMLInputElement | null) => void
+}) {
+  const [text, setText] = useState(value)
+  const [open, setOpen] = useState(false)
+  const [hi, setHi] = useState(0)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { setText(value) }, [value])
+  useEffect(() => {
+    const onDoc = (event: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+  const raw = text.trim()
+  const q = raw.toLowerCase()
+  const matches = raw
+    ? REGIONS.filter(r => r.ko.includes(raw) || r.en.toLowerCase().includes(q) || r.id.includes(q))
+    : REGIONS
+  const pick = (id: string) => { onChange(id); setText(id); setOpen(false) }
+  const commit = () => { const resolved = resolveRegion(text); setText(resolved); if (resolved !== value) onChange(resolved) }
+  return (
+    <div className="region-select" ref={wrapRef}>
+      <input ref={assignRef} className={inputClass} value={text} placeholder="서울 · tokyo · ap-seoul-1 …"
+        autoComplete="off" role="combobox" aria-expanded={open}
+        onFocus={() => { setOpen(true); setHi(0) }}
+        onChange={event => { setText(event.target.value); setOpen(true); setHi(0) }}
+        onKeyDown={event => {
+          if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); setHi(h => Math.min(h + 1, matches.length - 1)) }
+          else if (event.key === 'ArrowUp') { event.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
+          else if (event.key === 'Enter' && open && matches[hi]) { event.preventDefault(); pick(matches[hi].id) }
+          else if (event.key === 'Escape') setOpen(false)
+        }}
+        onBlur={() => window.setTimeout(() => { commit(); setOpen(false) }, 120)} />
+      {open && matches.length > 0 && (
+        <ul className="region-menu" role="listbox">
+          {matches.slice(0, 20).map((r, i) => (
+            <li key={r.id}>
+              <button type="button" className={`region-opt${i === hi ? ' on' : ''}${r.id === value ? ' sel' : ''}`}
+                onMouseEnter={() => setHi(i)} onMouseDown={event => { event.preventDefault(); pick(r.id) }}>
+                <span className="region-city"><b>{r.ko}</b> · {r.en}</span>
+                <span className="region-id">{r.id}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, imageDiscoveryCommand, currentShape = '', subVal, onSub }: {
@@ -3195,6 +3244,14 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
       {o.deprecated && o.replacement?.length && <span className="cli-replacement">대체: {o.replacement.join(', ')}</span>}
     </label>
   )
+  if (o.name === '--region') {
+    return (
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
+        {label}
+        <RegionSelect value={value} onChange={onChange} />
+      </div>
+    )
+  }
   if (o.flag) {
     return (
       <div id={fieldId} className="cli-field" data-cli-option={o.name}>
@@ -3368,10 +3425,9 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
       <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
         <input className="cli-input" list={listId} value={value} placeholder={o.placeholder}
-          onChange={e => onChange(e.target.value)}
-          onBlur={o.name === '--region' ? e => { const r = resolveRegion(e.target.value); if (r !== e.target.value) onChange(r) } : undefined} />
+          onChange={e => onChange(e.target.value)} />
         <datalist id={listId}>
-          {o.suggestions.map(suggestion => <option key={suggestion} value={suggestion} label={o.suggestionLabels?.[suggestion]} />)}
+          {o.suggestions.map(suggestion => <option key={suggestion} value={suggestion} />)}
         </datalist>
       </div>
     )
