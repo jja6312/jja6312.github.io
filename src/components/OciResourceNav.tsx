@@ -1,6 +1,7 @@
 /* eslint-disable react/only-export-components -- the model and renderer intentionally share one menu contract. */
 import type { ReactNode } from 'react'
 import { parsePolicyStatement } from '../lib/oci-cli/policyParse.mjs'
+import { sortOciConsoleCategories } from '../lib/ociConsoleNavigation'
 
 export type OciNavCatalog = {
   categories?: Array<{
@@ -101,7 +102,7 @@ const POLICY_RESOURCE_TO_CLI: Record<string, string[]> = {
 /** 콘솔 STRUCTURE 를 좌측 트리로 만들고, 저장된 policy 를 같은 메뉴 항목에 표시한다(별도 그룹 없음).
     CLI·Policy 가 동일 메뉴를 공유하며, 각 surface 에서 자산 없는 항목은 회색으로 보인다. */
 export function buildOciResourceNav(catalog: OciNavCatalog | undefined, statements: OciPolicyNavStatement[] = []): OciNavCategory[] {
-  const categories: OciNavCategory[] = (catalog?.categories ?? []).map(category => ({
+  const categories: OciNavCategory[] = sortOciConsoleCategories(catalog?.categories ?? []).map(category => ({
     id: category.id,
     label: category.label,
     groups: category.groups.map(group => ({

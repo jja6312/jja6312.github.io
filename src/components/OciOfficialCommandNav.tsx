@@ -6,6 +6,7 @@ import {
   type OfficialCliIndex,
   type OfficialCliServiceShard,
 } from '../lib/oci-cli/officialCatalog'
+import { sortOciConsoleCategories } from '../lib/ociConsoleNavigation'
 
 interface CommandTreeNode {
   id: string
@@ -91,6 +92,7 @@ export default function OciOfficialCommandNav({ activePath, curatedPaths, onSele
   }, [])
 
   const serviceMap = useMemo(() => new Map(index?.services.map(service => [service.key, service]) ?? []), [index])
+  const consoleGroups = useMemo(() => sortOciConsoleCategories(index?.groups ?? []), [index])
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const searchResults = useMemo(() => {
     if (!index || !normalizedQuery) return []
@@ -170,7 +172,7 @@ export default function OciOfficialCommandNav({ activePath, curatedPaths, onSele
         </div>
       ) : index ? (
         <div className="oci-official-groups">
-          {index.groups.map(group => {
+          {consoleGroups.map(group => {
             const open = openGroups.has(group.label)
             return <div key={group.label} className="oci-official-group">
               <button type="button" className="oci-official-group-toggle" onClick={() => setOpenGroups(current => {

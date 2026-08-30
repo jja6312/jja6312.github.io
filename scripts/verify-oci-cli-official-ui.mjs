@@ -1,16 +1,49 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import ts from 'typescript'
 
 const fail = message => { throw new Error(message) }
 const read = path => readFileSync(resolve(path), 'utf8')
 const page = read('src/pages/CliBuilderPage.tsx')
 const nav = read('src/components/OciOfficialCommandNav.tsx')
+const sharedNav = read('src/components/OciResourceNav.tsx')
+const consoleNavigation = read('src/lib/ociConsoleNavigation.ts')
 const loader = read('src/lib/oci-cli/officialCatalog.ts')
 const css = read('src/index.css')
 const pointer = JSON.parse(read('public/oci-cli/current.json'))
 const index = JSON.parse(read(`public/oci-cli/${pointer.index}`))
 const lock = JSON.parse(read('scripts/oci-cli-source.lock.json'))
+
+const transpiledNavigation = ts.transpileModule(consoleNavigation, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 },
+}).outputText
+const navigationModuleUrl = `data:text/javascript;base64,${Buffer.from(transpiledNavigation).toString('base64')}`
+const { OCI_CONSOLE_CATEGORY_ORDER, sortOciConsoleCategories } = await import(navigationModuleUrl)
+
+const expectedConsoleOrder = [
+  'Compute',
+  'Storage',
+  'Networking',
+  'Oracle Database',
+  'Databases',
+  'Analytics & AI',
+  'Developer Services',
+  'Identity & Security',
+  'Observability & Management',
+  'Hybrid',
+  'Migration',
+  'Billing & Cost Management',
+  'Governance & Administration',
+]
+if (JSON.stringify(OCI_CONSOLE_CATEGORY_ORDER) !== JSON.stringify(expectedConsoleOrder)) {
+  fail('Shared OCI Console category contract differs from the verified Console order')
+}
+const renderedGroupOrder = sortOciConsoleCategories(index.groups).map(group => group.label)
+const expectedRenderedOrder = [...expectedConsoleOrder, 'Others']
+if (JSON.stringify(renderedGroupOrder) !== JSON.stringify(expectedRenderedOrder)) {
+  fail(`Official OCI CLI group order differs from the Console: ${renderedGroupOrder.join(' > ')}`)
+}
 
 if (index.source.scope !== 'all-public-services'
   || index.totals.services !== lock.clickTree.expectedServiceCount
@@ -50,8 +83,15 @@ for (const marker of [
   'index.commandIndex.filter',
   'buildCommandTree',
   'curatedPaths.has',
+  'sortOciConsoleCategories(index?.groups ?? [])',
 ]) {
   if (!nav.includes(marker)) fail(`Official OCI CLI navigation marker missing: ${marker}`)
+}
+for (const marker of [
+  "from '../lib/ociConsoleNavigation'",
+  'sortOciConsoleCategories(catalog?.categories ?? [])',
+]) {
+  if (!sharedNav.includes(marker)) fail(`Shared OCI Console navigation marker missing: ${marker}`)
 }
 for (const marker of [
   ", 'no-cache')",
@@ -72,6 +112,7 @@ console.log(JSON.stringify({
   personalViews: ['recent', 'favorites', 'verified'],
   automation: ['custom-cli', 'blueprints'],
   lazyServiceShards: index.services.length,
+  consoleCategoryOrder: renderedGroupOrder,
   altInputWizard: true,
   jsonTemplateFlow: true,
 }))
