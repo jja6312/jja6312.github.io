@@ -21,6 +21,11 @@ import {
 } from '../lib/cliExecutionContext'
 import { resolveRegion, REGIONS } from '../lib/oci-cli/regionAliases'
 import { loadOfficialCliCommand, type OfficialCliCommand, type OfficialCliOption } from '../lib/oci-cli/officialCatalog'
+import {
+  loadProfiles, getSelectedProfileName, setSelectedProfileName,
+  registerProfilesFromPaste, deleteProfile, lookupNamesFor, profileSummary,
+  renderProfileCollectScript, type OciProfile,
+} from '../lib/oci-cli/profiles'
 
 interface CliOption {
   name: string
@@ -152,7 +157,7 @@ interface Catalog {
 }
 interface CuratedCliTarget { resource: string; operation?: CrudVerb; action?: string }
 type OfficialCommandPresentation = 'enhanced' | 'official'
-type CliSidebarView = 'all' | 'recent' | 'favorites' | 'verified' | 'automation'
+type CliSidebarView = 'all' | 'recent' | 'favorites' | 'verified' | 'automation' | 'profiles'
 
 function officialOptionPlaceholder(option: OfficialCliOption): string {
   if (option.type === 'json') return '구조화 입력기로 JSON 필드를 구성하세요.'
@@ -1957,6 +1962,13 @@ export default function CliBuilderPage() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [instancePreflightInput, setInstancePreflightInput] = useState('')
   const [instancePreflightError, setInstancePreflightError] = useState('')
+  // ── 프로필: 로컬 저장된 이름 후보(컴파트먼트·리소스)·리전을 골라 쓰기 ──
+  const [profiles, setProfiles] = useState<OciProfile[]>(() => loadProfiles())
+  const [selectedProfileName, setSelectedProfileNameState] = useState<string>(() => getSelectedProfileName())
+  const [profilePaste, setProfilePaste] = useState('')
+  const [profileMsg, setProfileMsg] = useState('')
+  const selectedProfile = profiles.find(p => p.name === selectedProfileName) ?? null
+  const profileCollectScript = useMemo(() => renderProfileCollectScript(), [])
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => loadCliSidebarWidth('left'))
   const [rightSidebarWidth, setRightSidebarWidth] = useState(() => loadCliSidebarWidth('right'))
   const sidebarResizeRef = useRef<{
@@ -2227,6 +2239,34 @@ export default function CliBuilderPage() {
   const formOptions = [...formSections.flatMap(section => section.options), ...formAdvanced]
   const formOptionsByName = new Map(formOptions.map(option => [option.name, option]))
   const setExecutionVal = (name: string, value: string) => setExecutionValues(current => ({ ...current, [name]: value }))
+  // 활성 프로필 선택 — --profile 주입 + 홈리전을 기본 --region 으로. 선택은 localStorage 에 sticky.
+  const activateProfile = (name: string) => {
+    setSelectedProfileNameState(name); setSelectedProfileName(name)
+    const prof = profiles.find(p => p.name === name)
+    if (prof) setExecutionValues(current => ({
+      ...current, '--profile': prof.name,
+      ...(prof.homeRegion ? { '--region': prof.homeRegion } : {}),
+    }))
+  }
+  // 자원을 바꾸면 실행 컨텍스트가 리셋되므로, 선택된 프로필을 다시 채워 sticky 를 유지한다.
+  useEffect(() => {
+    if (!selectedProfile) return
+    setExecutionValues(current => ({
+      ...current, '--profile': selectedProfile.name,
+      '--region': current['--region'] || selectedProfile.homeRegion || '',
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileName, active])
+  const registerProfiles = () => {
+    const result = registerProfilesFromPaste(profilePaste, profiles)
+    if (result.error) { setProfileMsg(result.error); return }
+    setProfiles(result.profiles); setProfilePaste('')
+    setProfileMsg(`프로필 ${result.added}개 등록/갱신 완료.`)
+  }
+  const removeProfile = (name: string) => {
+    setProfiles(current => deleteProfile(name, current))
+    if (selectedProfileName === name) { setSelectedProfileNameState(''); setSelectedProfileName('') }
+  }
   const wizardQuestions = useMemo<CliWizardQuestion[]>(() => {
     const questions: CliWizardQuestion[] = []
     const seen = new Set<string>()
@@ -2485,8 +2525,17 @@ export default function CliBuilderPage() {
     // (DIRECT_ONLY_LOOKUPS 의 compartment 는 dynamicLookup 자체가 없어 여기서 자연히 제외된다.)
     const compartmentDynamic = o.dynamicLookup?.kind === 'compartment'
     const dynamicAllowed = (catalogDynamic || legacyDynamic) && (compartmentDynamic || !noDyn)
+    const fieldDynamic = dynamicAllowed && isDynamic(dyn, o.name, true)
+    // 선택된 프로필에 캐시된 이름 후보(컴파트먼트·리소스)를 드롭다운으로. OCID 해석은 여전히 실행시점 live.
+    const lookupTarget = o.dynamicLookup?.kind === 'compartment'
+      ? 'compartment'
+      : (!o.dynamicLookup?.multiple ? o.dynamicLookup?.target : undefined)
+    const lookupNames = fieldDynamic && selectedProfile && lookupTarget
+      ? lookupNamesFor(selectedProfile, lookupTarget)
+      : undefined
     return <Field key={o.name} o={o} value={o.name === '--shape-config' ? (effectiveValues[o.name] || '') : (values[o.name] || '')} onChange={v => setFormVal(o, v)} optional={optional}
-      dynamic={dynamicAllowed && isDynamic(dyn, o.name, true)}
+      dynamic={fieldDynamic}
+      lookupNames={lookupNames}
       rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}
       onToggleDynamic={dynamicAllowed ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
       imageDiscoveryCommand={o.imagePicker ? buildImageDiscoveryCommand(effectiveValues, dyn, requestContextArguments) : undefined}
@@ -2498,6 +2547,7 @@ export default function CliBuilderPage() {
     <Field key={option.name} o={option} value={executionValues[option.name] || ''}
       onChange={value => setExecutionVal(option.name, value)} optional
       dynamic={false} onToggleDynamic={undefined}
+      regionOptions={option.name === '--region' ? selectedProfile?.regions : undefined}
       subVal={key => executionValues[subKey(option.name, key)] || ''}
       onSub={(key, value) => setExecutionVal(subKey(option.name, key), value)} />
   )
@@ -2535,6 +2585,7 @@ export default function CliBuilderPage() {
             ['favorites', '즐겨찾기'],
             ['verified', '실행 확인'],
             ['automation', '자동화'],
+            ['profiles', '프로필'],
           ] as [CliSidebarView, string][]).map(([view, label]) => (
             <button type="button" role="tab" key={view} aria-selected={sidebarView === view}
               className={sidebarView === view ? 'on' : ''} onClick={() => setSidebarView(view)}>
@@ -2611,6 +2662,59 @@ export default function CliBuilderPage() {
                 {isResourceVerified(c.resource) && <span className="cli-vmark" title="검증됨">✓</span>}
               </button>
             ))}
+          </section>
+        )}
+
+        {sidebarView === 'profiles' && (
+          <section className="cli-personal-view cli-profile-hub" aria-label="OCI 프로필 관리">
+            <div className="cli-personal-heading"><span>프로필</span><b>{profiles.length}</b></div>
+            <p className="cli-profile-intro">
+              로컬 <code>~/.oci/config</code> 에서 리전·컴파트먼트·리소스 이름을 한 번 수집해 두면,
+              프로필을 고르기만 해도 <code>--profile</code>·리전·이름이 자동으로 채워집니다.
+              크리덴셜은 저장하지 않습니다.
+            </p>
+
+            <details className="cli-profile-collect">
+              <summary>1. 수집 스크립트 (복사 → 로컬 실행)</summary>
+              <p>읽기전용(list/get/search)만 실행합니다. 셸에서 돌린 뒤 출력을 아래에 붙여넣으세요.
+                config 가 바뀌면 다시 실행해 갱신합니다.</p>
+              <div className="cli-inline-command">
+                <pre>{profileCollectScript}</pre>
+                <button type="button" onClick={() => void navigator.clipboard.writeText(profileCollectScript)}>스크립트 복사</button>
+              </div>
+            </details>
+
+            <label className="cli-profile-paste">
+              <span><b>2. 실행 결과 붙여넣기</b> JSON 배열</span>
+              <textarea className="cli-input cli-json" rows={4} value={profilePaste}
+                placeholder='[{"name":"locktonkorea","tenancy":"ocid1.tenancy...","subscriptions":{"data":[...]},...}]'
+                onChange={event => { setProfilePaste(event.target.value); setProfileMsg('') }} />
+              <button type="button" className="cli-json-apply" onClick={registerProfiles} disabled={!profilePaste.trim()}>프로필 등록</button>
+              {profileMsg && <span className="cli-profile-msg">{profileMsg}</span>}
+            </label>
+
+            {profiles.length > 0 && (
+              <div className="cli-profile-list" role="list">
+                <div className="cli-profile-list-title">등록된 프로필</div>
+                {profiles.map(p => {
+                  const s = profileSummary(p)
+                  return (
+                    <div key={p.name} className={`cli-profile-row${p.name === selectedProfileName ? ' on' : ''}`} role="listitem">
+                      <button type="button" className="cli-profile-pick"
+                        onClick={() => activateProfile(p.name === selectedProfileName ? '' : p.name)}
+                        title={p.name === selectedProfileName ? '활성 해제' : '활성 프로필로 선택'}>
+                        <span className="cli-profile-name">{p.name === selectedProfileName ? '● ' : '○ '}{p.name}</span>
+                        <span className="cli-profile-meta">
+                          {p.homeRegion || '리전?'} · 리전 {s.regions} · 컴파트먼트 {s.compartments} · 이름 {s.resources}
+                        </span>
+                      </button>
+                      <button type="button" className="cli-profile-del" title="프로필 삭제"
+                        onClick={() => removeProfile(p.name)}>✕</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </section>
         )}
       </aside>
@@ -2707,6 +2811,17 @@ export default function CliBuilderPage() {
             </div>
             {contextOpen && (
               <div className="cli-context-body">
+                <div className="cli-active-profile">
+                  <label>활성 프로필
+                    <select value={selectedProfileName} onChange={event => activateProfile(event.target.value)}>
+                      <option value="">(없음 · 직접 입력)</option>
+                      {profiles.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                    </select>
+                  </label>
+                  {selectedProfile
+                    ? <span className="cli-active-profile-meta">홈 {selectedProfile.homeRegion || '—'} · 가용리전 {selectedProfile.regions.length} · 컴파트먼트 {selectedProfile.compartments.length}</span>
+                    : <button type="button" className="cli-active-profile-link" onClick={() => setSidebarView('profiles')}>프로필 수집·관리 →</button>}
+                </div>
                 <p>이 값은 자원 입력과 분리되며 동적 조회와 실제 명령에 동일하게 전달됩니다. Region을 비우면 프로필 설정을 사용합니다.</p>
                 <div className="cli-context-groups">
                   <div className="cli-context-group">
@@ -3404,9 +3519,10 @@ function renderCliWizardControl(context: CliWizardRenderContext): ReactNode {
 
 // 리전 검색 콤보박스 — "서" 입력 시 서울이 필터되고(한국어 부분일치), 선택하면 식별자(ap-seoul-1)가
 // 값으로 들어간다. 별도 datalist/네이티브 select 대신 사이트 스타일에 맞춘 드롭다운 하나로 통일.
-function RegionSelect({ value, onChange, inputClass = 'cli-input', assignRef }: {
+function RegionSelect({ value, onChange, inputClass = 'cli-input', assignRef, allowedRegions }: {
   value: string; onChange: (v: string) => void; inputClass?: string
   assignRef?: (element: HTMLInputElement | null) => void
+  allowedRegions?: string[]
 }) {
   const [text, setText] = useState(value)
   const [open, setOpen] = useState(false)
@@ -3418,11 +3534,15 @@ function RegionSelect({ value, onChange, inputClass = 'cli-input', assignRef }: 
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
+  // 선택된 프로필이 있으면 그 프로필의 구독 리전으로 후보를 좁힌다. 테이블에 없는 신규 리전은 id 로 폴백.
+  const pool = allowedRegions && allowedRegions.length > 0
+    ? allowedRegions.map(id => REGIONS.find(r => r.id === id) ?? { id, ko: id, en: id, geo: '' })
+    : REGIONS
   const raw = text.trim()
   const q = raw.toLowerCase()
   const matches = raw
-    ? REGIONS.filter(r => r.ko.includes(raw) || r.en.toLowerCase().includes(q) || r.id.includes(q))
-    : REGIONS
+    ? pool.filter(r => r.ko.includes(raw) || r.en.toLowerCase().includes(q) || r.id.includes(q))
+    : pool
   const pick = (id: string) => { onChange(id); setText(id); setOpen(false) }
   const commit = () => { const resolved = resolveRegion(text); setText(resolved); if (resolved !== value) onChange(resolved) }
   return (
@@ -3455,11 +3575,60 @@ function RegionSelect({ value, onChange, inputClass = 'cli-input', assignRef }: 
   )
 }
 
-function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, imageDiscoveryCommand, currentShape = '', subVal, onSub }: {
+// 이름 후보 콤보박스 — 선택된 프로필에 캐시된 컴파트먼트·리소스 이름을 드롭다운으로 고르거나 자유 입력.
+// 선택하면 값은 "이름"이 되고, 최종 bash 가 이름→OCID 를 실행시점에 조회한다(값 캐시 아님).
+function NameSelect({ value, onChange, names, placeholder }: {
+  value: string; onChange: (v: string) => void; names: string[]; placeholder?: string
+}) {
+  const [text, setText] = useState(value)
+  const [open, setOpen] = useState(false)
+  const [hi, setHi] = useState(0)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { setText(value) }, [value])
+  useEffect(() => {
+    const onDoc = (event: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+  const raw = text.trim().toLowerCase()
+  const matches = raw ? names.filter(n => n.toLowerCase().includes(raw)) : names
+  const pick = (name: string) => { onChange(name); setText(name); setOpen(false) }
+  return (
+    <div className="region-select name-select" ref={wrapRef}>
+      <input className="cli-input" value={text} placeholder={placeholder || '이름 선택 또는 입력'}
+        autoComplete="off" role="combobox" aria-expanded={open}
+        onFocus={() => { setOpen(true); setHi(0) }}
+        onChange={event => { setText(event.target.value); onChange(event.target.value); setOpen(true); setHi(0) }}
+        onKeyDown={event => {
+          if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); setHi(h => Math.min(h + 1, matches.length - 1)) }
+          else if (event.key === 'ArrowUp') { event.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
+          else if (event.key === 'Enter' && open && matches[hi]) { event.preventDefault(); pick(matches[hi]) }
+          else if (event.key === 'Escape') setOpen(false)
+        }}
+        onBlur={() => window.setTimeout(() => setOpen(false), 120)} />
+      {open && matches.length > 0 && (
+        <ul className="region-menu" role="listbox">
+          {matches.slice(0, 30).map((n, i) => (
+            <li key={n}>
+              <button type="button" className={`region-opt${i === hi ? ' on' : ''}${n === value ? ' sel' : ''}`}
+                onMouseEnter={() => setHi(i)} onMouseDown={event => { event.preventDefault(); pick(n) }}>
+                <span className="region-city">{n}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, imageDiscoveryCommand, currentShape = '', lookupNames, regionOptions, subVal, onSub }: {
   o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean
   dynamic: boolean; rootTenancy?: boolean; onToggleDynamic?: (on: boolean) => void
   imageDiscoveryCommand?: string
   currentShape?: string
+  lookupNames?: string[]
+  regionOptions?: string[]
   subVal: (key: string) => string; onSub: (key: string, v: string) => void
 }) {
   const fieldId = cliFieldAnchorId(o.name)
@@ -3495,7 +3664,16 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
     return (
       <div id={fieldId} className="cli-field" data-cli-option={o.name}>
         {label}
-        <RegionSelect value={value} onChange={onChange} />
+        <RegionSelect value={value} onChange={onChange} allowedRegions={regionOptions} />
+      </div>
+    )
+  }
+  // 동적 조회 필드 + 선택된 프로필의 이름 후보 → 콤보박스(선택 or 자유입력). OCID 는 실행시점 live 해석.
+  if (lookupNames && lookupNames.length > 0 && dynamic) {
+    return (
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
+        {label}
+        <NameSelect value={value} onChange={onChange} names={lookupNames} placeholder={o.dynamicLookup?.inputPlaceholder || o.placeholder} />
       </div>
     )
   }

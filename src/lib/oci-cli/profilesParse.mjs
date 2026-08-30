@@ -1,0 +1,184 @@
+// OCI CLI 프로필 — 순수 로직(수집 레시피 생성 · 붙여넣기 봉투 파싱 · 이름 후보 조회).
+// localStorage 접근은 profiles.ts(비순수)에서만. 여기는 테스트 가능한 순수 함수만 둔다.
+//
+// 설계: 동적조회 OCID 는 실행시점에 live 해석(신선도·안전 유지)하고, 여기서는 프로필별
+// "이름 후보"만 캐시해 드롭다운으로 고르게 한다. OCID 는 저장하지 않는다(compartment 는
+// 예외적으로 id 를 함께 담아 ROOT/스코프 표시에 쓰되, 최종 해석은 여전히 이름→OCID live).
+
+export const PROFILE_SCHEMA_VERSION = 1
+
+// OCI Resource Search 의 resource-type → 이 사이트의 동적조회 target 키.
+// (exactName 동적조회가 참조하는 리소스만. 나머지 타입은 무시된다.)
+export const SEARCH_TYPE_TO_TARGET = {
+  Instance: 'instance',
+  Vcn: 'vcn',
+  Subnet: 'subnet',
+  RouteTable: 'route-table',
+  SecurityList: 'security-list',
+  NetworkSecurityGroup: 'nsg',
+  InternetGateway: 'internet-gateway',
+  NatGateway: 'nat-gateway',
+  ServiceGateway: 'service-gateway',
+  LocalPeeringGateway: 'local-peering-gateway',
+  Drg: 'drg',
+  DrgAttachment: 'drg-attachment',
+  RemotePeeringConnection: 'remote-peering-connection',
+  PublicIp: 'public-ip',
+  LoadBalancer: 'load-balancer',
+  BootVolume: 'boot-volume',
+  Volume: 'block-volume',
+  VolumeGroup: 'volume-group',
+  FileSystem: 'file-system',
+  MountTarget: 'mount-target',
+  InstanceConfiguration: 'instance-configuration',
+  InstancePool: 'instance-pool',
+  DedicatedVmHost: 'dedicated-vm-host',
+  DbSystem: 'base-db',
+  AutonomousDatabase: 'autonomous-database',
+  MysqlDbSystem: 'mysql',
+  OnsTopic: 'topic',
+  Alarm: 'alarm',
+}
+
+const uniqueSorted = values => [...new Set(values.filter(Boolean))].sort((a, b) =>
+  a.localeCompare(b, 'en', { sensitivity: 'base' }))
+
+// ── 수집 레시피(bash) ────────────────────────────────────────────────────
+// ocicli "프로필" 카테고리에 그대로 노출된다. 읽기전용(list/get/search)만 실행하고,
+// 프로필별 원본 출력을 봉투에 담아 단일 JSON 배열로 출력한다. 필드 추출은 블로그가 한다.
+export function renderProfileCollectScript() {
+  return `#!/usr/bin/env bash
+# OCI 프로필 수집 — ~/.oci/config 의 모든 프로필에서 리전·컴파트먼트·리소스 이름을 모아
+# 블로그에 붙여넣을 단일 JSON 으로 출력한다. 읽기전용(list/get/search)만 실행한다.
+set -uo pipefail
+CONFIG="\${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
+[ -r "$CONFIG" ] || { echo "[ERROR] config 를 읽을 수 없습니다: $CONFIG" >&2; exit 1; }
+
+# 프로필(섹션) 목록 — CRLF 제거 후 [섹션] 헤더만
+mapfile -t PROFILES < <(tr -d '\\r' < "$CONFIG" | grep -oE '^\\[[^]]+\\]' | tr -d '[]')
+[ "\${#PROFILES[@]}" -gt 0 ] || { echo "[ERROR] config 에서 프로필을 찾지 못했습니다." >&2; exit 1; }
+
+emit() {
+  local P="$1" TEN SUBS COMPS RES
+  # 같은 섹션의 tenancy= (CRLF 제거)
+  TEN=$(tr -d '\\r' < "$CONFIG" | awk -v s="[$P]" \\
+    '$0==s{f=1;next} /^\\[/{f=0} f&&/^[[:space:]]*tenancy[[:space:]]*=/{sub(/^[^=]*=[[:space:]]*/,"");print;exit}')
+  # 가용리전 + 홈리전 (실패해도 빈 배열로 계속)
+  SUBS=$(oci iam region-subscription list --profile "$P" --output json 2>/dev/null || echo '{"data":[]}')
+  # 컴파트먼트(권위 소스) — 테넌시 전체 하위트리
+  COMPS=$(oci iam compartment list --compartment-id "$TEN" --compartment-id-in-subtree true --all \\
+    --profile "$P" --output json 2>/dev/null || echo '{"data":[]}')
+  # 나머지 리소스 이름 — Resource Search(프로필 홈 리전 기준). 필터는 블로그가 한다.
+  RES=$(oci search resource structured-search --query-text "query all resources" \\
+    --profile "$P" --output json 2>/dev/null || echo '{"data":[]}')
+  printf '{"name":"%s","tenancy":"%s","subscriptions":%s,"compartments":%s,"resources":%s}' \\
+    "$P" "$TEN" "$SUBS" "$COMPS" "$RES"
+}
+
+echo '['
+sep=''
+for P in "\${PROFILES[@]}"; do
+  printf '%s' "$sep"; emit "$P"; sep=','
+done
+echo ']'
+`
+}
+
+// ── 붙여넣기 봉투 → 프로필 레코드 ────────────────────────────────────────
+function asArray(value) {
+  if (Array.isArray(value)) return value
+  if (value && Array.isArray(value.data)) return value.data
+  return []
+}
+
+function extractOne(envelope) {
+  if (!envelope || typeof envelope !== 'object') return null
+  const name = String(envelope.name ?? '').trim()
+  if (!name) return null
+
+  const subs = asArray(envelope.subscriptions)
+  const homeRegion = (subs.find(s => s && s['is-home-region'])?.['region-name']) || ''
+  const regions = uniqueSorted(subs
+    .filter(s => s && s.status === 'READY')
+    .map(s => s['region-name']))
+
+  const compartments = asArray(envelope.compartments)
+    .filter(c => c && c['lifecycle-state'] !== 'DELETED' && c.name && c.id)
+    .map(c => ({ name: String(c.name), id: String(c.id) }))
+
+  /** @type {Record<string, {name: string, compartmentId?: string}[]>} */
+  const names = {}
+  for (const item of asArray(envelope.resources)) {
+    if (!item) continue
+    const target = SEARCH_TYPE_TO_TARGET[item['resource-type']]
+    const display = item['display-name']
+    if (!target || !display) continue
+    if (item['lifecycle-state'] === 'DELETED' || item['lifecycle-state'] === 'TERMINATED') continue
+    ;(names[target] ??= []).push({ name: String(display), compartmentId: item['compartment-id'] })
+  }
+
+  return {
+    v: PROFILE_SCHEMA_VERSION,
+    name,
+    tenancyId: String(envelope.tenancy ?? '').trim() || undefined,
+    homeRegion: homeRegion || undefined,
+    regions,
+    compartments,
+    names,
+  }
+}
+
+/**
+ * 붙여넣은 봉투 텍스트를 프로필 레코드 배열로 변환.
+ * @returns {{ profiles: object[], error?: string }}
+ */
+export function parseCollectedProfiles(text) {
+  const trimmed = String(text ?? '').trim()
+  if (!trimmed) return { profiles: [], error: '붙여넣은 내용이 비어 있습니다.' }
+  let parsed
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return { profiles: [], error: 'JSON 파싱 실패 — 수집 스크립트 출력 전체를 그대로 붙여넣었는지 확인하세요.' }
+  }
+  const envelopes = Array.isArray(parsed) ? parsed : [parsed]
+  const profiles = envelopes.map(extractOne).filter(Boolean)
+  if (!profiles.length) return { profiles: [], error: '유효한 프로필을 찾지 못했습니다(name 필드 확인).' }
+  return { profiles }
+}
+
+// ── 이름 후보 조회 ───────────────────────────────────────────────────────
+/**
+ * 동적조회 필드에 보여줄 이름 후보 목록.
+ * @param {object|null|undefined} profile
+ * @param {string} target  'compartment' | 'vcn' | 'subnet' | ...
+ * @param {{ compartmentId?: string }} [opts]  exactName 을 선택 컴파트먼트로 필터
+ * @returns {string[]}
+ */
+export function lookupNamesFor(profile, target, opts = {}) {
+  if (!profile || !target) return []
+  if (target === 'compartment') {
+    const names = (profile.compartments ?? []).map(c => c.name)
+    return uniqueSorted(['ROOT', ...names])
+  }
+  let entries = profile.names?.[target] ?? []
+  if (opts.compartmentId) entries = entries.filter(e => e.compartmentId === opts.compartmentId)
+  return uniqueSorted(entries.map(e => e.name))
+}
+
+/** 프로필 레코드의 요약 카운트(관리 화면 표시용). */
+export function profileSummary(profile) {
+  const resourceCount = Object.values(profile.names ?? {}).reduce((sum, list) => sum + list.length, 0)
+  return {
+    regions: (profile.regions ?? []).length,
+    compartments: (profile.compartments ?? []).length,
+    resources: resourceCount,
+  }
+}
+
+/** 이름으로 병합(같은 name 은 새 레코드로 덮어씀). 이름 정렬 유지. */
+export function mergeProfiles(existing, incoming) {
+  const byName = new Map(existing.map(p => [p.name, p]))
+  for (const p of incoming) byName.set(p.name, p)
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }))
+}
