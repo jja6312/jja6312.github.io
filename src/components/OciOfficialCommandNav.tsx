@@ -183,7 +183,7 @@ export default function OciOfficialCommandNav({ activePath, curatedPaths, onSele
                 <span className={`caret${open ? ' open' : ''}`}>▸</span>
                 <span>{group.label}</span><b>{group.services.length}</b>
               </button>
-              {open && group.services.map(serviceKey => {
+              {open && <div className="oci-official-services oci-dropdown-in">{group.services.map(serviceKey => {
                 const service = serviceMap.get(serviceKey)
                 const selected = activeService === serviceKey
                 return <div key={serviceKey} className="oci-official-service">
@@ -193,12 +193,12 @@ export default function OciOfficialCommandNav({ activePath, curatedPaths, onSele
                     <span title={serviceKey}>{service?.label ?? serviceKey}</span><b>{service?.commandCount ?? 0}</b>
                   </button>
                   {selected && loadingService === serviceKey && <p className="oci-official-loading">명령 불러오는 중…</p>}
-                  {selected && tree.length > 0 && <div className="oci-official-tree">
+                  {selected && tree.length > 0 && <div className="oci-official-tree oci-dropdown-in">
                     <TreeItems nodes={tree} depth={0} openNodes={openNodes} activePath={activePath}
                       curatedPaths={curatedPaths} onToggle={toggleNode} onSelect={onSelect} />
                   </div>}
                 </div>
-              })}
+              })}</div>}
             </div>
           })}
         </div>
