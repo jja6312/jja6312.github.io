@@ -651,11 +651,48 @@ kbd {
 .oci-official-result > span { color: var(--text-faint); font-size: 9.5px; line-height: 1.35; }
 .oci-official-result em { color: var(--text-faint); font: 700 8.5px/1.2 Consolas, monospace; font-style: normal; }
 .oci-official-result.curated em { color: #49d17d; }
-.cli-curated-cat { padding-top: 5px; border-top: 1px solid var(--line-soft); }
-.cli-curated-toggle small { margin-left: auto; color: var(--text-faint); font-size: 9px; font-weight: 400; }
-.cli-curated-body { margin-top: 2px; padding-left: 3px; border-left: 1px solid var(--line-soft); }
+.cli-unified-tabs {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px;
+  margin-bottom: 9px; padding: 6px; border: 1px solid var(--line-soft);
+  border-radius: 11px; background: var(--bg-card);
+}
+.cli-unified-tabs button {
+  min-width: 0; padding: 7px 5px; border: 1px solid transparent; border-radius: 7px;
+  background: transparent; color: var(--text-faint); font: 700 9.5px/1.2 inherit;
+  cursor: pointer; white-space: nowrap;
+}
+.cli-unified-tabs button:first-child { grid-column: 1 / -1; }
+.cli-unified-tabs button:hover { color: var(--text); background: var(--bg-inset); }
+.cli-unified-tabs button.on {
+  border-color: var(--accent-dim); background: var(--accent-glow); color: var(--accent);
+}
+.cli-personal-view {
+  max-height: min(72vh, 680px); overflow-y: auto; padding: 8px;
+  border: 1px solid var(--line-soft); border-radius: 11px; background: var(--bg-card);
+  scrollbar-width: thin;
+}
+.cli-personal-heading {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 7px; color: var(--text); font-size: 11px; font-weight: 800;
+}
+.cli-personal-heading b {
+  min-width: 20px; padding: 2px 5px; border-radius: 99px; background: var(--bg-inset);
+  color: var(--text-faint); font: 700 9px/1.2 Consolas, monospace; text-align: center;
+}
+.cli-personal-command {
+  display: grid; gap: 3px; width: 100%; padding: 8px 7px; border: 0;
+  border-bottom: 1px solid var(--line-soft); background: transparent; text-align: left; cursor: pointer;
+}
+.cli-personal-command:hover, .cli-personal-command.on { background: var(--bg-inset); }
+.cli-personal-command.on { box-shadow: inset 2px 0 var(--accent); }
+.cli-personal-command code { overflow-wrap: anywhere; color: var(--text); font: 9.5px/1.4 Consolas, monospace; }
+.cli-personal-command span { color: var(--text-faint); font-size: 9.5px; line-height: 1.35; }
+.cli-personal-command.verified span { color: #3b82f6; }
+.cli-personal-empty { margin: 10px 4px 3px; color: var(--text-faint); font-size: 10.5px; line-height: 1.55; }
+.cli-automation-view .cli-navitem.automation { margin-bottom: 4px; border: 1px solid var(--line-soft); }
 .cli-official-source { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: -10px 0 18px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 9px; background: var(--bg-inset); color: var(--text-faint); font-size: 10.5px; }
 .cli-official-source-badge { padding: 2px 6px; border: 1px solid var(--line); border-radius: 99px; color: var(--text-dim); font: 700 9px/1.2 Consolas, monospace; }
+.cli-official-enhanced-badge { padding: 2px 6px; border: 1px solid color-mix(in srgb, #49d17d 48%, var(--line)); border-radius: 99px; color: #49d17d; font: 700 9px/1.2 Consolas, monospace; }
 .cli-official-source code { color: var(--text-dim); font: 10px/1.2 Consolas, monospace; }
 .cli-official-source a, .cli-official-source button { margin-left: auto; border: 0; background: transparent; color: var(--accent); font: 10.5px/1.3 inherit; text-decoration: none; cursor: pointer; }
 .cli-official-source button { margin-left: 0; padding: 3px 7px; border: 1px solid var(--accent-dim); border-radius: 6px; }

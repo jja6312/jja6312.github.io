@@ -67,7 +67,9 @@ if (listDefaults < 41) fail(`Expected at least 41 LIST defaults, got ${listDefau
 if (mutatingDefaults !== 0) fail(`Unexpected mutating defaults: ${mutatingDefaults}`)
 
 const callerCount = (builder.match(/defaultCliOperation\(/g) ?? []).length
-if (callerCount !== 3) fail(`Deep link, resource selection, and favorite fallback must share the safe default helper; got ${callerCount} callers`)
+if (callerCount < 5 || !builder.includes("savedPresentation ?? 'enhanced'")) {
+  fail(`Deep link, official enhancement, resource selection, and favorite fallback must share the safe default helper; got ${callerCount} callers`)
+}
 if (!builder.includes("useState<CrudVerb>('list')")) fail('Builder state must start conservatively with LIST')
 
 console.log(`OCI CLI safe defaults verified: ${operationResources} CRUD resources, ${listDefaults} LIST, ${getDefaults} GET, ${mutatingDefaults} mutating`)

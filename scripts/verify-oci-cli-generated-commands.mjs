@@ -19,7 +19,7 @@ vm.runInNewContext(compiledOptionModel, { module: optionModule, exports: optionM
 const optionModel = optionModule.exports
 
 const builderStart = page.indexOf('const formatCliCommand')
-const builderEnd = page.indexOf('\nconst catOfResource', builderStart)
+const builderEnd = page.indexOf('\nexport default function CliBuilderPage', builderStart)
 if (builderStart < 0 || builderEnd < 0) fail('OCI CLI builder extraction failed')
 const commonNames = [
   ...catalog.executionContext.request.map(option => option.name),

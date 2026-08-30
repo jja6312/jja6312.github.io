@@ -21,16 +21,27 @@ if (index.source.scope !== 'all-public-services'
 }
 for (const marker of [
   '<OciOfficialCommandNav',
-  '운영 Overlay',
+  "type CliSidebarView = 'all' | 'recent' | 'favorites' | 'verified' | 'automation'",
+  "type OfficialCommandPresentation = 'enhanced' | 'official'",
+  "savedPresentation ?? 'enhanced'",
+  '공식 원본 보기',
+  '운영 강화 보기',
+  '최근 열어본 명령',
+  '실행 확인',
+  '자동화',
   'officialCommandToBuilder',
   '--generate-param-json-input',
   'useCliInputWizardShortcut(Boolean(cmd)',
   "f.resource.startsWith('official:')",
   'Oracle 명령 문서',
-  'selectResource(target.resource, target.operation, target.action)',
+  'curatedTargetPathMap',
+  'openOfficialPath',
   'operation: operation as CrudVerb',
 ]) {
   if (!page.includes(marker)) fail(`Official OCI CLI workspace marker missing: ${marker}`)
+}
+for (const forbidden of ['<OciResourceNav', '운영 Overlay 열기', 'setCuratedOpen']) {
+  if (page.includes(forbidden)) fail(`Duplicate official/overlay navigation must stay removed: ${forbidden}`)
 }
 for (const marker of [
   'loadOfficialCliIndex',
@@ -50,15 +61,16 @@ for (const marker of [
 ]) {
   if (!loader.includes(marker)) fail(`Official OCI CLI lazy-loader contract missing: ${marker}`)
 }
-for (const marker of ['.oci-official-nav', '.oci-official-search', '.oci-official-tree-item', '.cli-curated-body']) {
+for (const marker of ['.oci-official-nav', '.oci-official-search', '.oci-official-tree-item', '.cli-unified-tabs', '.cli-personal-view', '.cli-official-enhanced-badge']) {
   if (!css.includes(marker)) fail(`Official OCI CLI UI style missing: ${marker}`)
 }
 
 console.log(JSON.stringify({
   services: index.totals.services,
   commands: index.totals.commands,
-  defaultSurface: 'official-full-tree',
-  overlay: 'curated-operational',
+  defaultSurface: 'official-canonical-with-auto-enhancement',
+  personalViews: ['recent', 'favorites', 'verified'],
+  automation: ['custom-cli', 'blueprints'],
   lazyServiceShards: index.services.length,
   altInputWizard: true,
   jsonTemplateFlow: true,

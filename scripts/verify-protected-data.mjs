@@ -551,12 +551,14 @@ if (!cliBuilder.includes('function buildIamCommand')
 if (!cliBuilder.includes('cli-action-strip') || !cliBuilder.includes('action:${selectedAction}')) {
   throw new Error('IAM action selection or verification UI missing')
 }
-if (!cliBuilder.includes('Custom CLI') || !cliBuilder.includes('setCustomOpen(open => !open)')) {
-  throw new Error('Custom CLI accordion missing')
+if (!cliBuilder.includes("sidebarView === 'automation'") || !cliBuilder.includes('Custom Command')
+  || cliBuilder.includes('setCustomOpen(open => !open)')) {
+  throw new Error('Unified Automation view or Custom Command entry missing')
 }
 if (!cliBuilder.includes('const verificationKey = (r: string, operation: string)')
   || !cliBuilder.includes('`${r}:${operation}`')
-  || !cliBuilder.includes('isOperationVerified(activeVerificationResource, operation.verb)')
+  || !cliBuilder.includes('isEnhancedOperationVerified(operation.verb)')
+  || !cliBuilder.includes('official:${path}')
   || !cliBuilder.includes('currentVerificationOperation')) {
   throw new Error('CRUD-level verification controls missing')
 }

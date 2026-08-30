@@ -59,7 +59,7 @@ function TreeItems({ nodes, depth, openNodes, activePath, curatedPaths, onToggle
           title={node.command?.help || node.label}>
           <span className={`caret${branch && open ? ' open' : ''}`} aria-hidden="true">{branch ? '▸' : '·'}</span>
           <span>{node.label}</span>
-          {node.command && <span className={`oci-official-status${curated ? ' curated' : ''}`}>{curated ? '운영' : '공식'}</span>}
+          {node.command && <span className={`oci-official-status${curated ? ' curated' : ''}`}>{curated ? '강화' : '공식'}</span>}
         </button>
         {branch && open && <TreeItems nodes={node.children} depth={depth + 1} openNodes={openNodes}
           activePath={activePath} curatedPaths={curatedPaths} onToggle={onToggle} onSelect={onSelect} />}
@@ -163,7 +163,7 @@ export default function OciOfficialCommandNav({ activePath, curatedPaths, onSele
               onClick={() => void selectSearchResult(result.path, result.service)}>
               <code>{result.path}</code>
               <span>{result.help || serviceMap.get(result.service)?.label}</span>
-              <em>{curated ? '운영 Overlay' : '공식 수록'}</em>
+              <em>{curated ? '운영 강화' : '공식 수록'}</em>
             </button>
           })}
           {!searchResults.length && <p className="oci-official-empty">일치하는 공식 명령이 없습니다.</p>}
