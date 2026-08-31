@@ -876,7 +876,7 @@ for res, d in raw.items():
 
 # ── 커스텀 레시피 (backbone 없음) ──
 # 여러 명령을 묶거나 별도 조립이 필요한 작업은 CliBuilderPage 의 전용 빌더가 최종 명령을 만든다.
-def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=False, typ='str'):
+def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=False, typ='str', **metadata):
     o = {'name': name, 'required': req, 'type': 'bool' if flag else typ, 'choices': None, 'help': help, 'placeholder': ph}
     if multi:
         o['multi'] = True
@@ -886,6 +886,7 @@ def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=Fa
         o['choices'] = choices
     if flag:
         o['flag'] = True
+    o.update(metadata)
     return o
 
 def _io(name, req, help, ph='', **metadata):
@@ -1439,6 +1440,90 @@ def _wizbase_monitoring():
         'advanced': [],
     }
 
+def _wizocm_functions_foundation():
+    """Safe, idempotent foundation for the Functions migration described in
+    OCI_FUNCTIONS_IMPLEMENTATION_SPEC.md.  This intentionally does not accept
+    customer credentials or a Git/OCIR password: those are not CLI catalog
+    inputs and must remain in Vault/each customer tenancy's approved flow.
+    """
+    return {
+        'resource': 'wizocm-functions-foundation',
+        'label': 'WizOCM Functions — 기반 구축·검증',
+        'cmd': 'oci fn application create',
+        'customWorkflow': 'wizocm-functions-foundation',
+        'preferredOperation': 'create',
+        'help': ('PLAN은 기존 private subnet·NAT/Service Gateway 경로, NSG, OCIR image와 이름 충돌만 읽어 확인합니다. '
+                 'APPLY는 확인 문구가 일치할 때만 Functions 기반(NSG, immutable OCIR repository, application, 3개 function, '
+                 '최소 Runtime IAM, daily schedule, invoke log)을 idempotent하게 만듭니다. customer API key·secret 값·cross-tenancy Admit/Endorse는 만들지 않습니다.'),
+        'sections': [
+            {'label': '실행 안전장치', 'options': [
+                _co('--mode', True, 'PLAN은 조회만, APPLY는 신규 기반 자원을 생성/병합합니다.',
+                    choices=['PLAN', 'APPLY'], default='PLAN'),
+                _co('--confirm-apply', False, 'APPLY일 때 정확히 APPLY_WIZOCM_FUNCTIONS 를 입력해야 합니다.', 'APPLY_WIZOCM_FUNCTIONS', shellQuote=True),
+            ]},
+            {'label': '네트워크 · 로그 대상', 'options': [
+                _co('--compartment-input', True, '대상 Compartment의 정확한 이름 또는 OCID. 이름은 tenancy 전체에서 1건일 때만 사용합니다.', 'prod 또는 ocid1.compartment.oc1..xxxx', shellQuote=True),
+                _co('--vcn-input', True, 'Functions private subnet이 들어 있는 VCN의 정확한 이름 또는 OCID.', 'vcn-prod 또는 ocid1.vcn.oc1..xxxx', shellQuote=True),
+                _co('--private-subnet-input', True, 'Functions application에 연결할 private subnet의 정확한 이름 또는 OCID.', 'private-subnet-prod 또는 ocid1.subnet.oc1..xxxx', shellQuote=True),
+                _co('--spring-vnic-id', True, 'Spring internal API가 있는 Compute VNIC OCID. 기존 NSG 배열을 보존해 Spring NSG를 추가합니다.', 'ocid1.vnic.oc1.ap-seoul-1.xxxx', shellQuote=True),
+                _co('--spring-instance-id', True, 'Spring HMAC secret을 읽을 정확한 Compute instance OCID. dynamic group을 이 1대에만 제한합니다.', 'ocid1.instance.oc1.ap-seoul-1.xxxx', shellQuote=True),
+                _co('--log-group-input', True, 'Functions invoke log를 둘 기존 Log Group의 정확한 이름 또는 OCID.', 'operations-prod 또는 ocid1.loggroup.oc1.ap-seoul-1.xxxx', shellQuote=True),
+                _co('--spring-internal-url', True, 'Functions가 호출할 private Spring internal URL. public endpoint를 넣지 않습니다.', 'http://10.0.1.145:8080', shellQuote=True),
+                _co('--hmac-secret-ocid', True, 'HMAC secret의 OCID만 입력합니다. secret 값은 절대 입력하지 않습니다.', 'ocid1.vaultsecret.oc1.ap-seoul-1.xxxx', shellQuote=True),
+            ]},
+            {'label': '이미지 · 스케줄', 'options': [
+                _co('--ocir-namespace', True, 'OCIR tenancy namespace. 이미지 URI 생성에만 사용합니다.', 'tenancynamespace', shellQuote=True),
+                _co('--release-version', True, '이미 push된 세 image의 immutable full Git commit SHA tag.', '0123456789abcdef0123456789abcdef01234567', shellQuote=True),
+                _co('--schedule-cron', True, '매일 dispatcher를 호출할 5-field UNIX cron(UTC). KST 03:10은 전날 18:10 UTC입니다.', '10 18 * * *', default='10 18 * * *', shellQuote=True),
+            ]},
+        ],
+        'advanced': [],
+    }
+
+def _wizocm_devops_cicd():
+    """Native Artifact + manual approval + one exact Compute target.
+
+    The Oracle CLI currently accepts a GitHub PAT as a raw connection argument.
+    This workflow deliberately accepts an already-created connection OCID instead
+    of a PAT, so the catalog never prints, stores, or passes a secret value.
+    """
+    return {
+        'resource': 'wizocm-devops-cicd',
+        'label': 'WizOCM DevOps — CI/CD Release Foundation',
+        'cmd': 'oci devops project create',
+        'customWorkflow': 'wizocm-devops-cicd',
+        'preferredOperation': 'create',
+        'help': ('Generic Artifact 기반 native release → Manual Approval → 정확히 1개 Compute instance 배포 흐름을 준비합니다. '
+                 'PLAN은 입력·기존 자원을 확인하고, APPLY는 Project·immutable repository·pipeline·environment·artifact 참조·stage를 생성합니다. '
+                 'GitHub PAT는 입력받지 않으며, Vault/Console 등으로 안전하게 만든 GitHub Connection OCID만 참조합니다.'),
+        'sections': [
+            {'label': '실행 안전장치', 'options': [
+                _co('--mode', True, 'PLAN은 조회만, APPLY는 DevOps control-plane 자원을 생성합니다.', choices=['PLAN', 'APPLY'], default='PLAN'),
+                _co('--confirm-apply', False, 'APPLY일 때 정확히 APPLY_WIZOCM_DEVOPS 를 입력해야 합니다.', 'APPLY_WIZOCM_DEVOPS', shellQuote=True),
+            ]},
+            {'label': '소스 · 프로젝트', 'options': [
+                _co('--compartment-input', True, 'DevOps project와 Artifact Registry repository를 둘 Compartment 이름 또는 OCID.', 'prod 또는 ocid1.compartment.oc1..xxxx', shellQuote=True),
+                _co('--project-name', True, 'DevOps Project의 고유 이름.', 'wizocm-native-cicd-prod', default='wizocm-native-cicd-prod', shellQuote=True),
+                _co('--generic-repository-name', True, 'immutable Generic Artifact Repository 이름.', 'wizocm-release-prod', default='wizocm-release-prod', shellQuote=True),
+                _co('--github-connection-id', True, '이미 안전하게 만든 GitHub Connection OCID. PAT 원문은 입력하지 않습니다.', 'ocid1.devopsconnection.oc1.ap-seoul-1.xxxx', shellQuote=True),
+                _co('--github-repository-url', True, 'Build가 읽을 GitHub HTTPS repository URL.', 'https://github.com/example/wizocm.git', shellQuote=True),
+                _co('--github-branch', True, 'CI trigger 및 Managed Build source branch.', 'main', default='main', shellQuote=True),
+                _co('--build-image', True, 'Console에서 현재 확인한 Managed Build base image 식별자. OCI가 목록을 바꿀 수 있어 추측값을 넣지 않습니다.', 'OL8_X86_64_STANDARD_10', shellQuote=True),
+                _co('--build-spec-file', True, 'repository 안의 build spec 상대 경로. RELEASE_VERSION exported variable 계약을 포함해야 합니다.', 'build_spec.yaml', default='build_spec.yaml', shellQuote=True),
+            ]},
+            {'label': '배포 대상 · artifact 계약', 'options': [
+                _co('--target-instance-id', True, '배포할 정확한 Compute instance OCID 1개. compartment/이름 selector는 사용하지 않습니다.', 'ocid1.instance.oc1.ap-seoul-1.xxxx', shellQuote=True),
+                _co('--release-artifact-path', True, 'build_spec이 deliver할 Generic Artifact 경로.', 'releases/wizocm-release.zip', default='releases/wizocm-release.zip', shellQuote=True),
+                _co('--release-version-variable', True, 'build_spec이 export할 immutable version 변수명. full commit SHA를 값으로 export합니다.', 'RELEASE_VERSION', default='RELEASE_VERSION', shellQuote=True),
+                _co('--deployment-spec-file', True, '현재 실행 호스트의 versioned deployment specification 파일. 최초 bootstrap 때만 repository에 upload합니다.', './deploy/deployment_spec.yaml', shellQuote=True, typ='file'),
+                _co('--deployment-spec-path', True, 'Generic Artifact Repository 안의 deployment specification 경로.', 'deploy/deployment_spec.yaml', default='deploy/deployment_spec.yaml', shellQuote=True),
+                _co('--deployment-spec-version', True, 'deployment specification의 immutable bootstrap version.', 'bootstrap-1', default='bootstrap-1', shellQuote=True),
+                _co('--ons-topic-id', True, 'Project notification에 연결할 기존 ONS Topic OCID. 현재 OCI CLI의 Project create는 notification-config를 필수로 요구하므로, 빈 Topic으로 우회하지 않습니다.', 'ocid1.onstopic.oc1.ap-seoul-1.xxxx', shellQuote=True),
+            ]},
+        ],
+        'advanced': [],
+    }
+
 EXTRA = {
     'wizbase-monitoring-setup': _wizbase_monitoring(),
     'compartment-resource-cleansing': _compartment_cleanup(),
@@ -1451,6 +1536,8 @@ EXTRA = {
     'iam-region-subscription': _iam_region_subscription(),
     'instance-maintenance-reboot': _maintenance_reboot(),
     'instance-boot-volume-backup': _instance_boot_volume_backup(),
+    'wizocm-functions-foundation': _wizocm_functions_foundation(),
+    'wizocm-devops-cicd': _wizocm_devops_cicd(),
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
     'block-volume-cross-copy': _cross('volume', '--source-volume-id', 'Block Volume', 'ocid1.volume.oc1.ap-seoul-1.xxxx'),
 }

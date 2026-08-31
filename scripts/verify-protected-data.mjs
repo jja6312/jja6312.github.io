@@ -447,6 +447,27 @@ for (const level of [1, 2, 3]) {
     || contextOption(allBalances, '--region')?.defaultValue !== 'ap-seoul-1') {
     throw new Error(`L${level} all Subscription balances execution defaults invalid`)
   }
+  const functionsFoundation = bundle.cliCatalog.commands['wizocm-functions-foundation']
+  if (functionsFoundation?.customWorkflow !== 'wizocm-functions-foundation'
+    || functionsFoundation.cmd !== 'oci fn application create') {
+    throw new Error(`L${level} WizOCM Functions custom workflow metadata invalid`)
+  }
+  const functionsRequired = requiredNames(functionsFoundation)
+  for (const name of ['--compartment-input', '--vcn-input', '--private-subnet-input', '--spring-vnic-id', '--spring-instance-id', '--log-group-input', '--spring-internal-url', '--hmac-secret-ocid', '--ocir-namespace', '--release-version']) {
+    if (!functionsRequired.includes(name)) throw new Error(`L${level} Functions workflow required input missing: ${name}`)
+  }
+  const devopsFoundation = bundle.cliCatalog.commands['wizocm-devops-cicd']
+  if (devopsFoundation?.customWorkflow !== 'wizocm-devops-cicd'
+    || devopsFoundation.cmd !== 'oci devops project create') {
+    throw new Error(`L${level} WizOCM DevOps custom workflow metadata invalid`)
+  }
+  const devopsRequired = requiredNames(devopsFoundation)
+  for (const name of ['--github-connection-id', '--target-instance-id', '--build-image', '--deployment-spec-file', '--ons-topic-id']) {
+    if (!devopsRequired.includes(name)) throw new Error(`L${level} DevOps workflow required input missing: ${name}`)
+  }
+  if (JSON.stringify(devopsFoundation).includes('personal-access-token')) {
+    throw new Error(`L${level} DevOps workflow must not store GitHub PAT input`)
+  }
   const cleanup = bundle.cliCatalog.commands['compartment-resource-cleansing']
   if (!cleanup?.compartmentCleanup) throw new Error(`L${level} compartment cleansing 메뉴 누락`)
   const cleanupOptions = cleanup.sections.flatMap(section => section.options)

@@ -143,7 +143,7 @@ for (const [resource, command] of Object.entries(catalog.commands)) {
     records.push({ resource, command, operation: command.preferredOperation ?? 'get', action, surface })
   }
 }
-if (records.length !== 240) fail(`Expected 240 command surfaces, got ${records.length}`)
+if (records.length !== 242) fail(`Expected 242 command surfaces, got ${records.length}`)
 
 let requiredGuards = 0
 let actionScripts = 0
@@ -167,7 +167,7 @@ for (const record of records) {
     if (empty.valid) fail(`${resource}:${action ? `action:${action}` : operation} accepts empty required input`)
   }
   const responseEnabled = !command.crossCopy && !command.maintenanceReboot && !command.compartmentCleanup
-    && !command.allSubscriptionBalances && !command.iamMfaReset && !command.manualBackup
+    && !command.allSubscriptionBalances && !command.iamMfaReset && !command.manualBackup && !command.customWorkflow
   const script = buildCli(command, values, {}, operation, action,
     ["--profile 'DEFAULT'"], responseEnabled ? ['--output json'] : [])
   const key = `${resource}:${action ? `action:${action}` : operation}`
@@ -175,7 +175,7 @@ for (const record of records) {
   scripts.set(key, script)
   actionScripts += action ? 1 : 0
   specialScripts += !!(command.crossCopy || command.maintenanceReboot || command.compartmentCleanup
-    || command.allSubscriptionBalances || command.iamMfaReset || command.manualBackup)
+    || command.allSubscriptionBalances || command.iamMfaReset || command.manualBackup || command.customWorkflow)
 }
 
 const bash = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash'
@@ -351,6 +351,31 @@ if (!cleanup?.includes('CONFIRM_COMPARTMENT') || !cleanup.includes('confirm comp
 const mfa = scripts.get('iam-user-mfa-reset:create')
 if (!mfa?.includes('CONFIRM_USER_NAME') || !mfa.includes('confirm user name')) {
   fail('IAM MFA reset confirmation guard missing from generated command')
+}
+const functionsFoundation = scripts.get('wizocm-functions-foundation:create')
+for (const marker of [
+  'APPLY_WIZOCM_FUNCTIONS', 'oci fn application create', 'oci fn function create',
+  '--detached-mode-timeout-in-seconds', 'oci network nsg rules add',
+  'oci artifacts container repository create', 'oci resource-scheduler schedule create',
+  'oci logging log create', 'ocid1.vaultsecret.*', 'no resource will be changed',
+]) {
+  if (!functionsFoundation?.includes(marker)) fail(`Functions foundation missing safety/flow marker: ${marker}`)
+}
+if (functionsFoundation.includes('personal-access-token') || functionsFoundation.includes('private-key')) {
+  fail('Functions foundation must not accept source-control or private-key secrets')
+}
+const devopsFoundation = scripts.get('wizocm-devops-cicd:create')
+for (const marker of [
+  'APPLY_WIZOCM_DEVOPS', 'oci devops project create', 'oci artifacts repository create-generic-repository',
+  'oci devops build-pipeline-stage create-build-stage', 'create-deliver-artifact-stage',
+  'create-trigger-deployment-stage', 'create-manual-approval-stage',
+  'create-deploy-compute-instance-group-stage', 'ocid1.devopsconnection.*',
+  'is-pass-all-parameters-enabled true', 'COUNT_BASED_APPROVAL', 'INSTANCE_IDS',
+]) {
+  if (!devopsFoundation?.includes(marker)) fail(`DevOps foundation missing safety/flow marker: ${marker}`)
+}
+if (devopsFoundation.includes('personal-access-token') || devopsFoundation.includes('--password')) {
+  fail('DevOps foundation must use a pre-created Connection OCID, not a raw secret')
 }
 
 console.log(JSON.stringify({
