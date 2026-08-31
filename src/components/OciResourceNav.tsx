@@ -1,7 +1,8 @@
 /* eslint-disable react/only-export-components -- the model and renderer intentionally share one menu contract. */
 import type { ReactNode } from 'react'
 import { parsePolicyStatement } from '../lib/oci-cli/policyParse.mjs'
-import { sortOciConsoleCategories } from '../lib/ociConsoleNavigation'
+import { sortOciConsoleCategories, OCI_CONSOLE_CATEGORY_ORDER } from '../lib/ociConsoleNavigation'
+import { ociCategoryCode, computeResourceCodes } from '../lib/oci-cli/ociNavNumbering.mjs'
 
 export type OciNavCatalog = {
   categories?: Array<{
@@ -171,16 +172,19 @@ export default function OciResourceNav({
   footer?: ReactNode
 }) {
   const categories = buildOciResourceNav(catalog, statements)
+  const resourceCode = computeResourceCodes(catalog?.categories, OCI_CONSOLE_CATEGORY_ORDER)
   return (
     <div className="oci-resource-nav" aria-label={`${surface === 'cli' ? 'OCI CLI' : 'OCI Policy'} 리소스 메뉴`}>
       {categories.map(category => {
+        const catCode = ociCategoryCode(category.label, OCI_CONSOLE_CATEGORY_ORDER)
         const entries = category.groups.flatMap(group => group.entries)
         const available = entries.some(entry => surface === 'cli' ? !!entry.cliResource : !!entry.policyResource)
         const partial = available && entries.some(entry => surface === 'cli' ? !entry.cliResource : !entry.policyResource)
         return (
           <div key={category.id} className={`cli-cat${available ? '' : ' oci-nav-unavailable'}${partial ? ' oci-nav-partial' : ''}`}>
             <button type="button" className="cli-cat-toggle" onClick={() => onToggleCategory(category.id)} aria-expanded={!!openCategories[category.id]}>
-              <span className={`caret${openCategories[category.id] ? ' open' : ''}`}>▸</span> {category.label}
+              <span className={`caret${openCategories[category.id] ? ' open' : ''}`}>▸</span>
+              {catCode != null && <span className="oci-nav-code cat" aria-hidden="true">{catCode}</span>} {category.label}
             </button>
             {openCategories[category.id] && category.groups.map(group => {
               const groupAvailable = group.entries.some(entry => surface === 'cli' ? !!entry.cliResource : !!entry.policyResource)
@@ -198,6 +202,7 @@ export default function OciResourceNav({
                           ? surface === 'cli' ? 'Policy에 등록됨 · OCI CLI 메뉴에는 아직 구현되지 않음' : 'OCI CLI에는 등록됨 · Policy 문장에는 아직 등록되지 않음'
                           : undefined}
                         onClick={() => onSelect(entry)}>
+                        {resourceCode.get(entry.key) != null && <span className="oci-nav-code" aria-hidden="true">{resourceCode.get(entry.key)}</span>}
                         {label}
                         {verified && <span className="cli-vmark" title="하나 이상의 명령 검증됨">✓</span>}
                         {!implemented ? <span className="oci-nav-status" aria-label="미구현">·</span> : null}

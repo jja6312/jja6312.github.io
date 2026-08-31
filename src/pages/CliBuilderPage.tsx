@@ -21,6 +21,8 @@ import {
 } from '../lib/cliExecutionContext'
 import { resolveRegion, REGIONS } from '../lib/oci-cli/regionAliases'
 import { loadOfficialCliCommand, type OfficialCliCommand, type OfficialCliOption } from '../lib/oci-cli/officialCatalog'
+import { OCI_CONSOLE_CATEGORY_ORDER } from '../lib/ociConsoleNavigation'
+import { computeResourceCodes } from '../lib/oci-cli/ociNavNumbering.mjs'
 import {
   loadProfiles, getSelectedProfileName, setSelectedProfileName,
   registerProfilesFromPaste, deleteProfile, lookupNamesFor, profileSummary,
@@ -2074,6 +2076,8 @@ export default function CliBuilderPage() {
     }
     return result
   }, [curatedPathMap])
+  // 좌측 nav 분류 넘버링 — 카탈로그 STRUCTURE(카테고리→기능그룹→resource)에서 코드 유도.
+  const resourceCodeMap = useMemo(() => computeResourceCodes(CAT.categories, OCI_CONSOLE_CATEGORY_ORDER), [CAT])
   const officialBuilderCommand = useMemo(() => officialCommand ? officialCommandToBuilder(officialCommand) : null, [officialCommand])
   const activeOfficialTarget = officialCommand ? curatedPathMap.get(officialCommand.path) : undefined
   const activeEnhancedCommand = activeOfficialTarget ? CAT.commands[activeOfficialTarget.resource] : undefined
@@ -2596,7 +2600,7 @@ export default function CliBuilderPage() {
 
         {sidebarView === 'all' && (
           <OciOfficialCommandNav activePath={officialCommand?.path} curatedPaths={curatedPathMap}
-            onSelect={selectOfficialCommand} />
+            resourceCode={resourceCodeMap} onSelect={selectOfficialCommand} />
         )}
 
         {sidebarView === 'recent' && (

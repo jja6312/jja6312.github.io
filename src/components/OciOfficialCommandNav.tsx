@@ -6,7 +6,8 @@ import {
   type OfficialCliIndex,
   type OfficialCliServiceShard,
 } from '../lib/oci-cli/officialCatalog'
-import { sortOciConsoleCategories } from '../lib/ociConsoleNavigation'
+import { sortOciConsoleCategories, OCI_CONSOLE_CATEGORY_ORDER } from '../lib/ociConsoleNavigation'
+import { ociCategoryCode } from '../lib/oci-cli/ociNavNumbering.mjs'
 
 interface CommandTreeNode {
   id: string
@@ -38,12 +39,19 @@ function buildCommandTree(service: string, commands: OfficialCliCommand[]): Comm
   return freeze(root)
 }
 
-function TreeItems({ nodes, depth, openNodes, activePath, curatedPaths, onToggle, onSelect }: {
+function codeFor(path: string | undefined, curatedPaths: ReadonlyMap<string, unknown>, resourceCode?: ReadonlyMap<string, number>): number | undefined {
+  if (!path || !resourceCode) return undefined
+  const target = curatedPaths.get(path) as { resource?: string } | undefined
+  return target?.resource ? resourceCode.get(target.resource) : undefined
+}
+
+function TreeItems({ nodes, depth, openNodes, activePath, curatedPaths, resourceCode, onToggle, onSelect }: {
   nodes: CommandTreeNode[]
   depth: number
   openNodes: Set<string>
   activePath?: string
   curatedPaths: ReadonlyMap<string, unknown>
+  resourceCode?: ReadonlyMap<string, number>
   onToggle: (id: string) => void
   onSelect: (command: OfficialCliCommand) => void
 }) {
@@ -51,6 +59,7 @@ function TreeItems({ nodes, depth, openNodes, activePath, curatedPaths, onToggle
     const branch = node.children.length > 0
     const open = openNodes.has(node.id)
     const curated = node.command ? curatedPaths.has(node.command.path) : false
+    const code = codeFor(node.command?.path, curatedPaths, resourceCode)
     return (
       <div key={node.id} className="oci-official-tree-node">
         <button type="button"
@@ -59,19 +68,21 @@ function TreeItems({ nodes, depth, openNodes, activePath, curatedPaths, onToggle
           onClick={() => branch ? onToggle(node.id) : node.command && onSelect(node.command)}
           title={node.command?.help || node.label}>
           <span className={`caret${branch && open ? ' open' : ''}`} aria-hidden="true">{branch ? '▸' : '·'}</span>
+          {code != null && <span className="oci-nav-code" aria-hidden="true">{code}</span>}
           <span>{node.label}</span>
           {node.command && <span className={`oci-official-status${curated ? ' curated' : ''}`}>{curated ? '강화' : '공식'}</span>}
         </button>
         {branch && open && <TreeItems nodes={node.children} depth={depth + 1} openNodes={openNodes}
-          activePath={activePath} curatedPaths={curatedPaths} onToggle={onToggle} onSelect={onSelect} />}
+          activePath={activePath} curatedPaths={curatedPaths} resourceCode={resourceCode} onToggle={onToggle} onSelect={onSelect} />}
       </div>
     )
   })
 }
 
-export default function OciOfficialCommandNav({ activePath, curatedPaths, onSelect }: {
+export default function OciOfficialCommandNav({ activePath, curatedPaths, resourceCode, onSelect }: {
   activePath?: string
   curatedPaths: ReadonlyMap<string, unknown>
+  resourceCode?: ReadonlyMap<string, number>
   onSelect: (command: OfficialCliCommand) => void
 }) {
   const [index, setIndex] = useState<OfficialCliIndex | null>(null)
@@ -160,10 +171,11 @@ export default function OciOfficialCommandNav({ activePath, curatedPaths, onSele
           <div className="oci-official-result-count">{searchResults.length === 120 ? '상위 120개' : `${searchResults.length}개`} 결과</div>
           {searchResults.map(result => {
             const curated = curatedPaths.has(result.path)
+            const code = codeFor(result.path, curatedPaths, resourceCode)
             return <button type="button" key={result.path}
               className={`oci-official-result${activePath === result.path ? ' on' : ''}${curated ? ' curated' : ''}`}
               onClick={() => void selectSearchResult(result.path, result.service)}>
-              <code>{result.path}</code>
+              <code>{code != null ? `${code} · ` : ''}{result.path}</code>
               <span>{result.help || serviceMap.get(result.service)?.label}</span>
               <em>{curated ? '운영 강화' : '공식 수록'}</em>
             </button>
@@ -174,6 +186,7 @@ export default function OciOfficialCommandNav({ activePath, curatedPaths, onSele
         <div className="oci-official-groups">
           {consoleGroups.map(group => {
             const open = openGroups.has(group.label)
+            const catCode = ociCategoryCode(group.label, OCI_CONSOLE_CATEGORY_ORDER)
             return <div key={group.label} className="oci-official-group">
               <button type="button" className="oci-official-group-toggle" onClick={() => setOpenGroups(current => {
                 const next = new Set(current)
@@ -181,6 +194,7 @@ export default function OciOfficialCommandNav({ activePath, curatedPaths, onSele
                 return next
               })} aria-expanded={open}>
                 <span className={`caret${open ? ' open' : ''}`}>▸</span>
+                {catCode != null && <span className="oci-nav-code cat" aria-hidden="true">{catCode}</span>}
                 <span>{group.label}</span><b>{group.services.length}</b>
               </button>
               {open && <div className="oci-official-services oci-dropdown-in">{group.services.map(serviceKey => {
@@ -195,7 +209,7 @@ export default function OciOfficialCommandNav({ activePath, curatedPaths, onSele
                   {selected && loadingService === serviceKey && <p className="oci-official-loading">명령 불러오는 중…</p>}
                   {selected && tree.length > 0 && <div className="oci-official-tree oci-dropdown-in">
                     <TreeItems nodes={tree} depth={0} openNodes={openNodes} activePath={activePath}
-                      curatedPaths={curatedPaths} onToggle={toggleNode} onSelect={onSelect} />
+                      curatedPaths={curatedPaths} resourceCode={resourceCode} onToggle={toggleNode} onSelect={onSelect} />
                   </div>}
                 </div>
               })}</div>}
