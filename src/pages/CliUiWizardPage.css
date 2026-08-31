@@ -7,6 +7,30 @@
 .wiz-field .wiz-sm { width: 90px; }
 .wiz-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 
+/* 템플릿 갤러리 드롭다운 */
+.wiz-template-picker { position: relative; }
+.wiz-template-backdrop { position: fixed; inset: 0; z-index: 30; }
+.wiz-template-menu {
+  position: absolute; z-index: 31; top: calc(100% + 6px); right: 0; width: 340px; max-width: 88vw;
+  background: var(--bg-card, var(--code-bg)); border: 1px solid var(--accent); border-radius: 10px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.4); padding: 8px; display: flex; flex-direction: column; gap: 6px;
+}
+.wiz-template-head { font: 700 10.5px/1.4 inherit; color: var(--text-faint); padding: 4px 6px 2px; }
+.wiz-template-card {
+  display: flex; flex-direction: column; gap: 4px; text-align: left; width: 100%;
+  background: var(--bg-inset); border: 1px solid var(--line-soft); border-radius: 8px; padding: 9px 11px; cursor: pointer;
+  font-family: inherit; color: var(--text);
+}
+.wiz-template-card:hover { border-color: var(--accent); background: var(--accent-glow, rgba(90,200,250,.10)); }
+.wiz-template-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wiz-template-card-top b { font: 700 12.5px/1.2 inherit; }
+.wiz-template-tags { display: flex; gap: 4px; flex-shrink: 0; }
+.wiz-template-tags em {
+  font: 600 9px/1.4 inherit; font-style: normal; color: var(--text-faint);
+  background: var(--bg-soft); border-radius: 4px; padding: 1px 5px;
+}
+.wiz-template-desc { color: var(--text-faint); font-size: 10.5px; line-height: 1.5; }
+
 .wiz-body { display: grid; grid-template-columns: 172px minmax(0, 1fr) 240px; gap: 12px; align-items: stretch; }
 .wiz-palette, .wiz-inspector { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--bg-card); overflow-y: auto; max-height: 560px; }
 .wiz-pgroup { margin-bottom: 10px; }

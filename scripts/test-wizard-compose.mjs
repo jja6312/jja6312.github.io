@@ -12,6 +12,7 @@ import { computePlan } from '../src/lib/oci-cli/blueprintPlan.mjs'
 import { renderApply, renderDiscover, renderRollback } from '../src/lib/oci-cli/blueprintRender.mjs'
 import { buildProvisionalManifest } from '../src/lib/oci-cli/blueprintManifest.mjs'
 import { MODULE_LIST } from '../src/lib/oci-cli/wizardModules.mjs'
+import { WIZARD_TEMPLATES } from '../src/lib/oci-cli/wizardTemplates.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const CATALOG = JSON.parse(readFileSync(resolve(HERE, '..', '.protected-cache', 'cliCatalog.json'), 'utf8'))
@@ -141,5 +142,27 @@ t('검증: cycle → issue', () => {
   const { issues } = composeBlueprint(g, POLICY)
   assert.ok(issues.some(i => i.includes('cycle')))
 })
+
+// ── 시작 템플릿 레지스트리 — 모든 템플릿이 issue 없이 compose 되어야 한다 ──
+t('템플릿 레지스트리 ≥ 4개, id 유일', () => {
+  assert.ok(WIZARD_TEMPLATES.length >= 4)
+  const ids = WIZARD_TEMPLATES.map(x => x.id)
+  assert.equal(ids.length, new Set(ids).size)
+})
+for (const tpl of WIZARD_TEMPLATES) {
+  t(`템플릿 '${tpl.id}' → compose issue 0 · 노드 매핑 유효`, () => {
+    const graph = tpl.build()
+    assert.ok(graph.nodes.length > 0, 'nodes 비어있음')
+    // 모든 노드의 moduleType 이 실제 모듈이어야 함
+    for (const n of graph.nodes) assert.ok(MODULE_LIST.find(m => m.type === n.moduleType), `미지 모듈 ${n.moduleType}`)
+    const { blueprint, issues } = composeBlueprint(graph, POLICY)
+    assert.deepEqual(issues, [], `issues: ${issues.join(' / ')}`)
+    assert.equal(blueprint.nodes.length, graph.nodes.length)
+    // displayName 중복 없음(같은 role+resource 충돌 방지)
+    const naming = computeNaming(blueprint, POLICY, composeBlueprint(graph, POLICY).inputs)
+    const names = Object.values(naming?.names ?? {}).map(v => (typeof v === 'string' ? v : v?.displayName)).filter(Boolean)
+    assert.equal(names.length, new Set(names).size, `displayName 중복: ${names.join(', ')}`)
+  })
+}
 
 console.log(`\nwizard compose 테스트 통과 — ${passed}건`)

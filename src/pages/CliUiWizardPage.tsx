@@ -3,6 +3,7 @@ import './CliUiWizardPage.css'
 import { useProtectedData } from '../lib/protectedData'
 import { composeBlueprint, type WizardGraph, type WizardNode } from '../lib/oci-cli/wizardCompose.mjs'
 import { MODULE_LIST, WIZARD_MODULES } from '../lib/oci-cli/wizardModules.mjs'
+import { WIZARD_TEMPLATES } from '../lib/oci-cli/wizardTemplates.mjs'
 import { computeNaming } from '../lib/oci-cli/blueprintNaming.mjs'
 import { computePlan, planDigestInput } from '../lib/oci-cli/blueprintPlan.mjs'
 import { renderDiscover, renderApply, renderResume, renderVerify, renderRollback } from '../lib/oci-cli/blueprintRender.mjs'
@@ -79,33 +80,6 @@ function emptyGraph(): WizardGraph {
   }
 }
 
-// 예시: 2-Tier 네트워크 (학습용 시작점)
-function exampleGraph(): WizardGraph {
-  const N = (id: string, moduleType: string, role: string, x: number, y: number, inputs: Record<string, string> = {}): WizardNode => ({ id, moduleType, role, label: id, x, y, inputs })
-  const E = (from: string, to: string, slot: string) => ({ id: `${from}-${to}-${slot}`, from, to, slot })
-  return {
-    schemaVersion: 1, id: 'wiz-net', label: '2-Tier 네트워크(예시)', namingPolicyId: 'msp-standard',
-    execution: { region: 'ap-seoul-1', compartment: '', profile: 'DEFAULT', compartmentMode: 'OCID' },
-    naming: { customer: 'acme', workload: 'web', environment: 'prd', regionAlias: 'icn', sequence: '01' },
-    nodes: [
-      N('vcn', 'vcn', 'main', 40, 40, { vcnCidrs: '["10.0.0.0/16"]' }),
-      N('igw', 'internet-gateway', 'main', 300, 20), N('nat', 'nat-gateway', 'main', 300, 110), N('sgw', 'service-gateway', 'main', 300, 200),
-      N('rtpub', 'route-table', 'public', 560, 20), N('rtpriv', 'route-table', 'private', 560, 150),
-      N('slpub', 'security-list', 'public', 560, 280, { enableSshIngress: 'true', sshSourceCidr: '0.0.0.0/0' }),
-      N('slpriv', 'security-list', 'private', 560, 370, { enableSshIngress: 'false' }),
-      N('subpub', 'subnet', 'public', 820, 60, { cidr: '10.0.10.0/24' }), N('subpriv', 'subnet', 'private', 820, 260, { cidr: '10.0.20.0/24' }),
-    ],
-    edges: [
-      E('vcn', 'igw', 'vcn'), E('vcn', 'nat', 'vcn'), E('vcn', 'sgw', 'vcn'),
-      E('vcn', 'rtpub', 'vcn'), E('igw', 'rtpub', 'route-target'),
-      E('vcn', 'rtpriv', 'vcn'), E('nat', 'rtpriv', 'route-target'), E('sgw', 'rtpriv', 'route-target'),
-      E('vcn', 'slpub', 'vcn'), E('vcn', 'slpriv', 'vcn'),
-      E('vcn', 'subpub', 'vcn'), E('rtpub', 'subpub', 'route-table'), E('slpub', 'subpub', 'security-list'),
-      E('vcn', 'subpriv', 'vcn'), E('rtpriv', 'subpriv', 'route-table'), E('slpriv', 'subpriv', 'security-list'),
-    ],
-  }
-}
-
 function loadGraph(): WizardGraph {
   try { const raw = localStorage.getItem(LS_KEY); if (raw) return JSON.parse(raw) } catch { /* ignore */ }
   return emptyGraph()
@@ -149,6 +123,7 @@ export default function CliUiWizardPage() {
   const protectedState = useProtectedData()
   const [graph, setGraph] = useState<WizardGraph>(loadGraph)
   const [sel, setSel] = useState<{ kind: 'node' | 'edge'; id: string } | null>(null)
+  const [templateOpen, setTemplateOpen] = useState(false)
   const [discoverRaw, setDiscoverRaw] = useState(''); const [runRaw, setRunRaw] = useState(''); const [verifyRaw, setVerifyRaw] = useState('')
   const [planDigest, setPlanDigest] = useState('')
   const drag = useRef<{ id: string; dx: number; dy: number; pid: number } | null>(null)
@@ -245,7 +220,29 @@ export default function CliUiWizardPage() {
         <span className="wiz-field"><label>워크로드</label><input className="bp-field-input wiz-sm" value={String(graph.naming?.workload ?? '')} onChange={e => patch({ naming: { ...graph.naming, workload: e.target.value } })} /></span>
         <span className="wiz-field"><label>환경</label><input className="bp-field-input wiz-sm" value={String(graph.naming?.environment ?? '')} onChange={e => patch({ naming: { ...graph.naming, environment: e.target.value } })} /></span>
         <span className="wiz-actions">
-          <button className="submitbtn" onClick={() => { setGraph(exampleGraph()); setSel(null) }}>예시 불러오기</button>
+          <span className="wiz-template-picker">
+            <button className="submitbtn" aria-expanded={templateOpen} onClick={() => setTemplateOpen(open => !open)}>
+              템플릿 불러오기 <span aria-hidden="true">▾</span>
+            </button>
+            {templateOpen && (
+              <>
+                <div className="wiz-template-backdrop" onClick={() => setTemplateOpen(false)} />
+                <div className="wiz-template-menu" role="menu" aria-label="실무 composition 템플릿">
+                  <div className="wiz-template-head">실무 시작 템플릿 — 클릭하면 캔버스에 올라갑니다</div>
+                  {WIZARD_TEMPLATES.map(tpl => (
+                    <button key={tpl.id} type="button" role="menuitem" className="wiz-template-card"
+                      onClick={() => { setGraph(tpl.build()); setSel(null); setTemplateOpen(false) }}>
+                      <div className="wiz-template-card-top">
+                        <b>{tpl.label}</b>
+                        <span className="wiz-template-tags">{tpl.tags.map(tag => <em key={tag}>{tag}</em>)}</span>
+                      </div>
+                      <span className="wiz-template-desc">{tpl.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </span>
           <button className="iconbtn" title="비우기" onClick={() => { if (confirm('캔버스를 비울까요?')) { setGraph(emptyGraph()); setSel(null) } }}>비우기</button>
         </span>
       </div>
