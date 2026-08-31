@@ -1,9 +1,9 @@
 # OCI CLI 필수 OCID 동적 조회 전수표
 
 - 생성 기준: Oracle OCI CLI 3.91.0 (v3.91.0, fbff93ae6744ed23671b974fd876adb239545cea)
-- 필수 OCID 입력: 252회 / 51종
-- 동적·전용 안전 조회: 240회
-- 보안·제품 제약상 직접 입력: 12회
+- 필수 OCID 입력: 257회 / 55종
+- 동적·전용 안전 조회: 241회
+- 보안·제품 제약상 직접 입력: 16회
 - 미분류: 0회
 
 동적 조회는 정확한 이름이 1개일 때만 본 명령을 실행합니다. 0건 또는 중복(N건)이면 후보를 출력하고 종료합니다. 직접 입력 항목도 이유와 선행 LIST 경로를 함께 유지합니다.
@@ -14,6 +14,10 @@
 |---|---|---|---|
 | subscription-balance | list | `--subscription-id` | OneSubscription 목록의 id 자체가 선택 키이며 별도의 고유 이름 필드가 없습니다. Subscriptions LIST에서 확인한 ID를 직접 선택합니다. |
 | compartment-resource-cleansing | custom | `--compartment-id` | 삭제 범위 보호를 위해 정리 대상 compartment OCID를 직접 입력하고 같은 OCID로 이중 확인합니다. |
+| wizocm-functions-foundation | custom | `--spring-vnic-id` | NSG를 병합할 정확한 VNIC를 지정해야 하며, 이름이나 primary VNIC 추정은 잘못된 인터페이스의 보안 구성을 바꿀 수 있어 OCID GET 검증 후에만 사용합니다. |
+| wizocm-functions-foundation | custom | `--spring-instance-id` | Dynamic Group을 단일 Spring 인스턴스에만 제한하는 보안 경계이므로, 중복 가능한 display name 대신 사용자가 확정한 OCID를 GET 검증합니다. |
+| wizocm-devops-cicd | custom | `--github-connection-id` | GitHub Connection은 Project와 자격증명 경계를 함께 가지므로 이름으로 임의 선택하지 않고, 안전하게 사전 생성한 Connection OCID를 GET 검증해 사용합니다. |
+| wizocm-devops-cicd | custom | `--target-instance-id` | 운영 배포 대상을 정확히 한 인스턴스로 고정해야 하므로 이름·query selector를 사용하지 않고, OCID GET으로 compartment와 상태를 재검증합니다. |
 | boot-volume-cross-copy | custom | `--compartment-id` | 복사 대상 tenancy의 정확한 compartment OCID를 policy 범위와 대조합니다. |
 | boot-volume-cross-copy | custom | `--source-tenancy-id` | 원본 프로필과 별개인 cross-tenancy IAM 주체를 명시적으로 확인합니다. |
 | boot-volume-cross-copy | custom | `--target-group-id` | 대상 tenancy Group OCID를 Admit/Endorse policy와 독립적으로 대조합니다. |
@@ -271,6 +275,11 @@
 | iam-policy | delete | `--policy-id` | dynamic-dedicated | 전용 0/1/N 안전 빌더 |
 | iam-region-subscription | list | `--tenancy-id` | dynamic-tenancy | oci iam availability-domain list |
 | instance-maintenance-reboot | custom | `--instance-id` | dynamic-exact-name | oci compute instance list |
+| wizocm-functions-foundation | custom | `--spring-vnic-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
+| wizocm-functions-foundation | custom | `--spring-instance-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
+| wizocm-devops-cicd | custom | `--github-connection-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
+| wizocm-devops-cicd | custom | `--target-instance-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
+| wizocm-devops-cicd | custom | `--ons-topic-id` | dynamic-exact-name | oci ons topic list |
 | boot-volume-cross-copy | custom | `--compartment-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
 | boot-volume-cross-copy | custom | `--source-tenancy-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
 | boot-volume-cross-copy | custom | `--target-group-id` | direct-only | 선행 LIST 확인 후 직접 입력 |
