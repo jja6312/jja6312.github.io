@@ -2247,10 +2247,10 @@ export default function CliBuilderPage() {
   const activateProfile = (name: string) => {
     setSelectedProfileNameState(name); setSelectedProfileName(name)
     const prof = profiles.find(p => p.name === name)
-    if (prof) setExecutionValues(current => ({
-      ...current, '--profile': prof.name,
-      ...(prof.homeRegion ? { '--region': prof.homeRegion } : {}),
-    }))
+    // 선택 → 주입, 해제('') → --profile·--region 을 비워 프로필 흔적을 남기지 않는다.
+    setExecutionValues(current => prof
+      ? { ...current, '--profile': prof.name, ...(prof.homeRegion ? { '--region': prof.homeRegion } : {}) }
+      : { ...current, '--profile': '', '--region': '' })
   }
   // 자원을 바꾸면 실행 컨텍스트가 리셋되므로, 선택된 프로필을 다시 채워 sticky 를 유지한다.
   useEffect(() => {
@@ -2269,7 +2269,11 @@ export default function CliBuilderPage() {
   }
   const removeProfile = (name: string) => {
     setProfiles(current => deleteProfile(name, current))
-    if (selectedProfileName === name) { setSelectedProfileNameState(''); setSelectedProfileName('') }
+    // 활성 프로필을 지우면 선택 해제 + 주입된 --profile·--region 도 함께 비운다.
+    if (selectedProfileName === name) {
+      setSelectedProfileNameState(''); setSelectedProfileName('')
+      setExecutionValues(current => ({ ...current, '--profile': '', '--region': '' }))
+    }
   }
   const wizardQuestions = useMemo<CliWizardQuestion[]>(() => {
     const questions: CliWizardQuestion[] = []

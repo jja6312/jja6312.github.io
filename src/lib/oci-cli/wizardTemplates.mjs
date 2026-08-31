@@ -3,7 +3,13 @@
 // 현재는 검증된 네트워크 7모듈(vcn/igw/nat/sgw/route-table/security-list/subnet)로 구성.
 // compute/LB/DB 를 담는 상위 스택은 모듈 + blueprint 응답계약 확장 후 추가(로드맵).
 
-const N = (id, moduleType, role, inputs = {}) => ({ id, moduleType, role, label: id, inputs })
+// x/y 는 VCN·floating 노드에만 의미가 있고 자식은 layoutGraph 가 재계산한다. 단, 드래그
+// 기준선(n.x ?? 0)과 렌더 기본값(vcn.x ?? 40)이 어긋나면 첫 드래그에 ~40px 점프가 생기므로
+// VCN 노드는 렌더 기본값과 같은 좌표를 명시해 "모든 노드가 좌표를 가진다" 불변식을 지킨다.
+const N = (id, moduleType, role, inputs = {}, x, y) => ({
+  id, moduleType, role, label: id, inputs,
+  ...(x != null ? { x, y } : {}),
+})
 const E = (from, to, slot) => ({ id: `${from}->${to}:${slot}`, from, to, slot })
 
 /** 공통 실행/명명 헤더. customer/workload 만 템플릿별로 채우고 나머지는 사용자가 조정. */
@@ -20,7 +26,7 @@ function publicSingle() {
   return {
     ...base('wiz-public-single', '인터넷 대면 단일 서브넷', 'web'),
     nodes: [
-      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }),
+      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }, 40, 40),
       N('igw', 'internet-gateway', 'main'),
       N('rtpub', 'route-table', 'public'),
       N('slpub', 'security-list', 'public', { enableSshIngress: 'true', sshSourceCidr: '0.0.0.0/0' }),
@@ -40,7 +46,7 @@ function privateSingle() {
   return {
     ...base('wiz-private-single', '아웃바운드 전용 단일 서브넷', 'app'),
     nodes: [
-      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }),
+      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }, 40, 40),
       N('nat', 'nat-gateway', 'main'),
       N('sgw', 'service-gateway', 'main'),
       N('rtpriv', 'route-table', 'private'),
@@ -62,7 +68,7 @@ function twoTier() {
     ...base('wiz-two-tier', 'Public/Private 2-Tier 네트워크', 'web'),
     naming: { customer: '', workload: 'web', environment: 'prd', regionAlias: 'icn', sequence: '01' },
     nodes: [
-      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }),
+      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }, 40, 40),
       N('igw', 'internet-gateway', 'main'), N('nat', 'nat-gateway', 'main'), N('sgw', 'service-gateway', 'main'),
       N('rtpub', 'route-table', 'public'), N('rtpriv', 'route-table', 'private'),
       N('slpub', 'security-list', 'public', { enableSshIngress: 'true', sshSourceCidr: '0.0.0.0/0' }),
@@ -86,7 +92,7 @@ function gatewayHub() {
   return {
     ...base('wiz-gateway-hub', '게이트웨이 허브(서브넷 이후 추가)', 'net'),
     nodes: [
-      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }),
+      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }, 40, 40),
       N('igw', 'internet-gateway', 'main'), N('nat', 'nat-gateway', 'main'), N('sgw', 'service-gateway', 'main'),
     ],
     edges: [E('vcn', 'igw', 'vcn'), E('vcn', 'nat', 'vcn'), E('vcn', 'sgw', 'vcn')],

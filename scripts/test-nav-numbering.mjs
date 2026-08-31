@@ -61,4 +61,20 @@ t('그룹 범위 = 10블록', () => {
   assert.deepEqual(ranges.get('Custom Images'), { start: 121, end: 130 })
 })
 
+t('그룹>10 오버플로우 → 다음 블록으로 밀려 충돌 없음', () => {
+  const big = [{ label: 'Networking', groups: [
+    { label: 'G1', resources: Array.from({ length: 12 }, (_, i) => `a${i}`) }, // 12개 → 20칸 예약
+    { label: 'G2', resources: ['b0', 'b1'] },
+  ] }]
+  const c = computeResourceCodes(big, ORDER)
+  assert.equal(c.get('a0'), 301)
+  assert.equal(c.get('a11'), 312)      // 301+11, 여전히 유일
+  assert.equal(c.get('b0'), 321)       // G1 이 20칸 예약(301~320) → G2 는 321부터
+  const values = [...c.values()]
+  assert.equal(values.length, new Set(values).size)
+  const r = groupCodeRanges(big[0], ORDER)
+  assert.deepEqual(r.get('G1'), { start: 301, end: 320 })
+  assert.deepEqual(r.get('G2'), { start: 321, end: 330 })
+})
+
 console.log(`\nnav-numbering: ${passed} passed`)

@@ -309,7 +309,7 @@ export default function CliUiWizardPage() {
               )
             })}
           </div>
-          {graph.nodes.length === 0 && <div className="wiz-empty">왼쪽에서 <b>VCN</b> 을 먼저 추가하고, 그 안에 subnet·gateway 를 넣으세요 · 또는 <b>예시 불러오기</b></div>}
+          {graph.nodes.length === 0 && <div className="wiz-empty">왼쪽에서 <b>VCN</b> 을 먼저 추가하고, 그 안에 subnet·gateway 를 넣으세요 · 또는 상단 <b>템플릿 불러오기</b></div>}
         </div>
 
         {/* 인스펙터 */}

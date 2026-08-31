@@ -16,15 +16,23 @@ export function ociCategoryCode(label, order) {
  * @param {readonly string[]} order
  * @returns {Map<string, number>}
  */
+// 그룹이 예약하는 코드 폭 — 기본 10블록. 10개를 넘는 그룹은 10 단위로 확장해
+// 다음 그룹 블록과 겹치지 않게 한다(현재 카탈로그 최대 그룹=10이라 항상 10블록).
+function blockWidth(size) {
+  return Math.max(10, Math.ceil(size / 10) * 10)
+}
+
 export function computeResourceCodes(categories, order) {
   const codes = new Map()
   for (const category of categories ?? []) {
     const base = ociCategoryCode(category.label, order)
     if (base == null) continue
-    category.groups.forEach((group, g) => {
-      const blockBase = base + g * 10 + 1
+    let offset = 1
+    for (const group of category.groups) {
+      const blockBase = base + offset
       group.resources.forEach((resource, r) => codes.set(resource, blockBase + r))
-    })
+      offset += blockWidth(group.resources.length)
+    }
   }
   return codes
 }
@@ -37,10 +45,13 @@ export function groupCodeRanges(category, order) {
   const ranges = new Map()
   const base = ociCategoryCode(category.label, order)
   if (base == null) return ranges
-  category.groups.forEach((group, g) => {
-    const start = base + g * 10 + 1
-    ranges.set(group.label, { start, end: start + 9 })
-  })
+  let offset = 1
+  for (const group of category.groups) {
+    const width = blockWidth(group.resources.length)
+    const start = base + offset
+    ranges.set(group.label, { start, end: start + width - 1 })
+    offset += width
+  }
   return ranges
 }
 
