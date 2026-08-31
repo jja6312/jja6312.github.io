@@ -170,15 +170,18 @@ export function composeBlueprint(graph, policy) {
     for (const p of collectPtrs) collect[p] = { pointer: p, type: (module.collect || {})[p] || 'string' }
 
     // ── comparison(base + extra) ──
+    // 자원마다 "정상 가동" lifecycle 값이 다르다(네트워크=AVAILABLE, compute=RUNNING).
+    // 모듈이 lifecycleReadyState 로 지정하면 base 비교/검증이 그 값을 쓴다(미지정 시 AVAILABLE).
+    const readyState = module.lifecycleReadyState || 'AVAILABLE'
     const comparison = { mode: 'exactManagedFields', fields: [
-      { key: 'lifecycleState', desired: { source: 'literal', value: 'AVAILABLE' }, actualPointer: '/data/lifecycle-state', comparator: 'string', required: true },
+      { key: 'lifecycleState', desired: { source: 'literal', value: readyState }, actualPointer: '/data/lifecycle-state', comparator: 'string', required: true },
       { key: 'managedTags', desired: derivedSource('managedFreeformTags'), actualPointer: '/data/freeform-tags', comparator: 'tagSubset', required: true },
       ...(module.extraComparison || []).map(c => ({ key: c.key, desired: resolveSrc(c.src), actualPointer: c.actualPointer, comparator: c.comparator, required: true })),
     ] }
 
     // ── verify(base + extra) ──
     const verifyAssertions = [
-      { id: `${gnode.id}-available`, actualPointer: '/data/lifecycle-state', comparator: 'lifecycleAvailable', expected: { source: 'literal', value: 'AVAILABLE' }, severity: 'fail' },
+      { id: `${gnode.id}-available`, actualPointer: '/data/lifecycle-state', comparator: 'lifecycleAvailable', expected: { source: 'literal', value: readyState }, severity: 'fail' },
       { id: `${gnode.id}-managed-tags`, actualPointer: '/data/freeform-tags', comparator: 'tagSubset', expected: derivedSource('managedFreeformTags'), severity: 'fail' },
       ...(module.extraVerify || []).map(v => ({ id: `${gnode.id}-${v.id}`, actualPointer: v.actualPointer, comparator: v.comparator, expected: resolveSrc(v.src), severity: 'fail' })),
     ]

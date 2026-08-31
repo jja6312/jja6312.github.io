@@ -161,6 +161,26 @@
         "/freeform-tags": "json",
         "/defined-tags": "json"
       }
+    },
+    "instance": {
+      "single": {
+        "/data/id": "string",
+        "/data/compartment-id": "string",
+        "/data/availability-domain": "string",
+        "/data/shape": "string",
+        "/data/lifecycle-state": "string",
+        "/data/freeform-tags": "json",
+        "/data/defined-tags": "json"
+      },
+      "listItems": "/data",
+      "listItem": {
+        "/id": "string",
+        "/display-name": "string",
+        "/compartment-id": "string",
+        "/availability-domain": "string",
+        "/shape": "string",
+        "/lifecycle-state": "string"
+      }
     }
   },
   "supportCommands": {

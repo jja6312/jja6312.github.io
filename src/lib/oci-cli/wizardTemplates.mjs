@@ -99,6 +99,29 @@ function gatewayHub() {
   }
 }
 
+// ⑤ Private App Instance — 프라이빗 서브넷 + 컴퓨트 인스턴스(아웃바운드 전용 사내 서버)
+function privateApp() {
+  return {
+    ...base('wiz-private-app', 'Private App Instance', 'app'),
+    nodes: [
+      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }, 40, 40),
+      N('nat', 'nat-gateway', 'main'),
+      N('sgw', 'service-gateway', 'main'),
+      N('rtpriv', 'route-table', 'private'),
+      N('slpriv', 'security-list', 'private', { enableSshIngress: 'false' }),
+      N('subpriv', 'subnet', 'private', { cidr: '10.0.20.0/24' }),
+      N('inst', 'instance', 'app', { shape: 'VM.Standard.E5.Flex', shapeConfig: '{"ocpus":1,"memoryInGBs":16}', availabilityDomain: '', imageId: '', metadata: '' }),
+    ],
+    edges: [
+      E('vcn', 'nat', 'vcn'), E('vcn', 'sgw', 'vcn'),
+      E('vcn', 'rtpriv', 'vcn'), E('nat', 'rtpriv', 'route-target'), E('sgw', 'rtpriv', 'route-target'),
+      E('vcn', 'slpriv', 'vcn'),
+      E('vcn', 'subpriv', 'vcn'), E('rtpriv', 'subpriv', 'route-table'), E('slpriv', 'subpriv', 'security-list'),
+      E('subpriv', 'inst', 'subnet'),
+    ],
+  }
+}
+
 /**
  * 템플릿 레지스트리. label/description 는 갤러리 표시용, graph 는 로드 대상.
  * @type {{ id: string, label: string, description: string, tags: string[], build: () => import('./wizardCompose.d.mts').WizardGraph }[]}
@@ -112,4 +135,6 @@ export const WIZARD_TEMPLATES = [
     description: 'IGW·NAT·SGW + 퍼블릭/프라이빗 2계층. MSP 신규 온보딩의 표준 네트워크 기준선(10 노드).', build: twoTier },
   { id: 'gateway-hub', label: '게이트웨이 허브', tags: ['네트워크', '시작점'],
     description: 'VCN + IGW/NAT/SGW 만 먼저 깔고 서브넷은 이후 추가. 연결 기반부터 잡을 때.', build: gatewayHub },
+  { id: 'private-app', label: 'Private App Instance', tags: ['컴퓨트', '인스턴스'],
+    description: '프라이빗 서브넷(NAT/SGW) 위에 Compute 인스턴스 1대. 인터넷 비노출 사내 서버. AD·이미지 OCID 만 채우면 실행.', build: privateApp },
 ]

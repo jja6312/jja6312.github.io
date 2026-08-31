@@ -17,6 +17,22 @@ import { WIZARD_TEMPLATES } from '../src/lib/oci-cli/wizardTemplates.mjs'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const CATALOG = JSON.parse(readFileSync(resolve(HERE, '..', '.protected-cache', 'cliCatalog.json'), 'utf8'))
 const POLICY = JSON.parse(readFileSync(resolve(HERE, '..', '..', 'blog-db', 'knowledge', 'oci-cli', 'naming-policies', 'msp-standard.v1.json'), 'utf8'))
+const REGISTRY = JSON.parse(readFileSync(resolve(HERE, 'oci-cli-blueprint-response-registry.json'), 'utf8'))
+// 주: validateBlueprints(빌드 게이트)는 baked blueprint 전용이라, 위저드가 쓰는 런타임 전용
+// 구성(generic dnsLabel 파생키·인라인 security-rule JSON)을 거부한다. 따라서 위저드-compose
+// 블루프린트 전체를 게이트에 넣지 않고, 신설 자원(instance)의 응답계약만 국소 검증한다.
+// 한 노드의 모든 응답 pointer 가 registry.commands[resource] 에 등록됐는지 = 게이트 pointer 규칙의 국소판.
+function assertPointersRegistered(node) {
+  const single = REGISTRY.commands[node.commandRef.resource]?.single || {}
+  const listItem = REGISTRY.commands[node.commandRef.resource]?.listItem || {}
+  for (const o of Object.values(node.outputs || {})) assert.ok(single[o.pointer], `output ${o.pointer} ∉ registry.single`)
+  for (const f of node.comparison?.fields || []) assert.ok(single[f.actualPointer], `comparison ${f.actualPointer} ∉ single`)
+  for (const v of node.verify || []) for (const a of v.assertions || []) assert.ok(single[a.actualPointer], `verify ${a.actualPointer} ∉ single`)
+  for (const c of Object.values(node.discovery?.get?.collect || {})) assert.ok(single[c.pointer], `collect ${c.pointer} ∉ single`)
+  assert.ok(listItem[node.discovery.identity.idPointer], `idPointer ${node.discovery.identity.idPointer} ∉ listItem`)
+  assert.ok(listItem[node.discovery.identity.namePointer], `namePointer ${node.discovery.identity.namePointer} ∉ listItem`)
+  assert.equal(node.discovery.list.itemsPointer, REGISTRY.commands[node.commandRef.resource].listItems)
+}
 
 let passed = 0
 const t = (name, fn) => { fn(); passed += 1; console.log(`  ok  ${name}`) }
@@ -150,7 +166,7 @@ t('템플릿 레지스트리 ≥ 4개, id 유일', () => {
   assert.equal(ids.length, new Set(ids).size)
 })
 for (const tpl of WIZARD_TEMPLATES) {
-  t(`템플릿 '${tpl.id}' → compose issue 0 · 노드 매핑 유효`, () => {
+  t(`템플릿 '${tpl.id}' → compose issue 0 · 계약 pointer · 이름 유일`, () => {
     const graph = tpl.build()
     assert.ok(graph.nodes.length > 0, 'nodes 비어있음')
     // 모든 노드의 moduleType 이 실제 모듈이어야 함
@@ -158,11 +174,69 @@ for (const tpl of WIZARD_TEMPLATES) {
     const { blueprint, issues } = composeBlueprint(graph, POLICY)
     assert.deepEqual(issues, [], `issues: ${issues.join(' / ')}`)
     assert.equal(blueprint.nodes.length, graph.nodes.length)
+    // 등록된 계약(registry)이 있는 자원 노드는 응답 pointer 가 계약에 모두 존재해야 함
+    for (const node of blueprint.nodes) {
+      if (REGISTRY.commands[node.commandRef.resource]) assertPointersRegistered(node)
+    }
     // displayName 중복 없음(같은 role+resource 충돌 방지)
     const naming = computeNaming(blueprint, POLICY, composeBlueprint(graph, POLICY).inputs)
     const names = Object.values(naming?.names ?? {}).map(v => (typeof v === 'string' ? v : v?.displayName)).filter(Boolean)
     assert.equal(names.length, new Set(names).size, `displayName 중복: ${names.join(', ')}`)
   })
 }
+
+// ── compute(instance) 응답계약 — 최소 그래프(vcn→subnet→instance)로 게이트 직접 검증 ──
+t('instance 모듈 노출 + compute 그룹', () => {
+  const m = MODULE_LIST.find(x => x.type === 'instance')
+  assert.ok(m, 'instance 모듈 없음')
+  assert.equal(m.group, 'compute')
+})
+t('instance 최소 그래프 → compose issue 0 + 게이트 통과(계약 증명)', () => {
+  const g = {
+    id: 'wiz-inst', label: 'instance 계약검증', namingPolicyId: 'msp-standard',
+    execution: { region: 'ap-seoul-1', compartment: 'ocid1.compartment.oc1..aaaa', profile: 'DEFAULT', compartmentMode: 'OCID' },
+    naming: { customer: 'ACME', workload: 'app', environment: 'prd', regionAlias: 'icn', sequence: '01' },
+    nodes: [
+      N('vcn', 'vcn', 'main', { vcnCidrs: '["10.0.0.0/16"]' }),
+      N('nat', 'nat-gateway', 'main'),
+      N('sgw', 'service-gateway', 'main'),
+      N('rtpriv', 'route-table', 'private'),
+      N('slpriv', 'security-list', 'private', { enableSshIngress: 'false' }),
+      N('subpriv', 'subnet', 'private', { cidr: '10.0.20.0/24' }),
+      N('inst', 'instance', 'app', { availabilityDomain: 'Uocm:AP-SEOUL-1-AD-1', shape: 'VM.Standard.E5.Flex', shapeConfig: '{"ocpus":1,"memoryInGBs":16}', imageId: 'ocid1.image.oc1..img', metadata: '' }),
+    ],
+    edges: [
+      E('vcn', 'nat', 'vcn'), E('vcn', 'sgw', 'vcn'),
+      E('vcn', 'rtpriv', 'vcn'), E('nat', 'rtpriv', 'route-target'), E('sgw', 'rtpriv', 'route-target'),
+      E('vcn', 'slpriv', 'vcn'),
+      E('vcn', 'subpriv', 'vcn'), E('rtpriv', 'subpriv', 'route-table'), E('slpriv', 'subpriv', 'security-list'),
+      E('subpriv', 'inst', 'subnet'),
+    ],
+  }
+  const { blueprint, issues } = composeBlueprint(g, POLICY)
+  assert.deepEqual(issues, [], `issues: ${issues.join(' / ')}`)
+  const inst = blueprint.nodes.find(n => n.commandRef.resource === 'instance')
+  assert.ok(inst, 'instance 노드 없음')
+  // ★ 응답계약 증명 — instance 노드의 모든 pointer 가 registry.commands.instance 에 등록됨
+  assertPointersRegistered(inst)
+  // 정상상태 RUNNING 으로 비교/검증하는지(네트워크 AVAILABLE 와 구분)
+  assert.equal(inst.comparison.fields.find(f => f.key === 'lifecycleState').desired.value, 'RUNNING')
+  assert.equal(inst.verify[0].assertions.find(a => a.id.endsWith('-available')).expected.value, 'RUNNING')
+  // 필수 create 옵션(--availability-domain/--compartment-id/--subnet-id) 전부 바인딩
+  for (const opt of ['--availability-domain', '--compartment-id', '--subnet-id']) assert.ok(inst.bindings[opt], `미바인딩 ${opt}`)
+  // 엔진 통과 + Apply/Discover/Rollback bash -n (shape-config/metadata json → file:// 렌더 포함)
+  const { inputs } = composeBlueprint(g, POLICY)
+  const nm = computeNaming(blueprint, POLICY, inputs)
+  assert.deepEqual(nm.issues, [])
+  const plan = computePlan({ blueprint, inputs, naming: nm, discovery: emptyDiscovery(blueprint) })
+  assert.equal(plan.executable, true)
+  const rr = { artifactType: 'run-result', runId: 'run-x', planDigest: 'd', nodes: blueprint.nodes.map((n, i) => ({ node: n.id, action: 'CREATED', id: `ocid1.${n.commandRef.resource}.oc1..n${i}` })) }
+  const manifest = buildProvisionalManifest({ blueprint, plan, runResult: rr, naming: nm })
+  const scripts = [renderApply({ blueprint, catalog: CATALOG, inputs, naming: nm, plan, planDigest: 'd' }), renderDiscover({ blueprint, catalog: CATALOG, inputs, naming: nm }), renderRollback({ blueprint, catalog: CATALOG, inputs, naming: nm, manifest })]
+  const TMP = mkdtempSync(resolve(tmpdir(), 'wiz-inst-'))
+  for (const s of scripts) { const f = resolve(TMP, s.name); writeFileSync(f, s.content); execFileSync('bash', ['-n', f]) }
+  // Apply 스크립트에 instance launch 가 포함되는지
+  assert.ok(scripts[0].content.includes('compute instance launch'), 'apply 에 instance launch 없음')
+})
 
 console.log(`\nwizard compose 테스트 통과 — ${passed}건`)

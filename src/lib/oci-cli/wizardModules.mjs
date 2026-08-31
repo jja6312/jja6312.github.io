@@ -141,6 +141,34 @@ export const WIZARD_MODULES = {
       { id: 'rt', src: { edge: 'route-table' }, actualPointer: '/data/route-table-id', comparator: 'equals' },
     ],
   },
+  // ── Compute ── 첫 non-network 모듈. subnet 엣지로 인스턴스를 붙인다. 정상가동=RUNNING.
+  // image/AD/metadata 는 사용자입력(scalar) — 최신이미지·AD 자동조회는 후속(discovery 확장).
+  instance: {
+    type: 'instance', label: 'Compute Instance', group: 'compute', resource: 'instance', defaultRole: 'main',
+    roles: ['main', 'web', 'app', 'db'],
+    lifecycleReadyState: 'RUNNING',
+    scalarInputs: [
+      { key: 'availabilityDomain', option: '--availability-domain', type: 'string', required: true, label: 'Availability Domain', default: '' },
+      { key: 'shape', option: '--shape', type: 'string', required: true, label: 'Shape', default: 'VM.Standard.E5.Flex' },
+      { key: 'shapeConfig', option: '--shape-config', type: 'json', required: false, label: 'Shape Config(flex OCPU/메모리)', default: '{"ocpus":1,"memoryInGBs":16}' },
+      { key: 'imageId', option: '--image-id', type: 'string', required: true, label: 'Image OCID', default: '' },
+      { key: 'metadata', option: '--metadata', type: 'json', required: false, label: 'Metadata(예: ssh_authorized_keys)', default: '' },
+    ],
+    edgeSlots: [
+      { slot: 'subnet', option: '--subnet-id', target: 'subnet', pointer: '/data/id', required: true },
+    ],
+    getIdOption: '--instance-id', deleteIdOption: '--instance-id',
+    collect: { '/data/compartment-id': 'string', '/data/availability-domain': 'string', '/data/shape': 'string' },
+    extraComparison: [
+      { key: 'compartmentId', src: { context: 'compartmentId' }, actualPointer: '/data/compartment-id', comparator: 'string' },
+      { key: 'availabilityDomain', src: { scalar: 'availabilityDomain' }, actualPointer: '/data/availability-domain', comparator: 'string' },
+      { key: 'shape', src: { scalar: 'shape' }, actualPointer: '/data/shape', comparator: 'string' },
+    ],
+    // instance get 은 subnet-id 를 반환하지 않으므로(vnic 2-hop) 서브넷은 verify 하지 않는다.
+    extraVerify: [
+      { id: 'shape', src: { scalar: 'shape' }, actualPointer: '/data/shape', comparator: 'equals' },
+    ],
+  },
 }
 
 export const MODULE_LIST = Object.values(WIZARD_MODULES).map(m => ({ type: m.type, label: m.label, group: m.group, roles: m.roles || [m.defaultRole] }))
