@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   useSyncedJson, SYNC_LABEL, EMPTY_BOARD, EMPTY_JOURNAL, EMPTY_GOALS, EMPTY_TASKS,
   CARD_KINDS, kindColor, cardDoneDate, reconcileTasksToBoard,
-  type Board, type Card, type CardKind, type Journal, type GoalsFile, type TasksFile,
+  type Board, type Card, type CardKind, type Journal, type GoalsFile, type TasksFile, type TodoRef,
 } from '../../lib/scheduleDb'
 import { allowTodoCardDrop, startTodoCardDrag } from '../../lib/todoDnd.mjs'
 import { removeTaskSource, taskSourceFromCard } from '../../lib/taskReconcile.mjs'
@@ -50,6 +50,7 @@ export default function TodoView() {
   const [editDueAt, setEditDueAt] = useState('')
   const [editDueUndated, setEditDueUndated] = useState(true)
   const [editDoneAt, setEditDoneAt] = useState('')
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)   // 상세·참조 모달 대상
   const dragRef = useRef<{ colId: string; cardId: string } | null>(null)
 
   const goalOf = (id?: string) => goals.find(g => g.id === id)
@@ -255,10 +256,18 @@ export default function TodoView() {
                           </span>
                           {col.id === 'done' && <span className="kcard-completed">완료 {formatCardDate(cardDoneDate(card))}</span>}
                         </div>
+                        {(Boolean(card.detail) || (card.references?.length ?? 0) > 0) && (
+                          <button type="button" className="kcard-refs" onClick={e => { e.stopPropagation(); setDetailCardId(card.id) }} title="상세·참조 보기">
+                            {card.detail && <span className="kref-chip detail">📄 상세</span>}
+                            {card.references?.some(r => r.kind === 'mail') && <span className="kref-chip mail">✉ {card.references.filter(r => r.kind === 'mail').length}</span>}
+                            {card.references?.some(r => r.kind === 'url') && <span className="kref-chip url">🔗 {card.references.filter(r => r.kind === 'url').length}</span>}
+                          </button>
+                        )}
                       </div>
                     )}
                     {!editing && writable && (
                       <div className="kcard-btns">
+                        <button className="kdetail" onClick={() => setDetailCardId(card.id)} title="상세·참조 편집">＋상세</button>
                         <button className="kedit" onClick={() => startEdit(card)} title="내용·마감·완료일 수정">✎</button>
                         <button className="kdel" onClick={() => removeCard(col.id, card.id)} title={taskSourceFromCard(card.source) ? '원본 업무와 함께 삭제' : '삭제'}>✕</button>
                       </div>
@@ -310,6 +319,97 @@ export default function TodoView() {
           </div>
         )}
       </section>
+
+      {detailCardId && (() => {
+        const card = board.data.columns.flatMap(c => c.cards).find(c => c.id === detailCardId)
+        if (!card) return null
+        return <CardDetailModal card={card} writable={writable}
+          onSave={patch => patchCard(card.id, patch)} onClose={() => setDetailCardId(null)} />
+      })()}
+    </div>
+  )
+}
+
+/* ── 카드 상세·참조 편집 모달 ── */
+function CardDetailModal({ card, writable, onSave, onClose }: {
+  card: Card; writable: boolean
+  onSave: (patch: Partial<Card>) => void; onClose: () => void
+}) {
+  const [detail, setDetail] = useState(card.detail ?? '')
+  const [refs, setRefs] = useState<TodoRef[]>(card.references ?? [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+  const uid = () => `ref-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  const addRef = (kind: TodoRef['kind']) => setRefs([...refs, { id: uid(), kind }])
+  const patchRef = (id: string, patch: Partial<TodoRef>) => setRefs(refs.map(r => r.id === id ? { ...r, ...patch } : r))
+  const delRef = (id: string) => setRefs(refs.filter(r => r.id !== id))
+  const save = () => {
+    // 빈 참조는 저장하지 않는다(메일=제목·내용 둘 다 비면 제외, url=주소 비면 제외)
+    const cleaned = refs.filter(r => r.kind === 'mail' ? (r.subject?.trim() || r.body?.trim()) : r.url?.trim())
+    onSave({ detail: detail.trim() || undefined, references: cleaned.length ? cleaned : undefined })
+    onClose()
+  }
+  return (
+    <div className="todo-modal-backdrop" onClick={onClose}>
+      <div className="todo-modal" role="dialog" aria-label="상세·참조 편집" onClick={e => e.stopPropagation()}>
+        <div className="todo-modal-hd">
+          <b>{card.text}</b>
+          <button className="iconbtn" onClick={onClose} aria-label="닫기">✕</button>
+        </div>
+
+        <label className="todo-modal-sec">
+          <span className="todo-modal-label px">Detail</span>
+          <textarea className="cli-input todo-detail-area" rows={6} value={detail} readOnly={!writable}
+            placeholder="상세 내용 — 자유 텍스트" onChange={e => setDetail(e.target.value)} />
+        </label>
+
+        <div className="todo-modal-sec">
+          <div className="todo-ref-head">
+            <span className="todo-modal-label px">Reference</span>
+            {writable && <div className="todo-ref-add">
+              <button type="button" className="iconbtn" onClick={() => addRef('mail')}>✉ 메일</button>
+              <button type="button" className="iconbtn" onClick={() => addRef('url')}>🔗 URL</button>
+            </div>}
+          </div>
+          {refs.length === 0 && <p className="todo-ref-empty">참조 없음 — 메일(제목·내용)이나 URL을 추가하세요.</p>}
+          {refs.map(r => (
+            <div key={r.id} className={`todo-ref todo-ref-${r.kind}`}>
+              <div className="todo-ref-top">
+                <span className="todo-ref-kind px">{r.kind === 'mail' ? '메일' : 'URL'}</span>
+                <label className="todo-ref-date px">날짜
+                  <input type="date" className="cli-input" value={r.date ?? ''} readOnly={!writable}
+                    onChange={e => patchRef(r.id, { date: e.target.value || undefined })} />
+                </label>
+                {writable && <button type="button" className="kdel" onClick={() => delRef(r.id)} aria-label="참조 삭제">✕</button>}
+              </div>
+              {r.kind === 'mail' ? (
+                <>
+                  <input className="cli-input" placeholder="메일 제목" value={r.subject ?? ''} readOnly={!writable}
+                    onChange={e => patchRef(r.id, { subject: e.target.value })} />
+                  <textarea className="cli-input todo-ref-body" rows={4} placeholder="메일 내용" value={r.body ?? ''} readOnly={!writable}
+                    onChange={e => patchRef(r.id, { body: e.target.value })} />
+                </>
+              ) : (
+                <>
+                  <input className="cli-input" placeholder="https://…" value={r.url ?? ''} readOnly={!writable}
+                    onChange={e => patchRef(r.id, { url: e.target.value })} />
+                  <input className="cli-input" placeholder="라벨(선택)" value={r.label ?? ''} readOnly={!writable}
+                    onChange={e => patchRef(r.id, { label: e.target.value })} />
+                  {!writable && r.url && <a className="todo-ref-open" href={r.url} target="_blank" rel="noreferrer">열기 ↗</a>}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="todo-modal-actions">
+          <button className="iconbtn" onClick={onClose}>{writable ? '취소' : '닫기'}</button>
+          {writable && <button className="submitbtn" onClick={save}>저장</button>}
+        </div>
+      </div>
     </div>
   )
 }

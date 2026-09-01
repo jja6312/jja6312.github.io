@@ -1719,6 +1719,35 @@ select.cli-input { cursor: pointer; }
 .kcard-btns { display: inline-flex; gap: 2px; align-items: flex-start; }
 .kedit { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 12px; padding: 2px 4px; line-height: 1; }
 .kedit:hover { color: var(--accent); }
+.kdetail { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 10.5px; font-weight: 600; padding: 2px 4px; line-height: 1; white-space: nowrap; }
+.kdetail:hover { color: var(--accent); }
+
+/* TODO 카드 — 상세·참조 표시 칩(있을 때) */
+.kcard-refs { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; background: none; border: none; padding: 0; cursor: pointer; }
+.kref-chip { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 5px; background: var(--bg-inset); color: var(--text-dim); border: 1px solid var(--line-soft); }
+.kcard-refs:hover .kref-chip { border-color: var(--accent-dim); color: var(--text); }
+
+/* TODO 상세·참조 모달 */
+.todo-modal-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, .5); display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; overflow-y: auto; }
+.todo-modal { width: 100%; max-width: 640px; background: var(--bg-card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+.todo-modal-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.todo-modal-hd b { font-size: 15px; line-height: 1.4; color: var(--text); }
+.todo-modal-sec { display: flex; flex-direction: column; gap: 8px; }
+.todo-modal-label { font-size: 11px; letter-spacing: .06em; color: var(--text-dim); text-transform: uppercase; }
+.todo-detail-area { resize: vertical; font-family: Pretendard, inherit; font-size: 13px; line-height: 1.6; }
+.todo-ref-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.todo-ref-add { display: inline-flex; gap: 6px; }
+.todo-ref-empty { margin: 0; color: var(--text-faint); font-size: 12px; }
+.todo-ref { border: 1px solid var(--line-soft); border-left: 3px solid var(--accent-dim); border-radius: 9px; padding: 10px 11px; display: flex; flex-direction: column; gap: 7px; background: var(--bg-inset); }
+.todo-ref-mail { border-left-color: var(--cad-weekly); }
+.todo-ref-url { border-left-color: var(--cad-daily); }
+.todo-ref-top { display: flex; align-items: center; gap: 10px; }
+.todo-ref-kind { font-size: 11px; font-weight: 700; color: var(--text-dim); }
+.todo-ref-date { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; font-size: 11px; color: var(--text-faint); }
+.todo-ref-date input { width: auto; padding: 4px 6px; }
+.todo-ref-body { resize: vertical; font-family: Pretendard, inherit; font-size: 12.5px; line-height: 1.55; }
+.todo-ref-open { font-size: 11px; color: var(--accent); }
+.todo-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 /* 월간일정 — TODO·목표 자동 마커 (읽기전용) */
 .cal-marks { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed var(--line-soft); }
 .cal-ev.derived { opacity: .92; }
