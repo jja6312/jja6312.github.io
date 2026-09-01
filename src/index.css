@@ -10,6 +10,7 @@
   --wrong: #ff6b7a; --partial: #ffb54a;
   --code-bg: #0b0d13;
   --shadow: 0 8px 30px rgba(0, 0, 0, .45);
+  --cad-daily: #34d399; --cad-weekly: #60a5fa; --cad-monthly: #fbbf24; --cad-quarterly: #c084fc;
 }
 :root[data-theme="light"] {
   --bg: #f6f7fb; --bg-soft: #ffffff; --bg-card: #ffffff; --bg-inset: #eef0f7;
@@ -20,6 +21,7 @@
   --wrong: #d9364c; --partial: #c97b16;
   --code-bg: #f0f2f8;
   --shadow: 0 8px 30px rgba(30, 40, 80, .10);
+  --cad-daily: #059669; --cad-weekly: #2563eb; --cad-monthly: #b45309; --cad-quarterly: #7c3aed;
 }
 
 body {
@@ -2149,6 +2151,11 @@ select.cli-input { cursor: pointer; }
 .task-card.task-done .task-title { text-decoration: line-through; }
 .task-card-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .task-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+/* 주기성 업무 — 주기별 색상 구분(매일/매주/매월/분기) */
+.task-badge.cad-daily { background: color-mix(in srgb, var(--cad-daily) 18%, transparent); color: var(--cad-daily); }
+.task-badge.cad-weekly { background: color-mix(in srgb, var(--cad-weekly) 18%, transparent); color: var(--cad-weekly); }
+.task-badge.cad-monthly { background: color-mix(in srgb, var(--cad-monthly) 18%, transparent); color: var(--cad-monthly); }
+.task-badge.cad-quarterly { background: color-mix(in srgb, var(--cad-quarterly) 20%, transparent); color: var(--cad-quarterly); }
 .task-title { font-size: 15px; color: var(--text); }
 .task-range { color: var(--text-faint); font-size: 12px; }
 .task-thread-count { color: var(--text-dim); font-size: 11px; background: var(--bg-inset); border-radius: 999px; padding: 1px 8px; }

@@ -112,7 +112,7 @@ function RecurringPanel({ items, writable, onChange, reward }: { items: Recurrin
         {items.map(r => (
           <div key={r.id} className={`task-card task-recurring-card${r.active ? '' : ' task-inactive'}`}>
             <div className="task-card-top">
-              <span className="task-badge rec">{cadenceLabel(r.cadence)}</span>
+              <span className={`task-badge rec cad-${r.cadence}`}>{cadenceLabel(r.cadence)}</span>
               <b className="task-title">{r.title}</b>
               <span className="px task-range">{fmtDate(r.startDate)} ~ {fmtDate(r.dueDate)}</span>
               {writable && <div className="task-actions">
