@@ -91,6 +91,15 @@ t('profileSummary 카운트', () => {
 /* ── 에러 케이스 ── */
 t('빈 붙여넣기 → 에러', () => { assert.ok(parseCollectedProfiles('').error) })
 t('깨진 JSON → 에러', () => { assert.ok(parseCollectedProfiles('{not json').error) })
+t('빈-값 필드("resources":} / "compartments":,) 방어 복구', () => {
+  // 조회가 빈 출력을 내면 값 없는 필드가 남을 수 있다 → []로 보정해 파싱 성공
+  const broken = '[{"name":"A","subscriptions":[{"is-home-region":true,"region-name":"ap-seoul-1","status":"READY"}],"compartments":[{"id":"o.c","lifecycle-state":"ACTIVE","name":"prod"}],"resources":},{"name":"B","compartments":,"resources":}]'
+  const r = parseCollectedProfiles(broken)
+  assert.equal(r.error, undefined)
+  assert.deepEqual(r.profiles.map(p => p.name), ['A', 'B'])
+  assert.deepEqual(r.profiles[0].compartments.map(c => c.name), ['prod'])
+  assert.deepEqual(r.profiles[1].compartments, [])
+})
 t('name 없는 봉투 → 에러', () => { assert.ok(parseCollectedProfiles('[{"tenancy":"x"}]').error) })
 t('단일 객체(배열 아님)도 허용', () => {
   const r = parseCollectedProfiles('{"name":"solo","subscriptions":{"data":[]}}')

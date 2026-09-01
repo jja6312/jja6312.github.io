@@ -71,13 +71,14 @@ emit() {
   # 같은 섹션의 tenancy= (CRLF 제거)
   TEN=$(tr -d '\\r' < "$CONFIG" | awk -v s="[$P]" \\
     '$0==s{f=1;next} /^\\[/{f=0} f&&/^[[:space:]]*tenancy[[:space:]]*=/{sub(/^[^=]*=[[:space:]]*/,"");print;exit}')
-  # 각 조회는 필요한 필드만 뽑고 jq -c 로 한 줄 압축. 실패해도 [] 로 계속.
-  SUBS=$(oci iam region-subscription list --profile "$P" --query "$Q_SUB" --output json 2>/dev/null | jq -c . 2>/dev/null || echo '[]')
+  # 각 조회는 필요한 필드만 뽑고 jq -c 로 한 줄 압축.
+  # jq 는 빈 입력에도 exit 0 이라 '|| echo' 폴백이 안 걸린다 → 반드시 -n 로 빈 값을 '[]' 로 보정.
+  SUBS=$(oci iam region-subscription list --profile "$P" --query "$Q_SUB" --output json 2>/dev/null | jq -c . 2>/dev/null); [ -n "$SUBS" ] || SUBS='[]'
   COMPS=$(oci iam compartment list --compartment-id "$TEN" --compartment-id-in-subtree true --all \\
-    --profile "$P" --query "$Q_COMP" --output json 2>/dev/null | jq -c . 2>/dev/null || echo '[]')
+    --profile "$P" --query "$Q_COMP" --output json 2>/dev/null | jq -c . 2>/dev/null); [ -n "$COMPS" ] || COMPS='[]'
   # 리소스 이름 — Resource Search(프로필 홈 리전 기준). 타입 필터는 블로그가 한다.
   RES=$(oci search resource structured-search --query-text "query all resources" \\
-    --profile "$P" --query "$Q_RES" --output json 2>/dev/null | jq -c . 2>/dev/null || echo '[]')
+    --profile "$P" --query "$Q_RES" --output json 2>/dev/null | jq -c . 2>/dev/null); [ -n "$RES" ] || RES='[]'
   printf '{"name":"%s","tenancy":"%s","subscriptions":%s,"compartments":%s,"resources":%s}' \\
     "$P" "$TEN" "$SUBS" "$COMPS" "$RES"
 }
@@ -142,9 +143,12 @@ function extractOne(envelope) {
 export function parseCollectedProfiles(text) {
   const trimmed = String(text ?? '').trim()
   if (!trimmed) return { profiles: [], error: '붙여넣은 내용이 비어 있습니다.' }
+  // 방어적 복구 — 조회가 빈 출력을 내면 스크립트가 "resources":} 처럼 값 없는 필드를 남길 수 있다
+  // (구버전 스크립트/특정 셸). 알려진 3키의 빈 값을 []로 보정해 파싱 가능하게 한다.
+  const repaired = trimmed.replace(/("(?:subscriptions|compartments|resources)"\s*:)\s*(?=[},\]])/g, '$1[]')
   let parsed
   try {
-    parsed = JSON.parse(trimmed)
+    parsed = JSON.parse(repaired)
   } catch {
     return { profiles: [], error: 'JSON 파싱 실패 — 수집 스크립트 출력 전체를 그대로 붙여넣었는지 확인하세요.' }
   }
