@@ -97,6 +97,20 @@ t('단일 객체(배열 아님)도 허용', () => {
   assert.equal(r.profiles.length, 1)
   assert.equal(r.profiles[0].name, 'solo')
 })
+t('프로젝션 shape(섹션이 bare 배열, --query 출력)도 파싱', () => {
+  // 새 수집 스크립트는 --query 로 섹션을 bare 배열로 뽑는다({data:[]} 아님)
+  const env = JSON.stringify([{
+    name: 'proj', tenancy: 'ocid1.tenancy.oc1..t',
+    subscriptions: [{ 'is-home-region': true, 'region-name': 'ap-seoul-1', status: 'READY' }],
+    compartments: [{ name: 'prod', id: 'ocid1.compartment.oc1..p', 'lifecycle-state': 'ACTIVE' }],
+    resources: [{ 'resource-type': 'Vcn', 'display-name': 'v1', 'compartment-id': 'ocid1.compartment.oc1..p', 'lifecycle-state': 'AVAILABLE' }],
+  }])
+  const { profiles, error } = parseCollectedProfiles(env)
+  assert.equal(error, undefined)
+  assert.equal(profiles[0].homeRegion, 'ap-seoul-1')
+  assert.deepEqual(profiles[0].compartments.map(c => c.name), ['prod'])
+  assert.deepEqual(profiles[0].names.vcn.map(n => n.name), ['v1'])
+})
 
 /* ── 매핑 무결성 ── */
 t('SEARCH_TYPE_TO_TARGET 값 중복 없음', () => {

@@ -48,9 +48,12 @@ const uniqueSorted = values => [...new Set(values.filter(Boolean))].sort((a, b) 
 // 프로필별 원본 출력을 봉투에 담아 단일 JSON 배열로 출력한다. 필드 추출은 블로그가 한다.
 export function renderProfileCollectScript() {
   return `#!/usr/bin/env bash
-# OCI 프로필 수집 — ~/.oci/config 의 모든 프로필에서 리전·컴파트먼트·리소스 이름을 모아
+# OCI 프로필 수집 — ~/.oci/config 의 모든 프로필에서 리전·컴파트먼트·리소스 "이름"만 모아
 # 블로그에 붙여넣을 단일 JSON 으로 출력한다. 읽기전용(list/get/search)만 실행한다.
+#   ./collect.sh &> profiles.log   후 profiles.log 전체를 붙여넣으세요.
+# 필요한 4필드만 --query 로 뽑고 jq -c 로 압축해 출력을 짧게 유지한다(태그·컨텍스트 등 제외).
 set -uo pipefail
+command -v jq >/dev/null 2>&1 || { echo "[ERROR] jq 가 필요합니다(출력 압축용). 설치 후 다시 실행하세요." >&2; exit 3; }
 CONFIG="\${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
 [ -r "$CONFIG" ] || { echo "[ERROR] config 를 읽을 수 없습니다: $CONFIG" >&2; exit 1; }
 
@@ -58,19 +61,23 @@ CONFIG="\${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
 mapfile -t PROFILES < <(tr -d '\\r' < "$CONFIG" | grep -oE '^\\[[^]]+\\]' | tr -d '[]')
 [ "\${#PROFILES[@]}" -gt 0 ] || { echo "[ERROR] config 에서 프로필을 찾지 못했습니다." >&2; exit 1; }
 
+# 서버측 필드 프로젝션(JMESPath) — 필요한 것만. 태그/시스템태그/컨텍스트 등은 버린다.
+Q_SUB='data[].{"region-name":"region-name","is-home-region":"is-home-region","status":"status"}'
+Q_COMP='data[].{"name":"name","id":"id","lifecycle-state":"lifecycle-state"}'
+Q_RES='data[].{"display-name":"display-name","resource-type":"resource-type","compartment-id":"compartment-id","lifecycle-state":"lifecycle-state"}'
+
 emit() {
   local P="$1" TEN SUBS COMPS RES
   # 같은 섹션의 tenancy= (CRLF 제거)
   TEN=$(tr -d '\\r' < "$CONFIG" | awk -v s="[$P]" \\
     '$0==s{f=1;next} /^\\[/{f=0} f&&/^[[:space:]]*tenancy[[:space:]]*=/{sub(/^[^=]*=[[:space:]]*/,"");print;exit}')
-  # 가용리전 + 홈리전 (실패해도 빈 배열로 계속)
-  SUBS=$(oci iam region-subscription list --profile "$P" --output json 2>/dev/null || echo '{"data":[]}')
-  # 컴파트먼트(권위 소스) — 테넌시 전체 하위트리
+  # 각 조회는 필요한 필드만 뽑고 jq -c 로 한 줄 압축. 실패해도 [] 로 계속.
+  SUBS=$(oci iam region-subscription list --profile "$P" --query "$Q_SUB" --output json 2>/dev/null | jq -c . 2>/dev/null || echo '[]')
   COMPS=$(oci iam compartment list --compartment-id "$TEN" --compartment-id-in-subtree true --all \\
-    --profile "$P" --output json 2>/dev/null || echo '{"data":[]}')
-  # 나머지 리소스 이름 — Resource Search(프로필 홈 리전 기준). 필터는 블로그가 한다.
+    --profile "$P" --query "$Q_COMP" --output json 2>/dev/null | jq -c . 2>/dev/null || echo '[]')
+  # 리소스 이름 — Resource Search(프로필 홈 리전 기준). 타입 필터는 블로그가 한다.
   RES=$(oci search resource structured-search --query-text "query all resources" \\
-    --profile "$P" --output json 2>/dev/null || echo '{"data":[]}')
+    --profile "$P" --query "$Q_RES" --output json 2>/dev/null | jq -c . 2>/dev/null || echo '[]')
   printf '{"name":"%s","tenancy":"%s","subscriptions":%s,"compartments":%s,"resources":%s}' \\
     "$P" "$TEN" "$SUBS" "$COMPS" "$RES"
 }

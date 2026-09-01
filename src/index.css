@@ -628,14 +628,6 @@ kbd {
 .oci-official-search input::placeholder { font-size: 10.5px; }
 .oci-official-search button { border: 0; background: transparent; color: var(--text-faint); cursor: pointer; font-size: 13px; line-height: 1; }
 
-/* 좌측 nav 분류 넘버링 배지 — 대분류 100단위 / 소분류 10블록 코드 */
-.oci-nav-code {
-  display: inline-block; min-width: 2.4em; margin-right: 5px; padding: 0 4px;
-  font: 700 9.5px/1.5 Consolas, monospace; text-align: center;
-  color: var(--text-faint); background: var(--bg-inset); border-radius: 4px; vertical-align: middle;
-}
-.oci-nav-code.cat { color: var(--accent); background: var(--accent-glow, rgba(90,200,250,.12)); min-width: 3em; }
-
 /* 좌측 nav 드롭다운 펼침 — 트리거 위치 고정, 콘텐츠만 아래로 부드럽게 */
 @keyframes ociDropdownIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .oci-dropdown-in { animation: ociDropdownIn .18s cubic-bezier(.2, .7, .3, 1); transform-origin: top center; will-change: transform, opacity; }
