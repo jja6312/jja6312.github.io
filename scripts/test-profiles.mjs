@@ -130,6 +130,13 @@ t('프로젝션 shape(섹션이 bare 배열, jq 출력)도 파싱', () => {
 })
 
 /* ── 매핑 무결성 ── */
+t('파서 타입당 방어 상한(원본 대량 붙여넣기)', () => {
+  // 스크립트가 30개로 자르지만, 상한 없는 원본을 붙여넣어도 저장은 100개로 막힌다
+  const many = Array.from({ length: 250 }, (_, i) => ({ 'resource-type': 'Instance', 'display-name': `i${i}`, 'lifecycle-state': 'RUNNING' }))
+  const env = JSON.stringify([{ name: 'big', subscriptions: [], compartments: [], resources: many }])
+  const { profiles } = parseCollectedProfiles(env)
+  assert.equal(profiles[0].names.instance.length, 100)
+})
 t('SEARCH_TYPE_TO_TARGET 값 중복 없음', () => {
   const targets = Object.values(SEARCH_TYPE_TO_TARGET)
   assert.equal(targets.length, new Set(targets).size)

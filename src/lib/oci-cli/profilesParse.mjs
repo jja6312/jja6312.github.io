@@ -43,15 +43,22 @@ export const SEARCH_TYPE_TO_TARGET = {
 const uniqueSorted = values => [...new Set(values.filter(Boolean))].sort((a, b) =>
   a.localeCompare(b, 'en', { sensitivity: 'base' }))
 
+// 타입당 저장 상한 — 스크립트가 이미 30개로 자르지만, 구버전/원본 붙여넣기 방어용 최종 상한.
+const PARSER_TYPE_CAP = 100
+
 // ── 수집 레시피(bash) ────────────────────────────────────────────────────
 // ocicli "프로필" 카테고리에 그대로 노출된다. 읽기전용(list/get/search)만 실행하고,
 // 프로필별 원본 출력을 봉투에 담아 단일 JSON 배열로 출력한다. 필드 추출은 블로그가 한다.
 export function renderProfileCollectScript() {
+  // 동적조회에 실제 쓰는 리소스 타입만 남긴다(나머지 리소스는 통째로 버려 출력을 작게).
+  const targetTypes = JSON.stringify(Object.keys(SEARCH_TYPE_TO_TARGET))
+  const perTypeCap = 30 // 타입당 최대 이름 수(피커는 표본이면 충분, 나머지는 자유입력)
   return `#!/usr/bin/env bash
 # OCI 프로필 수집 — ~/.oci/config 의 모든 프로필에서 리전·컴파트먼트·리소스 "이름"만 모아
 # 블로그에 붙여넣을 단일 JSON 으로 출력한다. 읽기전용(list/get/search)만 실행한다.
 #   ./collect.sh &> profiles.log   후 profiles.log 전체를 붙여넣으세요.
-# 필요한 4필드만 --query 로 뽑고 jq -c 로 압축해 출력을 짧게 유지한다(태그·컨텍스트 등 제외).
+# 출력 최소화: (1) 동적조회에 쓰는 리소스 타입만, (2) 이름·타입만(긴 OCID 제외),
+#   (3) 활성 자원만, (4) 타입당 최대 ${perTypeCap}개, (5) jq -c 로 한 줄 압축.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || { echo "[ERROR] jq 가 필요합니다(출력 압축용). 설치 후 다시 실행하세요." >&2; exit 3; }
 CONFIG="\${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
@@ -61,11 +68,12 @@ CONFIG="\${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
 mapfile -t PROFILES < <(tr -d '\\r' < "$CONFIG" | grep -oE '^\\[[^]]+\\]' | tr -d '[]')
 [ "\${#PROFILES[@]}" -gt 0 ] || { echo "[ERROR] config 에서 프로필을 찾지 못했습니다." >&2; exit 1; }
 
-# jq 프로젝션 — 필요한 필드만 뽑고 배열로 만든다(태그/시스템태그/컨텍스트 등 제외).
-# 응답 형태가 list={data:[...]} 든 search={data:{items:[...]}} 든 모두 처리한다.
+# jq 프로젝션 — 필요한 필드만 뽑고 배열로. 응답이 list={data:[...]} 든 search={data:{items:[...]}} 든 처리.
 JQ_SUB='[.data[]? | {"region-name":.["region-name"],"is-home-region":.["is-home-region"],"status":.status}]'
 JQ_COMP='[.data[]? | {name:.name,id:.id,"lifecycle-state":.["lifecycle-state"]}]'
-JQ_RES='[((.data.items // .data // [])[]?) | {"display-name":.["display-name"],"resource-type":.["resource-type"],"compartment-id":.["compartment-id"],"lifecycle-state":.["lifecycle-state"]}]'
+# 리소스: 활성 + 동적조회 대상 타입만, 이름·타입만, 타입당 상한. (OCID·태그 등 전부 버림)
+TYPES='${targetTypes}'
+JQ_RES='[((.data.items // .data // [])[]?) | select((.["lifecycle-state"] // "OK") | test("TERMINATED|DELETED") | not) | select(.["resource-type"] | IN(($T)[])) | {"display-name":.["display-name"],"resource-type":.["resource-type"]}] as $arr | (($arr | group_by(.["resource-type"]) | map(.[0:${perTypeCap}]) | add) // [])'
 
 emit() {
   local P="$1" TEN SUBS COMPS RES
@@ -77,9 +85,9 @@ emit() {
   SUBS=$(oci iam region-subscription list --profile "$P" --output json 2>/dev/null | jq -c "$JQ_SUB" 2>/dev/null); [ -n "$SUBS" ] || SUBS='[]'
   COMPS=$(oci iam compartment list --compartment-id "$TEN" --compartment-id-in-subtree true --all \\
     --profile "$P" --output json 2>/dev/null | jq -c "$JQ_COMP" 2>/dev/null); [ -n "$COMPS" ] || COMPS='[]'
-  # 리소스 이름 — Resource Search(프로필 홈 리전 기준). 타입 필터는 블로그가 한다.
+  # 리소스 이름 — Resource Search(프로필 홈 리전 기준). 타입 목록은 --argjson 으로 전달.
   RES=$(oci search resource structured-search --query-text "query all resources" \\
-    --profile "$P" --output json 2>/dev/null | jq -c "$JQ_RES" 2>/dev/null); [ -n "$RES" ] || RES='[]'
+    --profile "$P" --output json 2>/dev/null | jq -c --argjson T "$TYPES" "$JQ_RES" 2>/dev/null); [ -n "$RES" ] || RES='[]'
   printf '{"name":"%s","tenancy":"%s","subscriptions":%s,"compartments":%s,"resources":%s}' \\
     "$P" "$TEN" "$SUBS" "$COMPS" "$RES"
 }
@@ -125,7 +133,10 @@ function extractOne(envelope) {
     const display = item['display-name']
     if (!target || !display) continue
     if (item['lifecycle-state'] === 'DELETED' || item['lifecycle-state'] === 'TERMINATED') continue
-    ;(names[target] ??= []).push({ name: String(display), compartmentId: item['compartment-id'] })
+    const list = (names[target] ??= [])
+    // 방어 상한 — 구버전/원본 붙여넣기가 타입당 수천 개를 담아도 localStorage·렌더를 폭주시키지 않는다.
+    if (list.length >= PARSER_TYPE_CAP) continue
+    list.push({ name: String(display), compartmentId: item['compartment-id'] })
   }
 
   return {
