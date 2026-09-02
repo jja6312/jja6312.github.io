@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import CliBlueprintWorkspace from '../components/CliBlueprintWorkspace'
 import CliInputWizard, { defaultCliWizardControl, useCliInputWizardShortcut, type CliWizardQuestion, type CliWizardRenderContext } from '../components/CliInputWizard'
@@ -3396,7 +3396,8 @@ export default function CliBuilderPage() {
       </aside>
       {wizardOpen && cmd ? (
         <CliInputWizard questions={wizardQuestions} values={wizardValues} setValue={setWizardValue}
-          onClose={() => setWizardOpen(false)} title="OCI CLI INPUT" renderControl={renderCliWizardControl} />
+          onClose={() => setWizardOpen(false)} title="OCI CLI INPUT"
+          renderControl={ctx => renderCliWizardControl(ctx, selectedProfile?.regions)} />
       ) : null}
     </div>
   )
@@ -3787,13 +3788,13 @@ function ImageOptionField({ fieldId, option, label, value, onChange, discoveryCo
   )
 }
 
-function renderCliWizardControl(context: CliWizardRenderContext): ReactNode {
+function renderCliWizardControl(context: CliWizardRenderContext, allowedRegions?: string[]): ReactNode {
   const option = context.question.meta as CliOption | undefined
   if (!option) return defaultCliWizardControl(context)
   const { value, valueId, inputClass, assignRef, setValue, subValue, setSubValue } = context
   const checked = value !== ''
   if (option.name === '--region') {
-    return <RegionSelect value={value} onChange={v => setValue(valueId, v)} inputClass={inputClass} assignRef={assignRef} />
+    return <RegionSelect value={value} onChange={v => setValue(valueId, v)} inputClass={inputClass} assignRef={assignRef} allowedRegions={allowedRegions} />
   }
   if (option.flag || option.checkbox) {
     return (
@@ -3916,15 +3917,22 @@ function RegionSelect({ value, onChange, inputClass = 'cli-input', assignRef, al
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
-  // 선택된 프로필이 있으면 그 프로필의 구독 리전으로 후보를 좁힌다. 테이블에 없는 신규 리전은 id 로 폴백.
-  const pool = allowedRegions && allowedRegions.length > 0
-    ? allowedRegions.map(id => REGIONS.find(r => r.id === id) ?? { id, ko: id, en: id, geo: '' })
-    : REGIONS
+  // 프로필이 활성이면 가용(구독) 리전을 위로·강조(●)하고, 나머지는 구분선 아래로 내린다(숨기지 않음).
+  const availSet = new Set(allowedRegions ?? [])
+  const hasProfile = availSet.size > 0
+  const extras = (allowedRegions ?? [])
+    .filter(id => !REGIONS.some(r => r.id === id))
+    .map(id => ({ id, ko: id, en: id, geo: '' }))
+  const all = hasProfile ? [...extras, ...REGIONS] : REGIONS
   const raw = text.trim()
   const q = raw.toLowerCase()
-  const matches = raw
-    ? pool.filter(r => r.ko.includes(raw) || r.en.toLowerCase().includes(q) || r.id.includes(q))
-    : pool
+  const filtered = raw
+    ? all.filter(r => r.ko.includes(raw) || r.en.toLowerCase().includes(q) || r.id.includes(q))
+    : all
+  const ordered = hasProfile
+    ? [...filtered.filter(r => availSet.has(r.id)), ...filtered.filter(r => !availSet.has(r.id))]
+    : filtered
+  const availCount = hasProfile ? ordered.filter(r => availSet.has(r.id)).length : 0
   const pick = (id: string) => { onChange(id); setText(id); setOpen(false) }
   const commit = () => { const resolved = resolveRegion(text); setText(resolved); if (resolved !== value) onChange(resolved) }
   return (
@@ -3934,23 +3942,32 @@ function RegionSelect({ value, onChange, inputClass = 'cli-input', assignRef, al
         onFocus={() => { setOpen(true); setHi(0) }}
         onChange={event => { setText(event.target.value); setOpen(true); setHi(0) }}
         onKeyDown={event => {
-          if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); setHi(h => Math.min(h + 1, matches.length - 1)) }
+          if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); setHi(h => Math.min(h + 1, ordered.length - 1)) }
           else if (event.key === 'ArrowUp') { event.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
-          else if (event.key === 'Enter' && open && matches[hi]) { event.preventDefault(); pick(matches[hi].id) }
+          else if (event.key === 'Enter' && open && ordered[hi]) { event.preventDefault(); pick(ordered[hi].id) }
           else if (event.key === 'Escape') setOpen(false)
         }}
         onBlur={() => window.setTimeout(() => { commit(); setOpen(false) }, 120)} />
-      {open && matches.length > 0 && (
+      {open && ordered.length > 0 && (
         <ul className="region-menu" role="listbox">
-          {matches.slice(0, 20).map((r, i) => (
-            <li key={r.id}>
-              <button type="button" className={`region-opt${i === hi ? ' on' : ''}${r.id === value ? ' sel' : ''}`}
-                onMouseEnter={() => setHi(i)} onMouseDown={event => { event.preventDefault(); pick(r.id) }}>
-                <span className="region-city"><b>{r.ko}</b> · {r.en}</span>
-                <span className="region-id">{r.id}</span>
-              </button>
-            </li>
-          ))}
+          {ordered.slice(0, 24).map((r, i) => {
+            const avail = availSet.has(r.id)
+            return (
+              <Fragment key={r.id}>
+                {hasProfile && availCount > 0 && i === availCount && (
+                  <li className="region-divider" aria-hidden="true"><span>그 외 리전</span></li>
+                )}
+                <li>
+                  <button type="button" className={`region-opt${i === hi ? ' on' : ''}${r.id === value ? ' sel' : ''}${avail ? ' avail' : ''}`}
+                    onMouseEnter={() => setHi(i)} onMouseDown={event => { event.preventDefault(); pick(r.id) }}>
+                    {avail && <span className="region-avail-dot" aria-hidden="true">●</span>}
+                    <span className="region-city"><b>{r.ko}</b> · {r.en}</span>
+                    <span className="region-id">{r.id}</span>
+                  </button>
+                </li>
+              </Fragment>
+            )
+          })}
         </ul>
       )}
     </div>

@@ -868,6 +868,13 @@ select.cli-input { cursor: pointer; }
 .region-opt .region-city { color: var(--text); }
 .region-opt .region-id { color: var(--text-faint); font-family: Consolas, monospace; font-size: 12px; white-space: nowrap; }
 .name-select .region-opt .region-city { font-family: Consolas, monospace; font-size: 12.5px; }
+/* 활성 프로필의 가용(구독) 리전 — 위로·강조. 나머지는 구분선 아래로 */
+.region-opt.avail { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.region-opt.avail .region-city b { color: var(--accent); }
+.region-opt.avail:hover, .region-opt.avail.on { background: var(--accent-glow, rgba(90,200,250,.18)); }
+.region-avail-dot { color: var(--accent); font-size: 8px; line-height: 1; align-self: center; margin-right: -4px; }
+.region-divider { display: flex; align-items: center; gap: 8px; padding: 5px 9px 3px; margin-top: 3px; border-top: 1px solid var(--line-soft); }
+.region-divider span { color: var(--text-faint); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
 
 /* ── 프로필: 활성 셀렉터(컨텍스트 패널) ── */
 .cli-active-profile {
