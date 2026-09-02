@@ -61,24 +61,25 @@ CONFIG="\${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
 mapfile -t PROFILES < <(tr -d '\\r' < "$CONFIG" | grep -oE '^\\[[^]]+\\]' | tr -d '[]')
 [ "\${#PROFILES[@]}" -gt 0 ] || { echo "[ERROR] config 에서 프로필을 찾지 못했습니다." >&2; exit 1; }
 
-# 서버측 필드 프로젝션(JMESPath) — 필요한 것만. 태그/시스템태그/컨텍스트 등은 버린다.
-Q_SUB='data[].{"region-name":"region-name","is-home-region":"is-home-region","status":"status"}'
-Q_COMP='data[].{"name":"name","id":"id","lifecycle-state":"lifecycle-state"}'
-Q_RES='data[].{"display-name":"display-name","resource-type":"resource-type","compartment-id":"compartment-id","lifecycle-state":"lifecycle-state"}'
+# jq 프로젝션 — 필요한 필드만 뽑고 배열로 만든다(태그/시스템태그/컨텍스트 등 제외).
+# 응답 형태가 list={data:[...]} 든 search={data:{items:[...]}} 든 모두 처리한다.
+JQ_SUB='[.data[]? | {"region-name":.["region-name"],"is-home-region":.["is-home-region"],"status":.status}]'
+JQ_COMP='[.data[]? | {name:.name,id:.id,"lifecycle-state":.["lifecycle-state"]}]'
+JQ_RES='[((.data.items // .data // [])[]?) | {"display-name":.["display-name"],"resource-type":.["resource-type"],"compartment-id":.["compartment-id"],"lifecycle-state":.["lifecycle-state"]}]'
 
 emit() {
   local P="$1" TEN SUBS COMPS RES
   # 같은 섹션의 tenancy= (CRLF 제거)
   TEN=$(tr -d '\\r' < "$CONFIG" | awk -v s="[$P]" \\
     '$0==s{f=1;next} /^\\[/{f=0} f&&/^[[:space:]]*tenancy[[:space:]]*=/{sub(/^[^=]*=[[:space:]]*/,"");print;exit}')
-  # 각 조회는 필요한 필드만 뽑고 jq -c 로 한 줄 압축.
-  # jq 는 빈 입력에도 exit 0 이라 '|| echo' 폴백이 안 걸린다 → 반드시 -n 로 빈 값을 '[]' 로 보정.
-  SUBS=$(oci iam region-subscription list --profile "$P" --query "$Q_SUB" --output json 2>/dev/null | jq -c . 2>/dev/null); [ -n "$SUBS" ] || SUBS='[]'
+  # 각 조회를 jq 로 프로젝션·압축. jq 는 빈 입력에도 exit 0 이라 '|| echo' 가 안 걸린다
+  # → 반드시 -n 가드로 빈 캡처를 '[]' 로 보정(안 그러면 "resources":} 같은 깨진 JSON).
+  SUBS=$(oci iam region-subscription list --profile "$P" --output json 2>/dev/null | jq -c "$JQ_SUB" 2>/dev/null); [ -n "$SUBS" ] || SUBS='[]'
   COMPS=$(oci iam compartment list --compartment-id "$TEN" --compartment-id-in-subtree true --all \\
-    --profile "$P" --query "$Q_COMP" --output json 2>/dev/null | jq -c . 2>/dev/null); [ -n "$COMPS" ] || COMPS='[]'
+    --profile "$P" --output json 2>/dev/null | jq -c "$JQ_COMP" 2>/dev/null); [ -n "$COMPS" ] || COMPS='[]'
   # 리소스 이름 — Resource Search(프로필 홈 리전 기준). 타입 필터는 블로그가 한다.
   RES=$(oci search resource structured-search --query-text "query all resources" \\
-    --profile "$P" --query "$Q_RES" --output json 2>/dev/null | jq -c . 2>/dev/null); [ -n "$RES" ] || RES='[]'
+    --profile "$P" --output json 2>/dev/null | jq -c "$JQ_RES" 2>/dev/null); [ -n "$RES" ] || RES='[]'
   printf '{"name":"%s","tenancy":"%s","subscriptions":%s,"compartments":%s,"resources":%s}' \\
     "$P" "$TEN" "$SUBS" "$COMPS" "$RES"
 }
@@ -96,6 +97,8 @@ echo ']'
 function asArray(value) {
   if (Array.isArray(value)) return value
   if (value && Array.isArray(value.data)) return value.data
+  // search structured-search 원본은 {data:{items:[...]}} 형태
+  if (value && value.data && Array.isArray(value.data.items)) return value.data.items
   return []
 }
 

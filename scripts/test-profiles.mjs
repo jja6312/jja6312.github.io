@@ -106,7 +106,15 @@ t('단일 객체(배열 아님)도 허용', () => {
   assert.equal(r.profiles.length, 1)
   assert.equal(r.profiles[0].name, 'solo')
 })
-t('프로젝션 shape(섹션이 bare 배열, --query 출력)도 파싱', () => {
+t('search 원본 shape({data:{items:[...]}})도 resources 추출', () => {
+  const env = JSON.stringify([{
+    name: 'raw', subscriptions: { data: [] }, compartments: { data: [] },
+    resources: { data: { items: [{ 'resource-type': 'Subnet', 'display-name': 's1', 'compartment-id': 'o.c' }] } },
+  }])
+  const { profiles } = parseCollectedProfiles(env)
+  assert.deepEqual(profiles[0].names.subnet.map(n => n.name), ['s1'])
+})
+t('프로젝션 shape(섹션이 bare 배열, jq 출력)도 파싱', () => {
   // 새 수집 스크립트는 --query 로 섹션을 bare 배열로 뽑는다({data:[]} 아님)
   const env = JSON.stringify([{
     name: 'proj', tenancy: 'ocid1.tenancy.oc1..t',
