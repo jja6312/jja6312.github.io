@@ -18,6 +18,7 @@ const envelope = JSON.stringify([
   {
     name: 'locktonkorea',
     tenancy: 'ocid1.tenancy.oc1..aaaa',
+    namespace: 'axaxnpcrorw5',
     subscriptions: { data: [
       { 'is-home-region': true, 'region-key': 'ICN', 'region-name': 'ap-seoul-1', status: 'READY' },
       { 'is-home-region': false, 'region-key': 'NRT', 'region-name': 'ap-tokyo-1', status: 'READY' },
@@ -49,6 +50,11 @@ t('regions = READY 만(IN_PROGRESS 제외)', () => {
   assert.deepEqual(p.regions, ['ap-seoul-1', 'ap-tokyo-1'])
 })
 t('tenancyId 추출', () => { assert.equal(p.tenancyId, 'ocid1.tenancy.oc1..aaaa') })
+t('namespace 추출', () => { assert.equal(p.namespace, 'axaxnpcrorw5') })
+t('namespace 없으면 undefined', () => {
+  const r = parseCollectedProfiles('{"name":"nons","subscriptions":{"data":[]}}')
+  assert.equal(r.profiles[0].namespace, undefined)
+})
 t('compartments = DELETED 제외', () => {
   assert.deepEqual(p.compartments.map(c => c.name), ['prod', 'dev'])
 })
@@ -154,6 +160,7 @@ t('레시피에 읽기전용 명령만(mutating 없음)', () => {
   assert.ok(script.includes('region-subscription list'))
   assert.ok(script.includes('compartment list'))
   assert.ok(script.includes('structured-search'))
+  assert.ok(script.includes('os ns get'))
   assert.ok(!/\b(create|delete|update|terminate)\b/.test(script))
 })
 

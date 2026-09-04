@@ -83,6 +83,8 @@ interface CliOptionRule {
   requires?: string[]
   message: string
 }
+// 규칙 없는 명령의 안정 참조(매 렌더 새 [] 를 만들어 useMemo 를 깨뜨리지 않도록).
+const EMPTY_CLI_RULES: CliOptionRule[] = []
 interface CliOptionNotice {
   kind: 'notPublic'
   option: string
@@ -2465,7 +2467,7 @@ export default function CliBuilderPage() {
     .filter(section => section.options.length > 0)
   const formAdvanced = (selectedOperation?.advanced ?? cmd?.advanced ?? [])
     .filter(option => !isExecutionContextName(option.name))
-  const formRules = selectedOperation?.rules ?? []
+  const formRules = selectedOperation?.rules ?? EMPTY_CLI_RULES
   const formOptionNotices = selectedOperation?.optionNotices ?? []
   const formDeprecated = [...formSections.flatMap(section => section.options), ...formAdvanced]
     .filter(option => option.deprecated)
@@ -2622,6 +2624,22 @@ export default function CliBuilderPage() {
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfileName, active])
+  // 활성 프로필의 오브젝트 스토리지 네임스페이스를 --namespace(-name) 에 자동주입(폼에 옵션이 있고 빈값일 때만; 사용자 입력 우선).
+  useEffect(() => {
+    const ns = selectedProfile?.namespace
+    if (!ns) return
+    setValues(current => {
+      let next = current
+      for (const name of ['--namespace-name', '--namespace']) {
+        if (formOptionsByName.has(name) && !String(current[name] ?? '').trim()) {
+          if (next === current) next = { ...current }
+          next[name] = ns
+        }
+      }
+      return next
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileName, active])
   const registerProfiles = () => {
     const result = registerProfilesFromPaste(profilePaste, profiles)
     if (result.error) { setProfileMsg(result.error); return }
@@ -2675,8 +2693,8 @@ export default function CliBuilderPage() {
     const priority = (option: CliOption) => option.requirement === 'required' || option.required ? 0 : option.requirement === 'conditional' ? 1 : 2
     resourceOptions.sort((a, b) => priority(a) - priority(b)).forEach(option => add(option, 'resource'))
     if (responseContextEnabled) responseContextOptions.forEach(option => add(option as CliOption, 'context'))
-    return questions
-  }, [requestContextOptions, responseContextEnabled, responseContextOptions, visibleFormAdvanced, visibleFormSections])
+    return foldOneOfGroups(questions, formRules)
+  }, [formRules, requestContextOptions, responseContextEnabled, responseContextOptions, visibleFormAdvanced, visibleFormSections])
   const wizardValues = { ...values, ...executionValues }
   const validationValues = { ...effectiveValues }
   for (const option of formOptions) {
@@ -3788,7 +3806,68 @@ function ImageOptionField({ fieldId, option, label, value, onChange, discoveryCo
   )
 }
 
+// oneOf 규칙(정확히 하나 선택)을 Alt+I 마법사에서 "먼저 택1 → 해당 입력만" 스텝으로 접는다.
+// 카탈로그에 이미 있는 oneOf 관계를 그대로 재사용 — object sync 방향(src-dir/dest-dir)뿐 아니라
+// 모든 명령의 oneOf 에 자동 적용된다. 방향을 안 고르고 한쪽 입력부터 강제되던 문제를 근본 해소.
+function foldOneOfGroups(questions: CliWizardQuestion[], rules: CliOptionRule[]): CliWizardQuestion[] {
+  const oneOfs = rules.filter(rule => rule.kind === 'oneOf' && (rule.options?.length ?? 0) >= 2)
+  if (!oneOfs.length) return questions
+  let result = questions
+  for (const rule of oneOfs) {
+    const memberNames = new Set(rule.options ?? [])
+    const members = result.filter(question => question.valueId && memberNames.has(question.valueId))
+    if (members.length < 2) continue // 폼에 실제로 2개 이상 노출될 때만 접는다
+    const chooserKey = '__oneof__' + rule.id
+    const rest: CliWizardQuestion[] = []
+    let insertAt = -1
+    result.forEach(question => {
+      if (question.valueId && memberNames.has(question.valueId)) { if (insertAt < 0) insertAt = rest.length }
+      else rest.push(question)
+    })
+    const memberMeta = members.map(member => ({
+      name: member.valueId as string,
+      // 방향이 드러나는 설명(help 첫 문장) 우선 — displayLabel 만으로는 업로드/다운로드 구분이 약할 수 있다.
+      label: (member.help ?? '').split(/[.\n]/)[0].trim() || member.label,
+    }))
+    const chooser: CliWizardQuestion = {
+      id: 'oneof:' + rule.id,
+      valueId: chooserKey,
+      label: rule.message || '옵션 선택 (하나)',
+      type: 'oneOfChooser',
+      choices: memberMeta.map(member => member.name),
+      requirement: 'required',
+      help: '하나를 선택하면 해당 입력만 표시됩니다.',
+      meta: { oneOfMembers: memberMeta },
+      isFilled: current => memberMeta.some(member => current[chooserKey] === member.name),
+    }
+    const gatedMembers: CliWizardQuestion[] = members.map(member => ({
+      ...member,
+      requirement: 'conditional',
+      visibleIf: current => current[chooserKey] === member.valueId,
+    }))
+    rest.splice(insertAt < 0 ? rest.length : insertAt, 0, chooser, ...gatedMembers)
+    result = rest
+  }
+  return result
+}
+
 function renderCliWizardControl(context: CliWizardRenderContext, allowedRegions?: string[]): ReactNode {
+  if (context.question.type === 'oneOfChooser') {
+    const members = (context.question.meta as { oneOfMembers?: { name: string; label: string }[] } | undefined)?.oneOfMembers ?? []
+    const { value, valueId, setValue, assignRef } = context
+    return (
+      <div className="cli-wizard-checks cli-oneof-choices" role="radiogroup" aria-label={context.question.label}>
+        {members.map((member, index) => (
+          <label key={member.name} className="cli-multiple-choice">
+            <input ref={index === 0 ? assignRef : undefined} type="radio" name={valueId}
+              checked={value ? value === member.name : index === 0}
+              onChange={() => { setValue(valueId, member.name); members.forEach(other => { if (other.name !== member.name) setValue(other.name, '') }) }} />
+            <span>{member.label} <code className="cli-oneof-flag">{member.name}</code></span>
+          </label>
+        ))}
+      </div>
+    )
+  }
   const option = context.question.meta as CliOption | undefined
   if (!option) return defaultCliWizardControl(context)
   const { value, valueId, inputClass, assignRef, setValue, subValue, setSubValue } = context

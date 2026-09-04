@@ -17,6 +17,8 @@ export type CliWizardQuestion = {
   placeholder?: string
   meta?: unknown
   isFilled?: (values: Record<string, string>) => boolean
+  // 값-의존 가시성 — 다른 답(예: oneOf 방향 선택)에 따라 이 질문을 보이거나 숨긴다. 없으면 항상 표시.
+  visibleIf?: (values: Record<string, string>) => boolean
 }
 
 export type CliWizardRenderContext = {
@@ -118,8 +120,11 @@ export default function CliInputWizard({
   const [completed, setCompleted] = useState<Set<string>>(() => new Set())
   const [requiredOnly, setRequiredOnly] = useState(false)
   const inputRef = useRef<HTMLElement | null>(null)
-  const requiredQuestions = useMemo(() => questions.filter(isCliWizardRequired), [questions])
-  const visibleQuestions = requiredOnly && requiredQuestions.length > 0 ? requiredQuestions : questions
+  // 값-의존 가시성(visibleIf)을 필수/전체 두 모드 모두에 일관 적용 — 숨은 질문은 게이트·인덱스 대상에서 빠진다.
+  const isVisible = useCallback((item: CliWizardQuestion) => !item.visibleIf || item.visibleIf(values), [values])
+  const allVisible = useMemo(() => questions.filter(isVisible), [questions, isVisible])
+  const requiredQuestions = useMemo(() => allVisible.filter(isCliWizardRequired), [allVisible])
+  const visibleQuestions = requiredOnly && requiredQuestions.length > 0 ? requiredQuestions : allVisible
   const question = visibleQuestions[Math.min(index, Math.max(0, visibleQuestions.length - 1))]
   const valueId = question?.valueId ?? question?.id ?? ''
   const required = !!question && isCliWizardRequired(question)
@@ -147,12 +152,12 @@ export default function CliInputWizard({
   }
   const toggleRequiredOnly = useCallback(() => {
     const nextRequiredOnly = !requiredOnly && requiredQuestions.length > 0
-    const nextQuestions = nextRequiredOnly ? requiredQuestions : questions
+    const nextQuestions = nextRequiredOnly ? requiredQuestions : allVisible
     const currentIndex = Math.max(0, nextQuestions.findIndex(item => item.id === question?.id))
     setRequiredOnly(nextRequiredOnly)
     setIndex(currentIndex)
     setBlocked(false)
-  }, [question?.id, questions, requiredOnly, requiredQuestions])
+  }, [question?.id, allVisible, requiredOnly, requiredQuestions])
   const advance = () => {
     if (moving || !question) return
     if (!String(values[valueId] ?? '').trim() && required && question.choices?.[0]) setValue(valueId, question.choices[0])

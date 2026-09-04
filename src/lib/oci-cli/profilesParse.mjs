@@ -5,7 +5,7 @@
 // "이름 후보"만 캐시해 드롭다운으로 고르게 한다. OCID 는 저장하지 않는다(compartment 는
 // 예외적으로 id 를 함께 담아 ROOT/스코프 표시에 쓰되, 최종 해석은 여전히 이름→OCID live).
 
-export const PROFILE_SCHEMA_VERSION = 1
+export const PROFILE_SCHEMA_VERSION = 2
 
 // OCI Resource Search 의 resource-type → 이 사이트의 동적조회 target 키.
 // (exactName 동적조회가 참조하는 리소스만. 나머지 타입은 무시된다.)
@@ -54,8 +54,8 @@ export function renderProfileCollectScript() {
   const targetTypes = JSON.stringify(Object.keys(SEARCH_TYPE_TO_TARGET))
   const perTypeCap = 30 // 타입당 최대 이름 수(피커는 표본이면 충분, 나머지는 자유입력)
   return `#!/usr/bin/env bash
-# OCI 프로필 수집 — ~/.oci/config 의 모든 프로필에서 리전·컴파트먼트·리소스 "이름"만 모아
-# 블로그에 붙여넣을 단일 JSON 으로 출력한다. 읽기전용(list/get/search)만 실행한다.
+# OCI 프로필 수집 — ~/.oci/config 의 모든 프로필에서 리전·컴파트먼트·리소스 "이름" + 오브젝트
+# 스토리지 네임스페이스(ns)를 모아 블로그에 붙여넣을 단일 JSON 으로 출력한다. 읽기전용(list/get/search)만 실행한다.
 #   ./collect.sh &> profiles.log   후 profiles.log 전체를 붙여넣으세요.
 # 출력 최소화: (1) 동적조회에 쓰는 리소스 타입만, (2) 이름·타입만(긴 OCID 제외),
 #   (3) 활성 자원만, (4) 타입당 최대 ${perTypeCap}개, (5) jq -c 로 한 줄 압축.
@@ -76,7 +76,7 @@ TYPES='${targetTypes}'
 JQ_RES='[((.data.items // .data // [])[]?) | select((.["lifecycle-state"] // "OK") | test("TERMINATED|DELETED") | not) | select(.["resource-type"] | IN(($T)[])) | {"display-name":.["display-name"],"resource-type":.["resource-type"]}] as $arr | (($arr | group_by(.["resource-type"]) | map(.[0:${perTypeCap}]) | add) // [])'
 
 emit() {
-  local P="$1" TEN SUBS COMPS RES
+  local P="$1" TEN NS SUBS COMPS RES
   # 같은 섹션의 tenancy= (CRLF 제거)
   TEN=$(tr -d '\\r' < "$CONFIG" | awk -v s="[$P]" \\
     '$0==s{f=1;next} /^\\[/{f=0} f&&/^[[:space:]]*tenancy[[:space:]]*=/{sub(/^[^=]*=[[:space:]]*/,"");print;exit}')
@@ -88,8 +88,10 @@ emit() {
   # 리소스 이름 — Resource Search(프로필 홈 리전 기준). 타입 목록은 --argjson 으로 전달.
   RES=$(oci search resource structured-search --query-text "query all resources" \\
     --profile "$P" --output json 2>/dev/null | jq -c --argjson T "$TYPES" "$JQ_RES" 2>/dev/null); [ -n "$RES" ] || RES='[]'
-  printf '{"name":"%s","tenancy":"%s","subscriptions":%s,"compartments":%s,"resources":%s}' \\
-    "$P" "$TEN" "$SUBS" "$COMPS" "$RES"
+  # 오브젝트 스토리지 네임스페이스 — 테넌시당 1개 고정 스칼라(read-only get). 실패 시 빈 문자열(유효 JSON).
+  NS=$(oci os ns get --profile "$P" --output json 2>/dev/null | jq -r '.data // empty' 2>/dev/null)
+  printf '{"name":"%s","tenancy":"%s","namespace":"%s","subscriptions":%s,"compartments":%s,"resources":%s}' \\
+    "$P" "$TEN" "$NS" "$SUBS" "$COMPS" "$RES"
 }
 
 echo '['
@@ -114,6 +116,8 @@ function extractOne(envelope) {
   if (!envelope || typeof envelope !== 'object') return null
   const name = String(envelope.name ?? '').trim()
   if (!name) return null
+  // 오브젝트 스토리지 네임스페이스 — 스칼라 문자열(없으면 undefined). object/bucket 명령의 --namespace 자동주입에 쓴다.
+  const namespace = String(envelope.namespace ?? '').trim()
 
   const subs = asArray(envelope.subscriptions)
   const homeRegion = (subs.find(s => s && s['is-home-region'])?.['region-name']) || ''
@@ -143,6 +147,7 @@ function extractOne(envelope) {
     v: PROFILE_SCHEMA_VERSION,
     name,
     tenancyId: String(envelope.tenancy ?? '').trim() || undefined,
+    namespace: namespace || undefined,
     homeRegion: homeRegion || undefined,
     regions,
     compartments,

@@ -16,6 +16,7 @@ export interface OciProfile {
   name: string
   tenancyId?: string
   tenancyName?: string
+  namespace?: string
   homeRegion?: string
   regions: string[]
   compartments: OciProfileCompartment[]
