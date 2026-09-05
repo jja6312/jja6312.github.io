@@ -23,7 +23,7 @@ import { resolveRegion, REGIONS } from '../lib/oci-cli/regionAliases'
 import { loadOfficialCliCommand, type OfficialCliCommand, type OfficialCliOption } from '../lib/oci-cli/officialCatalog'
 import {
   loadProfiles, getSelectedProfileName, setSelectedProfileName,
-  registerProfilesFromPaste, deleteProfile, lookupNamesFor, profileSummary,
+  registerProfilesFromPaste, updateProfilesFromPaste, deleteProfile, lookupNamesFor, profileSummary,
   renderProfileCollectScript, type OciProfile,
 } from '../lib/oci-cli/profiles'
 
@@ -2644,7 +2644,16 @@ export default function CliBuilderPage() {
     const result = registerProfilesFromPaste(profilePaste, profiles)
     if (result.error) { setProfileMsg(result.error); return }
     setProfiles(result.profiles); setProfilePaste('')
-    setProfileMsg(`프로필 ${result.added}개 등록/갱신 완료.`)
+    const parts = [result.added ? `신규 ${result.added}개` : '', result.updated ? `갱신 ${result.updated}개` : ''].filter(Boolean)
+    setProfileMsg(`프로필 ${parts.join(' · ') || '변경 없음'}.`)
+  }
+  // 동일 이름 프로필만 갱신(신규 추가 안 함) — 전체 삭제·재등록 없이 기존 내용(예: ns) 최신화.
+  const updateProfiles = () => {
+    const result = updateProfilesFromPaste(profilePaste, profiles)
+    if (result.error) { setProfileMsg(result.error); return }
+    if (!result.updated) { setProfileMsg('갱신할 동일 이름 프로필이 없습니다. 새 프로필은 “프로필 등록”을 쓰세요.'); return }
+    setProfiles(result.profiles); setProfilePaste('')
+    setProfileMsg(`프로필 ${result.updated}개 갱신 완료${result.skipped ? ` · 미등록 ${result.skipped}개 건너뜀` : ''}.`)
   }
   const removeProfile = (name: string) => {
     setProfiles(current => deleteProfile(name, current))
@@ -3076,7 +3085,13 @@ export default function CliBuilderPage() {
               <textarea className="cli-input cli-json" rows={4} value={profilePaste}
                 placeholder='[{"name":"locktonkorea","tenancy":"ocid1.tenancy...","subscriptions":{"data":[...]},...}]'
                 onChange={event => { setProfilePaste(event.target.value); setProfileMsg('') }} />
-              <button type="button" className="cli-json-apply" onClick={registerProfiles} disabled={!profilePaste.trim()}>프로필 등록</button>
+              <div className="cli-profile-actions">
+                <button type="button" className="cli-json-apply" onClick={registerProfiles} disabled={!profilePaste.trim()}>프로필 등록</button>
+                <button type="button" className="cli-json-update" onClick={updateProfiles}
+                  disabled={!profilePaste.trim() || profiles.length === 0}
+                  title="같은 이름 프로필의 내용만 갱신합니다(신규 추가·삭제 없음)">기존 프로필 업데이트</button>
+              </div>
+              <small className="cli-profile-hint">같은 이름 프로필은 <b>등록·업데이트 모두 자동으로 내용만 갱신</b>됩니다 — 삭제 후 재등록할 필요 없습니다.</small>
               {profileMsg && <span className="cli-profile-msg">{profileMsg}</span>}
             </label>
 

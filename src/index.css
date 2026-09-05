@@ -922,7 +922,7 @@ select.cli-input { cursor: pointer; }
 .cli-profile-del:hover { color: var(--danger, #ff6b6b); background: var(--bg-inset); }
 .cli-structured-json, .cli-image-picker, .cli-shape-picker { padding: 12px; border: 1px solid var(--line-soft); background: var(--bg-inset); }
 .cli-json-toolbar { display: flex; gap: 6px; margin: 8px 0; }
-.cli-json-toolbar button, .cli-json-variant-tabs button, .cli-json-add, .cli-json-array-head button, .cli-json-apply {
+.cli-json-toolbar button, .cli-json-variant-tabs button, .cli-json-add, .cli-json-array-head button, .cli-json-apply, .cli-json-update {
   border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: var(--bg-card);
   color: var(--text-dim); font: 700 11.5px/1.2 inherit; cursor: pointer;
 }
@@ -943,6 +943,11 @@ select.cli-input { cursor: pointer; }
   color: var(--accent); font: 750 11px/1.2 inherit; cursor: pointer;
 }
 .cli-json-apply { margin-top: 7px; border-color: var(--accent-dim); color: var(--accent); }
+/* 프로필 등록/업데이트 버튼 행 + 안내 */
+.cli-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+.cli-profile-actions .cli-json-apply { margin-top: 0; }
+.cli-json-apply:disabled, .cli-json-update:disabled { opacity: .4; cursor: not-allowed; }
+.cli-profile-hint { display: block; margin-top: 6px; color: var(--text-faint); font-size: 10.5px; line-height: 1.5; }
 .cli-json-error { margin: 7px 0; color: var(--wrong); font-size: 11.5px; line-height: 1.5; }
 .cli-json-editor { margin-top: 8px; }
 .cli-json-variant-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
