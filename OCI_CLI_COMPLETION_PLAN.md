@@ -211,7 +211,7 @@
   - 사이트 커밋: `346d110`
   - 배포: GitHub Pages run `31884186670` 성공; 라이브 JS `assets/index-DyjqkMjj.js` SHA-256 `5DFB07E1C83211E74B68FCACD33FB5BCC22D8C75427270AA36690AC6DB4005DC`, CSS `assets/index-CEVH-R3Q.css` SHA-256 `73C56BC3FC7F6A14A2CE7C234F6060A54235E0D3908DA390E2B08392CDAFC947`, 보호 데이터 SHA-256 `E0C3994416F5A081766D4EADCFCD92300824E44C46CAE057CC8BA6F126DA7556`이 로컬과 일치
 - [ ] `P2-03` 발견 → 선택 → 실행 → 결과 해석 UX 완성
-  - 2026-09-08 사용자 우선 작업: Subscription Balance 인라인 LIST/JSON/ID 선택과 재사용 가능한 `cliDiscovery` 관계 패널, `cliInputResolution`의 일반 폼·Alt+I·preflight 공통 판정, 선택/직접 OCID 조회 조건 교정. 설계도·추가 결함은 `docs/OCI_CLI_DESIGN_REVIEW_2026-09-08.md` 참조. 로컬 회귀 통과, 배포 검증은 아래 증거 갱신 전까지 미완료. 전체 P2-03은 완료로 올리지 않음.
+  - 2026-09-08 사용자 우선 작업 완료(UI-only): Subscription Balance 인라인 LIST/JSON/ID 선택과 재사용 가능한 `cliDiscovery` 관계 패널, `cliInputResolution`의 일반 폼·Alt+I·preflight 공통 판정, 선택/직접 OCID 조회 조건 교정, 조회 컨텍스트 변경 시 후보·선택 ID 무효화. 코드 `9e1f898`, Pages run `34194735817` 성공; 라이브 JS/CSS/보호 데이터 SHA-256 일치·L1 Alt+I 자동 tenancy 통과 확인. 보호/프로필/Blueprint/242개 Bash·lint·build 통과. 기존 v3.91.0→v3.92.0 freshness gate는 우회하지 않고 별도 검토 대기로 기록했다. 설계도·추가 결함·검증 상세는 `docs/OCI_CLI_DESIGN_REVIEW_2026-09-08.md` 참조. 전체 P2-03은 완료로 올리지 않음.
   - 입력창에 OCID만 요구하지 않고 관련 LIST/GET으로 찾는 경로 제공
   - 성공 출력 예시, 핵심 응답 필드, 다음 판단, 실패 진단을 표시
   - 상태: 진행 중

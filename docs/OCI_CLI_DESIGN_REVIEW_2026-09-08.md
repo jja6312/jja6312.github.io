@@ -8,7 +8,7 @@
 
 공식 옵션의 정확성과 사람이 완주할 수 있는 입력 흐름은 별개다. `required=true`는 **OCI 실행 시 값이 필요하다**는 뜻이지, **사람이 반드시 직접 타이핑해야 한다**는 뜻이 아니다. 현재 시스템은 공식 Click 스키마 기반이라는 좋은 토대가 있지만, 운영 Overlay·폼·Alt+I·명령 생성기의 판단 규칙이 분산되어 있다. 이 분산이 이번 결함의 직접 원인이다.
 
-## 이번 요청으로 교정하는 범위
+## 이번 요청으로 교정한 범위
 
 | 문제 | 원인·근거 | 변경 |
 |---|---|---|
@@ -73,5 +73,18 @@
 - 모바일: 375×812, 문서 scrollWidth=375; 열린 결과 패널 scrollHeight > clientHeight의 내부 스크롤 및 직접 모드 입력 표시 확인. console errors 0.
 - 구조도: skill self_check 통과; 각 도면 노드/연결 7/6, 5/4, 6/6; 실제 SVG bounding box 글자 초과 0, 스크린샷 직접 확인.
 - 별도 미통과: `gen:protected`는 metadata 검사까지 통과한 뒤 **기존 v3.91.0 → 최신 v3.92.0 검토 필요 gate**에서 중단. gate를 끄거나 lock을 임의 변경하지 않았다. 재생성된 공식 데이터의 Git 내용 차이 0, 보호 데이터는 변경하지 않는다. UI-only 배포이며 “전체 생성 gate 통과”로 보고하지 않는다.
-- 기존 보호 데이터 SHA-256: `6D25767A661EB225A59B5E38EF0BE4966C250F3A9FBF6B9F673D48CE2DA26EB6`. L1/L2/L3 복호화 확인. 최종 보호 회귀·배포 증거는 다음 기록으로 보완한다.
+- 기존 보호 데이터 SHA-256: `6D25767A661EB225A59B5E38EF0BE4966C250F3A9FBF6B9F673D48CE2DA26EB6`. L1/L2/L3 복호화 및 최종 보호 회귀 통과. 프로필 26건 회귀 통과.
 - 개발 도구 참고: Windows PowerShell에서 browse의 `@e1` 참조는 반드시 따옴표로 감싸야 한다. Bash 회귀는 Git for Windows `C:/Program Files/Git/bin/bash.exe`를 사용한다. 이 PC의 Vite dev 첫 변환 지연으로 화면 테스트는 `dist` 정적 서버에서 수행했다.
+
+### 배포 완료 증거
+
+- 상태: **DONE_WITH_CONCERNS**. 이번 UI 요청은 배포 완료, 위 원천 최신성 gate는 별도 검토 대기.
+- 코드 커밋: `9e1f898ffd4e4e2a6a1dad68d067cce3848e4ce1`.
+- [GitHub Pages deploy 34194735817](https://github.com/jja6312/jja6312.github.io/actions/runs/34194735817): success.
+- 라이브/로컬 SHA-256 일치:
+  - `assets/index-DDuEq0sQ.js`: `36c5547f92f58dc2a3581624b579705732e3b3bb767891b37ff3b24c21ddd183`
+  - `assets/index-C26lPyBp.css`: `527d91873134b6e68e237c56360e7e71abdd087ed46fd921406c5dad87304412`
+  - `protected-data.json`: `6d25767a661eb225a59b5e38ef0be4966c250f3a9fbf6b9f673d48ce2da26eb6`
+- 실제 사이트 L1 로그인 → Balance → Alt+I 필수 모드 → 빈 테넌시 Enter 통과 → Subscription ID 조회 바로가기 표시 확인. 가상 JSON의 `SPM_QA_ONLY` 선택 후 입력값 반영·복사 활성화 확인. 라이브 모바일 375×812에서 문서 scrollWidth=375, console errors 0; 실제 화면 캡처 확인.
+- 추가 로컬 실증: Region Subscription의 자동 tenancy Enter 완료; Instance GET 이름 조회의 조건부 scope 질문이 `R`처럼 입력 중인 값에도 유지됨. UI 조회로 얻은 ID와 후보는 Profile 변경 후 제거되며 복사 차단 복귀.
+- 변경하지 않은 범위: CLI 원천 lock, 공식 카탈로그/보호 데이터의 Git 내용, 사용자 `blog-db/automation/inbox.json` 수정, 실제 OCI 리소스.
