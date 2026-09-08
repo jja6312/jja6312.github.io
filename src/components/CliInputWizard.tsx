@@ -17,6 +17,8 @@ export type CliWizardQuestion = {
   placeholder?: string
   meta?: unknown
   isFilled?: (values: Record<string, string>) => boolean
+  statusLabel?: (values: Record<string, string>) => string | undefined
+  dependencies?: string[]
   // 값-의존 가시성 — 다른 답(예: oneOf 방향 선택)에 따라 이 질문을 보이거나 숨긴다. 없으면 항상 표시.
   visibleIf?: (values: Record<string, string>) => boolean
 }
@@ -160,19 +162,31 @@ export default function CliInputWizard({
   }, [question?.id, allVisible, requiredOnly, requiredQuestions])
   const advance = () => {
     if (moving || !question) return
-    if (!String(values[valueId] ?? '').trim() && required && question.choices?.[0]) setValue(valueId, question.choices[0])
-    if (!filled && required && !(question.choices?.length && required)) {
+    const nextValues = { ...values }
+    if (!String(values[valueId] ?? '').trim() && required && question.choices?.[0]) {
+      nextValues[valueId] = question.choices[0]
+      setValue(valueId, question.choices[0])
+    }
+    const nextQuestions = questions.filter(item => (!item.visibleIf || item.visibleIf(nextValues)) && (!requiredOnly || isCliWizardRequired(item)))
+    if (!questionHasValue(question, nextValues) && required) {
+      const dependencyIndex = nextQuestions.findIndex(item => question.dependencies?.includes(item.valueId ?? item.id))
+      if (dependencyIndex >= 0 && nextQuestions[dependencyIndex].id !== question.id) { goTo(dependencyIndex); return }
       setBlocked(true)
       return
     }
     setCompleted(previous => new Set(previous).add(question.id))
     setMoving(true)
     window.setTimeout(() => {
-      if (index >= visibleQuestions.length - 1) onClose()
-      else { setIndex(current => current + 1); setMoving(false) }
+      const currentIndex = nextQuestions.findIndex(item => item.id === question.id)
+      if (currentIndex >= nextQuestions.length - 1) {
+        const missingIndex = nextQuestions.findIndex(item => isCliWizardRequired(item) && !questionHasValue(item, nextValues))
+        if (missingIndex >= 0) { setIndex(missingIndex); setMoving(false); setBlocked(true) }
+        else onClose()
+      } else { setIndex(currentIndex + 1); setMoving(false) }
     }, 180)
   }
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.nativeEvent.isComposing) return
     if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'i') {
       event.preventDefault()
       event.stopPropagation()
@@ -203,7 +217,7 @@ export default function CliInputWizard({
 
   return (
     <div className="bp-wizard-overlay cli-input-wizard" role="dialog" aria-modal="true"
-      aria-label={title + ' 입력 마법사'} onKeyDownCapture={onKeyDown}>
+      aria-label={title + ' 입력 마법사'} onKeyDown={onKeyDown}>
       <div className="bp-wizard-head">
         <span>{title}</span>
         <button type="button" className={'bp-wizard-mode' + (requiredOnly ? ' required-only' : '')} onClick={toggleRequiredOnly}>
@@ -220,7 +234,7 @@ export default function CliInputWizard({
               <small className={question.essential ? 'essential' : question.recommended ? 'recommended' : required ? 'required' : 'optional'}>
                 {question.essential ? '* 공통 필수' : question.recommended ? '권장' : question.requirement === 'conditional' ? '△ 조건부 필수' : required ? '* 필수' : '선택'}
               </small>
-              {filled ? <span className="bp-wizard-filled">✓ 입력됨</span> : null}
+              {filled ? <span className="bp-wizard-filled">✓ {question.statusLabel?.(values) || '입력됨'}</span> : null}
             </div>
             {question.help ? <p>{question.help}</p> : null}
             {control}
@@ -236,8 +250,8 @@ export default function CliInputWizard({
           <strong>{remaining}</strong><small>남음</small>
           <div className="bp-wizard-progress-list">
             {visibleQuestions.map((item, step) => {
-              const done = completed.has(item.id) || step < index
               const hasValue = questionHasValue(item, values)
+              const done = hasValue || (completed.has(item.id) && !isCliWizardRequired(item))
               return <button type="button" key={item.id + '-' + step} title={(step + 1) + '. ' + item.label}
                 aria-label={(step + 1) + '. ' + item.label}
                 aria-current={step === index ? 'step' : undefined}

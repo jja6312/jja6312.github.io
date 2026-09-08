@@ -23,6 +23,7 @@
     "test:oci-completeness": "node scripts/verify-oci-cli-option-completeness.mjs",
     "test:oci-requirements": "python scripts/verify-oci-cli-requirements.py",
     "test:oci-validation": "node scripts/verify-oci-cli-validation.mjs",
+    "test:oci-input-flow": "node scripts/verify-oci-cli-input-flow.mjs",
     "test:oci-context": "node scripts/verify-oci-cli-context.mjs",
     "test:oci-defaults": "node scripts/verify-oci-cli-safe-defaults.mjs",
     "test:oci-lookups": "node scripts/verify-oci-cli-dynamic-lookups.mjs",

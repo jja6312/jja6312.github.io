@@ -525,7 +525,8 @@ if (!cliBuilder.includes('visibleFormSections') || !cliBuilder.includes('showDep
   || !cliBuilder.includes('cli-rule-panel') || !cliBuilder.includes('조건부 필수')) {
   throw new Error('OCI CLI required/conditional/deprecated UI 누락')
 }
-if (!cliBuilder.includes('validateCliOptions(formOptions, validationValues, formRules)')
+if (!cliBuilder.includes('validateCliOptions(formOptions, validationValues, formRules, automaticInputs)')
+  || !cliBuilder.includes('resolveCliInputs(formOptions')
   || !cliBuilder.includes('미완성 명령 미리보기')
   || !cliBuilder.includes('disabled={!commandReady}')
   || !cliBuilder.includes('cli-validation-nav')

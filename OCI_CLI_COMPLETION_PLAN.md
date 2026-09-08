@@ -211,6 +211,7 @@
   - 사이트 커밋: `346d110`
   - 배포: GitHub Pages run `31884186670` 성공; 라이브 JS `assets/index-DyjqkMjj.js` SHA-256 `5DFB07E1C83211E74B68FCACD33FB5BCC22D8C75427270AA36690AC6DB4005DC`, CSS `assets/index-CEVH-R3Q.css` SHA-256 `73C56BC3FC7F6A14A2CE7C234F6060A54235E0D3908DA390E2B08392CDAFC947`, 보호 데이터 SHA-256 `E0C3994416F5A081766D4EADCFCD92300824E44C46CAE057CC8BA6F126DA7556`이 로컬과 일치
 - [ ] `P2-03` 발견 → 선택 → 실행 → 결과 해석 UX 완성
+  - 2026-09-08 사용자 우선 작업: Subscription Balance 인라인 LIST/JSON/ID 선택과 재사용 가능한 `cliDiscovery` 관계 패널, `cliInputResolution`의 일반 폼·Alt+I·preflight 공통 판정, 선택/직접 OCID 조회 조건 교정. 설계도·추가 결함은 `docs/OCI_CLI_DESIGN_REVIEW_2026-09-08.md` 참조. 로컬 회귀 통과, 배포 검증은 아래 증거 갱신 전까지 미완료. 전체 P2-03은 완료로 올리지 않음.
   - 입력창에 OCID만 요구하지 않고 관련 LIST/GET으로 찾는 경로 제공
   - 성공 출력 예시, 핵심 응답 필드, 다음 판단, 실패 진단을 표시
   - 상태: 진행 중
@@ -444,12 +445,13 @@
 
 ## 5. 다음 작업
 
-사용자 요청으로 `P3-CS-09` Object Storage 전송 흐름을 우선 구현했다. 현재 카탈로그·문서·로컬 검증은 완료했으며 `HUB_LOCK_1~3`을 사용한 보호 데이터 bake와 GitHub Pages 배포 검증 후 완료 처리한다. 그 다음 미완료 우선순위는 `P3-CS-01`이다.
+2026-09-08 사용자 요청으로 `P2-03` 공통 입력·선행 조회 UX와 설계 검토를 우선한다. Object Storage `P3-CS-09`는 위 완료 증거대로 이미 배포 완료했으며 bake 대기가 아니다. 다음 개선 권고는 설계 검토 보고서의 P1(컨텍스트 무효화·비동기 선택·원천 최신성)이며, 일반 서비스 확장 순서로 복귀할 때의 첫 미완료 항목은 `P3-CS-01`이다.
 
 ## 6. 변경 이력
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-09-08 | P2-03 공통 입력 상태/조회 바로가기 및 코드 기반 구조도·설계 검토. v3.92.0 freshness gate 발견, 원천/보호 데이터 변경 없이 UI 수정 검증 | 이번 커밋 | Codex |
 | 2026-08-30 | P2.5-08 순서 회귀 교정 — 공식 전체 카탈로그의 알파벳순 노출을 제거하고 CLI·Policy 공용 Console IA 정렬 모듈 및 14개 그룹 순서 회귀 게이트 추가 | 이번 커밋 | Codex |
 | 2026-08-24 | P2.5-07 완료 — 모든 일반 OCI CLI에 공통 Alt+I 입력 오케스트레이터 적용. 프로필·리전 권장 입력, 필수/조건부/선택 표식, 서비스별 JSON·복수선택 렌더러, 키보드 이동·진행 이정표·필수값 차단을 공유 모듈로 통합하고 Blueprint와 회귀 검증 | `7b17a33` / blog-db — | Codex |
 | 2026-08-23 | P3-CS-09 완료 — Object Storage Bulk Upload·Object Sync 메뉴/옵션/안전 관계/문서 추가. 보호 데이터 L1/L2/L3 회귀·lint·build·Pages deploy `32645218532`·라이브 JS/CSS/protected-data SHA-256 일치 검증 | `24ad8e1` / blog-db `05615eb` | Codex |

@@ -9,6 +9,9 @@ import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
 import { isCliOptionValueActive, quoteCliValue, serializeCliOption, validateCliOptions } from '../lib/cliOptionModel'
 import { dynamicLookupItemIterator } from '../lib/cliDynamicLookup'
+import { resolveCliInputs } from '../lib/cliInputResolution'
+import { cliDiscoveryRelation, cliDiscoveryContext, wrapCliDiscoveryCommand } from '../lib/cliDiscovery'
+import CliDiscoveryPanel from '../components/CliDiscoveryPanel'
 import { defaultCliOperation, type CliCrudVerb } from '../lib/cliDefaultOperation'
 import {
   executionContextDefaults,
@@ -129,6 +132,7 @@ interface CliAction extends CliOperation {
 interface CliCommand {
   resource: string; label: string
   cmd: string; help: string
+  rules?: CliOptionRule[]
   preferredOperation?: CrudVerb
   disableDynamic?: boolean
   rootTenancyLookup?: boolean
@@ -2327,6 +2331,7 @@ export default function CliBuilderPage() {
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [discoverySelections, setDiscoverySelections] = useState<Record<string, { value: string; key: string; scope: string[] }>>({})
   const [instancePreflightInput, setInstancePreflightInput] = useState('')
   const [instancePreflightError, setInstancePreflightError] = useState('')
   // ── 프로필: 로컬 저장된 이름 후보(컴파트먼트·리소스)·리전을 골라 쓰기 ──
@@ -2515,6 +2520,20 @@ export default function CliBuilderPage() {
     resolvedExecutionValues['--query'] = customQuery || buildMultiSelectQuery(executionValues['--query'] ?? '')
   }
   const requestContextArguments = serializeExecutionContext(CAT.executionContext, contextOverrides, resolvedExecutionValues, 'request')
+  const discoveryRequestKey = requestContextArguments.join('\n')
+  const discoveryCommandPath = executionSurface?.cmd || cmd?.cmd || ''
+  useEffect(() => {
+    const stale = Object.entries(discoverySelections).filter(([, selected]) => selected.key !== cliDiscoveryContext(discoveryCommandPath, requestContextArguments, selected.scope, values, dyn))
+    if (!stale.length) return
+    const clear = stale.filter(([name, selected]) => values[name] === selected.value).map(([name]) => name)
+    if (clear.length) {
+      setValues(current => Object.fromEntries(Object.entries(current).map(([name, value]) => [name, clear.includes(name) ? '' : value])))
+      showToast('조회 환경이 변경되어 선택한 ID를 비웠습니다. 목록을 다시 조회하세요.')
+    }
+    setDiscoverySelections(current => Object.fromEntries(Object.entries(current).filter(([name]) => !stale.some(([key]) => key === name))))
+    // Request array is represented by its stable serialized key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discoveryCommandPath, discoveryRequestKey, discoverySelections, values, dyn, showToast])
   const responseContextArguments = responseContextEnabled
     ? serializeExecutionContext(CAT.executionContext, contextOverrides, resolvedExecutionValues, 'response')
     : []
@@ -2663,13 +2682,29 @@ export default function CliBuilderPage() {
       setExecutionValues(current => ({ ...current, '--profile': '', '--region': '' }))
     }
   }
+  // One readiness contract for form, Alt+I and preflight. Automatic != already fetched.
+  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.compartmentCleanup || cmd?.manualBackup || cmd?.iamMfaReset || cmd?.monitoringComposition || cmd?.customWorkflow)
+  const dynamicAllowedFor = (option: CliOption) => {
+    const mysql = option.name !== '--db-system-id' || cmd?.resource === 'mysql-backup' && crudOperation === 'create' || cmd?.resource === 'mysql' && crudOperation === 'get'
+    return (!!option.dynamicLookup || option.name in DYNAMIC && (mysql || !!cmd?.iamResource))
+      && (option.dynamicLookup?.kind === 'compartment' || !noDyn)
+  }
+  const inputDynamic = Object.fromEntries(formOptions.map(option => [option.name,
+    dynamicAllowedFor(option) && isDynamic(dyn, option.name, true)]))
+  const validationValues = { ...effectiveValues }
+  for (const option of formOptions) {
+    if (JSONSPEC[option.name]) validationValues[option.name] = buildJsonValue(option.name, values)
+  }
+  const inputResolution = resolveCliInputs(formOptions, validationValues, { rootTenancyLookup: cmd?.rootTenancyLookup, dynamic: inputDynamic })
+  const automaticInputs = Object.fromEntries(Object.entries(inputResolution).map(([name, resolution]) => [name, resolution.state === 'automatic']))
   const wizardQuestions = useMemo<CliWizardQuestion[]>(() => {
     const questions: CliWizardQuestion[] = []
     const seen = new Set<string>()
     const add = (option: CliOption, scope: 'context' | 'resource', recommended = false) => {
       if (seen.has(option.name) || option.deprecated) return
       seen.add(option.name)
-      const requirement = option.requirement ?? (option.required ? 'required' : 'optional')
+      const dependencyRequired = Object.values(inputResolution).some(state => state.requiredInputs?.includes(option.name))
+      const requirement = dependencyRequired ? 'conditional' : option.requirement ?? (option.required ? 'required' : 'optional')
       const spec = JSONSPEC[option.name]
       questions.push({
         id: scope + ':' + option.name,
@@ -2684,9 +2719,13 @@ export default function CliBuilderPage() {
         essential: scope === 'context' && (option.name === '--profile' || option.name === '--region'),
         requirement,
         help: option.help,
-        placeholder: option.placeholder,
+        placeholder: inputResolution[option.name]?.state === 'automatic' ? inputResolution[option.name].label + ' — Enter로 다음' : option.placeholder,
         meta: option,
+        statusLabel: () => inputResolution[option.name]?.state === 'automatic' ? inputResolution[option.name].label : undefined,
+        dependencies: inputResolution[option.name]?.dependencies,
         isFilled: current => {
+          if (inputResolution[option.name]?.state === 'automatic') return true
+          if (inputResolution[option.name]?.state === 'blocked') return false
           if (String(current[option.name] ?? '').trim()) return true
           if (option.multiSelect && String(current[subKey(option.name, 'custom')] ?? '').trim()) return true
           return !!spec?.fields?.some(field => String(current[subKey(option.name, field.key)] ?? '').trim())
@@ -2703,37 +2742,14 @@ export default function CliBuilderPage() {
     resourceOptions.sort((a, b) => priority(a) - priority(b)).forEach(option => add(option, 'resource'))
     if (responseContextEnabled) responseContextOptions.forEach(option => add(option as CliOption, 'context'))
     return foldOneOfGroups(questions, formRules)
-  }, [formRules, requestContextOptions, responseContextEnabled, responseContextOptions, visibleFormAdvanced, visibleFormSections])
+  }, [formRules, inputResolution, requestContextOptions, responseContextEnabled, responseContextOptions, visibleFormAdvanced, visibleFormSections])
   const wizardValues = { ...values, ...executionValues }
-  const validationValues = { ...effectiveValues }
-  for (const option of formOptions) {
-    if (JSONSPEC[option.name]) validationValues[option.name] = buildJsonValue(option.name, values)
-  }
-  if (cmd?.rootTenancyLookup && isDynamic(dyn, '--compartment-id')) {
-    validationValues['--compartment-id'] = '__root-tenancy-from-profile__'
-  }
-  for (const option of formOptions) {
-    if (option.dynamicLookup?.kind === 'tenancy' && isDynamic(dyn, option.name, true)) {
-      validationValues[option.name] = '__root-tenancy-from-profile__'
-    }
-  }
-  if (formOptionsByName.has('--availability-domain') && isDynamic(dyn, '--availability-domain')) {
-    validationValues['--availability-domain'] = values['--availability-domain']?.trim() || '1'
-  }
   const baseCommandValidation = cmd
-    ? validateCliOptions(formOptions, validationValues, formRules)
+    ? validateCliOptions(formOptions, validationValues, formRules, automaticInputs)
     : { valid: true, issues: [], missing: [] }
   const jsonIssues = validateJsonInputs(formOptions, validationValues)
   const lookupIssues = formOptions.flatMap(option => {
-    const lookup = option.dynamicLookup
-    if (!lookup || !isDynamic(dyn, option.name, true) || lookup.kind !== 'exactName') return []
-    const requiredInputs = [
-      ...(lookup.scope === 'compartment' ? [lookup.scopeInput].filter((name): name is string => !!name) : []),
-      ...(lookup.prerequisites ?? []).map(prerequisite => prerequisite.input),
-    ]
-    return requiredInputs
-      .filter(name => !(values[name] ?? '').trim())
-      .map(name => ({
+    return (inputResolution[option.name]?.dependencies ?? []).map(name => ({
         code: 'required' as const,
         message: `${option.name} 동적 조회에는 ${name} 값이 필요합니다.`,
         options: [name],
@@ -2759,6 +2775,7 @@ export default function CliBuilderPage() {
   })
   const setWizardValue = (name: string, value: string) => {
     if (isExecutionContextName(name) || name.startsWith('--query::')) setExecutionVal(name, value)
+    else if (formOptionsByName.has(name)) setFormVal(formOptionsByName.get(name)!, value)
     else setVal(name, value)
   }
   const setFormVal = (option: CliOption, value: string) => {
@@ -2896,7 +2913,6 @@ export default function CliBuilderPage() {
 
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
-  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.compartmentCleanup || cmd?.manualBackup || cmd?.iamMfaReset || cmd?.monitoringComposition || cmd?.customWorkflow)
   const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(isAutomationRecipe)
   const verifiedOfficialPaths = [...new Set(verified.flatMap(key => {
     if (key.startsWith('official:')) return [key.slice('official:'.length)]
@@ -2911,16 +2927,36 @@ export default function CliBuilderPage() {
       ? [[resource, command] as const]
       : []
   })).values()]
+  const discovery = (option?: CliOption) => {
+    if (!option?.name || !cmd) return null
+    const relation = cliDiscoveryRelation(executionSurface?.cmd || cmd.cmd, option)
+    if (!relation) return null
+    const source = Object.values(CAT.commands).find(candidate => !isAutomationRecipe(candidate) && (candidate.cmd === relation.command || candidate.operations?.list?.cmd === relation.command))
+    if (!source) return null
+    const surface = source.operations?.list ?? source
+    const sourceOptions = allOptions(surface)
+    const sourceValues: Record<string, string> = Object.fromEntries(Object.entries(relation.inputs).map(([argument, input]) => [argument, values[input] || '']))
+    if (sourceOptions.some(item => item.name === '--all')) sourceValues['--all'] = 'true'
+    const sourceDyn = { ...dyn }
+    if (!cmd.rootTenancyLookup) delete sourceDyn['--compartment-id']
+    const sourceResolution = resolveCliInputs(sourceOptions, sourceValues, {
+      rootTenancyLookup: source.rootTenancyLookup,
+      dynamic: Object.fromEntries(sourceOptions.map(item => [item.name, (!!item.dynamicLookup || item.name in DYNAMIC) && isDynamic(sourceDyn, item.name, true)])),
+    })
+    const automatic = Object.fromEntries(Object.entries(sourceResolution).map(([name, state]) => [name, state.state === 'automatic']))
+    const check = validateCliOptions(sourceOptions, sourceValues, surface.rules, automatic)
+    const issues = [...check.issues.map(issue => issue.message), ...Object.values(sourceResolution).filter(state => state.state === 'blocked').map(state => state.label)]
+    const lookupCommand = buildCli(source, { ...sourceValues, ...resolvedExecutionValues }, sourceDyn, 'list', undefined, requestContextArguments, ['--output json'])
+    const scope = Object.values(relation.inputs)
+    const selectionKey = cliDiscoveryContext(discoveryCommandPath, requestContextArguments, scope, values, dyn)
+    return <CliDiscoveryPanel key={relation.command + JSON.stringify(sourceValues) + requestContextArguments.join(' ') + JSON.stringify(sourceDyn)}
+      relation={relation} command={wrapCliDiscoveryCommand(lookupCommand)} issues={issues} multiple={option.multiple || option.multi}
+      onSelect={id => { setFormVal(option, id); setDiscoverySelections(current => ({ ...current, [option.name]: { value: id, key: selectionKey, scope } })) }} />
+  }
   const field = (o: CliOption, optional?: boolean) => {
-    const mysqlBackupTarget = cmd?.resource === 'mysql-backup' && crudOperation === 'create'
-    const mysqlDbSystemGet = cmd?.resource === 'mysql' && crudOperation === 'get'
-    const iamDynamic = !!cmd?.iamResource && ['--user-id', '--group-id', '--policy-id', '--compartment-id'].includes(o.name)
-    const catalogDynamic = !!o.dynamicLookup
-    const legacyDynamic = o.name in DYNAMIC && (iamDynamic || o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
     // compartment 동적조회(이름→OCID)는 disableDynamic/특수빌더여도 항상 허용 — 사용자가 compartment 를 OCID 로만 입력하도록 강요하지 않는다.
     // (DIRECT_ONLY_LOOKUPS 의 compartment 는 dynamicLookup 자체가 없어 여기서 자연히 제외된다.)
-    const compartmentDynamic = o.dynamicLookup?.kind === 'compartment'
-    const dynamicAllowed = (catalogDynamic || legacyDynamic) && (compartmentDynamic || !noDyn)
+    const dynamicAllowed = dynamicAllowedFor(o)
     const fieldDynamic = dynamicAllowed && isDynamic(dyn, o.name, true)
     // 선택된 프로필에 캐시된 이름 후보(컴파트먼트·리소스)를 드롭다운으로. OCID 해석은 여전히 실행시점 live.
     const lookupTarget = o.dynamicLookup?.kind === 'compartment'
@@ -2929,7 +2965,8 @@ export default function CliBuilderPage() {
     const lookupNames = fieldDynamic && selectedProfile && lookupTarget
       ? lookupNamesFor(selectedProfile, lookupTarget)
       : undefined
-    return <Field key={o.name} o={o} value={o.name === '--shape-config' ? (effectiveValues[o.name] || '') : (values[o.name] || '')} onChange={v => setFormVal(o, v)} optional={optional}
+    return <Fragment key={o.name}><Field o={o} value={o.name === '--shape-config' ? (effectiveValues[o.name] || '') : (values[o.name] || '')} onChange={v => setFormVal(o, v)} optional={optional}
+      automaticLabel={inputResolution[o.name]?.state === 'automatic' ? inputResolution[o.name].label : undefined}
       dynamic={fieldDynamic}
       lookupNames={lookupNames}
       rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}
@@ -2937,7 +2974,7 @@ export default function CliBuilderPage() {
       imageDiscoveryCommand={o.imagePicker ? buildImageDiscoveryCommand(effectiveValues, dyn, requestContextArguments) : undefined}
       currentShape={values['--shape'] || ''}
       subVal={k => values[subKey(o.name, k)] || ''}
-      onSub={(k, v) => setVal(subKey(o.name, k), v)} />
+      onSub={(k, v) => setVal(subKey(o.name, k), v)} />{discovery(o)}</Fragment>
   }
   const executionField = (option: CliOption) => (
     <Field key={option.name} o={option} value={executionValues[option.name] || ''}
@@ -3401,6 +3438,7 @@ export default function CliBuilderPage() {
             <span>실행 전 입력 확인</span>
             <span className="cli-validation-count">{commandReady ? '✓' : commandValidation.issues.length}</span>
           </div>
+          {Object.entries(inputResolution).filter(([, state]) => state.state === 'automatic').map(([name, state]) => <p key={name} className="cli-input-automatic">{name} · {state.label}</p>)}
           {commandReady ? (
             <p className="cli-validation-ready">필수 입력이 모두 준비됐습니다. 최종 명령을 복사하거나 즐겨찾기에 저장할 수 있습니다.</p>
           ) : (
@@ -3430,7 +3468,7 @@ export default function CliBuilderPage() {
       {wizardOpen && cmd ? (
         <CliInputWizard questions={wizardQuestions} values={wizardValues} setValue={setWizardValue}
           onClose={() => setWizardOpen(false)} title="OCI CLI INPUT"
-          renderControl={ctx => renderCliWizardControl(ctx, selectedProfile?.regions)} />
+          renderControl={ctx => <>{renderCliWizardControl(ctx, selectedProfile?.regions)}{discovery(ctx.question.meta as CliOption | undefined)}</>} />
       ) : null}
     </div>
   )
@@ -3990,7 +4028,7 @@ function renderCliWizardControl(context: CliWizardRenderContext, allowedRegions?
       </>
     )
   }
-  return <input ref={assignRef} className={inputClass} value={value} placeholder={option.placeholder}
+  return <input ref={assignRef} className={inputClass} value={value} placeholder={context.question.placeholder || option.placeholder}
     onChange={event => setValue(valueId, event.target.value)} autoComplete="off" />
 }
 
@@ -4115,9 +4153,10 @@ function NameSelect({ value, onChange, names, placeholder }: {
   )
 }
 
-function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, imageDiscoveryCommand, currentShape = '', lookupNames, regionOptions, subVal, onSub }: {
+function Field({ o, value, onChange, optional, dynamic, rootTenancy, automaticLabel, onToggleDynamic, imageDiscoveryCommand, currentShape = '', lookupNames, regionOptions, subVal, onSub }: {
   o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean
   dynamic: boolean; rootTenancy?: boolean; onToggleDynamic?: (on: boolean) => void
+  automaticLabel?: string
   imageDiscoveryCommand?: string
   currentShape?: string
   lookupNames?: string[]
@@ -4139,9 +4178,10 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
           ? <span className="cli-requirement conditional">조건부 필수</span>
           : <span className="cli-requirement optional">선택</span>)}
       {o.deprecated && <span className="cli-requirement deprecated">사용 중단</span>}
+      {automaticLabel && <span className="cli-input-automatic">✓ {automaticLabel}</span>}
       {o.multiple && <span className="cli-type-tag">여러 값</span>}
       {['json', 'file', 'datetime'].includes(o.type) && <span className="cli-type-tag">{o.type.toUpperCase()}</span>}
-      {o.directLookupReason && <span className="cli-type-tag">직접 OCID</span>}
+      {o.directLookupReason && <span className="cli-type-tag">ID 직접 입력</span>}
       {o.conflictsWith?.length && <span className="cli-conflict-note">{o.conflictsWith.join(', ')}와 동시 사용 불가</span>}
       {onToggleDynamic && (
         <span className="cli-dyn-toggle" title={dynMeta.note}>

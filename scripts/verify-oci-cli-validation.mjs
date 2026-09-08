@@ -198,7 +198,7 @@ if (allLimit.valid || !codesOf(allLimit).some(code => code === 'conflict' || cod
 }
 
 for (const marker of [
-  'validateCliOptions(formOptions, validationValues, formRules)',
+  'validateCliOptions(formOptions, validationValues, formRules, automaticInputs)',
   "if (!commandReady)",
   "disabled={!commandReady}",
   "미완성 명령 미리보기",
@@ -265,3 +265,6 @@ console.log(JSON.stringify({
   launchPreflight: 'paste-once-local-compatibility-filter',
   burstableUpdate: burstableArguments.join(''),
 }))
+
+// Shared readiness/discovery is part of the existing protected-data validation gate.
+await import('./verify-oci-cli-input-flow.mjs')
