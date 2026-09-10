@@ -165,7 +165,16 @@ CURATION = {
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('Placement·크기·성능', ['--availability-domain', '--size-in-gbs', '--vpus-per-gb', '--is-auto-tune-enabled', '--autotune-policies']),
-      ('소스·백업·암호화', ['--source-details', '--volume-backup-id', '--backup-policy-id', '--kms-key-id']),
+      ('복제·복원 소스', ['--source-volume-id', '--volume-backup-id', '--source-volume-replica-id']),
+      ('백업정책·암호화', ['--backup-policy-id', '--kms-key-id', '--block-volume-replicas']),
+    ],
+  },
+  'boot-volume': {
+    'sections': [
+      ('기본 정보', ['--display-name', '--compartment-id', '--availability-domain']),
+      ('복제·복원 소스', ['--source-boot-volume-id', '--boot-volume-backup-id', '--source-volume-replica-id']),
+      ('크기·성능', ['--size-in-gbs', '--vpus-per-gb', '--is-auto-tune-enabled', '--autotune-policies']),
+      ('백업정책·암호화', ['--backup-policy-id', '--kms-key-id', '--boot-volume-replicas']),
     ],
   },
   'bucket': {
@@ -263,6 +272,8 @@ RESOURCE_ID_TARGETS = {
     '--rt-id': 'route-table',
     '--security-list-id': 'security-list',
     '--service-gateway-id': 'service-gateway',
+    '--source-boot-volume-id': 'boot-volume',
+    '--source-volume-id': 'block-volume',
     '--subnet-id': 'subnet',
     '--subnet-ids': 'subnet',
     '--subscription-id': 'subscription',
@@ -469,6 +480,20 @@ OPTION_RULES_BY_COMMAND = {
             'id': 'object-sync-file-filter', 'kind': 'mutuallyExclusive',
             'options': ['--include', '--exclude'],
             'message': '--include와 --exclude는 함께 사용할 수 없습니다.',
+        },
+    ],
+    'oci bv boot-volume create': [
+        {
+            'id': 'boot-volume-source', 'kind': 'oneOf',
+            'options': ['--source-boot-volume-id', '--boot-volume-backup-id', '--source-volume-replica-id'],
+            'message': '부트볼륨 소스는 복제(기존 부트볼륨), 백업 복원, 복제본 중 정확히 하나를 선택합니다.',
+        },
+    ],
+    'oci bv volume create': [
+        {
+            'id': 'block-volume-source', 'kind': 'mutuallyExclusive',
+            'options': ['--source-volume-id', '--volume-backup-id', '--source-volume-replica-id'],
+            'message': '블록볼륨 소스(복제·백업·복제본)는 최대 하나만 지정합니다(비우면 빈 볼륨 생성).',
         },
     ],
 }
