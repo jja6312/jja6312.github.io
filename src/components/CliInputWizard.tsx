@@ -118,7 +118,6 @@ export default function CliInputWizard({
 }) {
   const [index, setIndex] = useState(0)
   const [moving, setMoving] = useState(false)
-  const [blocked, setBlocked] = useState(false)
   const [completed, setCompleted] = useState<Set<string>>(() => new Set())
   const [requiredOnly, setRequiredOnly] = useState(false)
   const inputRef = useRef<HTMLElement | null>(null)
@@ -141,7 +140,6 @@ export default function CliInputWizard({
   }, [index, visibleQuestions.length])
   useEffect(() => {
     if (!moving && question?.type !== 'segments') window.setTimeout(() => inputRef.current?.focus(), 20)
-    setBlocked(false)
   }, [question?.id, question?.type, moving])
 
   const value = question ? (values[valueId] ?? '') : ''
@@ -150,7 +148,6 @@ export default function CliInputWizard({
   const goTo = (nextIndex: number) => {
     if (moving) return
     setIndex(Math.max(0, Math.min(visibleQuestions.length - 1, nextIndex)))
-    setBlocked(false)
   }
   const toggleRequiredOnly = useCallback(() => {
     const nextRequiredOnly = !requiredOnly && requiredQuestions.length > 0
@@ -158,7 +155,6 @@ export default function CliInputWizard({
     const currentIndex = Math.max(0, nextQuestions.findIndex(item => item.id === question?.id))
     setRequiredOnly(nextRequiredOnly)
     setIndex(currentIndex)
-    setBlocked(false)
   }, [question?.id, allVisible, requiredOnly, requiredQuestions])
   const advance = () => {
     if (moving || !question) return
@@ -167,22 +163,14 @@ export default function CliInputWizard({
       nextValues[valueId] = question.choices[0]
       setValue(valueId, question.choices[0])
     }
+    // 필수라도 진행을 막지 않는다 — 붉은 배경으로 표시만 하고 Enter 로 넘어갈 수 있게(최종 검증은 폼이 담당).
     const nextQuestions = questions.filter(item => (!item.visibleIf || item.visibleIf(nextValues)) && (!requiredOnly || isCliWizardRequired(item)))
-    if (!questionHasValue(question, nextValues) && required) {
-      const dependencyIndex = nextQuestions.findIndex(item => question.dependencies?.includes(item.valueId ?? item.id))
-      if (dependencyIndex >= 0 && nextQuestions[dependencyIndex].id !== question.id) { goTo(dependencyIndex); return }
-      setBlocked(true)
-      return
-    }
     setCompleted(previous => new Set(previous).add(question.id))
     setMoving(true)
     window.setTimeout(() => {
       const currentIndex = nextQuestions.findIndex(item => item.id === question.id)
-      if (currentIndex >= nextQuestions.length - 1) {
-        const missingIndex = nextQuestions.findIndex(item => isCliWizardRequired(item) && !questionHasValue(item, nextValues))
-        if (missingIndex >= 0) { setIndex(missingIndex); setMoving(false); setBlocked(true) }
-        else onClose()
-      } else { setIndex(currentIndex + 1); setMoving(false) }
+      if (currentIndex >= nextQuestions.length - 1) onClose()
+      else { setIndex(currentIndex + 1); setMoving(false) }
     }, 180)
   }
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -228,7 +216,7 @@ export default function CliInputWizard({
       </div>
       <div className="bp-wizard-body">
         <div className={'bp-wizard-track' + (moving ? ' moving' : '')}>
-          <div className="bp-wizard-current" key={question.id}>
+          <div className={'bp-wizard-current' + (required && !filled ? ' needs-required' : '')} key={question.id}>
             <div className="bp-wizard-question current">
               {question.label}
               <small className={question.essential ? 'essential' : question.recommended ? 'recommended' : required ? 'required' : 'optional'}>
@@ -238,7 +226,7 @@ export default function CliInputWizard({
             </div>
             {question.help ? <p>{question.help}</p> : null}
             {control}
-            {blocked ? <div className="bp-wizard-required">필수값을 입력한 뒤 Enter를 누르세요.</div> : null}
+            {required && !filled ? <div className="bp-wizard-required soft">필수 항목입니다 — 비워도 Enter로 넘어갈 수 있어요.</div> : null}
             <div className="bp-wizard-actions">
               <button type="button" disabled={index === 0} onClick={() => goTo(index - 1)}>← 이전</button>
               <span className="bp-wizard-hint">Enter 다음 · Alt+I 필수/전체 · Alt+←/→ 이동 · Esc 닫기</span>

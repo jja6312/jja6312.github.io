@@ -2697,6 +2697,15 @@ export default function CliBuilderPage() {
   }
   const inputResolution = resolveCliInputs(formOptions, validationValues, { rootTenancyLookup: cmd?.rootTenancyLookup, dynamic: inputDynamic })
   const automaticInputs = Object.fromEntries(Object.entries(inputResolution).map(([name, resolution]) => [name, resolution.state === 'automatic']))
+  // Alt+I 마법사에서도 동적조회(컴파트먼트·리소스 이름)를 드롭다운으로 고를 수 있게 — 폼과 동일한
+  // fieldDynamic 조건에서만 이름 후보를 준다(동적 OFF 면 plain 입력). 값은 이름, OCID 는 실행시점 live 해석.
+  const wizardLookupNames = (option: CliOption): string[] => {
+    const lookup = option.dynamicLookup
+    if (!lookup || !selectedProfile) return []
+    if (!(dynamicAllowedFor(option) && isDynamic(dyn, option.name, true))) return []
+    const target = lookup.kind === 'compartment' ? 'compartment' : (!lookup.multiple ? lookup.target : undefined)
+    return target ? lookupNamesFor(selectedProfile, target) : []
+  }
   const wizardQuestions = useMemo<CliWizardQuestion[]>(() => {
     const questions: CliWizardQuestion[] = []
     const seen = new Set<string>()
@@ -2738,9 +2747,11 @@ export default function CliBuilderPage() {
     })
     request.forEach(option => add(option as CliOption, 'context', option.name === '--profile' || option.name === '--region'))
     const resourceOptions = [...visibleFormSections.flatMap(section => section.options), ...visibleFormAdvanced]
-    const priority = (option: CliOption) => option.requirement === 'required' || option.required ? 0 : option.requirement === 'conditional' ? 1 : 2
-    resourceOptions.sort((a, b) => priority(a) - priority(b)).forEach(option => add(option, 'resource'))
+    resourceOptions.forEach(option => add(option, 'resource'))
     if (responseContextEnabled) responseContextOptions.forEach(option => add(option as CliOption, 'context'))
+    // 필수 항목을 먼저 쫙(essential·required → 조건부 → 선택), 그다음 선택 항목. 안정 정렬로 그룹 내 순서 보존.
+    const priority = (q: CliWizardQuestion) => q.essential || q.requirement === 'required' ? 0 : q.requirement === 'conditional' ? 1 : 2
+    questions.sort((a, b) => priority(a) - priority(b))
     return foldOneOfGroups(questions, formRules)
   }, [formRules, inputResolution, requestContextOptions, responseContextEnabled, responseContextOptions, visibleFormAdvanced, visibleFormSections])
   const wizardValues = { ...values, ...executionValues }
@@ -3468,7 +3479,7 @@ export default function CliBuilderPage() {
       {wizardOpen && cmd ? (
         <CliInputWizard questions={wizardQuestions} values={wizardValues} setValue={setWizardValue}
           onClose={() => setWizardOpen(false)} title="OCI CLI INPUT"
-          renderControl={ctx => <>{renderCliWizardControl(ctx, selectedProfile?.regions)}{discovery(ctx.question.meta as CliOption | undefined)}</>} />
+          renderControl={ctx => <>{renderCliWizardControl(ctx, selectedProfile?.regions, wizardLookupNames)}{discovery(ctx.question.meta as CliOption | undefined)}</>} />
       ) : null}
     </div>
   )
@@ -3904,7 +3915,7 @@ function foldOneOfGroups(questions: CliWizardQuestion[], rules: CliOptionRule[])
   return result
 }
 
-function renderCliWizardControl(context: CliWizardRenderContext, allowedRegions?: string[]): ReactNode {
+function renderCliWizardControl(context: CliWizardRenderContext, allowedRegions?: string[], resolveLookupNames?: (option: CliOption) => string[]): ReactNode {
   if (context.question.type === 'oneOfChooser') {
     const members = (context.question.meta as { oneOfMembers?: { name: string; label: string }[] } | undefined)?.oneOfMembers ?? []
     const { value, valueId, setValue, assignRef } = context
@@ -3927,6 +3938,14 @@ function renderCliWizardControl(context: CliWizardRenderContext, allowedRegions?
   const checked = value !== ''
   if (option.name === '--region') {
     return <RegionSelect value={value} onChange={v => setValue(valueId, v)} inputClass={inputClass} assignRef={assignRef} allowedRegions={allowedRegions} />
+  }
+  // 동적조회(컴파트먼트·리소스 이름) → 프로필 캐시 이름 드롭다운. 폼과 동일 UX. OCID 는 실행시점 live 해석.
+  if (option.dynamicLookup && (option.dynamicLookup.kind === 'compartment' || option.dynamicLookup.kind === 'exactName')) {
+    const names = resolveLookupNames?.(option) ?? []
+    if (names.length > 0) {
+      return <NameSelect value={value} onChange={v => setValue(valueId, v)} names={names}
+        placeholder={option.dynamicLookup.inputPlaceholder || option.placeholder} />
+    }
   }
   if (option.flag || option.checkbox) {
     return (

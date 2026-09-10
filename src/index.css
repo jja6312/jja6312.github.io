@@ -2126,6 +2126,10 @@ select.cli-input { cursor: pointer; }
 .bp-wizard-actions button:disabled { opacity: .3; cursor: default; }
 .bp-wizard-hint { color: #687181; font: 500 .7rem/1.5 var(--mono); text-align: center; }
 .bp-wizard-required { color: #ff9e9e; font-size: .78rem; }
+/* 필수(미입력) 항목 — 입력 박스를 옅은 붉은색으로 표시. 그래도 Enter 로 넘어갈 수 있음(비블로킹). */
+.bp-wizard-current.needs-required .bp-wizard-input { background: rgba(255, 92, 92, .12); border-radius: 8px; border-bottom-color: #ff8a8a; padding-left: 8px; padding-right: 8px; }
+.bp-wizard-current.needs-required .cli-input { background: rgba(255, 92, 92, .12); border-color: #ff8a8a; }
+.bp-wizard-required.soft { color: #ffb3b3; opacity: .82; }
 .bp-wizard-progress { display: flex; flex-direction: column; align-items: center; min-height: 0; padding: 14px 12px 20px 8px; border-left: 1px solid #252c38; }
 .bp-wizard-progress > strong { color: #f5f7fb; font: 750 1.1rem/1 var(--mono); }
 .bp-wizard-progress > small { margin: 4px 0 13px; color: #697283; font: .61rem/1 var(--mono); }
