@@ -7,6 +7,7 @@ import {
 import { allowTodoCardDrop, startTodoCardDrag } from '../../lib/todoDnd.mjs'
 import { removeTaskSource, taskSourceFromCard } from '../../lib/taskReconcile.mjs'
 import { useHub } from '../../store'
+import DatePicker from '../../components/DatePicker'
 
 const isoOf = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -58,9 +59,25 @@ export default function TodoView() {
   const setEntry = (patch: Partial<typeof entry>) =>
     journal.update({ ...journal.data, [date]: { goal: entry.goal, learned: entry.learned, goalIds: entry.goalIds, ...patch } })
 
-  const shiftDate = (delta: number) => {
-    const d = new Date(date + 'T00:00:00'); d.setDate(d.getDate() + delta); setDate(isoOf(d))
-  }
+  const shiftDate = (delta: number) => setDate(cur => {
+    const d = new Date(cur + 'T00:00:00'); d.setDate(d.getDate() + delta); return isoOf(d)
+  })
+  // 방향키 ← → 로 날짜 이동 — 입력/셀렉트 타이핑 중이거나 모달·편집·캘린더 열림 중엔 무시.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      if (detailCardId || editId) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return
+      if (document.querySelector('.datepicker-pop')) return
+      e.preventDefault()
+      shiftDate(e.key === 'ArrowLeft' ? -1 : 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailCardId, editId])
 
   // ── 칸반 ──
   const addCard = (colId: string) => {
@@ -146,10 +163,11 @@ export default function TodoView() {
       <div className="sched-head">
         <h1 className="sheet-h1">TODO LIST</h1>
         <div className="todo-datenav" style={{ marginLeft: 'auto' }}>
-          <button className="iconbtn" onClick={() => shiftDate(-1)} title="이전 날">‹</button>
-          <input className="cli-input todo-dateinput" type="date" value={date} onChange={e => setDate(e.target.value)} />
-          <button className="iconbtn" onClick={() => shiftDate(1)} title="다음 날">›</button>
+          <button className="iconbtn" onClick={() => shiftDate(-1)} title="이전 날 (←)">‹</button>
+          <DatePicker value={date} onChange={setDate} className="todo-datepicker" />
+          <button className="iconbtn" onClick={() => shiftDate(1)} title="다음 날 (→)">›</button>
           <button className="cal-today" onClick={() => setDate(todayIso())}>오늘</button>
+          <span className="todo-datenav-hint px" title="방향키 ← → 로 날짜 이동">← →</span>
         </div>
         <span className="px sched-sync">{SYNC_LABEL[journal.sync === 'synced' ? board.sync : journal.sync]}</span>
       </div>
@@ -232,9 +250,7 @@ export default function TodoView() {
                         {col.id === 'done' && (
                           <div className="kcard-completed-row">
                             <span className="px">완료일</span>
-                            <input className="cli-input kdone-input" type="date" value={editDoneAt}
-                              onChange={e => setEditDoneAt(e.target.value)} />
-                            <button className="cal-today" type="button" onClick={() => setEditDoneAt(todayIso())}>오늘</button>
+                            <DatePicker value={editDoneAt} onChange={setEditDoneAt} className="kdone-picker" />
                           </div>
                         )}
                         <div className="kcard-edit-actions">
@@ -380,8 +396,8 @@ function CardDetailModal({ card, writable, onSave, onClose }: {
               <div className="todo-ref-top">
                 <span className="todo-ref-kind px">{r.kind === 'mail' ? '메일' : 'URL'}</span>
                 <label className="todo-ref-date px">날짜
-                  <input type="date" className="cli-input" value={r.date ?? ''} readOnly={!writable}
-                    onChange={e => patchRef(r.id, { date: e.target.value || undefined })} />
+                  <DatePicker value={r.date ?? ''} onChange={v => patchRef(r.id, { date: v || undefined })}
+                    disabled={!writable} clearable placeholder="미지정" />
                 </label>
                 {writable && <button type="button" className="kdel" onClick={() => delRef(r.id)} aria-label="참조 삭제">✕</button>}
               </div>

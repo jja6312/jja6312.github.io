@@ -1701,6 +1701,32 @@ select.cli-input { cursor: pointer; }
 /* TODO 날짜 네비 (‹ 달력 ›) */
 .todo-datenav { display: inline-flex; align-items: center; gap: 4px; }
 .todo-dateinput { width: 150px; }
+.todo-datenav-hint { font-size: 10px; color: var(--text-faint); letter-spacing: 1px; margin-left: 2px; cursor: default; user-select: none; }
+
+/* 캘린더 팝오버 date picker — 브라우저 기본 date 입력 대신 테마 맞춤 월 그리드 */
+.datepicker { position: relative; display: inline-block; }
+.datepicker-trigger { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; cursor: pointer; text-align: left; }
+.todo-datepicker .datepicker-trigger { width: 150px; }
+.datepicker-trigger:disabled { opacity: .5; cursor: not-allowed; }
+.datepicker-trigger .ph { color: var(--text-faint); }
+.datepicker-ico { opacity: .7; font-size: 13px; }
+.datepicker-pop { position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 244px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-card); box-shadow: 0 18px 40px -20px rgba(0,0,0,.55); }
+.todo-datepicker .datepicker-pop { left: auto; right: 0; }
+.datepicker-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.datepicker-nav b { font-size: 13px; font-weight: 700; color: var(--text); }
+.datepicker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.datepicker-dow { margin-bottom: 4px; }
+.datepicker-dow span { text-align: center; font-size: 11px; color: var(--text-faint); padding: 2px 0; }
+.datepicker-dow .sun { color: #e06c6c; }
+.datepicker-dow .sat { color: #6c9ce0; }
+.datepicker-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 13px inherit; cursor: pointer; }
+.datepicker-day:hover { background: var(--bg-inset); }
+.datepicker-day.today { outline: 1px solid var(--line-soft); font-weight: 700; }
+.datepicker-day.sel { background: var(--accent); color: #fff; }
+.datepicker-empty { aspect-ratio: 1; }
+.datepicker-foot { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
+.datepicker-clear { font-size: 12px; padding: 4px 12px; border-radius: 99px; border: 1px solid var(--line); background: transparent; color: var(--text-faint); cursor: pointer; font-family: inherit; }
+.datepicker-clear:hover { border-color: var(--wrong); color: var(--wrong); }
 /* 칸반 카드 수정 */
 .kcard-edit { width: 100%; font-family: Pretendard; font-size: 14px; padding: 6px 8px; }
 .kcard-main { flex: 1; min-width: 0; }
