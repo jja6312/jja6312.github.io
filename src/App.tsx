@@ -24,6 +24,7 @@ const XP_SYSTEMS = [
   { match: /^\/feedback/, id: 'feedback', label: '피드백' },
   { match: /^\/knowledge\/oci-cli/, id: 'oci-cli', label: 'OCI CLI' },
   { match: /^\/knowledge\/cli-wizard/, id: 'cli-wizard', label: 'CLI UI Wizard' },
+  { match: /^\/knowledge\/mobaxterm/, id: 'mobaxterm', label: 'MobaXterm 제어' },
   { match: /^\/knowledge\/terraform/, id: 'terraform', label: 'Terraform' },
   { match: /^\/knowledge\/troubleshooting/, id: 'troubleshooting', label: '트러블슈팅' },
   { match: /^\/knowledge\/support-history/, id: 'support-history', label: '지원이력' },
@@ -94,6 +95,7 @@ function Hotkeys() {
         else if (e.key === 'w') nav('/knowledge/cli-wizard')
         else if (e.key === 'i') nav('/knowledge/oci-policy')   // IAM policy 라이브러리
         else if (e.key === 'u') nav('/knowledge/oci-grammar')  // 쿼리 문법 (qUery)
+        else if (e.key === 'x') nav('/knowledge/mobaxterm')    // MobaXterm
         else if (e.key === 't') nav('/knowledge/terraform')
         else if (e.key === 'q') nav('/knowledge/quote')
         else if (e.key === 'v') nav('/knowledge/provisioning')

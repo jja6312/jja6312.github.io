@@ -11,6 +11,7 @@ import QuotePage from './QuotePage'
 import MeetingsPage from './MeetingsPage'
 import ProvisioningPage from './ProvisioningPage'
 import SupportHistoryPage from './SupportHistoryPage'
+import MobaXtermPage from './MobaXtermPage'
 import Locks from '../components/Locks'
 import LockedNotice from '../components/LockedNotice'
 import { requiredLevel } from '../lib/auth'
@@ -21,6 +22,7 @@ const SECTIONS = [
   { id: 'oci-cli', label: 'OCI CLI', kbd: 'g c' },
   { id: 'oci-policy', label: 'OCI Policy', kbd: 'g i' },
   { id: 'oci-grammar', label: 'OCI Grammar', kbd: 'g u' },
+  { id: 'mobaxterm', label: 'MobaXterm 제어', kbd: 'g x' },
   { id: 'terraform', label: 'Terraform', kbd: 'g t' },
   { id: 'troubleshooting', label: '트러블슈팅', kbd: 'g s' },
   { id: 'support-history', label: '지원이력', kbd: 'g h', locked: true },
@@ -81,6 +83,7 @@ export default function KnowledgePage() {
         {active === 'oci-cli' && <OciCliSection mode={cliMode} />}
         {active === 'oci-policy' && <OciPolicyPage />}
         {active === 'oci-grammar' && <OciGrammarPage />}
+        {active === 'mobaxterm' && <MobaXtermPage />}
         {active === 'terraform' && (
           <KnowledgeDocsPage crumb="TERRAFORM" title="OCI Terraform" badge="TF"
             desc="모듈 라이브러리 사용법 — 플레이북·모듈 카탈로그·apply 함정 모음."
