@@ -13,3 +13,27 @@
 .moba-sessions{margin-top:18px}.moba-folder-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.moba-folder-chips span{padding:5px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent) 10%,var(--bg-soft));color:var(--accent);font-size:.74rem;font-weight:750}.moba-table-wrap{overflow:auto}.moba-sessions table{width:100%;border-collapse:collapse;font-size:.82rem}.moba-sessions th{text-align:left;color:var(--text-dim);font-size:.7rem;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--line)}.moba-sessions td{padding:10px;border-bottom:1px solid var(--line)}.moba-sessions td button{border:0;background:none;color:#ef6a6a;cursor:pointer}.moba-empty{color:var(--text-dim);text-align:center;padding:30px}
 .moba-result{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;margin-top:18px;padding:24px;border:1px solid color-mix(in srgb,#35b779 40%,var(--line));border-radius:14px;background:color-mix(in srgb,#35b779 7%,var(--bg-card))}.moba-result.incomplete{border-color:color-mix(in srgb,#e3a52b 42%,var(--line));background:color-mix(in srgb,#e3a52b 6%,var(--bg-card))}.moba-result h2{font-size:1.05rem;margin:5px 0}.moba-result p{margin:0;color:var(--text-dim);font-size:.82rem}.moba-result-actions{display:flex;gap:8px}.moba-result-actions button:disabled{opacity:.4;cursor:not-allowed;transform:none}.moba-result details{grid-column:1/-1;border-top:1px solid var(--line);padding-top:12px}.moba-result summary{cursor:pointer;color:var(--text-dim);font-size:.78rem}.moba-result pre{max-height:320px;overflow:auto;white-space:pre-wrap;font-size:.72rem;background:var(--bg);padding:14px;border-radius:8px}
 @media(max-width:900px){.moba-page{padding:18px 14px 60px}.moba-hero{align-items:flex-start;flex-direction:column;padding:24px}.moba-grid,.moba-storage,.moba-result{grid-template-columns:1fr}.moba-storage p,.moba-result details{grid-column:1}.moba-form{grid-template-columns:1fr}.moba-result-actions{flex-wrap:wrap}.moba-result-actions button{flex:1}}
+
+/* 세션 종류 세그먼트 토글 (SSH / RDP) — 인라인 폼·마법사 공용 */
+.moba-seg{display:inline-flex;gap:4px;padding:4px;margin-bottom:16px;border:1px solid var(--line);border-radius:10px;background:var(--bg-soft)}
+.moba-seg-btn{border:0;background:none;color:var(--text-dim);font:inherit;font-weight:750;padding:7px 16px;border-radius:7px;cursor:pointer;transition:.15s ease}
+.moba-seg-btn:hover{color:var(--text)}
+.moba-seg-btn.on{background:var(--accent);color:#fff}
+.cli-input-wizard .moba-seg{margin-bottom:0}
+/* 개인키 경로 + 저장 버튼 한 줄 */
+.moba-keyfield{grid-column:1/-1}
+.moba-keyrow{display:flex;gap:8px}.moba-keyrow input{flex:1;min-width:0}
+.moba-key-save{white-space:nowrap;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--accent) 11%,var(--bg-soft));color:var(--text);padding:0 12px;font:inherit;font-weight:700;font-size:.76rem;cursor:pointer}
+.moba-key-save:hover{filter:brightness(1.06)}
+/* 저장된 키 프로필 칩 */
+.moba-keychips{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:12px}
+.moba-keychips-label{font-size:.72rem;color:var(--text-dim);font-weight:700}
+.moba-keychip{display:inline-flex;align-items:center;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--accent) 8%,var(--bg-soft));overflow:hidden}
+.moba-keychip>button{border:0;background:none;font:inherit;cursor:pointer;color:var(--accent);font-size:.74rem;font-weight:700;padding:5px 4px 5px 11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.moba-keychip>button:hover{text-decoration:underline}
+.moba-keychip-x{color:var(--text-dim)!important;padding:5px 9px 5px 4px!important;font-weight:800!important}
+.moba-keychip-x:hover{color:#ef6a6a!important;text-decoration:none!important}
+/* 세션 종류 뱃지 */
+.moba-typebadge{display:inline-block;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.66rem;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:6px}
+.moba-typebadge.ssh{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.moba-typebadge.rdp{background:color-mix(in srgb,#3b82f6 18%,transparent);color:#3b82f6}
