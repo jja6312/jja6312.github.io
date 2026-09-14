@@ -20,6 +20,7 @@ const tabs: Tab[] = [
   },
   {
     to: '/knowledge', label: '지식모음', children: [
+      { to: '/knowledge/inventory', label: '리소스 현행화' },
       { to: '/knowledge/oci-cli', label: 'OCI CLI' },
       { to: '/knowledge/terraform', label: 'Terraform' },
       { to: '/knowledge/troubleshooting', label: '트러블슈팅' },

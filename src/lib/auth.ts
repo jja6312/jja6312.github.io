@@ -7,6 +7,7 @@ export type Level = 0 | 1 | 2 | 3
 
 // 경로 prefix → 필요 자물쇠 레벨. 목록에 없으면 0(공개: 학습·복습·프로필·트러블슈팅·목표)
 export const LOCKS: { prefix: string; level: Level }[] = [
+  { prefix: '/knowledge/inventory', level: 3 },
   { prefix: '/knowledge/meetings', level: 3 },
   { prefix: '/knowledge/announcements', level: 3 },
   { prefix: '/knowledge/provisioning', level: 3 },

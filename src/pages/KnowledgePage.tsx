@@ -7,6 +7,7 @@ import QuotePage from './QuotePage'
 import MeetingsPage from './MeetingsPage'
 import ProvisioningPage from './ProvisioningPage'
 import SupportHistoryPage from './SupportHistoryPage'
+import InventoryPage from './InventoryPage'
 import Locks from '../components/Locks'
 import LockedNotice from '../components/LockedNotice'
 import { requiredLevel } from '../lib/auth'
@@ -14,6 +15,7 @@ import { useHub } from '../store'
 
 // 지식모음 — 쌓이는 지식·도구 계열. 자물쇠 레벨은 auth.LOCKS 에서 파생.
 const SECTIONS = [
+  { id: 'inventory', label: '리소스 현행화', kbd: '', locked: true },
   { id: 'oci-cli', label: 'OCI CLI', kbd: 'g c' },
   { id: 'terraform', label: 'Terraform', kbd: 'g t' },
   { id: 'troubleshooting', label: '트러블슈팅', kbd: 'g s' },
@@ -51,6 +53,7 @@ export default function KnowledgePage() {
           <LockedNotice level={activeLevel} authLevel={authLevel} onLogin={() => openAuth(activeLevel)} />
         </div>
       ) : <>
+        {active === 'inventory' && <InventoryPage />}
         {active === 'troubleshooting' && <TroubleshootingPage />}
         {active === 'support-history' && <SupportHistoryPage />}
         {active === 'announcements' && <AnnouncementsPage />}

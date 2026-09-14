@@ -19,6 +19,7 @@ import { useHub } from './store'
 
 const STEP_IDS = ['c1', 'c2', 'c3', 's1', 's2', 's3', 's4', 's5']
 const XP_SYSTEMS = [
+  { match: /^\/knowledge\/inventory/, id: 'inventory', label: '리소스 현행화' },
   { match: /^\/learning\/review/, id: 'review', label: '복습' },
   { match: /^\/learning/, id: 'learning', label: '학습' },
   { match: /^\/feedback/, id: 'feedback', label: '피드백' },
