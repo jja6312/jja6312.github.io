@@ -12,7 +12,7 @@ CLIENTS = {
     'object': ('object_storage', 'ObjectStorageClient'), 'fss': ('file_storage', 'FileStorageClient'),
     'lb': ('load_balancer', 'LoadBalancerClient'), 'nlb': ('network_load_balancer', 'NetworkLoadBalancerClient'),
     'dns': ('dns', 'DnsClient'), 'db': ('database', 'DatabaseClient'),
-    'mysql': ('mysql', 'DbSystemClient'), 'mysql_backup': ('mysql', 'DbBackupsClient'),
+    'mysql': ('mysql', 'DbSystemClient'), 'mysql_backup': ('mysql', 'DbBackupsClient'), 'mysql_config': ('mysql', 'MysqlaasClient'),
     'psql': ('psql', 'PostgresqlClient'), 'redis': ('redis', 'RedisClusterClient'),
     'oke': ('container_engine', 'ContainerEngineClient'), 'ci': ('container_instances', 'ContainerInstanceClient'),
     'fn': ('functions', 'FunctionsManagementClient'), 'api': ('apigateway', 'GatewayClient'),
@@ -95,6 +95,7 @@ add('network',300,[
  'InternetGateway|list_internet_gateways|get_internet_gateway','NatGateway|list_nat_gateways|get_nat_gateway',
  'ServiceGateway|list_service_gateways|get_service_gateway','LocalPeeringGateway|list_local_peering_gateways|get_local_peering_gateway',
  'PublicIp|list_public_ips|get_public_ip|compartment_id=compartment,scope=#REGION',
+ 'PublicIp|list_public_ips|get_public_ip|compartment_id=compartment,scope=#AVAILABILITY_DOMAIN,availability_domain=ad',
  'PrivateIp|list_private_ips|get_private_ip|subnet_id=Subnet.id',
  'Drg|list_drgs|get_drg','DrgAttachment|list_drg_attachments|get_drg_attachment',
  'DrgRouteTable|list_drg_route_tables|get_drg_route_table|drg_id=Drg.id',
@@ -109,7 +110,7 @@ add('network',300,[
 ])
 add('lb',330,['LoadBalancer|list_load_balancers|get_load_balancer'])
 add('nlb',330,['NetworkLoadBalancer|list_network_load_balancers|get_network_load_balancer'])
-add('dns',340,['DnsZone|list_zones|get_zone','DnsView|list_views|get_view','DnsResolver|list_resolvers|get_resolver','DnsSteeringPolicy|list_steering_policies|get_steering_policy','DnsSteeringPolicyAttachment|list_steering_policy_attachments|get_steering_policy_attachment'])
+add('dns',340,['DnsZone|list_zones|get_zone|compartment_id=compartment,scope=#GLOBAL','DnsZone|list_zones|get_zone|compartment_id=compartment,scope=#PRIVATE','DnsView|list_views|get_view','DnsResolver|list_resolvers|get_resolver','DnsSteeringPolicy|list_steering_policies|get_steering_policy','DnsSteeringPolicyAttachment|list_steering_policy_attachments|get_steering_policy_attachment'])
 add('db',400,[
  'DbSystem|list_db_systems|get_db_system','DbHome|list_db_homes|get_db_home',
  'Database|list_databases|get_database|compartment_id=compartment,db_home_id=DbHome.id',
@@ -123,10 +124,11 @@ add('db',400,[
  'CloudExadataInfrastructure|list_cloud_exadata_infrastructures|get_cloud_exadata_infrastructure',
  'ExadataInfrastructure|list_exadata_infrastructures|get_exadata_infrastructure',
  'VmCluster|list_vm_clusters|get_vm_cluster','DatabaseSoftwareImage|list_database_software_images|get_database_software_image',
- 'PluggableDatabase|list_pluggable_databases|get_pluggable_database|compartment_id=compartment,database_id=Database.id',
+ 'PluggableDatabase|list_pluggable_databases|get_pluggable_database|database_id=Database.id',
 ])
 add('mysql',500,['MySqlDbSystem|list_db_systems|get_db_system'])
 add('mysql_backup',500,['MySqlBackup|list_backups|get_backup'])
+add('mysql_config',500,['MySqlConfiguration|list_configurations|get_configuration'])
 add('psql',510,['PostgresqlDbSystem|list_db_systems|get_db_system','PostgresqlBackup|list_backups|get_backup','PostgresqlConfiguration|list_configurations|get_configuration'])
 add('redis',520,['RedisCluster|list_redis_clusters|get_redis_cluster'])
 add('nosql',530,['NoSqlTable|list_tables|get_table'])
@@ -155,7 +157,7 @@ add('iam',800,[
  'Policy|list_policies|get_policy','Domain|list_domains|get_domain',
  'User|list_users|get_user|compartment_id=tenancy','Group|list_groups|get_group|compartment_id=tenancy',
  'DynamicGroup|list_dynamic_groups|get_dynamic_group|compartment_id=tenancy',
- 'UserGroupMembership|list_user_group_memberships|get_user_group_membership|compartment_id=tenancy',
+ 'UserGroupMembership|list_user_group_memberships|get_user_group_membership|compartment_id=tenancy,group_id=Group.id',
  'IdentityProvider|list_identity_providers|get_identity_provider|compartment_id=tenancy,protocol=#SAML2',
  'TagNamespace|list_tag_namespaces|get_tag_namespace','Tag|list_tags|get_tag|tag_namespace_id=TagNamespace.id',
  'TagDefault|list_tag_defaults|get_tag_default',

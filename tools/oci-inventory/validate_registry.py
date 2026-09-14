@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 import oci
 from specs import SPECS, CLIENTS, ALLOWLIST
-from safety import approved
+from safety import approved, POST_READS
 
 def validate():
     issues=[]; valid=0
@@ -18,7 +18,8 @@ def validate():
             if not fn: issues.append({'operation':f'{service}.{method}','reason':'Not in installed SDK'}); continue
             src=inspect.getsource(fn)
             verbs=re.findall(r'\bmethod\s*=\s*[\'"]([A-Z]+)',src)
-            if verbs and verbs[-1] not in ('GET','POST'): raise AssertionError(f'Unsafe SDK verb {service}.{method}: {verbs}')
+            if len(verbs)!=1 or not (verbs[0]=='GET' or (verbs[0]=='POST' and (service,method) in POST_READS)):
+                issues.append({'operation':f'{service}.{method}','reason':'HTTP verb not explicitly approved','verbs':verbs})
             valid+=1
     for s in SPECS:
         module,name=CLIENTS[s.client]; factory=getattr(getattr(oci,module,None),name,None); fn=getattr(factory,s.listing,None)
@@ -29,3 +30,4 @@ def validate():
     return {'sdk':oci.__version__,'registered_types':len(SPECS),'approved_operations':valid,'issues':issues}
 if __name__=='__main__':
     report=validate(); print(json.dumps(report,ensure_ascii=False,indent=2))
+    raise SystemExit(1 if report['issues'] else 0)

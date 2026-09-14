@@ -2,7 +2,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 const [runtimeModules,input,output]=process.argv.slice(2);
+const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
+const fixture=JSON.parse(await fs.readFile(input,'utf8'));
+// A temporary local-only entrypoint tests the viewer without production passwords.
+// It is not a Vite production entry and must never be checked into the site.
+const harness={'_inventory_qa.html':'<!doctype html><html data-theme="light"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div><script type="module" src="/_inventory_qa.tsx"></script></body></html>', '_inventory_qa.tsx':"import React from 'react'; import {createRoot} from 'react-dom/client'; import InventoryPage from './src/pages/InventoryPage'; import './src/index.css'; createRoot(document.getElementById('root')!).render(<React.StrictMode><InventoryPage /></React.StrictMode>);"};
+const created=[];
+for(const [name,source] of Object.entries(harness)){try{await fs.writeFile(path.join(repo,name),source,{flag:'wx'});created.push(name)}catch(e){if(e.code!=='EEXIST')throw e}}
 const require=createRequire(path.join(runtimeModules,'package.json'));
 const {chromium}=require('playwright');
 await fs.mkdir(output,{recursive:true});
@@ -17,6 +25,9 @@ await page.goto('http://127.0.0.1:5173/_inventory_qa.html');
 await page.getByRole('heading',{name:'리소스 현행화',exact:true}).waitFor();
 await page.locator('input[type=file]').setInputFiles(input);
 await page.getByRole('tab',{name:'자원 탐색',exact:true}).waitFor();
+assert.equal(await page.getByLabel('백업·실행 이력·소프트웨어 소스 포함').isChecked(),false);
+await page.getByLabel('백업·실행 이력·소프트웨어 소스 포함').check();
+await page.getByLabel('백업·실행 이력·소프트웨어 소스 포함').uncheck();
 await page.getByLabel('자원 유형',{exact:true}).selectOption('Instance');
 await page.screenshot({path:path.join(output,'02-resources.png'),fullPage:true});
 const rows=page.locator('tbody tr');assert.ok(await rows.count()>0);
@@ -41,7 +52,20 @@ await page.getByLabel('자원 검색',{exact:true}).fill('no-resource-matches-th
 await page.getByText('조건에 맞는 자원이 없습니다.',{exact:true}).waitFor();
 await page.getByLabel('자원 검색',{exact:true}).fill('');
 await page.getByRole('tab',{name:'수집 범위',exact:true}).click();
-assert.ok(await page.getByText('UNVERIFIED_LEGACY',{exact:true}).count()>0);
+assert.ok(await page.locator('.inv-coverage tbody tr').count()>0);
+const changed=structuredClone(fixture);const instance=changed.resources.find(r=>r.type==='Instance');
+changed.run_id+='-ui-test';changed.comparison_run_id=fixture.run_id;changed.started_at=new Date().toISOString();changed.completed_at=changed.started_at;
+changed.changes=[{kind:'CONFIG_CHANGED',key:instance.key,name:instance.name,type:instance.type,compartment:instance.compartment,region:instance.region,fields:[{path:'shape_config.ocpus',operation:'CHANGE',before:1,after:2}]}];changed.summary.changes=1;
+await page.locator('input[type=file]').setInputFiles({name:'synthetic-change-test.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(changed))});
+await page.getByLabel('수집 시점').selectOption(`${changed.tenancy.id}::${changed.run_id}`);
+await page.getByRole('tab',{name:'변경 이력',exact:true}).click();
+await page.locator('.inv-diff code').getByText('shape_config.ocpus',{exact:true}).waitFor();
+assert.equal(await page.locator('.inv-diff pre').allTextContents().then(x=>x.join(',')),'1,2');
+await page.screenshot({path:path.join(output,'06-change.png')});
+changed.resources[0].name+='-conflict';
+await page.locator('input[type=file]').setInputFiles({name:'conflict.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(changed))});
+await page.getByRole('alert').filter({hasText:'같은 수집 ID'}).waitFor();
 assert.deepEqual(errors,[]);
-console.log(JSON.stringify({passed:true,checks:['locked-route','json-import','type-filter','resource-detail','raw-json','findings','rule-editor','indexeddb-reload','mobile-width','empty-filter','coverage'],screenshots:output}));
+console.log(JSON.stringify({passed:true,checks:['locked-route','json-import','configuration-first','type-filter','resource-detail','raw-json','findings','rule-editor','indexeddb-reload','mobile-width','empty-filter','coverage','field-diff','immutable-history'],screenshots:output}));
 await browser.close();
+for(const name of created)await fs.unlink(path.join(repo,name));

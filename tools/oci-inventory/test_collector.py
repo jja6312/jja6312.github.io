@@ -3,6 +3,8 @@ import json
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
+import oci
 from pathlib import Path
 from types import SimpleNamespace
 from collector import Collector
@@ -10,6 +12,22 @@ from model import now
 from specs import find_spec
 
 class PageTests(unittest.TestCase):
+    def test_static_signer_reused_without_sharing_http_sessions(self):
+        c=object.__new__(Collector); c.local=threading.local(); c.lock=threading.RLock(); c.config={}; c.signer=None
+        signer=object.__new__(oci.signer.Signer)
+        with patch('collector.create_client',side_effect=lambda *a,**kw:SimpleNamespace(base_client=SimpleNamespace(signer=signer))) as create:
+            a=c.client('compute','region-a'); b=c.client('compute','region-b')
+            self.assertIsNot(a,b); self.assertIsNone(create.call_args_list[0].kwargs['signer'])
+            self.assertIs(create.call_args_list[1].kwargs['signer'],signer)
+    def test_get_log_group_uses_its_own_id(self):
+        c=object.__new__(Collector); c.client=lambda *a:SimpleNamespace(get_log_group=lambda log_group_id:None)
+        self.assertEqual(c.get_params(find_spec('LogGroup'),{'id':'log-group'},{'compartment_id':'root'},'test'),{'log_group_id':'log-group'})
+    def test_dns_scope_is_propagated_to_get(self):
+        c=object.__new__(Collector); c.client=lambda *a:SimpleNamespace(get_zone=lambda zone_name_or_id,**kwargs:None)
+        self.assertEqual(c.get_params(find_spec('DnsZone'),{'id':'zone'},{'scope':'PRIVATE'},'test'),{'zone_name_or_id':'zone','scope':'PRIVATE'})
+    def test_membership_and_database_bindings_are_valid(self):
+        self.assertIn(('group_id','Group.id'),find_spec('UserGroupMembership').bindings)
+        self.assertEqual(dict(find_spec('PluggableDatabase').bindings),{'database_id':'Database.id'})
     def test_get_compartment_uses_child_not_listing_parent(self):
         c=object.__new__(Collector)
         c.client=lambda *a:SimpleNamespace(get_compartment=lambda compartment_id:None)
@@ -43,6 +61,7 @@ class PageTests(unittest.TestCase):
         self.c.resume=True;self.c.completed_scopes={'scope':self.c.coverage[-1]}
         rows,ok=self.c.call('compute','list_instances','test',{},'scope',listing=True)
         self.assertTrue(ok);self.assertEqual(len(req),1);self.assertEqual(rows,[{'id':'one'}])
+        self.assertEqual(self.c.observations['scope'],json.loads(next(self.c.raw_dir.glob('*.json')).read_text())['observed_at'])
     def test_scim_server_page_cap(self):
         req=[]
         def list_users(**kwargs):

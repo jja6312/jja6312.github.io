@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from specs import ALLOWLIST, CLIENTS
 
 ACTIVE = contextvars.ContextVar('inventory_operation', default=None)
-POST_READS = {('search','search_resources'),('monitor','summarize_metrics_data')}
+POST_READS = {('search','search_resources'),('monitor','list_metrics'),('monitor','summarize_metrics_data')}
 FORBIDDEN = re.compile(r'(secret_bundle|shared_secret|wallet|private_key|auth_token|api_key|credential|object_content|console_history_content|connection_string|kubeconfig|kube_config|file_content|repository_file_content|model_artifact|function_invoke)')
 
 class UnsafeOperation(RuntimeError): pass
@@ -61,10 +61,11 @@ def invoke(service, client, method, **kwargs):
     try: return getattr(client,method)(**kwargs)
     finally: ACTIVE.reset(token)
 
-def create_client(oci, service, config, endpoint=None):
+def create_client(oci, service, config, endpoint=None, signer=None):
     module,name=CLIENTS[service]
     factory=getattr(getattr(oci,module),name)
     options={'timeout':(10,45)}
+    if signer is not None: options['signer']=signer
     if endpoint:
         check_endpoint(endpoint); options['service_endpoint']=endpoint
     client=factory(config,**options)

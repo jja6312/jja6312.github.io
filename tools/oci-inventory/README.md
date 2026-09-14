@@ -4,7 +4,7 @@ Python으로 OCI 구성을 수집하고, 같은 스냅샷으로 날짜별 Excel�
 
 ## 안전 경계
 
-- 클라우드 호출은 검토된 **GET / LIST** 허용 목록만 실행합니다. 예외는 사용자가 승인한 Resource Search와 Monitoring 조회 두 개입니다. 두 조회는 실제 HTTP POST를 사용하므로 정확한 메서드 이름으로만 허용합니다.
+- 클라우드 호출은 검토된 **GET / LIST** 허용 목록만 실행합니다. 사용자가 승인한 Resource Search와 Monitoring 중 HTTP POST인 조회는 정확히 `search_resources`, `list_metrics`, `summarize_metrics_data`만 허용합니다. HTTP POST라는 이유만으로 다른 API를 허용하지 않습니다.
 - SDK 호출명과 실제 HTTP 동사를 모두 검사합니다. CREATE / UPDATE / DELETE / ACTION / 실행 / 콘솔 접속을 사용하지 않습니다. 권한 부족은 자동으로 정책을 만들어 해결하지 않습니다.
 - Secret 내용, 개인키, Wallet, 접속 비밀번호, kubeconfig, Object 본문, DB 데이터, 로그 본문은 수집 대상이 아닙니다. Vault Secret의 이름·설정 같은 메타데이터는 수집합니다.
 - OCID, IP, 메일주소, 태그는 사용자가 승인한 실제 값으로 보관합니다. 태그 자체에 비밀을 적어둔 경우도 마스킹하지 않으므로 원본 파일의 접근권한을 별도로 관리해야 합니다.
@@ -22,9 +22,15 @@ Python으로 OCI 구성을 수집하고, 같은 스냅샷으로 날짜별 Excel�
 
 매일 한 번의 스냅샷은 두 실행 사이에 잠깐 생성됐다가 삭제된 자원까지 보장하지 않습니다. 그것까지 필요하면 별도 승인된 감사 이벤트 수집 설계가 필요합니다.
 
+수집은 테넌시 전체를 한 순간에 고정하는 트랜잭션이 아닙니다. 자원별 `observed_at`, `detail_observed_at`과 요청 원문의 시각을 함께 보관하며, 중단 후 재개해 읽은 기존 응답을 새로 조회한 시각으로 바꾸지 않습니다. Public IP는 REGION / AVAILABILITY_DOMAIN, DNS Zone은 GLOBAL / PRIVATE 범위를 각각 조회합니다.
+
+일반 API-key 서명 객체는 한 프로필의 실행 안에서만 재사용하고, HTTP 세션은 스레드별로 분리합니다. 키를 매번 파싱·검증하는 초기화 비용을 줄이며 고객 간 서명 객체를 공유하지 않습니다. 갱신형 토큰 서명 객체는 이 최적화에서 제외합니다.
+
 ### “전체 수집”의 정확한 의미
 
 `specs.py`에 등록된 서비스·범위 전체를 조회합니다. Search에도 서비스별 색인 제한이 있으므로 OCI의 모든 존재 자원을 100% 증명한다고 표현하지 않습니다. 검색에서만 발견된 유형, 미지원 SDK, 권한 부족, 일부 페이지 실패는 `coverage`에 구분해 남깁니다. 아무것도 못 읽은 것과 실제 0건은 다릅니다.
+
+플랫폼 Image 카탈로그와 테넌시에 추가되지 않은 OS Management Hub 벤더 소스는 고객 자원 건수에 넣지 않습니다. Oracle 정의상 `AVAILABLE`은 접근 가능하지만 아직 미등록, `SELECTED`는 서비스에 추가된 상태입니다. OCI / 비OCI 양쪽 모두 미선택임이 확인된 VENDOR 소스만 참고 카탈로그로 분리하고 LIST 원문과 `reference_catalogs` 인덱스를 보존합니다. 선택된 소스, Custom / Private / Third-party 소스와 상태가 불확실한 항목은 상세 수집합니다. [Oracle의 상태 정의](https://docs.oracle.com/en-us/iaas/osmh/doc/add-vendor-software-sources.htm)
 
 Identity Domain은 각 Domain의 endpoint / home region으로 SCIM 목록을 읽습니다. SCIM에서 기본 응답에 포함되지 않는 선택 속성이나 자격증명은 전체 저장을 보장하지 않습니다. OKE 내부 Kubernetes 객체나 워크로드 사용량을 자동 조회하지 않습니다. 현재 Monitoring 메서드는 허용되어 있지만 시계열 수집은 기본 실행에 포함하지 않습니다.
 
@@ -43,6 +49,8 @@ Identity Domain은 각 Domain의 endpoint / home region으로 SCIM 목록을 읽
 Excel은 첫 장 요약 → 변경 / 설정 / 커버리지 → 컴파트먼트 요약 → Console 계열 번호 시트 → 기술 원본 순입니다. Compute 1xx, Storage 2xx, Network 3xx, Oracle Database 4xx, MySQL 등 5xx, Analytics 6xx, 애플리케이션 7xx, IAM / Security 8xx, 운영 9xx를 사용합니다. 시트 안은 컴파트먼트 → 리전 → 유형 → 이름 순입니다. 규칙 상세 행은 자원 수에 중복 합산하지 않습니다. OCID·부모 OCID·Raw JSON은 오른쪽, 긴 JSON은 분할 시트에 보존합니다.
 
 웹사이트 **지식모음 → 리소스 현행화 (자물쇠 3)** 에서 JSON 파일을 선택합니다. 파일 크기를 고려해 localStorage 대신 IndexedDB에 저장하고 표시 설정만 localStorage에 둡니다. 고객 / 날짜 / 서비스 / 컴파트먼트 / 리전 / 유형 / 이름·IP·OCID·태그로 탐색할 수 있습니다. 자물쇠는 기존 사이트 접근 흐름이며 브라우저 저장소를 암호화하는 장치는 아닙니다. 공용 PC나 공용 브라우저 프로필은 사용하지 마세요.
+
+기본 화면과 Excel 요약 그래프는 구성 자원을 우선 보여줍니다. 수천 건이 될 수 있는 소프트웨어 소스와 백업·실행 이력은 별도 분류하며, 웹 체크박스로 함께 볼 수 있습니다. 사용하지 않는다는 판정이나 삭제가 아닙니다. 전체 원본과 전체 건수는 계속 보존합니다. 분류표는 웹과 Excel이 같은 `resource_classes.json`을 사용합니다.
 
 ## 설치와 일상 실행
 
@@ -90,6 +98,8 @@ Postman에서 `POST http://127.0.0.1:8766/imports`, `Authorization: Bearer <toke
 - `node scripts/verify-inventory.mjs`: 웹 계약 검사 (저장소 루트)
 - `npm run lint`, `npm run build`: 기존 웹사이트 회귀 검사
 - `render_excel.mjs`는 수식 / 자원 수 / 재열기 / 저장 후 10초 해시를 확인합니다. 검증용 preview 인자를 주면 모든 시트를 렌더링합니다.
+
+현재 번들 렌더러는 PNG 미리보기 후 종료 과정에서 비정상 종료 코드를 반환할 수 있습니다. 정기 실행은 미리보기 없이 XLSX를 생성하며, 이 경로의 정상 종료와 재열기 검증을 별도로 확인했습니다. 진단용 PNG 생성의 종료 상태를 정기 수집의 성공으로 오인하지 마세요.
 
 일부 서비스에 접근 실패가 있는 실행은 PARTIAL로 보관합니다. 코드가 추가됐거나 권한이 확대되면 “새로 발견”은 실제 신규 생성이 아닐 수도 있습니다. 생성 시각과 수집 근거를 함께 보세요.
 

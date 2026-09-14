@@ -14,6 +14,10 @@ UNORDERED = {'statements','ingress_security_rules','egress_security_rules','secu
 SECRET_KEYS = {'password','adminpassword','clientsecret','externalclientsecret','accesstoken','refreshtoken','privatekey','secretcontent','secretvalue','credential','credentials','authorization','authtoken','user_data','userdata','extendedmetadata'}
 
 def now(): return datetime.now(timezone.utc).isoformat()
+def reference_vendor_source(raw):
+    # Oracle: AVAILABLE is accessible but not added; SELECTED is added.
+    not_selected={'AVAILABLE','RESTRICTED','UNAVAILABLE'}
+    return raw.get('software_source_type')=='VENDOR' and raw.get('availability') in not_selected and raw.get('availability_at_oci') in not_selected
 def dumps(value): return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',',':'), default=str)
 def digest(value): return hashlib.sha256(dumps(value).encode()).hexdigest()
 def atomic_json(path, value):
@@ -30,7 +34,7 @@ def sanitize(value, path=''):
             n = re.sub('[^a-z0-9]','',k.lower())
             # Tags are user-approved inventory metadata and retain their actual values.
             if k in ('defined_tags','freeform_tags'): result[k] = v
-            elif n in SECRET_KEYS or n.endswith('password') or n.endswith('privatekey'): result[k] = '[EXCLUDED: credential/payload]'
+            elif n in SECRET_KEYS or n.endswith('password') or n.endswith('privatekey') or (n.endswith(('secret','passphrase')) and isinstance(v,(str,dict))): result[k] = '[EXCLUDED: credential/payload]'
             elif k in ('config','environment_variables') and isinstance(v, dict): result[k] = {name:'[EXCLUDED: application value]' for name in v}
             else: result[k] = sanitize(v, path+'.'+k)
         return result
@@ -68,6 +72,10 @@ def at(data,path):
     return data
 
 FIELDS = {
+ 'MySqlDbSystem': [('shape_name','Shape'),('mysql_version','MySQL version'),('is_highly_available','HA'),('data_storage_size_in_gbs','Storage GiB'),('data_storage','Storage / autoscale'),('backup_policy','Backup / PITR'),('availability_domain','AD'),('fault_domain','FD'),('maintenance','Maintenance'),('configuration_id','Configuration'),('crash_recovery','Crash recovery'),('endpoints','Endpoints'),('read_endpoint','Read endpoint')],
+ 'Vnic': [('private_ip','Private IP'),('public_ip','Public IP'),('subnet_id','Subnet'),('is_primary','Primary'),('hostname_label','Hostname'),('nsg_ids','NSGs'),('skip_source_dest_check','Skip source/destination check'),('mac_address','MAC')],
+ 'VolumeAttachment': [('instance_id','Instance'),('volume_id','Volume'),('attachment_type','Attachment type'),('device','Device'),('is_read_only','Read only'),('is_shareable','Shareable'),('is_pv_encryption_in_transit_enabled','In-transit encryption'),('is_multipath','Multipath')],
+ 'BootVolumeAttachment': [('instance_id','Instance'),('boot_volume_id','Boot volume'),('availability_domain','AD'),('is_pv_encryption_in_transit_enabled','In-transit encryption')],
  'Instance': [('shape','Shape'),('shape_config.ocpus','OCPU'),('shape_config.memory_in_gbs','Memory GiB'),('shape_config.networking_bandwidth_in_gbps','Network Gbps'),('availability_domain','AD'),('fault_domain','FD'),('source_details','Boot source'),('launch_options','Launch options'),('platform_config','Security'),('agent_config','Agent'),('availability_config','Recovery'),('instance_options','Instance options')],
  'Vcn': [('cidr_blocks','CIDR'),('ipv6_cidr_blocks','IPv6'),('dns_label','DNS label'),('vcn_domain_name','DNS domain'),('default_dhcp_options_id','DHCP'),('default_route_table_id','Default routes'),('default_security_list_id','Default security list')],
  'Subnet': [('cidr_block','CIDR'),('ipv6_cidr_blocks','IPv6'),('prohibit_public_ip_on_vnic','Private subnet'),('dns_label','DNS label'),('subnet_domain_name','DNS domain'),('dhcp_options_id','DHCP'),('route_table_id','Route table'),('security_list_ids','Security lists')],
@@ -98,7 +106,7 @@ GENERIC_HIDE={'id','identifier','display_name','name','compartment_id','time_cre
 def properties(kind, raw):
     configured=FIELDS.get(kind,[])
     if not configured:
-        configured=[(k,k.replace('_',' ')) for k,v in raw.items() if k not in GENERIC_HIDE and not k.startswith('_') and v not in (None,[],{})]
+        configured=[(k,k.replace('_',' ')) for k,v in sorted(raw.items()) if k not in GENERIC_HIDE and not k.startswith('_') and v not in (None,[],{})]
     return [{'field':p,'label':label,'value':at(raw,p)} for p,label in configured if at(raw,p) is not None]
 
 def relations(raw, source):
@@ -120,7 +128,7 @@ def resource(kind, raw, *, tenancy_id, region, compartment_id, scope, observed_a
     spec=find_spec(kind)
     if spec: kind=spec.kind
     ocid=raw.get('ocid') or raw.get('id') or raw.get('identifier') or raw.get('topic_id')
-    name=raw.get('display_name') or raw.get('name') or raw.get('user_name') or raw.get('db_name') or raw.get('hostname') or raw.get('namespace_name') or ''
+    name=raw.get('display_name') or raw.get('name') or raw.get('user_name') or raw.get('db_name') or raw.get('hostname') or raw.get('hostname_label') or raw.get('ip_address') or raw.get('namespace_name') or ''
     if not ocid:
         ocid=f'{parent_id or compartment_id}::{region}::{kind}::{name or digest(raw)}'
     domain=raw.get('_identity_domain_id')
@@ -198,6 +206,10 @@ def finish_snapshot(snapshot, previous, rules):
     for r in sorted(rows.values(),key=lambda r:('Attachment' in r['type'],r['key'])):
         by_id.setdefault(r['ocid'],r)
     for r in rows.values():
+        if r['type'] in ('VolumeAttachment','BootVolumeAttachment','VnicAttachment') and not (r['raw'].get('display_name') or r['raw'].get('name')):
+            instance=by_id.get(r['raw'].get('instance_id'))
+            target=by_id.get(r['raw'].get('boot_volume_id') or r['raw'].get('volume_id') or r['raw'].get('vnic_id'))
+            if instance and target: r['name']=instance['name']+' → '+target['name']
         for relation in r['relations']:
             if relation['target'] in by_id:
                 relation['target_key']=by_id[relation['target']]['key']
@@ -211,6 +223,8 @@ def finish_snapshot(snapshot, previous, rules):
             if isinstance(val,str) and val.startswith('ocid1.') and val in by_id:
                 prop['value']={'name':by_id[val]['name'],'ocid':val}
     snapshot['resources']=sorted(rows.values(),key=lambda r:(r['compartment'],r['region'],r['type'],r['name'].casefold(),r['key']))
+    for change in changes:
+        if change['key'] in rows: change['name']=rows[change['key']]['name']
     snapshot['changes']=changes; snapshot['comparison_run_id']=previous.get('run_id') if previous else None
     snapshot['rules']=rules; snapshot['findings']=apply_rules(snapshot['resources'],rules)
     snapshot['summary']={'resources':len(rows),'current':sum(r['freshness']=='current' for r in rows.values()),'stale':sum(r['freshness']=='stale' for r in rows.values()),'detailed':sum(r['detail_complete'] for r in rows.values()),'changes':len(changes),'findings':len(snapshot['findings']),'by_service':dict(Counter(r['service'] for r in rows.values())),'by_compartment':dict(Counter(r['compartment'] for r in rows.values()))}

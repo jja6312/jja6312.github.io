@@ -1,0 +1,4 @@
+{
+  "software_source": ["OsmhSoftwareSource"],
+  "backup_history": ["VolumeBackup", "BootVolumeBackup", "VolumeGroupBackup", "FileSystemSnapshot", "MySqlBackup", "PostgresqlBackup", "AutonomousDatabaseBackup", "DbBackup", "DevopsBuildRun", "DevopsDeployment", "OrmJob"]
+}

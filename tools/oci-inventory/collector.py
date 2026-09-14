@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import datetime, timezone, timedelta
 import oci
-from model import SCHEMA, atomic_json, canonical, digest, finish_snapshot, now, read_json, resource, sanitize
+from model import SCHEMA, atomic_json, canonical, digest, finish_snapshot, now, read_json, reference_vendor_source, resource, sanitize
 from specs import SPECS, CLIENTS, ALLOWLIST, find_spec, CHILDREN
 from safety import create_client, invoke, UnsafeOperation
 
@@ -45,6 +45,7 @@ class Collector:
         self.tenancy_id=self.config['tenancy']; self.started=now(); self.workers=workers; self.force=force
         self.config.pop('additional_user_agent',None)
         self.lock=threading.RLock(); self.local=threading.local(); self.records={}; self.coverage=[]
+        self.catalogs=[]; self.reference_ids=set(); self.observations={}; self.signer=None
         self.request_slots=threading.BoundedSemaphore(max(1,workers))
         self.output=Path(output); self.folder=self.output/'snapshots'/self.tenancy_id/run_id
         self.folder.mkdir(parents=True,exist_ok=True)
@@ -78,7 +79,12 @@ class Collector:
         key=(service,region,endpoint)
         if key not in clients:
             cfg=dict(self.config); cfg['region']=region
-            clients[key]=create_client(oci,service,cfg,endpoint)
+            # Static API-key signing is reusable; HTTP sessions remain thread-local.
+            # Do not share refreshable instance/resource-principal signer subclasses.
+            with self.lock:
+                clients[key]=create_client(oci,service,cfg,endpoint,signer=self.signer)
+                if self.signer is None and type(clients[key].base_client.signer) is oci.signer.Signer:
+                    self.signer=clients[key].base_client.signer
         return clients[key]
 
     def event(self,scope,operation,status,**extra):
@@ -91,7 +97,12 @@ class Collector:
     def call(self,service,method,region,kwargs,scope,*,listing=False,endpoint=None,scim=False):
         raw_path=self.raw_dir/(digest([scope,service,method,kwargs])+'.json')
         if self.resume and scope in self.completed_scopes and raw_path.exists():
-            cached=read_json(raw_path); self.coverage.append(self.completed_scopes[scope]); return cached['data'],True
+            cached=read_json(raw_path); safe=sanitize(cached['data'])
+            if safe!=cached['data']: atomic_json(raw_path,{**cached,'data':safe})
+            self.coverage.append(self.completed_scopes[scope])
+            if not hasattr(self,'observations'): self.observations={}
+            self.observations[scope]=cached.get('observed_at',self.completed_scopes[scope]['observed_at'])
+            return safe,True
         rows=[]; pages=0
         try:
             client=self.client(service,region,endpoint)
@@ -123,7 +134,10 @@ class Collector:
                     seen_pages.add(page)
                 if pages>=10000: raise RuntimeError('Pagination safety limit exceeded')
             safe=sanitize(rows)
-            atomic_json(raw_path,{'operation':f'{service}.{method}','scope':scope,'region':region,'observed_at':now(),'pages':pages,'data':safe})
+            timestamp=now()
+            if not hasattr(self,'observations'): self.observations={}
+            self.observations[scope]=timestamp
+            atomic_json(raw_path,{'operation':f'{service}.{method}','scope':scope,'region':region,'observed_at':timestamp,'pages':pages,'data':safe})
             self.event(scope,f'{service}.{method}','EMPTY' if listing and not safe else 'SUCCESS',count=len(safe) if listing else 1,region=region,pages=pages)
             return safe,True
         except Exception as exc:
@@ -158,17 +172,20 @@ class Collector:
             elif name in row: kwargs[name]=row[name]
             elif name in ('bucket_name','addon_name','tag_name'): kwargs[name]=row.get('name')
             elif name=='namespace_name': kwargs[name]=row.get('namespace_name') or row.get('namespace')
-            elif name in ('ipsc_id','log_group_id','budget_id'): kwargs[name]=row.get(name)
+            elif name=='ipsc_id': kwargs[name]=row.get(name)
             elif name.endswith('_id') or name in ('zone_name_or_id','view_id','resolver_id'): kwargs[name]=row.get('id') or row.get('identifier')
             else: kwargs[name]=None
         if any(v is None for v in kwargs.values()): raise TypeError(f'GET binding missing: {list(kwargs)}')
+        if spec.kind=='DnsZone' and (listing_args.get('scope') or row.get('scope')):
+            kwargs['scope']=listing_args.get('scope') or row['scope']
         return kwargs
 
     def enrich(self,spec,row,region,compartment,scope,args,parent='',endpoint=None):
         rid=row.get('id') or row.get('identifier') or row.get('name') or digest(row)
         base=resource(spec.kind,row,tenancy_id=self.tenancy_id,region=region,compartment_id=compartment,scope=scope,observed_at=now(),detail_complete=False,parent_id=parent)
         old=self.previous_records.get(base['key'])
-        details=row; complete=not spec.get; freshness='current'; observed=now()
+        list_observed=self.observations.get(scope,now())
+        details=row; complete=not spec.get; freshness='current'; observed=list_observed
         # Only Image details are reused: lifecycle must be stable and LIST hash equal.
         cache_ok=False
         if old and spec.immutable and not self.force and old.get('detail_complete') and old.get('list_hash')==digest(canonical(row)) and row.get('lifecycle_state')=='AVAILABLE':
@@ -180,6 +197,7 @@ class Collector:
             try:
                 kwargs=self.get_params(spec,row,args,region,endpoint)
                 detail,complete=self.call(spec.client,spec.get,region,kwargs,scope+'::get::'+str(rid),endpoint=endpoint)
+                observed=self.observations.get(scope+'::get::'+str(rid),now())
                 if complete and isinstance(detail,dict) and row.get('id') and detail.get('id') and row['id']!=detail['id']:
                     complete=False
                     self.event(scope+'::get::'+str(rid),f'{spec.client}.{spec.get}','INVALID_DETAIL',region=region,error='GET returned a different resource ID; LIST metadata retained')
@@ -187,7 +205,9 @@ class Collector:
             except Exception as exc:
                 self.event(scope+'::get::'+str(rid),f'{spec.client}.{spec.get}','UNSUPPORTED',region=region,error=str(exc))
         for service,method,param,field in CHILDREN.get(spec.kind,[]):
-            child,ok=self.call(service,method,region,{param:rid},scope+'::children::'+str(rid)+'::'+method,listing=True)
+            child_args={param:rid}
+            if spec.kind=='DnsZone' and (args.get('scope') or row.get('scope')): child_args['scope']=args.get('scope') or row['scope']
+            child,ok=self.call(service,method,region,child_args,scope+'::children::'+str(rid)+'::'+method,listing=True)
             if ok: details={**details,field:child}
             complete=complete and ok
         if spec.kind=='VnicAttachment' and row.get('vnic_id'):
@@ -200,7 +220,7 @@ class Collector:
                 if ok: details={**details,field:child}
                 # Missing lifecycle policy is ambiguous; retain the failure evidence.
                 complete=complete and ok
-        result=resource(spec.kind,details,tenancy_id=self.tenancy_id,region=region,compartment_id=compartment,scope=scope,observed_at=now(),detail_complete=complete,parent_id=parent)
+        result=resource(spec.kind,details,tenancy_id=self.tenancy_id,region=region,compartment_id=compartment,scope=scope,observed_at=list_observed,detail_complete=complete,parent_id=parent)
         result['list_hash']=digest(canonical(row)); result['detail_observed_at']=observed if complete else None; result['freshness']=freshness
         self.put(result)
 
@@ -244,6 +264,7 @@ class Collector:
         if spec.kind=='Compartment':
             args={**args,'compartment_id_in_subtree':True,'access_level':'ACCESSIBLE'}
         scope=f'{spec.kind}::{region}::{comp}::{parent}::{args.get("availability_domain","")}'
+        if args.get('scope'): scope+='::'+args['scope']
         # Images returned by LIST may include the platform catalog, which is not customer-owned.
         rows,ok=self.call(spec.client,spec.listing,region,args,scope,listing=True,endpoint=endpoint)
         if not ok:
@@ -251,6 +272,14 @@ class Collector:
                 self.put(resource(spec.kind,row,tenancy_id=self.tenancy_id,region=region,compartment_id=comp,scope=scope,observed_at=now(),detail_complete=False,parent_id=parent))
             return
         valid=[row for row in rows if spec.kind!='Image' or row.get('compartment_id')==comp]
+        if spec.kind=='OsmhSoftwareSource':
+            catalog=[row for row in valid if reference_vendor_source(row)]
+            valid=[row for row in valid if not reference_vendor_source(row)]
+            if catalog:
+                with self.lock:
+                    self.catalogs.append({'type':spec.kind,'region':region,'scope':scope,'count':len(catalog),'raw_file':'raw/'+digest([scope,spec.client,spec.listing,args])+'.json'})
+                    self.reference_ids.update((region,row.get('id')) for row in catalog)
+                self.event(scope+'::reference-catalog','catalog.reference','NOT_APPLICABLE',region=region,count=len(catalog),reason='Unselected vendor sources are reference catalog entries, not tenancy-added resources. Their LIST data is preserved in raw. https://docs.oracle.com/en-us/iaas/osmh/doc/add-vendor-software-sources.htm')
         # A compartment with hundreds of backups must not serialize all GETs.
         # A separate detail pool avoids nesting tasks in the same executor;
         # request_slots bounds actual HTTP concurrency across both pools.
@@ -300,13 +329,16 @@ class Collector:
                     print(f'[{self.profile}] {spec.kind}: {len(self.records)} resources',flush=True)
         for region,row in discovered:
             kind=row.get('resource_type','Unknown'); spec=find_spec(kind)
+            if (region,row.get('identifier')) in self.reference_ids: continue
+            if only_kinds and (not spec or spec.kind not in only_kinds): continue
             domain=(row.get('identity_context') or {}).get('domainOcid')
             if domain:
                 row={**row,'_identity_domain_id':domain}
                 kind={'user':'DomainUser','group':'DomainGroup','app':'DomainApp'}.get(kind.lower(),kind)
             record=resource(kind,row,tenancy_id=self.tenancy_id,region=self.home if spec and spec.home else region,compartment_id=row.get('compartment_id') or self.tenancy_id,scope='search::'+region,observed_at=now(),detail_complete=False,source='search')
             if record['key'] not in self.records:
-                if spec and spec.get and not domain:
+                # Endpoint-bound resources require their discovered parent. Never guess a KMS endpoint.
+                if spec and spec.get and not domain and not any(k=='_endpoint' for k,_ in spec.bindings):
                     self.enrich(spec,{**row,'id':row.get('identifier'),'name':row.get('display_name')},record['region'],record['compartment_id'],record['scope'],{'namespace_name':self.namespace} if spec.client=='object' else {})
                     if record['key'] in self.records and self.records[record['key']]['detail_complete']: continue
                 # Search is retained even when no service-native adapter exists.
@@ -314,6 +346,7 @@ class Collector:
                 self.event(record['key'],'search.native_coverage','DISCOVERED_ONLY',type=record['type'],region=region)
         if not only_kinds or 'Domain' in only_kinds: self.collect_domains()
         snapshot={'schema':SCHEMA,'run_id':self.run_id,'started_at':self.started,'profile':self.profile,'tenancy':tenancy,'regions':self.regions,'compartments':comps,'resources':list(self.records.values()),'coverage':self.coverage,'registered_types':[s.kind for s in chosen],'search_types':search_types,'sdk_version':oci.__version__}
+        snapshot['reference_catalogs']=self.catalogs
         snapshot=finish_snapshot(snapshot,self.previous,rules)
         target=self.folder/'snapshot.json'; atomic_json(target,snapshot)
         # A separate pointer preserves the last entirely successful registered-scope run.
@@ -329,7 +362,7 @@ class Collector:
             if not endpoint: continue
             for kind,method in [('DomainUser','list_users'),('DomainGroup','list_groups'),('DomainApp','list_apps'),('DomainPolicy','list_policies'),('DomainRule','list_rules'),('DomainIdentityProvider','list_identity_providers'),('DomainPasswordPolicy','list_password_policies'),('DomainAuthenticationFactorSettings','list_authentication_factor_settings'),('DomainDynamicResourceGroup','list_dynamic_resource_groups'),('DomainAppRole','list_app_roles')]:
                 scope=f'{kind}::{domain["ocid"]}'
-                rows,ok=self.call('domains',method,region,{},scope,listing=True,endpoint=endpoint,scim=True)
+                rows,ok=self.call('domains',method,region,{},scope,listing=True,endpoint=endpoint,scim=method!='list_authentication_factor_settings')
                 for row in rows:
                     get_method={'DomainUser':'get_user','DomainGroup':'get_group','DomainApp':'get_app','DomainPolicy':'get_policy','DomainRule':'get_rule','DomainIdentityProvider':'get_identity_provider','DomainPasswordPolicy':'get_password_policy'}.get(kind)
                     complete=ok
@@ -338,7 +371,8 @@ class Collector:
                         detail,complete=self.call('domains',get_method,region,{params[0]:row['id']},scope+'::get::'+row['id'],endpoint=endpoint)
                         if complete: row=detail
                     row['_identity_domain_id']=domain['ocid']
-                    result=resource(kind,row,tenancy_id=self.tenancy_id,region=region,compartment_id=domain['compartment_id'],scope=scope,observed_at=now(),detail_complete=complete,source='scim',parent_id=domain['ocid'])
+                    result=resource(kind,row,tenancy_id=self.tenancy_id,region=region,compartment_id=domain['compartment_id'],scope=scope,observed_at=self.observations.get(scope,now()),detail_complete=complete,source='scim',parent_id=domain['ocid'])
+                    if complete: result['detail_observed_at']=self.observations.get(scope+'::get::'+row.get('id',''),result['observed_at']) if get_method else result['observed_at']
                     result['detail_level']='SCIM_GET' if get_method and complete else 'SCIM_LIST'
                     self.put(result)
 

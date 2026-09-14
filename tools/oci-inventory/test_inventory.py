@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from model import canonical, diff_fields, finish_snapshot, resource, SCHEMA, sanitize
+from model import canonical, diff_fields, finish_snapshot, resource, reference_vendor_source, SCHEMA, sanitize
 from safety import ACTIVE, UnsafeOperation, guard_transport, invoke, approved
 
 TEN='ocid1.tenancy.oc1..test'
@@ -14,6 +14,13 @@ def snap(rows,coverage=None):
     return {'schema':SCHEMA,'run_id':'new','tenancy':{'id':TEN,'name':'test'},'compartments':[],'resources':rows,'coverage':coverage or [],'rules':[]}
 
 class InventoryTests(unittest.TestCase):
+    def test_only_unselected_vendor_sources_are_catalog(self):
+        row={'software_source_type':'VENDOR','availability':'AVAILABLE','availability_at_oci':'AVAILABLE'}
+        self.assertTrue(reference_vendor_source(row))
+        self.assertFalse(reference_vendor_source({**row,'availability':'SELECTED'}))
+        self.assertFalse(reference_vendor_source({**row,'availability_at_oci':'SELECTED'}))
+        self.assertFalse(reference_vendor_source({**row,'software_source_type':'CUSTOM'}))
+        self.assertFalse(reference_vendor_source({**row,'availability_at_oci':None}))
     def test_regional_resources_without_ocids_do_not_collide(self):
         rows=[resource('LogAnalyticsNamespace',{'namespace_name':'example'},tenancy_id=TEN,region=region,compartment_id=TEN,scope='test',observed_at='now') for region in ('region-a','region-b')]
         self.assertNotEqual(rows[0]['key'],rows[1]['key'])
@@ -63,6 +70,7 @@ class InventoryTests(unittest.TestCase):
         result=finish_snapshot(snap([record(),record()]),None,[]); self.assertEqual(result['summary']['resources'],1)
     def test_sensitive_payloads_excluded_tags_preserved(self):
         self.assertEqual(sanitize({'password':'secret','freeform_tags':{'password':'user-approved-tag'},'metadata':{'user_data':'secret'}}),{'password':'[EXCLUDED: credential/payload]','freeform_tags':{'password':'user-approved-tag'},'metadata':{'user_data':'[EXCLUDED: credential/payload]'}})
+        self.assertEqual(sanitize({'chap_secret':'example-test-secret','is_secret':True,'freeform_tags':{'client_secret':'approved'}}),{'chap_secret':'[EXCLUDED: credential/payload]','is_secret':True,'freeform_tags':{'client_secret':'approved'}})
     def test_no_prefix_based_permission(self):
         for service,method in [('compute','delete_instance'),('secrets','get_secret_bundle'),('network','get_ip_sec_connection_tunnel_shared_secret'),('object','get_object'),('iam','create_user')]:
             with self.assertRaises(UnsafeOperation): approved(service,method)

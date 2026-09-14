@@ -8,6 +8,10 @@ if (!input || !output) throw Error('Usage: node render_excel.mjs snapshot.json o
 const snapshot=JSON.parse(await fs.readFile(input,'utf8'));
 if(snapshot.schema!=='oci-inventory/v3')throw Error('Unsupported snapshot schema');
 const records=snapshot.resources;
+const classes=JSON.parse(await fs.readFile(new URL('./resource_classes.json',import.meta.url),'utf8'));
+const resourceClass=r=>classes.software_source.includes(r.type)?'software_source':classes.backup_history.includes(r.type)?'backup_history':'configuration';
+const core=records.filter(r=>resourceClass(r)==='configuration');
+const coreServices=new Map();for(const r of core)coreServices.set(r.service,(coreServices.get(r.service)??0)+1);
 if(new Set(records.map(r=>r.key)).size!==records.length || snapshot.summary.resources!==records.length)throw Error('Resource count does not reconcile');
 try { await fs.access(output); throw Error('Refusing to overwrite a dated workbook. Use a new run filename.'); } catch(e) { if(e.code!=='ENOENT')throw e; }
 const wb=Workbook.create();
@@ -35,7 +39,7 @@ function table(s,row,headers,rows,widths){
   return row+rows.length+3;
 }
 const overview=sheet('000_Overview','리소스 현행화');overview.freezePanes.unfreeze();overview.tabColor=colors.ink;
-const changes=sheet('010_Changes','변경 이력');const deviations=sheet('020_Settings','설정 확인');const coverage=sheet('030_Coverage','수집 범위');const compartments=sheet('C00_Compartments','컴파트먼트별 자원');
+const changes=sheet('010_Changes','변경 이력');const deviations=sheet('020_Settings','설정 확인');const coverage=sheet('030_Coverage','수집 범위');const compartments=sheet('C00_Compartments','컴파트먼트별 구성 자원');
 const serviceGroups=[...new Map(records.map(r=>[r.group,r.service])).entries()].sort((a,b)=>a[0]-b[0]);
 const special=[[301,'SecurityRules','Security List / NSG 규칙'],[302,'RouteRules','라우팅 규칙'],[331,'LoadBalancerConfig','Load Balancer Listener / Backend'],[801,'PolicyStatements','IAM Policy Statements']];
 const numbered=new Map([...serviceGroups.map(([g,n])=>[g,n,n]),...special].sort((a,b)=>a[0]-b[0]).map(([g,n,title])=>[g,sheet(`${String(g).padStart(3,'0')}_${n}`.slice(0,31),title)]));
@@ -46,31 +50,31 @@ const rawIndex=sheet('099_AIIndex','AI 원본 인덱스');const rawChunks=sheet(
 const chunks=[];
 function rawCell(key,value){const raw=JSON.stringify(value);if(raw.length<=30000)return raw;const start=chunks.length+6;for(let i=0;i<raw.length;i+=30000)chunks.push([key,Math.floor(i/30000)+1,raw.slice(i,i+30000)]);return `098_RawChunks!B${start}: 원문 ${Math.ceil(raw.length/30000)}조각을 순서대로 연결`}
 const rawRows=records.map(r=>{
-  return [r.key,r.compartment,r.region,r.service,r.type,r.name,r.state,r.freshness,r.detail_complete?'상세 확인':'상세 미완료',r.observed_at,r.ocid,r.parent_id,JSON.stringify(r.relations),rawCell(r.key,r.raw),r.previous_detail?rawCell(r.key+'::previous_detail',r.previous_detail):''];
+  return [r.key,r.compartment,r.region,r.service,r.type,r.name,r.state,r.freshness,r.detail_complete?'상세 확인':'상세 미완료',r.observed_at,r.ocid,r.parent_id,JSON.stringify(r.relations),rawCell(r.key,r.raw),r.previous_detail?rawCell(r.key+'::previous_detail',r.previous_detail):'',resourceClass(r)];
 });
-table(rawIndex,5,['Resource key','Compartment','Region','Service','Resource Type','Name','State','Freshness','Detail','Observed at','OCID','Parent OCID','Relations JSON','Raw JSON','Previous complete detail JSON'],rawRows,[24,30,22,24,24,34,18,16,18,26,36,36,60,60,60]);
+table(rawIndex,5,['Resource key','Compartment','Region','Service','Resource Type','Name','State','Freshness','Detail','Observed at','OCID','Parent OCID','Relations JSON','Raw JSON','Previous complete detail JSON','Inventory class'],rawRows,[24,30,22,24,24,34,18,16,18,26,36,36,60,60,60,22]);
 table(rawChunks,5,['Resource key','Part','Raw JSON'],chunks,[35,8,100]);
 table(baseline,5,['Rule ID','Enabled','Resource types','Field','Operator','Expected','Category','Title','Basis','Oracle source'],snapshot.rules.map(r=>[r.id,r.enabled!==false,r.types.join(', '),r.field,r.operator,r.expected,r.category,r.title,r.basis,r.source_url??'']),[24,10,35,36,20,50,18,42,65,60]);
 rawIndex.getRange('K:O').format.wrapText=false;
 const last=records.length+5;
-overview.getRange('B5').values=[['자원']];overview.getRange('E5').values=[['설정 확인']];overview.getRange('H5').values=[['이전 정보']];overview.getRange('K5').values=[['수집 상태']];
+overview.getRange('B5').values=[['전체 수집 항목']];overview.getRange('E5').values=[['구성 자원']];overview.getRange('H5').values=[['설정 확인']];overview.getRange('K5').values=[['수집 상태']];
 overview.getRange('B6').formulas=[[records.length?`=COUNTA('099_AIIndex'!B6:B${last})`:'=0']];
-overview.getRange('E6').values=[[snapshot.findings.length]];overview.getRange('H6').formulas=[[`=COUNTIF('099_AIIndex'!I6:I${last},"stale")`]];
+overview.getRange('E6').formulas=[[records.length?`=COUNTIF('099_AIIndex'!Q6:Q${last},"configuration")`:'=0']];overview.getRange('H6').values=[[snapshot.findings.length]];
 if(!records.length)overview.getRange('H6').formulas=[['=0']];
 overview.getRange('K6').values=[[snapshot.status==='COMPLETE_REGISTERED_SCOPE'?'등록 범위 수집 완료':'일부 확인 필요']];
 for(const cell of ['B6','E6','H6'])overview.getRange(cell).format.font={name:'Arial',size:22,bold:true,color:colors.accent};
-overview.getRange('B8:M9').merge();overview.getRange('B8').values=[['집계는 고유 자원 기준입니다. 규칙·Listener·Backend 행은 자원 수에 중복 합산하지 않습니다. 실패·미지원 범위는 030_Coverage에서 확인하세요.']];overview.getRange('B8:M9').format={wrapText:true,font:{name:'Arial',size:10,color:colors.muted},rowHeight:22};
+overview.getRange('B8:M9').merge();overview.getRange('B8').values=[['구성 자원 집계와 그래프는 백업·실행 이력·소프트웨어 소스를 제외합니다. 전체 원본은 서비스별 시트에 보존합니다. 규칙 행은 자원 수에 중복 합산하지 않습니다. 수집 미완료는 030_Coverage에서 확인하세요.']];overview.getRange('B8:M9').format={wrapText:true,font:{name:'Arial',size:10,color:colors.muted},rowHeight:22};
 const dist=Object.entries(snapshot.summary.by_compartment).sort(([a],[b])=>a.localeCompare(b));
-table(overview,12,['컴파트먼트','자원 수'],dist.map(([c])=>[c,0]),[40,14]);
-for(let i=0;i<dist.length;i++)overview.getRange(`C${13+i}`).formulas=[[`=COUNTIF('099_AIIndex'!C6:C${last},B${13+i})`]];
+table(overview,12,['컴파트먼트','구성 자원','전체 항목'],dist.map(([c])=>[c,0,0]),[40,14,14]);
+for(let i=0;i<dist.length;i++){overview.getRange(`C${13+i}`).formulas=[[`=COUNTIFS('099_AIIndex'!C6:C${last},B${13+i},'099_AIIndex'!Q6:Q${last},"configuration")`]];overview.getRange(`D${13+i}`).formulas=[[`=COUNTIF('099_AIIndex'!C6:C${last},B${13+i})`]];}
 const serviceStart=16+dist.length;
-table(overview,serviceStart,['서비스','자원 수'],serviceGroups.map(([,s])=>[s,0]),[40,14]);
-for(let i=0;i<serviceGroups.length;i++)overview.getRange(`C${serviceStart+1+i}`).formulas=[[`=COUNTIF('099_AIIndex'!E6:E${last},B${serviceStart+1+i})`]];
+table(overview,serviceStart,['서비스','구성 자원','전체 항목'],serviceGroups.map(([,s])=>[s,0,0]),[40,14,14]);
+for(let i=0;i<serviceGroups.length;i++){overview.getRange(`C${serviceStart+1+i}`).formulas=[[`=COUNTIFS('099_AIIndex'!E6:E${last},B${serviceStart+1+i},'099_AIIndex'!Q6:Q${last},"configuration")`]];overview.getRange(`D${serviceStart+1+i}`).formulas=[[`=COUNTIF('099_AIIndex'!E6:E${last},B${serviceStart+1+i})`]];}
 overview.getRange('C6:C200').setNumberFormat('#,##0');
-if(serviceGroups.length){const top=[...serviceGroups].sort((a,b)=>(snapshot.summary.by_service[b[1]]??0)-(snapshot.summary.by_service[a[1]]??0)).slice(0,8);overview.getRange('S12:T12').values=[['서비스','자원 수']];for(let i=0;i<top.length;i++){overview.getRange(`S${13+i}`).values=[[top[i][1]]];overview.getRange(`T${13+i}`).formulas=[[`=C${serviceStart+1+serviceGroups.findIndex(x=>x[0]===top[i][0])}`]]}const chart=overview.charts.add('bar',overview.getRange(`S12:T${12+top.length}`));chart.title='자원 수 상위 서비스';chart.hasLegend=false;chart.titleTextStyle.typeface='Arial';chart.titleTextStyle.fontSize=12;chart.yAxis={numberFormatCode:'#,##0',numberFormatSourceLinked:false,textStyle:{typeface:'Arial',fontSize:10}};chart.xAxis={axisType:'textAxis',textStyle:{typeface:'Arial',fontSize:10}};chart.series.items[0].fill=colors.accent;chart.setPosition('F12','N31');}
+if(core.length&&serviceGroups.length){const top=[...serviceGroups].sort((a,b)=>(coreServices.get(b[1])??0)-(coreServices.get(a[1])??0)).filter(([,s])=>coreServices.get(s)>0).slice(0,8);overview.getRange('S12:T12').values=[['서비스','자원 수']];for(let i=0;i<top.length;i++){overview.getRange(`S${13+i}`).values=[[top[i][1]]];overview.getRange(`T${13+i}`).formulas=[[`=C${serviceStart+1+serviceGroups.findIndex(x=>x[0]===top[i][0])}`]]}const chart=overview.charts.add('bar',overview.getRange(`S12:T${12+top.length}`));chart.title='구성 자원 상위 서비스';chart.hasLegend=false;chart.titleTextStyle.typeface='Arial';chart.titleTextStyle.fontSize=12;chart.yAxis={numberFormatCode:'#,##0',numberFormatSourceLinked:false,textStyle:{typeface:'Arial',fontSize:10}};chart.xAxis={axisType:'textAxis',textStyle:{typeface:'Arial',fontSize:10}};chart.series.items[0].fill=colors.accent;chart.setPosition('F12','N31');}
 const byComp=new Map();for(const r of records){if(!byComp.has(r.compartment))byComp.set(r.compartment,[]);byComp.get(r.compartment).push(r)}
 let row=5;
-for(const [comp,list] of byComp){band(compartments,row,`${comp} (${list.length})`,8);row=table(compartments,row+1,['Region','Resource Type','Name','State','핵심 설정','확인','OCID','Parent OCID','Raw JSON'],list.map(r=>[r.region,r.type,r.name,r.state,r.properties.map(p=>`${p.label}: ${typeof p.value==='object'?JSON.stringify(p.value):p.value}`).join('\n'),r.freshness==='stale'?'이전 수집 정보':r.detail_complete?'상세 확인':'상세 미완료',r.ocid,r.parent_id,rawRows[records.indexOf(r)][13]]),[22,24,34,18,64,20,36,36,70]);}
+for(const [comp,list] of byComp){const visible=list.filter(r=>resourceClass(r)==='configuration');band(compartments,row,`${comp} (${visible.length}) · 전체 ${list.length}개`,8,!visible.length);row=table(compartments,row+1,['Region','Resource Type','Name','State','핵심 설정','확인','OCID','Parent OCID','Raw JSON'],visible.map(r=>[r.region,r.type,r.name,r.state,r.properties.map(p=>`${p.label}: ${typeof p.value==='object'?JSON.stringify(p.value):p.value}`).join('\n'),r.freshness==='stale'?'이전 수집 정보':r.detail_complete?'상세 확인':'상세 미완료',r.ocid,r.parent_id,rawRows[records.indexOf(r)][13]]),[22,24,34,18,64,20,36,36,70]);}
 for(const [group,s] of services){let row=5;const list=records.filter(r=>r.group===group);for(const comp of [...new Set(list.map(r=>r.compartment))]){const cr=list.filter(r=>r.compartment===comp);band(s,row,`${comp} (${cr.length})`,9);row+=2;for(const region of [...new Set(cr.map(r=>r.region))])for(const type of [...new Set(cr.filter(r=>r.region===region).map(r=>r.type))]){const tr=cr.filter(r=>r.region===region&&r.type===type);const props=[...new Map(tr.flatMap(r=>r.properties).map(p=>[p.field,p.label])).entries()];band(s,row,`${region} · ${type} (${tr.length})`,9);row=table(s,row+1,['Name','State',...props.map(([,l])=>l),'확인','OCID','Parent OCID','Raw JSON'],tr.map(r=>[r.name,r.state,...props.map(([f])=>r.properties.find(p=>p.field===f)?.value??null),r.detail_complete?'상세 확인':'상세 미완료',r.ocid,r.parent_id,rawRows[records.indexOf(r)][13]]),[32,18,...props.map(()=>30),18,36,36,70]);}}}
 
 const security=[];const routes=[];const statements=[];const lb=[];
@@ -97,6 +101,7 @@ wb.recalculate();
 const errors=await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#NUM!|#SPILL!',options:{useRegex:true,maxResults:20},maxChars:2000});
 if(errors.ndjson?.includes('"match"'))throw Error(`Workbook formula errors: ${errors.ndjson}`);
 const summaryValues=overview.getRange('B6').values[0][0];if(summaryValues!==records.length)throw Error(`Excel resource count mismatch ${summaryValues}/${records.length}`);
+if(overview.getRange('E6').values[0][0]!==core.length)throw Error('Configuration resource count does not reconcile');
 await fs.mkdir(path.dirname(output),{recursive:true});
 const exported=await SpreadsheetFile.exportXlsx(wb);
 await fs.writeFile(output,exported.data);
