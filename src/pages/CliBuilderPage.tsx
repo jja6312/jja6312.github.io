@@ -1,9 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import CliBlueprintWorkspace from '../components/CliBlueprintWorkspace'
+import CliInputWizard, { defaultCliWizardControl, useCliInputWizardShortcut, type CliWizardQuestion, type CliWizardRenderContext } from '../components/CliInputWizard'
+import OciOfficialCommandNav from '../components/OciOfficialCommandNav'
+import type { BlueprintCatalog } from '../lib/oci-cli/blueprintTypes.d.mts'
 import { useHub } from '../store'
 import { getPat, getFile, putFile, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
 import { isCliOptionValueActive, quoteCliValue, serializeCliOption, validateCliOptions } from '../lib/cliOptionModel'
+import { dynamicLookupItemIterator } from '../lib/cliDynamicLookup'
+import { resolveCliInputs } from '../lib/cliInputResolution'
+import { cliDiscoveryRelation, cliDiscoveryContext, wrapCliDiscoveryCommand } from '../lib/cliDiscovery'
+import CliDiscoveryPanel from '../components/CliDiscoveryPanel'
 import { defaultCliOperation, type CliCrudVerb } from '../lib/cliDefaultOperation'
 import {
   executionContextDefaults,
@@ -14,6 +22,13 @@ import {
   type ExecutionContextOverrides,
   type ExecutionContextSchema,
 } from '../lib/cliExecutionContext'
+import { resolveRegion, REGIONS } from '../lib/oci-cli/regionAliases'
+import { loadOfficialCliCommand, type OfficialCliCommand, type OfficialCliOption } from '../lib/oci-cli/officialCatalog'
+import {
+  loadProfiles, getSelectedProfileName, setSelectedProfileName,
+  registerProfilesFromPaste, updateProfilesFromPaste, deleteProfile, lookupNamesFor, profileSummary,
+  renderProfileCollectScript, type OciProfile,
+} from '../lib/oci-cli/profiles'
 
 interface CliOption {
   name: string
@@ -71,6 +86,8 @@ interface CliOptionRule {
   requires?: string[]
   message: string
 }
+// 규칙 없는 명령의 안정 참조(매 렌더 새 [] 를 만들어 useMemo 를 깨뜨리지 않도록).
+const EMPTY_CLI_RULES: CliOptionRule[] = []
 interface CliOptionNotice {
   kind: 'notPublic'
   option: string
@@ -83,7 +100,7 @@ interface CliLookupPrerequisite {
   kind: 'availabilityDomain' | 'value'
 }
 interface CliDynamicLookup {
-  kind: 'exactName' | 'compartment'
+  kind: 'exactName' | 'compartment' | 'tenancy'
   target?: string
   listCommand?: string
   nameField?: string
@@ -115,16 +132,19 @@ interface CliAction extends CliOperation {
 interface CliCommand {
   resource: string; label: string
   cmd: string; help: string
+  rules?: CliOptionRule[]
   preferredOperation?: CrudVerb
   disableDynamic?: boolean
   rootTenancyLookup?: boolean
   compartmentSupportsRoot?: boolean
-  iamResource?: 'user' | 'group' | 'policy'
+  iamResource?: 'compartment' | 'user' | 'group' | 'policy'
   iamMfaReset?: boolean
   allSubscriptionBalances?: boolean
   crossCopy?: string         // 'boot-volume' | 'volume' — cross-tenancy 복사 전용 조립
   maintenanceReboot?: boolean // 인스턴스 유지보수 재부팅 조회 + 변경 전용 조립
   compartmentCleanup?: boolean // scoped resource cleanup PREVIEW/DELETE script
+  monitoringComposition?: boolean // Topic→구독→알람15 일괄등록 조립
+  customWorkflow?: 'wizocm-functions-foundation' | 'wizocm-devops-cicd'
   manualBackup?: 'instance-boot-volume' | 'mysql'
   operations?: Partial<Record<CrudVerb, CliOperation>>
   actions?: Record<string, CliAction>
@@ -141,6 +161,51 @@ interface Catalog {
   executionContext: ExecutionContextSchema
   categories: { id: string; label: string; groups: { label: string; resources: string[] }[] }[]
   commands: Record<string, CliCommand>
+}
+interface CuratedCliTarget { resource: string; operation?: CrudVerb; action?: string }
+type OfficialCommandPresentation = 'enhanced' | 'official'
+type CliSidebarView = 'all' | 'recent' | 'favorites' | 'verified' | 'automation' | 'profiles'
+
+function officialOptionPlaceholder(option: OfficialCliOption): string {
+  if (option.type === 'json') return '구조화 입력기로 JSON 필드를 구성하세요.'
+  if (option.type === 'datetime') return '예: 2026-08-30T23:18:00Z'
+  if (option.type === 'int' || option.type === 'float') return '숫자 입력'
+  if (option.multiple) return '값을 줄바꿈으로 여러 개 입력'
+  if (option.name.endsWith('-id')) return 'ocid1...'
+  return option.required ? '필수 값 입력' : '선택 값 입력'
+}
+
+function officialOptionToBuilder(path: string, option: OfficialCliOption): CliOption {
+  return {
+    name: option.name,
+    required: option.required,
+    requirement: option.required ? 'required' : 'optional',
+    type: option.type,
+    choices: option.choices ?? null,
+    help: option.help,
+    placeholder: officialOptionPlaceholder(option),
+    flag: option.flag,
+    multiple: option.multiple,
+    deprecated: option.deprecated,
+    deprecation: option.deprecation,
+    ...(option.type === 'json' ? {
+      jsonTemplateCommand: `${path} --generate-param-json-input ${option.name.replace(/^--/, '')}`,
+    } : {}),
+  }
+}
+
+function officialCommandToBuilder(command: OfficialCliCommand): CliCommand {
+  const options = command.options.map(option => officialOptionToBuilder(command.path, option))
+  const required = options.filter(option => option.required)
+  const optional = options.filter(option => !option.required)
+  return {
+    resource: `official:${command.path}`,
+    label: command.segments.join(' › '),
+    cmd: command.path,
+    help: command.help,
+    sections: required.length ? [{ label: '공식 필수 입력', options: required }] : [],
+    advanced: optional,
+  }
 }
 const EMPTY_CATALOG: Catalog = {
   executionContext: { source: { kind: 'final-click-root', tag: '', version: '', commit: '', runtimeFile: '' }, request: [], response: [] },
@@ -174,9 +239,12 @@ const actionDefaults = (command: CliCommand, action: string): Record<string, str
 }
 const selectedSurface = (command: CliCommand, operation: CrudVerb, action?: string | null): CliOperation =>
   (action ? command.actions?.[action] : command.operations?.[operation]) ?? command
+const isAutomationRecipe = (command: CliCommand | null | undefined) => !!command
+  && !!(command.crossCopy || command.compartmentCleanup || command.allSubscriptionBalances
+    || command.iamMfaReset || command.monitoringComposition || command.customWorkflow)
+
 const supportsResponseContext = (command: CliCommand | null | undefined) => !!command
-  && !command.crossCopy && !command.maintenanceReboot && !command.compartmentCleanup
-  && !command.allSubscriptionBalances && !command.iamMfaReset && !command.manualBackup
+  && !isAutomationRecipe(command) && !command.maintenanceReboot && !command.manualBackup
 
 /* ── 동적 조회 지원 옵션 — 이름만 넣으면 $()/변수로 OCID를 찾아준다 ──
    기본값 = 동적. 체크 해제 시 OCID 직접 입력. */
@@ -487,6 +555,17 @@ interface Favorite {
 const FAV_KEY = 'hub-cli-favorites'
 const loadFavs = (): Favorite[] => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]') } catch { return [] } }
 const saveFavs = (f: Favorite[]) => localStorage.setItem(FAV_KEY, JSON.stringify(f))
+interface RecentOfficialCommand { path: string; label: string; openedAt: string }
+const RECENT_KEY = 'hub-cli-recent-official'
+const loadRecentOfficialCommands = (): RecentOfficialCommand[] => {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') } catch { return [] }
+}
+const saveRecentOfficialCommands = (commands: RecentOfficialCommand[]) => {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(commands)) } catch { /* local preference unavailable */ }
+}
+const curatedTargetKey = (target: CuratedCliTarget) => target.action
+  ? `${target.resource}:action:${target.action}`
+  : `${target.resource}:${target.operation ?? 'command'}`
 type CliSidebarSide = 'left' | 'right'
 const CLI_SIDEBAR_WIDTH = {
   left: { key: 'hub-cli-sidebar-left-width', min: 150, max: 360, fallback: 220 },
@@ -983,6 +1062,81 @@ function buildMysqlDbSystemGet(
 }
 
 /* Build a safety-gated Bash cleanup script for one exact compartment. */
+/* MSP 모니터링 일괄등록 — Topic(재사용) → Email 구독 → 표준 알람 15개를 compartment 서브트리 전체에.
+   compartment 이름 비우면 root(테넌시 전체). 메트릭은 공식 레퍼런스 검증분(2026-07). */
+const WIZBASE_ALARMS = [
+  'compute-cpu-90|oci_computeagent|CRITICAL|PT5M|CpuUtilization[1m].mean() > 90',
+  'compute-mem-90|oci_computeagent|WARNING|PT5M|MemoryUtilization[1m].mean() > 90',
+  'basedb-cpu-85|oci_database|CRITICAL|PT5M|CpuUtilization[1m].mean() > 85',
+  'basedb-storage-85|oci_database|WARNING|PT5M|StorageUtilization[1m].mean() > 85',
+  'basedb-down-absence|oci_database|CRITICAL|PT5M|CpuUtilization[5m].absent()',
+  'adb-cpu-85|oci_autonomous_database|WARNING|PT5M|CpuUtilization[1m].mean() > 85',
+  'adb-storage-85|oci_autonomous_database|WARNING|PT5M|StorageUtilization[1m].mean() > 85',
+  'lb-unhealthy-backend|oci_lbaas|CRITICAL|PT5M|unhealthyBackendServers[1m].mean() > 0',
+  'nlb-unhealthy-backend|oci_nlb|CRITICAL|PT5M|UnhealthyBackendsPerNlb[1m].mean() > 0',
+  'blockvol-throttled-io|oci_blockstore|WARNING|PT5M|VolumeThrottledIOs[1m].mean() > 0',
+  'vpn-tunnel-down|oci_vpn|CRITICAL|PT5M|TunnelState[1m].mean() < 1',
+  'fastconnect-down|oci_fastconnect|CRITICAL|PT5M|ConnectionState[1m].mean() < 1',
+  'natgw-sessions-high|oci_nat_gateway|WARNING|PT5M|ConnectionsEstablished[5m].sum() > 50000',
+  'mysql-cpu-90|oci_mysql_database|CRITICAL|PT5M|CPUUtilization[1m].mean() > 90',
+  'mysql-storage-85|oci_mysql_database|WARNING|PT5M|DbVolumeUtilization[1m].mean() > 85',
+]
+function buildWizbaseMonitoring(values: Record<string, string>, requestContext: string[] = []): string {
+  const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
+  const q = (raw: string) => `'${raw.replaceAll("'", `'\\''`)}'`
+  const emails = (values['--emails'] || '').split(/\r?\n/).map(e => e.trim()).filter(Boolean)
+  const topicName = v('--topic-name', 'MSP_Alarm_Topic')
+  return [
+    '#!/usr/bin/env bash',
+    '# MSP 모니터링 일괄 등록 — Topic → Email 구독 → 표준 알람 15',
+    '# 위→아래 순서로 실행됩니다. Topic 은 이름으로 재사용(idempotent), 구독은 각 수신함 확인 링크 클릭 후 활성화됩니다.',
+    'set -uo pipefail',
+    '',
+    `TOPIC_NAME=${q(topicName)}`,
+    `COMPARTMENT_NAME=${q(v('--compartment-name'))}   # 비우면 root(테넌시 전체)`,
+    `EMAILS=(${emails.map(q).join(' ')})`,
+    `CTX=(${requestContext.join(' ')})`,
+    '',
+    '# compartment 해석 — 비우면 root(테넌시), 이름이면 tenancy 전체에서 ACTIVE 정확히 1개를 OCID 로 변환',
+    `C=$(oci iam availability-domain list --query 'data[0]."compartment-id"' --raw-output "\${CTX[@]}" | tr -d '\\r')`,
+    'if [ -n "$COMPARTMENT_NAME" ]; then',
+    `  CNT=$(oci iam compartment list --compartment-id "$C" --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --query 'length(data)' --raw-output "\${CTX[@]}" | tr -d '\\r')`,
+    '  if [ "$CNT" != "1" ]; then echo "[ABORT] ACTIVE compartment 이름은 tenancy 전체에서 정확히 1개여야 합니다: $COMPARTMENT_NAME (found=$CNT)" >&2; exit 1; fi',
+    `  C=$(oci iam compartment list --compartment-id "$C" --name "$COMPARTMENT_NAME" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --query 'data[0].id' --raw-output "\${CTX[@]}" | tr -d '\\r')`,
+    'fi',
+    'echo "COMPARTMENT=$C"',
+    '',
+    '# 1) Notification Topic (이름으로 재사용, 없으면 생성)',
+    `TOPIC=$(oci ons topic list -c "$C" --name "$TOPIC_NAME" --query 'data[0]."topic-id"' --raw-output "\${CTX[@]}" 2>/dev/null | tr -d '\\r')`,
+    'if [ -z "$TOPIC" ] || [ "$TOPIC" = "null" ]; then',
+    `  TOPIC=$(oci ons topic create -c "$C" --name "$TOPIC_NAME" --query 'data."topic-id"' --raw-output "\${CTX[@]}" | tr -d '\\r')`,
+    'fi',
+    'echo "TOPIC=$TOPIC"',
+    '',
+    '# 2) Email 구독 (각 수신함의 확인 링크를 눌러야 PENDING→ACTIVE)',
+    'for EM in "${EMAILS[@]}"; do',
+    '  oci ons subscription create -c "$C" --topic-id "$TOPIC" --protocol EMAIL --subscription-endpoint "$EM" "${CTX[@]}"',
+    'done',
+    '',
+    '# 3) 표준 알람 15 — 전부 위 Topic 으로 발송, 서브트리 전체 감시(--metric-compartment-id-in-subtree true)',
+    `printf '["%s"]' "$TOPIC" > dest.json`,
+    'ALARMS=(',
+    ...WIZBASE_ALARMS.map(row => `  ${q(row)}`),
+    ')',
+    'for row in "${ALARMS[@]}"; do',
+    `  IFS='|' read -r NAME NS SEV PEND QT <<< "$row"`,
+    '  oci monitoring alarm create \\',
+    '    --compartment-id "$C" --metric-compartment-id "$C" --metric-compartment-id-in-subtree true \\',
+    '    --display-name "$NAME" --namespace "$NS" --query-text "$QT" \\',
+    '    --severity "$SEV" --pending-duration "$PEND" \\',
+    '    --destinations file://dest.json --is-enabled true \\',
+    '    --body "$NAME 임계 초과 감지" "${CTX[@]}"',
+    'done',
+    'rm -f dest.json',
+    'echo "[OK] Topic/구독/알람 15 등록 완료 — 이메일 구독은 확인 링크 클릭 필요. database/adb/vpn 메트릭은 리전 런타임에서 재확인 권장."',
+  ].join('\n')
+}
+
 function buildCompartmentCleanup(values: Record<string, string>, requestContext: string[] = []): string {
   const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
   const enabled = (key: string) => values[key] === 'true' ? 'true' : 'false'
@@ -1399,6 +1553,9 @@ function buildIamCommand(
     if (input.toUpperCase() === 'ROOT') {
       ensureTenancy(); resolved.set(variable, '"$TENANCY_ID"'); return
     }
+    if (input.startsWith('ocid1.compartment.') || input.startsWith('ocid1.tenancy.')) {
+      resolved.set(variable, q(input)); return
+    }
     ensureTenancy()
     const nameVariable = `${variable}_NAME`
     const countVariable = `${variable}_COUNT`
@@ -1552,6 +1709,365 @@ function buildIamMfaReset(values: Record<string, string>, requestContext: string
   ].join('\n')
 }
 
+/* WizOCM Functions migration foundation.  PLAN is deliberately read-only;
+   APPLY is both explicitly confirmed and idempotent (0=create, 1=compare/reuse,
+   N=stop).  Customer credentials and secret values are never inputs here. */
+function buildWizocmFunctionsFoundation(values: Record<string, string>, requestContext: string[] = []): string {
+  const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
+  const q = (raw: string) => quoteCliValue(raw, true)
+  return [
+    '#!/usr/bin/env bash',
+    '# WizOCM Functions migration foundation — PLAN(read only) → APPLY(idempotent) → health invoke.',
+    '# Customer API keys, private keys, PATs and secret VALUES are intentionally not accepted or written by this script.',
+    'set -euo pipefail',
+    '',
+    `MODE=${q(v('--mode', 'PLAN').toUpperCase())}`,
+    `CONFIRM_APPLY=${q(v('--confirm-apply'))}`,
+    `COMPARTMENT_INPUT=${q(v('--compartment-input', '<compartment-name-or-ocid>'))}`,
+    `VCN_INPUT=${q(v('--vcn-input', '<vcn-name-or-ocid>'))}`,
+    `PRIVATE_SUBNET_INPUT=${q(v('--private-subnet-input', '<private-subnet-name-or-ocid>'))}`,
+    `SPRING_VNIC_ID=${q(v('--spring-vnic-id', '<spring-vnic-ocid>'))}`,
+    `SPRING_INSTANCE_ID=${q(v('--spring-instance-id', '<spring-instance-ocid>'))}`,
+    `LOG_GROUP_INPUT=${q(v('--log-group-input', '<log-group-name-or-ocid>'))}`,
+    `SPRING_INTERNAL_URL=${q(v('--spring-internal-url', '<private-spring-url>'))}`,
+    `HMAC_SECRET_OCID=${q(v('--hmac-secret-ocid', '<hmac-secret-ocid>'))}`,
+    `OCIR_NAMESPACE=${q(v('--ocir-namespace', '<ocir-namespace>'))}`,
+    `RELEASE_VERSION=${q(v('--release-version', '<full-commit-sha>'))}`,
+    `SCHEDULE_CRON=${q(v('--schedule-cron', '10 18 * * *'))}`,
+    `CTX=(${requestContext.join(' ')})`,
+    '',
+    'command -v jq >/dev/null 2>&1 || { echo "[ABORT] jq가 필요합니다. OCI Cloud Shell에는 기본 설치되어 있습니다." >&2; exit 2; }',
+    '[[ "$MODE" == "PLAN" || "$MODE" == "APPLY" ]] || { echo "[ABORT] MODE는 PLAN 또는 APPLY여야 합니다." >&2; exit 2; }',
+    '[[ "$RELEASE_VERSION" =~ ^[0-9a-fA-F]{40,64}$ ]] || { echo "[ABORT] release version에는 immutable full Git commit SHA(40~64 hex)가 필요합니다." >&2; exit 2; }',
+    '[[ "$SPRING_VNIC_ID" == ocid1.vnic.* ]] || { echo "[ABORT] Spring VNIC OCID가 필요합니다." >&2; exit 2; }',
+    '[[ "$SPRING_INSTANCE_ID" == ocid1.instance.* ]] || { echo "[ABORT] Spring Instance OCID가 필요합니다." >&2; exit 2; }',
+    '[[ "$HMAC_SECRET_OCID" == ocid1.vaultsecret.* ]] || { echo "[ABORT] HMAC secret OCID만 입력하세요. secret 값은 입력하지 않습니다." >&2; exit 2; }',
+    'if [[ "$MODE" == "APPLY" && "$CONFIRM_APPLY" != "APPLY_WIZOCM_FUNCTIONS" ]]; then',
+    '  echo "[ABORT] APPLY에는 --confirm-apply 값이 APPLY_WIZOCM_FUNCTIONS와 완전히 같아야 합니다." >&2; exit 2',
+    'fi',
+    '',
+    '# 1. Discover — 이름 입력은 반드시 0/1/N을 구분하고, 임의의 첫 OCID를 선택하지 않습니다.',
+    'TENANCY_ID=$(oci iam availability-domain list --query \'data[0]."compartment-id"\' --raw-output "${CTX[@]}")',
+    '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ABORT] 선택한 profile에서 tenancy OCID를 확인하지 못했습니다." >&2; exit 2; }',
+    'if [[ "$COMPARTMENT_INPUT" == ocid1.compartment.* ]]; then COMPARTMENT_ID="$COMPARTMENT_INPUT"; else',
+    '  COMPARTMENT_JSON=$(oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --output json "${CTX[@]}")',
+    '  COUNT=$(jq --arg n "$COMPARTMENT_INPUT" \'[.data[]? | select(.name == $n)] | length\' <<<"$COMPARTMENT_JSON")',
+    '  [[ "$COUNT" == "1" ]] || { echo "[ABORT] ACTIVE compartment 이름은 tenancy 전체에서 정확히 1개여야 합니다: $COMPARTMENT_INPUT (found=$COUNT)" >&2; jq -r \'.data[]? | [.name,.id,."compartment-id"] | @tsv\' <<<"$COMPARTMENT_JSON" >&2; exit 1; }',
+    '  COMPARTMENT_ID=$(jq -r --arg n "$COMPARTMENT_INPUT" \'[.data[]? | select(.name == $n)][0].id\' <<<"$COMPARTMENT_JSON")',
+    'fi',
+    'if [[ "$VCN_INPUT" == ocid1.vcn.* ]]; then VCN_ID="$VCN_INPUT"; else',
+    '  VCN_JSON=$(oci network vcn list --compartment-id "$COMPARTMENT_ID" --all --output json "${CTX[@]}")',
+    '  COUNT=$(jq --arg n "$VCN_INPUT" \'[.data[]? | select(."display-name" == $n)] | length\' <<<"$VCN_JSON")',
+    '  [[ "$COUNT" == "1" ]] || { echo "[ABORT] VCN 이름은 대상 compartment에서 정확히 1개여야 합니다: $VCN_INPUT (found=$COUNT)" >&2; jq -r \'.data[]? | [."display-name",.id] | @tsv\' <<<"$VCN_JSON" >&2; exit 1; }',
+    '  VCN_ID=$(jq -r --arg n "$VCN_INPUT" \'[.data[]? | select(."display-name" == $n)][0].id\' <<<"$VCN_JSON")',
+    'fi',
+    'if [[ "$PRIVATE_SUBNET_INPUT" == ocid1.subnet.* ]]; then SUBNET_ID="$PRIVATE_SUBNET_INPUT"; else',
+    '  SUBNET_JSON=$(oci network subnet list --compartment-id "$COMPARTMENT_ID" --vcn-id "$VCN_ID" --all --output json "${CTX[@]}")',
+    '  COUNT=$(jq --arg n "$PRIVATE_SUBNET_INPUT" \'[.data[]? | select(."display-name" == $n)] | length\' <<<"$SUBNET_JSON")',
+    '  [[ "$COUNT" == "1" ]] || { echo "[ABORT] private subnet 이름은 VCN에서 정확히 1개여야 합니다: $PRIVATE_SUBNET_INPUT (found=$COUNT)" >&2; jq -r \'.data[]? | [."display-name",id,."prohibit-public-ip-on-vnic"] | @tsv\' <<<"$SUBNET_JSON" >&2; exit 1; }',
+    '  SUBNET_ID=$(jq -r --arg n "$PRIVATE_SUBNET_INPUT" \'[.data[]? | select(."display-name" == $n)][0].id\' <<<"$SUBNET_JSON")',
+    'fi',
+    'if [[ "$LOG_GROUP_INPUT" == ocid1.loggroup.* ]]; then LOG_GROUP_ID="$LOG_GROUP_INPUT"; else',
+    '  LOG_GROUP_JSON=$(oci logging log-group list --compartment-id "$COMPARTMENT_ID" --display-name "$LOG_GROUP_INPUT" --all --output json "${CTX[@]}")',
+    '  COUNT=$(jq --arg n "$LOG_GROUP_INPUT" \'[.data[]? | select(."display-name" == $n)] | length\' <<<"$LOG_GROUP_JSON")',
+    '  [[ "$COUNT" == "1" ]] || { echo "[ABORT] Log Group 이름은 대상 compartment에서 정확히 1개여야 합니다: $LOG_GROUP_INPUT (found=$COUNT)" >&2; jq -r \'.data[]? | [."display-name",id] | @tsv\' <<<"$LOG_GROUP_JSON" >&2; exit 1; }',
+    '  LOG_GROUP_ID=$(jq -r --arg n "$LOG_GROUP_INPUT" \'[.data[]? | select(."display-name" == $n)][0].id\' <<<"$LOG_GROUP_JSON")',
+    'fi',
+    'PRIVATE_SUBNET_JSON=$(oci network subnet get --subnet-id "$SUBNET_ID" --output json "${CTX[@]}")',
+    '[[ $(jq -r \'.data."prohibit-public-ip-on-vnic"\' <<<"$PRIVATE_SUBNET_JSON") == "true" ]] || { echo "[ABORT] Functions application에는 public IP가 금지된 private subnet이 필요합니다." >&2; exit 1; }',
+    'ROUTE_TABLE_ID=$(jq -r \'.data."route-table-id" // empty\' <<<"$PRIVATE_SUBNET_JSON")',
+    'ROUTE_JSON=$(oci network route-table get --rt-id "$ROUTE_TABLE_ID" --output json "${CTX[@]}")',
+    'NAT_ROUTE_COUNT=$(jq \'[.data."route-rules"[]? | select((."network-entity-id" // "") | startswith("ocid1.natgateway."))] | length\' <<<"$ROUTE_JSON")',
+    'SGW_ROUTE_COUNT=$(jq \'[.data."route-rules"[]? | select((."network-entity-id" // "") | startswith("ocid1.servicegateway."))] | length\' <<<"$ROUTE_JSON")',
+    '[[ "$NAT_ROUTE_COUNT" != "0" && "$SGW_ROUTE_COUNT" != "0" ]] || { echo "[ABORT] private subnet route table에 NAT Gateway와 Service Gateway 경로가 모두 필요합니다. NAT=$NAT_ROUTE_COUNT SGW=$SGW_ROUTE_COUNT" >&2; exit 1; }',
+    'echo "[DISCOVERED] compartment=$COMPARTMENT_ID vcn=$VCN_ID subnet=$SUBNET_ID log-group=$LOG_GROUP_ID"',
+    'echo "[NETWORK] private subnet confirmed; NAT routes=$NAT_ROUTE_COUNT, Service Gateway routes=$SGW_ROUTE_COUNT"',
+    '',
+    'if [[ "$MODE" == "PLAN" ]]; then',
+    '  echo "[PLAN] no resource will be changed."',
+    '  oci network nsg list --compartment-id "$COMPARTMENT_ID" --vcn-id "$VCN_ID" --all --query \'data[].{name:"display-name",id:id,state:"lifecycle-state"}\' --output table "${CTX[@]}"',
+    '  oci artifacts container repository list --compartment-id "$COMPARTMENT_ID" --all --query \'data[].{name:"display-name",immutable:"is-immutable",id:id}\' --output table "${CTX[@]}"',
+    '  oci fn application list --compartment-id "$COMPARTMENT_ID" --all --query \'data[].{name:"display-name",id:id,state:"lifecycle-state"}\' --output table "${CTX[@]}"',
+    '  echo "[NEXT] APPLY will create/reuse two NSGs, three immutable repositories, one Function application, three functions, Runtime IAM, schedule and invoke log."',
+    '  echo "[NEXT] customer cross-tenancy Admit/Endorse and any API-key bridge stay out of this script and require separately approved tenant-specific policies."',
+    '  exit 0',
+    'fi',
+    '',
+    '# 2. Apply — create only if missing; an existing name must still satisfy the expected invariant.',
+    'ensure_nsg() {',
+    '  local name="$1" json count id immutable',
+    '  json=$(oci network nsg list --compartment-id "$COMPARTMENT_ID" --vcn-id "$VCN_ID" --display-name "$name" --all --output json "${CTX[@]}")',
+    '  count=$(jq --arg n "$name" \'[.data[]? | select(."display-name" == $n)] | length\' <<<"$json")',
+    '  [[ "$count" != "0" && "$count" != "1" ]] && { echo "[ABORT] NSG name collision: $name (found=$count)" >&2; exit 1; }',
+    '  if [[ "$count" == "0" ]]; then',
+    '    echo "[CREATE] NSG $name" >&2',
+    '    id=$(oci network nsg create --compartment-id "$COMPARTMENT_ID" --vcn-id "$VCN_ID" --display-name "$name" --wait-for-state AVAILABLE --query \'data.id\' --raw-output "${CTX[@]}")',
+    '  else id=$(jq -r --arg n "$name" \'[.data[]? | select(."display-name" == $n)][0].id\' <<<"$json"); fi',
+    '  printf "%s" "$id"',
+    '}',
+    'ensure_repo() {',
+    '  local name="$1" json count id immutable',
+    '  json=$(oci artifacts container repository list --compartment-id "$COMPARTMENT_ID" --display-name "$name" --all --output json "${CTX[@]}")',
+    '  count=$(jq --arg n "$name" \'[.data[]? | select(."display-name" == $n)] | length\' <<<"$json")',
+    '  [[ "$count" != "0" && "$count" != "1" ]] && { echo "[ABORT] OCIR repository name collision: $name (found=$count)" >&2; exit 1; }',
+    '  if [[ "$count" == "0" ]]; then',
+    '    echo "[CREATE] immutable OCIR repository $name" >&2',
+    '    id=$(oci artifacts container repository create --compartment-id "$COMPARTMENT_ID" --display-name "$name" --is-immutable true --wait-for-state AVAILABLE --query \'data.id\' --raw-output "${CTX[@]}")',
+    '  else',
+    '    immutable=$(jq -r --arg n "$name" \'[.data[]? | select(."display-name" == $n)][0]."is-immutable" // false\' <<<"$json")',
+    '    [[ "$immutable" == "true" ]] || { echo "[ABORT] existing repository is not immutable: $name" >&2; exit 1; }',
+    '    id=$(jq -r --arg n "$name" \'[.data[]? | select(."display-name" == $n)][0].id\' <<<"$json")',
+    '  fi',
+    '  printf "%s" "$id"',
+    '}',
+    'ensure_dynamic_group() {',
+    '  local name="$1" rule="$2" json count id actual',
+    '  json=$(oci iam dynamic-group list --compartment-id "$TENANCY_ID" --name "$name" --lifecycle-state ACTIVE --all --output json "${CTX[@]}")',
+    '  count=$(jq --arg n "$name" \'[.data[]? | select(.name == $n)] | length\' <<<"$json")',
+    '  [[ "$count" != "0" && "$count" != "1" ]] && { echo "[ABORT] dynamic group name collision: $name (found=$count)" >&2; exit 1; }',
+    '  if [[ "$count" == "0" ]]; then',
+    '    echo "[CREATE] dynamic group $name" >&2',
+    '    id=$(oci iam dynamic-group create --compartment-id "$TENANCY_ID" --name "$name" --description "WizOCM Functions least-privilege principal" --matching-rule "$rule" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}")',
+    '  else',
+    '    id=$(jq -r --arg n "$name" \'[.data[]? | select(.name == $n)][0].id\' <<<"$json")',
+    '    actual=$(oci iam dynamic-group get --dynamic-group-id "$id" --query \'data."matching-rule"\' --raw-output "${CTX[@]}")',
+    '    [[ "$actual" == "$rule" ]] || { echo "[ABORT] dynamic group matching rule differs: $name" >&2; exit 1; }',
+    '  fi',
+    '  printf "%s" "$id"',
+    '}',
+    'ensure_policy() {',
+    '  local name="$1" statements="$2" json count id current expected',
+    '  json=$(oci iam policy list --compartment-id "$TENANCY_ID" --name "$name" --lifecycle-state ACTIVE --all --output json "${CTX[@]}")',
+    '  count=$(jq --arg n "$name" \'[.data[]? | select(.name == $n)] | length\' <<<"$json")',
+    '  [[ "$count" != "0" && "$count" != "1" ]] && { echo "[ABORT] policy name collision: $name (found=$count)" >&2; exit 1; }',
+    '  if [[ "$count" == "0" ]]; then',
+    '    echo "[CREATE] policy $name" >&2',
+    '    oci iam policy create --compartment-id "$TENANCY_ID" --name "$name" --description "WizOCM Functions least-privilege runtime policy" --statements "$statements" --wait-for-state ACTIVE "${CTX[@]}" >/dev/null',
+    '  else',
+    '    id=$(jq -r --arg n "$name" \'[.data[]? | select(.name == $n)][0].id\' <<<"$json")',
+    '    current=$(oci iam policy get --policy-id "$id" --output json "${CTX[@]}" | jq -c \'.data.statements | sort\')',
+    '    expected=$(jq -c \'sort\' <<<"$statements")',
+    '    [[ "$current" == "$expected" ]] || { echo "[ABORT] existing policy statements differ: $name" >&2; exit 1; }',
+    '  fi',
+    '}',
+    'FUNCTIONS_NSG_ID=$(ensure_nsg "nsg-wizocm-functions-prod")',
+    'SPRING_NSG_ID=$(ensure_nsg "nsg-wizocm-spring-prod")',
+    'FUNCTIONS_RULES=$(jq -nc --arg spring "$SPRING_NSG_ID" \'[{direction:"EGRESS",protocol:"6",destination:$spring,destinationType:"NETWORK_SECURITY_GROUP",isStateless:false,tcpOptions:{destinationPortRange:{min:8080,max:8080}},description:"Functions to Spring internal API"},{direction:"EGRESS",protocol:"6",destination:"0.0.0.0/0",destinationType:"CIDR_BLOCK",isStateless:false,tcpOptions:{destinationPortRange:{min:443,max:443}},description:"HTTPS through private subnet egress"}]\')',
+    'SPRING_RULES=$(jq -nc --arg functions "$FUNCTIONS_NSG_ID" \'[{direction:"INGRESS",protocol:"6",source:$functions,sourceType:"NETWORK_SECURITY_GROUP",isStateless:false,tcpOptions:{destinationPortRange:{min:8080,max:8080}},description:"Functions to Spring internal API"}]\')',
+    'add_rules_if_missing() {',
+    '  local nsg="$1" rules="$2" json',
+    '  json=$(oci network nsg rules list --nsg-id "$nsg" --all --output json "${CTX[@]}")',
+    '  if jq -e --argjson required "$rules" \'[.data[]? | {direction,protocol,source,destination,sourceType,destinationType,tcpOptions}] as $have | [$required[] | select(. as $need | ($have | any(.direction == $need.direction and .protocol == $need.protocol and (.source // "") == ($need.source // "") and (.destination // "") == ($need.destination // "")) | not)] | length == 0\' <<<"$json" >/dev/null; then',
+    '    echo "[REUSE] NSG rules already present: $nsg" >&2',
+    '  else',
+    '    echo "[MERGE] add missing NSG rules: $nsg" >&2',
+    '    oci network nsg rules add --nsg-id "$nsg" --security-rules "$rules" "${CTX[@]}" >/dev/null',
+    '  fi',
+    '}',
+    'add_rules_if_missing "$FUNCTIONS_NSG_ID" "$FUNCTIONS_RULES"',
+    'add_rules_if_missing "$SPRING_NSG_ID" "$SPRING_RULES"',
+    'VNIC_JSON=$(oci network vnic get --vnic-id "$SPRING_VNIC_ID" --output json "${CTX[@]}")',
+    'MERGED_NSG_IDS=$(jq -c --arg id "$SPRING_NSG_ID" \'(.data."nsg-ids" // []) + [$id] | unique\' <<<"$VNIC_JSON")',
+    'if [[ "$MERGED_NSG_IDS" != "$(jq -c \'.data."nsg-ids" // []\' <<<"$VNIC_JSON")" ]]; then',
+    '  oci network vnic update --vnic-id "$SPRING_VNIC_ID" --nsg-ids "$MERGED_NSG_IDS" --force --wait-for-state AVAILABLE "${CTX[@]}" >/dev/null',
+    'else echo "[REUSE] Spring VNIC already has the Functions NSG" >&2; fi',
+    'ADVISOR_REPO_ID=$(ensure_repo "wizocm/functions/cloud-advisor")',
+    'DISPATCHER_REPO_ID=$(ensure_repo "wizocm/functions/dispatcher")',
+    'WORKER_REPO_ID=$(ensure_repo "wizocm/functions/worker")',
+    'for repo in "wizocm/functions/cloud-advisor" "wizocm/functions/dispatcher" "wizocm/functions/worker"; do',
+    '  IMAGE_COUNT=$(oci artifacts container image list --compartment-id "$COMPARTMENT_ID" --repository-name "$repo" --image-version "$RELEASE_VERSION" --all --query \'length(data)\' --raw-output "${CTX[@]}")',
+    '  [[ "$IMAGE_COUNT" != "0" ]] || { echo "[ABORT] immutable image tag not found in OCIR: $repo:$RELEASE_VERSION. Build/push first." >&2; exit 1; }',
+    'done',
+    'APP_NAME="wizocm-cost-functions-prod"',
+    'APP_CONFIG=$(jq -nc --arg u "$SPRING_INTERNAL_URL" --arg s "$HMAC_SECRET_OCID" \'{APP_ENV:"prod",SPRING_INTERNAL_URL:$u,HMAC_SECRET_OCID:$s}\')',
+    'APP_JSON=$(oci fn application list --compartment-id "$COMPARTMENT_ID" --display-name "$APP_NAME" --all --output json "${CTX[@]}")',
+    'COUNT=$(jq --arg n "$APP_NAME" \'[.data[]? | select(."display-name" == $n)] | length\' <<<"$APP_JSON")',
+    '[[ "$COUNT" != "0" && "$COUNT" != "1" ]] && { echo "[ABORT] Function application name collision: $APP_NAME (found=$COUNT)" >&2; exit 1; }',
+    'if [[ "$COUNT" == "0" ]]; then',
+    '  echo "[CREATE] Function application $APP_NAME" >&2',
+    '  FUNCTION_APP_ID=$(oci fn application create --compartment-id "$COMPARTMENT_ID" --display-name "$APP_NAME" --subnet-ids "[\\\"$SUBNET_ID\\\"]" --network-security-group-ids "[\\\"$FUNCTIONS_NSG_ID\\\"]" --shape GENERIC_X86 --config "$APP_CONFIG" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}")',
+    'else',
+    '  FUNCTION_APP_ID=$(jq -r --arg n "$APP_NAME" \'[.data[]? | select(."display-name" == $n)][0].id\' <<<"$APP_JSON")',
+    '  APP_GET=$(oci fn application get --application-id "$FUNCTION_APP_ID" --output json "${CTX[@]}")',
+    '  jq -e --arg subnet "$SUBNET_ID" --arg nsg "$FUNCTIONS_NSG_ID" \'((.data."subnet-ids" | index($subnet)) != null) and ((.data."network-security-group-ids" | index($nsg)) != null)\' <<<"$APP_GET" >/dev/null || { echo "[ABORT] existing Function application network differs; automatic update is refused." >&2; exit 1; }',
+    'fi',
+    'ensure_function() {',
+    '  local name="$1" memory="$2" timeout="$3" detached="$4" image="$5" config="$6" json count id get current_config merged',
+    '  json=$(oci fn function list --application-id "$FUNCTION_APP_ID" --display-name "$name" --all --output json "${CTX[@]}")',
+    '  count=$(jq --arg n "$name" \'[.data[]? | select(."display-name" == $n)] | length\' <<<"$json")',
+    '  [[ "$count" != "0" && "$count" != "1" ]] && { echo "[ABORT] Function name collision: $name (found=$count)" >&2; exit 1; }',
+    '  if [[ "$count" == "0" ]]; then',
+    '    echo "[CREATE] Function $name" >&2',
+    '    id=$(oci fn function create --application-id "$FUNCTION_APP_ID" --display-name "$name" --image "$image" --memory-in-mbs "$memory" --timeout-in-seconds "$timeout" --detached-mode-timeout-in-seconds "$detached" --config "$config" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}")',
+    '  else',
+    '    id=$(jq -r --arg n "$name" \'[.data[]? | select(."display-name" == $n)][0].id\' <<<"$json")',
+    '    get=$(oci fn function get --function-id "$id" --output json "${CTX[@]}")',
+    '    jq -e --arg img "$image" --argjson m "$memory" --argjson t "$timeout" --argjson d "$detached" \'.data.image == $img and .data."memory-in-mbs" == $m and .data."timeout-in-seconds" == $t and .data."detached-mode-timeout-in-seconds" == $d\' <<<"$get" >/dev/null || { echo "[ABORT] existing Function immutable runtime settings/image differ: $name" >&2; exit 1; }',
+    '    current_config=$(jq -c \'.data.config // {}\' <<<"$get")',
+    '    merged=$(jq -nc --argjson current "$current_config" --argjson expected "$config" \'$current + $expected\')',
+    '    if [[ "$merged" != "$current_config" ]]; then',
+    '      echo "[MERGE] Function config (existing keys retained): $name" >&2',
+    '      oci fn function update --function-id "$id" --config "$merged" --wait-for-state ACTIVE --force "${CTX[@]}" >/dev/null',
+    '    fi',
+    '  fi',
+    '  printf "%s" "$id"',
+    '}',
+    'ADVISOR_FUNCTION_ID=$(ensure_function "wizocm-cloud-advisor-query-prod" 512 60 60 "icn.ocir.io/$OCIR_NAMESPACE/wizocm/functions/cloud-advisor:$RELEASE_VERSION" "{}")',
+    'WORKER_FUNCTION_ID=$(ensure_function "wizocm-cost-worker-prod" 2048 300 1800 "icn.ocir.io/$OCIR_NAMESPACE/wizocm/functions/worker:$RELEASE_VERSION" "{}")',
+    'DISPATCHER_CONFIG=$(jq -nc --arg worker "$WORKER_FUNCTION_ID" \'{WORKER_FUNCTION_OCID:$worker}\')',
+    'DISPATCHER_FUNCTION_ID=$(ensure_function "wizocm-cost-dispatcher-prod" 512 60 600 "icn.ocir.io/$OCIR_NAMESPACE/wizocm/functions/dispatcher:$RELEASE_VERSION" "$DISPATCHER_CONFIG")',
+    'ADVISOR_DG_ID=$(ensure_dynamic_group "dg-wizocm-fn-advisor-prod" "ALL {resource.type=\'fnfunc\', resource.id=\'$ADVISOR_FUNCTION_ID\'}")',
+    'DISPATCHER_DG_ID=$(ensure_dynamic_group "dg-wizocm-fn-dispatcher-prod" "ALL {resource.type=\'fnfunc\', resource.id=\'$DISPATCHER_FUNCTION_ID\'}")',
+    'WORKER_DG_ID=$(ensure_dynamic_group "dg-wizocm-fn-worker-prod" "ALL {resource.type=\'fnfunc\', resource.id=\'$WORKER_FUNCTION_ID\'}")',
+    'SPRING_DG_ID=$(ensure_dynamic_group "dg-wizocm-spring-prod" "instance.id=\'$SPRING_INSTANCE_ID\'")',
+    'SQ=$(printf "\\47")',
+    'RUNTIME_STATEMENTS=$(jq -nc --arg c "$COMPARTMENT_ID" --arg secret "$HMAC_SECRET_OCID" --arg sq "$SQ" \'["Allow dynamic-group dg-wizocm-fn-dispatcher-prod to use fn-invocation in compartment id " + $c, "Allow dynamic-group dg-wizocm-fn-dispatcher-prod to read secret-bundles in compartment id " + $c + " where target.secret.id=" + $sq + $secret + $sq, "Allow dynamic-group dg-wizocm-fn-worker-prod to read secret-bundles in compartment id " + $c + " where target.secret.id=" + $sq + $secret + $sq, "Allow dynamic-group dg-wizocm-spring-prod to read secret-bundles in compartment id " + $c + " where target.secret.id=" + $sq + $secret + $sq]\')',
+    'ensure_policy "wizocm-functions-runtime-prod" "$RUNTIME_STATEMENTS"',
+    'SCHEDULE_NAME="wizocm-cost-daily-prod"',
+    'SCHEDULE_JSON=$(oci resource-scheduler schedule list --compartment-id "$COMPARTMENT_ID" --display-name "$SCHEDULE_NAME" --all --output json "${CTX[@]}")',
+    'COUNT=$(jq --arg n "$SCHEDULE_NAME" \'[(.data.items[]?, .data[]?) | select(."display-name" == $n)] | length\' <<<"$SCHEDULE_JSON")',
+    '[[ "$COUNT" != "0" && "$COUNT" != "1" ]] && { echo "[ABORT] schedule name collision: $SCHEDULE_NAME (found=$COUNT)" >&2; exit 1; }',
+    'SCHEDULE_RESOURCES=$(jq -nc --arg id "$DISPATCHER_FUNCTION_ID" \'[{id:$id,metadata:{},parameters:[{parameterType:"BODY",value:{mode:"daily",asOf:"AUTO",dryRun:"false"}}]}]\')',
+    'if [[ "$COUNT" == "0" ]]; then',
+    '  echo "[CREATE] Resource Scheduler daily dispatcher" >&2',
+    '  SCHEDULE_ID=$(oci resource-scheduler schedule create --compartment-id "$COMPARTMENT_ID" --display-name "$SCHEDULE_NAME" --description "Invoke WizOCM dispatcher daily; UTC cron" --action START_RESOURCE --recurrence-type CRON --recurrence-details "$SCHEDULE_CRON" --resources "$SCHEDULE_RESOURCES" --wait-for-state SUCCEEDED --query \'data.id\' --raw-output "${CTX[@]}")',
+    'else',
+    '  SCHEDULE_ID=$(jq -r --arg n "$SCHEDULE_NAME" \'[(.data.items[]?, .data[]?) | select(."display-name" == $n)][0].id\' <<<"$SCHEDULE_JSON")',
+    '  oci resource-scheduler schedule get --schedule-id "$SCHEDULE_ID" --output json "${CTX[@]}" | jq -e --arg id "$DISPATCHER_FUNCTION_ID" \'.data.resources[]? | select(.id == $id)\' >/dev/null || { echo "[ABORT] existing schedule does not target the expected dispatcher Function." >&2; exit 1; }',
+    'fi',
+    'SCHEDULER_DG_ID=$(ensure_dynamic_group "dg-wizocm-scheduler-prod" "ALL {resource.type=\'resourceschedule\', resource.id=\'$SCHEDULE_ID\'}")',
+    'SCHEDULER_STATEMENTS=$(jq -nc \'["Allow dynamic-group dg-wizocm-scheduler-prod to manage functions-family in tenancy"]\')',
+    'ensure_policy "wizocm-functions-scheduler-prod" "$SCHEDULER_STATEMENTS"',
+    'LOG_NAME="wizocm-functions-invoke-prod"',
+    'LOG_JSON=$(oci logging log list --log-group-id "$LOG_GROUP_ID" --display-name "$LOG_NAME" --all --output json "${CTX[@]}")',
+    'COUNT=$(jq --arg n "$LOG_NAME" \'[.data[]? | select(."display-name" == $n)] | length\' <<<"$LOG_JSON")',
+    '[[ "$COUNT" != "0" && "$COUNT" != "1" ]] && { echo "[ABORT] invoke log name collision: $LOG_NAME (found=$COUNT)" >&2; exit 1; }',
+    'if [[ "$COUNT" == "0" ]]; then',
+    '  FN_LOG_CONFIG=$(jq -nc --arg c "$COMPARTMENT_ID" --arg app "$FUNCTION_APP_ID" \'{archiving:{isEnabled:true},compartmentId:$c,source:{resource:$app,service:"functions",sourceType:"OCISERVICE",category:"invoke"}}\')',
+    '  echo "[CREATE] Functions invoke log" >&2',
+    '  oci logging log create --log-group-id "$LOG_GROUP_ID" --display-name "$LOG_NAME" --log-type SERVICE --is-enabled true --configuration "$FN_LOG_CONFIG" --wait-for-state SUCCEEDED "${CTX[@]}" >/dev/null',
+    'fi',
+    'HEALTH_FILE=$(mktemp); trap \'rm -f "$HEALTH_FILE"\' EXIT',
+    'printf \'%s\' \'{"action":"health"}\' | oci fn function invoke --function-id "$ADVISOR_FUNCTION_ID" --file "$HEALTH_FILE" --body \'{"action":"health"}\' --fn-invoke-type sync "${CTX[@]}"',
+    'echo "[VERIFY] advisor health response:"; cat "$HEALTH_FILE"; echo',
+    'echo "[DONE] Functions foundation completed. Do not create customer API keys here; pilot cross-tenancy Admit/Endorse separately with the customer tenancy owner."',
+  ].join('\n')
+}
+
+/* WizOCM native DevOps foundation.  It consumes an existing GitHub Connection
+   OCID: OCI CLI connection create accepts a raw PAT, which belongs outside a
+   static catalog and outside generated command output. */
+function buildWizocmDevopsCicd(values: Record<string, string>, requestContext: string[] = []): string {
+  const v = (key: string, fallback = '') => (values[key] || '').trim() || fallback
+  const q = (raw: string) => quoteCliValue(raw, true)
+  return [
+    '#!/usr/bin/env bash',
+    '# WizOCM DevOps: native Generic Artifact → Manual Approval → one exact Compute instance.',
+    '# No PAT, SSH private key, password, or artifact contents are printed by this script.',
+    'set -euo pipefail',
+    '',
+    `MODE=${q(v('--mode', 'PLAN').toUpperCase())}`,
+    `CONFIRM_APPLY=${q(v('--confirm-apply'))}`,
+    `COMPARTMENT_INPUT=${q(v('--compartment-input', '<compartment-name-or-ocid>'))}`,
+    `PROJECT_NAME=${q(v('--project-name', 'wizocm-native-cicd-prod'))}`,
+    `REPOSITORY_NAME=${q(v('--generic-repository-name', 'wizocm-release-prod'))}`,
+    `GITHUB_CONNECTION_ID=${q(v('--github-connection-id', '<github-connection-ocid>'))}`,
+    `GITHUB_REPOSITORY_URL=${q(v('--github-repository-url', '<github-repository-url>'))}`,
+    `GITHUB_BRANCH=${q(v('--github-branch', 'main'))}`,
+    `BUILD_IMAGE=${q(v('--build-image', '<managed-build-image>'))}`,
+    `BUILD_SPEC_FILE=${q(v('--build-spec-file', 'build_spec.yaml'))}`,
+    `TARGET_INSTANCE_ID=${q(v('--target-instance-id', '<target-instance-ocid>'))}`,
+    `RELEASE_ARTIFACT_PATH=${q(v('--release-artifact-path', 'releases/wizocm-release.zip'))}`,
+    `RELEASE_VERSION_VARIABLE=${q(v('--release-version-variable', 'RELEASE_VERSION'))}`,
+    `DEPLOYMENT_SPEC_FILE=${q(v('--deployment-spec-file', './deploy/deployment_spec.yaml'))}`,
+    `DEPLOYMENT_SPEC_PATH=${q(v('--deployment-spec-path', 'deploy/deployment_spec.yaml'))}`,
+    `DEPLOYMENT_SPEC_VERSION=${q(v('--deployment-spec-version', 'bootstrap-1'))}`,
+    `ONS_TOPIC_ID=${q(v('--ons-topic-id', '<ons-topic-ocid>'))}`,
+    `CTX=(${requestContext.join(' ')})`,
+    '',
+    'command -v jq >/dev/null 2>&1 || { echo "[ABORT] jq가 필요합니다." >&2; exit 2; }',
+    '[[ "$MODE" == "PLAN" || "$MODE" == "APPLY" ]] || { echo "[ABORT] MODE는 PLAN 또는 APPLY여야 합니다." >&2; exit 2; }',
+    '[[ "$GITHUB_CONNECTION_ID" == ocid1.devopsconnection.* ]] || { echo "[ABORT] 기존 GitHub Connection OCID가 필요합니다. PAT 원문은 입력하지 않습니다." >&2; exit 2; }',
+    '[[ "$TARGET_INSTANCE_ID" == ocid1.instance.* ]] || { echo "[ABORT] 정확히 1개인 target instance OCID가 필요합니다." >&2; exit 2; }',
+    '[[ "$ONS_TOPIC_ID" == ocid1.onstopic.* ]] || { echo "[ABORT] OCI DevOps Project 생성에는 notification-config가 필수입니다. 기존 ONS Topic OCID를 입력하세요." >&2; exit 2; }',
+    '[[ "$BUILD_IMAGE" != "<managed-build-image>" && -n "$BUILD_IMAGE" ]] || { echo "[ABORT] Console에서 확인한 현재 Managed Build image를 입력하세요." >&2; exit 2; }',
+    '[[ "$RELEASE_VERSION_VARIABLE" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || { echo "[ABORT] release version 변수명은 shell identifier여야 합니다." >&2; exit 2; }',
+    'if [[ "$MODE" == "APPLY" && "$CONFIRM_APPLY" != "APPLY_WIZOCM_DEVOPS" ]]; then echo "[ABORT] APPLY에는 --confirm-apply 값이 APPLY_WIZOCM_DEVOPS와 완전히 같아야 합니다." >&2; exit 2; fi',
+    '',
+    '# Discover: name lookups reject 0/N matches instead of selecting the first resource.',
+    'TENANCY_ID=$(oci iam availability-domain list --query \'data[0]."compartment-id"\' --raw-output "${CTX[@]}")',
+    '[[ "$TENANCY_ID" == ocid1.tenancy.* ]] || { echo "[ABORT] profile의 tenancy OCID를 찾지 못했습니다." >&2; exit 2; }',
+    'if [[ "$COMPARTMENT_INPUT" == ocid1.compartment.* ]]; then COMPARTMENT_ID="$COMPARTMENT_INPUT"; else',
+    '  COMPARTMENT_JSON=$(oci iam compartment list --compartment-id "$TENANCY_ID" --name "$COMPARTMENT_INPUT" --lifecycle-state ACTIVE --compartment-id-in-subtree true --access-level ACCESSIBLE --all --output json "${CTX[@]}")',
+    '  COUNT=$(jq --arg n "$COMPARTMENT_INPUT" \'[.data[]? | select(.name == $n)] | length\' <<<"$COMPARTMENT_JSON")',
+    '  [[ "$COUNT" == "1" ]] || { echo "[ABORT] ACTIVE compartment 이름은 정확히 1개여야 합니다: $COMPARTMENT_INPUT (found=$COUNT)" >&2; exit 1; }',
+    '  COMPARTMENT_ID=$(jq -r --arg n "$COMPARTMENT_INPUT" \'[.data[]? | select(.name == $n)][0].id\' <<<"$COMPARTMENT_JSON")',
+    'fi',
+    'INSTANCE_JSON=$(oci compute instance get --instance-id "$TARGET_INSTANCE_ID" --output json "${CTX[@]}")',
+    '[[ $(jq -r \'.data."compartment-id"\' <<<"$INSTANCE_JSON") == "$COMPARTMENT_ID" ]] || { echo "[ABORT] target instance가 DevOps Project compartment와 다릅니다. 교차 compartment 자동 배포는 허용하지 않습니다." >&2; exit 1; }',
+    'oci devops connection get --connection-id "$GITHUB_CONNECTION_ID" --output json "${CTX[@]}" >/dev/null',
+    'oci ons topic get --topic-id "$ONS_TOPIC_ID" --output json "${CTX[@]}" >/dev/null',
+    'echo "[DISCOVERED] compartment=$COMPARTMENT_ID target-instance=$TARGET_INSTANCE_ID project=$PROJECT_NAME"',
+    'if [[ "$MODE" == "PLAN" ]]; then',
+    '  echo "[PLAN] no resource will be changed. PAT is deliberately absent; the supplied GitHub Connection is only read."',
+    '  oci devops project list --compartment-id "$COMPARTMENT_ID" --all --query \'data.items[].{name:name,id:id,state:lifecycleState}\' --output table "${CTX[@]}"',
+    '  oci artifacts repository list --compartment-id "$COMPARTMENT_ID" --all --query \'data[].{name:"display-name",id:id,immutable:"is-immutable"}\' --output table "${CTX[@]}"',
+    '  echo "[NEXT] APPLY creates/reuses Project, immutable Generic Repository, exact-instance Environment, artifact references, Build→Deliver→Trigger, then Manual Approval→Compute stages."',
+    '  echo "[CONTRACT] build_spec must export $RELEASE_VERSION_VARIABLE as an immutable release version; deployment spec must validate and activate a versioned release with health checks."',
+    '  exit 0',
+    'fi',
+    '',
+    '[[ -f "$DEPLOYMENT_SPEC_FILE" ]] || { echo "[ABORT] deployment spec file not found on this host: $DEPLOYMENT_SPEC_FILE" >&2; exit 1; }',
+    'find_named_id() {',
+    '  local label="$1" name="$2"; shift 2; local json count',
+    '  json=$("$@" --display-name "$name" --all --output json "${CTX[@]}")',
+    '  count=$(jq --arg n "$name" \'[(.data.items[]?, .data[]?) | select((.name // ."display-name") == $n)] | length\' <<<"$json")',
+    '  [[ "$count" != "0" && "$count" != "1" ]] && { echo "[ABORT] $label name collision: $name (found=$count)" >&2; exit 1; }',
+    '  [[ "$count" == "1" ]] || return 3',
+    '  jq -r --arg n "$name" \'[(.data.items[]?, .data[]?) | select((.name // ."display-name") == $n)][0].id\' <<<"$json"',
+    '}',
+    'PROJECT_NOTIFICATION=$(jq -nc --arg id "$ONS_TOPIC_ID" \'{topicId:$id}\')',
+    'if PROJECT_ID=$(find_named_id "DevOps Project" "$PROJECT_NAME" oci devops project list --compartment-id "$COMPARTMENT_ID"); then echo "[REUSE] DevOps Project $PROJECT_NAME" >&2; else PROJECT_ID=$(oci devops project create --compartment-id "$COMPARTMENT_ID" --name "$PROJECT_NAME" --notification-config "$PROJECT_NOTIFICATION" --description "WizOCM native CI/CD control plane" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'if REPOSITORY_ID=$(find_named_id "Generic Artifact Repository" "$REPOSITORY_NAME" oci artifacts repository list --compartment-id "$COMPARTMENT_ID"); then',
+    '  REPO_GET=$(oci artifacts repository get --repository-id "$REPOSITORY_ID" --output json "${CTX[@]}")',
+    '  jq -e \'.data."is-immutable" == true\' <<<"$REPO_GET" >/dev/null || { echo "[ABORT] existing Generic Artifact Repository must be immutable: $REPOSITORY_NAME" >&2; exit 1; }',
+    '  echo "[REUSE] immutable Generic Artifact Repository $REPOSITORY_NAME" >&2',
+    'else REPOSITORY_ID=$(oci artifacts repository create-generic-repository --compartment-id "$COMPARTMENT_ID" --display-name "$REPOSITORY_NAME" --is-immutable true --wait-for-state AVAILABLE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'if oci artifacts generic artifact get-by-path --repository-id "$REPOSITORY_ID" --artifact-path "$DEPLOYMENT_SPEC_PATH" --artifact-version "$DEPLOYMENT_SPEC_VERSION" "${CTX[@]}" >/dev/null 2>&1; then echo "[REUSE] immutable deployment spec artifact already exists" >&2; else oci artifacts generic artifact upload-by-path --repository-id "$REPOSITORY_ID" --artifact-path "$DEPLOYMENT_SPEC_PATH" --artifact-version "$DEPLOYMENT_SPEC_VERSION" --content-body "$DEPLOYMENT_SPEC_FILE" "${CTX[@]}" >/dev/null; fi',
+    'if BUILD_PIPELINE_ID=$(find_named_id "Build pipeline" "wizocm-ci-build-prod" oci devops build-pipeline list --project-id "$PROJECT_ID" --compartment-id "$COMPARTMENT_ID"); then echo "[REUSE] Build pipeline" >&2; else BUILD_PIPELINE_ID=$(oci devops build-pipeline create --project-id "$PROJECT_ID" --display-name "wizocm-ci-build-prod" --description "WizOCM immutable release build" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'if DEPLOY_PIPELINE_ID=$(find_named_id "Deploy pipeline" "wizocm-cd-deploy-prod" oci devops deploy-pipeline list --project-id "$PROJECT_ID" --compartment-id "$COMPARTMENT_ID"); then echo "[REUSE] Deploy pipeline" >&2; else DEPLOY_PIPELINE_ID=$(oci devops deploy-pipeline create --project-id "$PROJECT_ID" --display-name "wizocm-cd-deploy-prod" --description "Manual approval before one-instance deployment" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'INSTANCE_SELECTORS=$(jq -nc --arg id "$TARGET_INSTANCE_ID" \'{items:[{computeInstanceIds:[$id],selectorType:"INSTANCE_IDS"}]}\')',
+    'if ENVIRONMENT_ID=$(find_named_id "Compute environment" "wizocm-prod-exact-instance" oci devops deploy-environment list --project-id "$PROJECT_ID" --compartment-id "$COMPARTMENT_ID"); then echo "[REUSE] exact-instance environment" >&2; else ENVIRONMENT_ID=$(oci devops deploy-environment create-compute-instance-environment --project-id "$PROJECT_ID" --display-name "wizocm-prod-exact-instance" --compute-instance-group-selectors "$INSTANCE_SELECTORS" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'RELEASE_ARTIFACT_VERSION="\\${${RELEASE_VERSION_VARIABLE}}"',
+    'ensure_deploy_artifact() {',
+    '  local name="$1" path="$2" version="$3" type="$4" substitution="$5" id',
+    '  if id=$(find_named_id "Deploy artifact" "$name" oci devops deploy-artifact list --project-id "$PROJECT_ID" --compartment-id "$COMPARTMENT_ID"); then printf "%s" "$id"; return; fi',
+    '  oci devops deploy-artifact create-generic-artifact --project-id "$PROJECT_ID" --display-name "$name" --repository-id "$REPOSITORY_ID" --artifact-path "$path" --artifact-version "$version" --artifact-type "$type" --argument-substitution-mode "$substitution" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"',
+    '}',
+    'RELEASE_ARTIFACT_ID=$(ensure_deploy_artifact "wizocm-release-zip" "$RELEASE_ARTIFACT_PATH" "$RELEASE_ARTIFACT_VERSION" GENERIC_FILE NONE)',
+    'DEPLOYMENT_SPEC_ARTIFACT_ID=$(ensure_deploy_artifact "wizocm-deployment-spec" "$DEPLOYMENT_SPEC_PATH" "$DEPLOYMENT_SPEC_VERSION" DEPLOYMENT_SPEC SUBSTITUTE_PLACEHOLDERS)',
+    'EMPTY_PREDECESSORS=\'{"items":[]}\'',
+    'BUILD_SOURCE=$(jq -nc --arg branch "$GITHUB_BRANCH" --arg connection "$GITHUB_CONNECTION_ID" --arg url "$GITHUB_REPOSITORY_URL" \'{items:[{name:"wizocm-source",branch:$branch,connectionId:$connection,connectionType:"GITHUB",repositoryUrl:$url}]}\')',
+    'find_build_stage() { find_named_id "Build stage" "$1" oci devops build-pipeline-stage list --build-pipeline-id "$BUILD_PIPELINE_ID" --compartment-id "$COMPARTMENT_ID"; }',
+    'if BUILD_STAGE_ID=$(find_build_stage "wizocm-build"); then echo "[REUSE] Build stage" >&2; else BUILD_STAGE_ID=$(oci devops build-pipeline-stage create-build-stage --build-pipeline-id "$BUILD_PIPELINE_ID" --display-name "wizocm-build" --image "$BUILD_IMAGE" --build-source-collection "$BUILD_SOURCE" --primary-build-source wizocm-source --build-spec-file "$BUILD_SPEC_FILE" --stage-predecessor-collection "$EMPTY_PREDECESSORS" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'DELIVER_PREDECESSORS=$(jq -nc --arg id "$BUILD_STAGE_ID" \'{items:[{id:$id}]}\')',
+    'DELIVER_ARTIFACTS=$(jq -nc --arg id "$RELEASE_ARTIFACT_ID" \'{items:[{artifactId:$id,artifactName:"wizocm-release-zip"}]}\')',
+    'if DELIVER_STAGE_ID=$(find_build_stage "wizocm-deliver-release"); then echo "[REUSE] Deliver stage" >&2; else DELIVER_STAGE_ID=$(oci devops build-pipeline-stage create-deliver-artifact-stage --build-pipeline-id "$BUILD_PIPELINE_ID" --display-name "wizocm-deliver-release" --deliver-artifact-collection "$DELIVER_ARTIFACTS" --stage-predecessor-collection "$DELIVER_PREDECESSORS" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'TRIGGER_PREDECESSORS=$(jq -nc --arg id "$DELIVER_STAGE_ID" \'{items:[{id:$id}]}\')',
+    'if TRIGGER_STAGE_ID=$(find_build_stage "wizocm-trigger-deploy"); then echo "[REUSE] Trigger deployment stage" >&2; else TRIGGER_STAGE_ID=$(oci devops build-pipeline-stage create-trigger-deployment-stage --build-pipeline-id "$BUILD_PIPELINE_ID" --display-name "wizocm-trigger-deploy" --deploy-pipeline-id "$DEPLOY_PIPELINE_ID" --is-pass-all-parameters-enabled true --stage-predecessor-collection "$TRIGGER_PREDECESSORS" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'find_deploy_stage() { find_named_id "Deploy stage" "$1" oci devops deploy-stage list --pipeline-id "$DEPLOY_PIPELINE_ID" --compartment-id "$COMPARTMENT_ID"; }',
+    'APPROVAL_POLICY=\'{"approvalPolicyType":"COUNT_BASED_APPROVAL","numberOfApprovalsRequired":1}\'',
+    'if APPROVAL_STAGE_ID=$(find_deploy_stage "wizocm-manual-approval"); then echo "[REUSE] Manual approval stage" >&2; else APPROVAL_STAGE_ID=$(oci devops deploy-stage create-manual-approval-stage --pipeline-id "$DEPLOY_PIPELINE_ID" --display-name "wizocm-manual-approval" --approval-policy "$APPROVAL_POLICY" --stage-predecessor-collection "$EMPTY_PREDECESSORS" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'DEPLOY_PREDECESSORS=$(jq -nc --arg id "$APPROVAL_STAGE_ID" \'{items:[{id:$id}]}\')',
+    'ROLLOUT_POLICY=\'{"policyType":"COMPUTE_INSTANCE_GROUP_LINEAR_ROLLOUT_POLICY_BY_COUNT","batchCount":1,"batchDelayInSeconds":0}\'',
+    'FAILURE_POLICY=\'{"policyType":"COMPUTE_INSTANCE_GROUP_FAILURE_POLICY_BY_COUNT","failureCount":1}\'',
+    'ROLLBACK_POLICY=\'{"policyType":"NO_STAGE_ROLLBACK_POLICY"}\'',
+    'if DEPLOY_STAGE_ID=$(find_deploy_stage "wizocm-deploy-exact-instance"); then echo "[REUSE] Compute deployment stage" >&2; else DEPLOY_STAGE_ID=$(oci devops deploy-stage create-deploy-compute-instance-group-stage --pipeline-id "$DEPLOY_PIPELINE_ID" --display-name "wizocm-deploy-exact-instance" --compute-instance-group-environment-id "$ENVIRONMENT_ID" --deployment-spec-artifact-id "$DEPLOYMENT_SPEC_ARTIFACT_ID" --artifact-ids "[\\\"$RELEASE_ARTIFACT_ID\\\"]" --rollout-policy "$ROLLOUT_POLICY" --failure-policy "$FAILURE_POLICY" --rollback-policy "$ROLLBACK_POLICY" --stage-predecessor-collection "$DEPLOY_PREDECESSORS" --wait-for-state ACTIVE --query \'data.id\' --raw-output "${CTX[@]}"); fi',
+    'echo "[VERIFY] Build pipeline: $BUILD_PIPELINE_ID → Manual Approval: $APPROVAL_STAGE_ID → exact Instance: $TARGET_INSTANCE_ID"',
+    'echo "[DONE] Review build_spec/deployment_spec, IAM agent prerequisites, artifact version contract, and stage graph before the first pipeline run."',
+  ].join('\n')
+}
+
 function buildCli(
   cmd: CliCommand,
   values: Record<string, string>,
@@ -1564,8 +2080,11 @@ function buildCli(
   if (cmd.crossCopy) return buildCrossCopy(cmd.crossCopy, values, requestContext)
   if (cmd.maintenanceReboot) return buildMaintenanceReboot(values, dyn, operation === 'update' ? 'update' : 'get', requestContext)
   if (cmd.compartmentCleanup) return buildCompartmentCleanup(values, requestContext)
+  if (cmd.monitoringComposition) return buildWizbaseMonitoring(values, requestContext)
   if (cmd.allSubscriptionBalances) return buildAllSubscriptionBalances(values, requestContext)
   if (cmd.iamMfaReset) return buildIamMfaReset(values, requestContext)
+  if (cmd.customWorkflow === 'wizocm-functions-foundation') return buildWizocmFunctionsFoundation(values, requestContext)
+  if (cmd.customWorkflow === 'wizocm-devops-cicd') return buildWizocmDevopsCicd(values, requestContext)
   if (cmd.resource === 'mysql' && operation === 'get') return buildMysqlDbSystemGet(values, dyn, requestContext, responseContext)
   if (cmd.resource === 'mysql-backup' && operation === 'create') return buildMysqlBackupCreate(values, dyn, requestContext, responseContext)
   if (cmd.manualBackup) return buildManualBackup(cmd.manualBackup, values, requestContext)
@@ -1664,6 +2183,13 @@ function buildCli(
   }
 
   const resolveExactName = (option: CliOption, lookup: CliDynamicLookup, rawName: string, suffix = '') => {
+    // 입력이 이미 OCID 면 조회를 건너뛰고 그대로 사용한다.
+    // exactName 조회는 지정 compartment 범위 안에서만 매칭하므로, 다른 compartment 의 자원
+    // OCID 를 붙여넣으면 found=0 으로 실패했다. OCID 는 이미 확정 식별자이니 통과시킨다.
+    const trimmedName = (rawName || '').trim()
+    if (/^ocid1\.[a-z0-9-]+\./i.test(trimmedName)) {
+      return quoteCliValue(trimmedName, true)
+    }
     ensureJq()
     const variableBase = `LOOKUP_${option.name.slice(2).replaceAll('-', '_').toUpperCase()}${suffix}`
     const inputVariable = `${variableBase}_NAME`
@@ -1671,6 +2197,9 @@ function buildCli(
     const countVariable = `${variableBase}_COUNT`
     const idVariable = `${variableBase}_ID`
     const field = JSON.stringify(lookup.nameField ?? 'display-name')
+    // 이름(nameField) 또는 OCID(.id) 어느 쪽으로 입력해도 매칭한다. 사용자가 이미 OCID 를
+    // 가지고 있으면(예: Announcement) 그대로 조회 성공하도록. (name 은 ocid1.* 와 겹치지 않음)
+    const itemIterator = dynamicLookupItemIterator(lookup.target)
     const scope = lookup.scope === 'tenancy'
       ? ensureRootTenancy()
       : lookup.scopeInput === '--compartment-id'
@@ -1689,13 +2218,13 @@ function buildCli(
     prelude.push(
       `${inputVariable}=${quoteCliValue(rawName || lookup.inputPlaceholder, true)}`,
       `${jsonVariable}=$(${formatCliCommand(lookup.listCommand ?? '<missing-list-command>', lookupArguments)})`,
-      `${countVariable}=$(jq -r --arg NAME "$${inputVariable}" '[.data[]? | select((.[${field}] // "") == $NAME)] | length' <<<"$${jsonVariable}")`,
+      `${countVariable}=$(jq -r --arg NAME "$${inputVariable}" '[${itemIterator} | select((.[${field}] // "") == $NAME or (.id // "") == $NAME)] | length' <<<"$${jsonVariable}")`,
       `if [[ "$${countVariable}" != "1" ]]; then`,
       `  echo "[ERROR] ${lookup.inputLabel}은(는) 조회 범위에서 정확히 1개여야 합니다: $${inputVariable} (found=$${countVariable})" >&2`,
-      `  jq -r '.data[]? | [(.[${field}] // "-"), (."lifecycle-state" // "-"), (.id // "-")] | @tsv' <<<"$${jsonVariable}" | column -t -s $'\\t' >&2 || true`,
+      `  jq -r '${itemIterator} | [(.[${field}] // "-"), (."lifecycle-state" // "-"), (.id // "-")] | @tsv' <<<"$${jsonVariable}" | column -t -s $'\\t' >&2 || true`,
       '  exit 1',
       'fi',
-      `${idVariable}=$(jq -r --arg NAME "$${inputVariable}" '[.data[]? | select((.[${field}] // "") == $NAME)][0].id // empty' <<<"$${jsonVariable}")`,
+      `${idVariable}=$(jq -r --arg NAME "$${inputVariable}" '[${itemIterator} | select((.[${field}] // "") == $NAME or (.id // "") == $NAME)][0].id // empty' <<<"$${jsonVariable}")`,
       `[[ "$${idVariable}" == ocid1.* ]] || { echo "[ERROR] ${lookup.inputLabel} OCID 변환에 실패했습니다." >&2; exit 2; }`,
     )
     return `"$${idVariable}"`
@@ -1736,6 +2265,10 @@ function buildCli(
       continue
     }
     if (o.dynamicLookup && isDynamic(dyn, o.name, true)) {
+      if (o.dynamicLookup.kind === 'tenancy') {
+        args.push(`  ${o.name} ${ensureRootTenancy()}`)
+        continue
+      }
       if (o.dynamicLookup.kind === 'compartment') {
         const resolved = resolveCompartment(o.name, `LOOKUP_${o.name.slice(2).replaceAll('-', '_').toUpperCase()}`)
         args.push(`  ${o.name} ${resolved}`)
@@ -1773,16 +2306,18 @@ function buildCli(
   return prelude.length ? ['#!/usr/bin/env bash', 'set -euo pipefail', '', ...prelude, '', main].join('\n') : main
 }
 
-const catOfResource = (catalog: Catalog, r: string) =>
-  catalog.categories.find(c => c.groups.some(g => g.resources.includes(r)))?.id
-
 export default function CliBuilderPage() {
   const { showToast, rewardActivity } = useHub()
   const protectedState = useProtectedData()
   const CAT = (protectedState.data?.cliCatalog as Catalog | undefined) ?? EMPTY_CATALOG
   const [sp] = useSearchParams()
+  const nav = useNavigate()
   const rParam = sp.get('r')                                  // Ctrl+K 딥링크: ?r=<resource>
   const [active, setActive] = useState<string>('__custom')
+  const [officialCommand, setOfficialCommand] = useState<OfficialCliCommand | null>(null)
+  const [officialPresentation, setOfficialPresentation] = useState<OfficialCommandPresentation>('official')
+  const [sidebarView, setSidebarView] = useState<CliSidebarView>('all')
+  const [recentOfficialCommands, setRecentOfficialCommands] = useState<RecentOfficialCommand[]>(loadRecentOfficialCommands())
   const [values, setValues] = useState<Record<string, string>>({})
   const [executionValues, setExecutionValues] = useState<Record<string, string>>({})
   const [dyn, setDyn] = useState<Record<string, boolean>>({})
@@ -1795,17 +2330,22 @@ export default function CliBuilderPage() {
   const [selectedAction, setSelectedAction] = useState<string | null>(null)
   const [outOpen, setOutOpen] = useState(true)          // 최종 명령 접기/펼치기
   const [outUncapped, setOutUncapped] = useState(false) // 사용자가 다시 열면 높이 제한 해제
-  const [customOpen, setCustomOpen] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [discoverySelections, setDiscoverySelections] = useState<Record<string, { value: string; key: string; scope: string[] }>>({})
   const [instancePreflightInput, setInstancePreflightInput] = useState('')
   const [instancePreflightError, setInstancePreflightError] = useState('')
+  // ── 프로필: 로컬 저장된 이름 후보(컴파트먼트·리소스)·리전을 골라 쓰기 ──
+  const [profiles, setProfiles] = useState<OciProfile[]>(() => loadProfiles())
+  const [selectedProfileName, setSelectedProfileNameState] = useState<string>(() => getSelectedProfileName())
+  const [profilePaste, setProfilePaste] = useState('')
+  const [profileMsg, setProfileMsg] = useState('')
+  const selectedProfile = profiles.find(p => p.name === selectedProfileName) ?? null
+  const profileCollectScript = useMemo(() => renderProfileCollectScript(), [])
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => loadCliSidebarWidth('left'))
   const [rightSidebarWidth, setRightSidebarWidth] = useState(() => loadCliSidebarWidth('right'))
   const sidebarResizeRef = useRef<{
     side: CliSidebarSide; pointerId: number; startX: number; startWidth: number; currentWidth: number
   } | null>(null)
-  // 딥링크로 들어온 자원의 카테고리는 펼쳐 둔다 (그 외는 닫힘)
-  const [openCats, setOpenCats] = useState<Record<string, boolean>>({})
-
   const setCliSidebarWidth = (side: CliSidebarSide, width: number, persist = false) => {
     const next = clampCliSidebarWidth(side, width)
     if (side === 'left') setLeftSidebarWidth(next)
@@ -1849,10 +2389,8 @@ export default function CliBuilderPage() {
     if (!rParam || !CAT.commands[rParam]) return
     const operation = defaultCliOperation(CAT.commands[rParam])
     const surface = selectedSurface(CAT.commands[rParam], operation)
-    setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setCrudOperation(operation); setSelectedAction(null)
-    if (CAT.commands[rParam].crossCopy || CAT.commands[rParam].compartmentCleanup || CAT.commands[rParam].allSubscriptionBalances || CAT.commands[rParam].iamMfaReset) setCustomOpen(true)
-    const cat = catOfResource(CAT, rParam)
-    if (cat) setOpenCats(s => ({ ...s, [cat]: true }))
+    setOfficialCommand(null); setOfficialPresentation('official'); setActive(rParam); setValues(operationDefaults(CAT.commands[rParam], operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setCrudOperation(operation); setSelectedAction(null)
+    if (isAutomationRecipe(CAT.commands[rParam])) setSidebarView('automation')
   }, [rParam, CAT])
 
   // 검증 상태 — 내가 직접 실행해 확인한 명령만 파란색. blog-db knowledge/oci-cli/verified.json 공유.
@@ -1871,14 +2409,16 @@ export default function CliBuilderPage() {
   const usesCrudVerification = (command: CliCommand | null | undefined) => !!command
     && !command.crossCopy && !command.compartmentCleanup && !command.allSubscriptionBalances
     && (!!command.maintenanceReboot || !!command.operations)
-  const verificationKey = (r: string, operation: string) => usesCrudVerification(CAT.commands[r]) ? `${r}:${operation}` : r
+  const verificationKey = (r: string, operation: string) => !r.startsWith('official:') && usesCrudVerification(CAT.commands[r]) ? `${r}:${operation}` : r
   const isOperationVerified = (r: string, operation: string) => verified.includes(verificationKey(r, operation))
   const isResourceVerified = (r: string) => verified.includes(r) || verified.some(key => key.startsWith(`${r}:`))
-  const toggleVerified = async (r: string, operation: string) => {
+  const toggleVerified = async (r: string, operation: string, aliases: string[] = []) => {
     if (!pat) { showToast('검증 표시는 PAT 등록 후 가능'); return }
     const key = verificationKey(r, operation)
     const prev = verified
-    const next = verified.includes(key) ? verified.filter(x => x !== key) : [...verified, key]
+    const keys = new Set([key, ...aliases.filter(Boolean)])
+    const alreadyVerified = verified.some(item => keys.has(item))
+    const next = alreadyVerified ? verified.filter(item => !keys.has(item)) : [...verified, key]
     setVerified(next)
     try {
       vShaRef.current = await putFile(pat, 'knowledge/oci-cli/verified.json',
@@ -1886,7 +2426,35 @@ export default function CliBuilderPage() {
     } catch (e) { showToast(`저장 실패: ${explainGhError(e)}`); setVerified(prev) }
   }
 
-  const cmd = active !== '__custom' ? CAT.commands[active] : null
+  const curatedPathMap = useMemo(() => {
+    const result = new Map<string, CuratedCliTarget>()
+    const add = (path: string | undefined, target: CuratedCliTarget) => { if (path && !result.has(path)) result.set(path, target) }
+    for (const [resource, command] of Object.entries(CAT.commands)) {
+      Object.entries(command.operations ?? {}).forEach(([operation, surface]) =>
+        add(surface?.cmd, { resource, operation: operation as CrudVerb }))
+      Object.entries(command.actions ?? {}).forEach(([action, surface]) =>
+        add(surface?.cmd, { resource, action }))
+      add(command.cmd, { resource })
+    }
+    return result
+  }, [CAT])
+  const curatedTargetPathMap = useMemo(() => {
+    const result = new Map<string, string>()
+    for (const [path, target] of curatedPathMap) {
+      const key = curatedTargetKey(target)
+      if (!result.has(key)) result.set(key, path)
+    }
+    return result
+  }, [curatedPathMap])
+  const officialBuilderCommand = useMemo(() => officialCommand ? officialCommandToBuilder(officialCommand) : null, [officialCommand])
+  const activeOfficialTarget = officialCommand ? curatedPathMap.get(officialCommand.path) : undefined
+  const activeEnhancedCommand = activeOfficialTarget ? CAT.commands[activeOfficialTarget.resource] : undefined
+  const isOperationallyEnhanced = !!(officialCommand && activeEnhancedCommand && officialPresentation === 'enhanced')
+  const cmd = isOperationallyEnhanced
+    ? activeEnhancedCommand
+    : officialBuilderCommand ?? (active !== '__custom' ? CAT.commands[active] : null)
+  const activeVerificationResource = officialCommand ? `official:${officialCommand.path}` : active
+  useCliInputWizardShortcut(Boolean(cmd) && sp.get('mode') !== 'blueprint' && !wizardOpen, () => setWizardOpen(true))
   const selectedActionMeta = selectedAction ? cmd?.actions?.[selectedAction] : undefined
   const selectedOperation = selectedActionMeta ?? cmd?.operations?.[crudOperation]
   const formSurface = selectedOperation ?? cmd
@@ -1904,7 +2472,7 @@ export default function CliBuilderPage() {
     .filter(section => section.options.length > 0)
   const formAdvanced = (selectedOperation?.advanced ?? cmd?.advanced ?? [])
     .filter(option => !isExecutionContextName(option.name))
-  const formRules = selectedOperation?.rules ?? []
+  const formRules = selectedOperation?.rules ?? EMPTY_CLI_RULES
   const formOptionNotices = selectedOperation?.optionNotices ?? []
   const formDeprecated = [...formSections.flatMap(section => section.options), ...formAdvanced]
     .filter(option => option.deprecated)
@@ -1913,7 +2481,25 @@ export default function CliBuilderPage() {
     .filter(section => section.options.length > 0)
   const visibleFormAdvanced = formAdvanced.filter(option => !option.deprecated)
   const hasCrud = usesCrudVerification(cmd)
-  const currentVerificationOperation = selectedAction ? `action:${selectedAction}` : crudOperation
+  const currentVerificationOperation = officialCommand ? 'command' : selectedAction ? `action:${selectedAction}` : crudOperation
+  const currentLegacyVerificationKey = activeOfficialTarget
+    ? verificationKey(activeOfficialTarget.resource, activeOfficialTarget.action ? `action:${activeOfficialTarget.action}` : activeOfficialTarget.operation ?? 'command')
+    : ''
+  const isCurrentCommandVerified = isOperationVerified(activeVerificationResource, currentVerificationOperation)
+    || !!currentLegacyVerificationKey && verified.includes(currentLegacyVerificationKey)
+  const officialPathForTarget = (target: CuratedCliTarget) => curatedTargetPathMap.get(curatedTargetKey(target))
+  const isEnhancedOperationVerified = (operation: CrudVerb) => {
+    if (!activeOfficialTarget) return isOperationVerified(activeVerificationResource, operation)
+    const path = officialPathForTarget({ resource: activeOfficialTarget.resource, operation })
+    return !!path && verified.includes(`official:${path}`)
+      || verified.includes(verificationKey(activeOfficialTarget.resource, operation))
+  }
+  const isEnhancedActionVerified = (action: string) => {
+    if (!activeOfficialTarget) return isOperationVerified(activeVerificationResource, `action:${action}`)
+    const path = officialPathForTarget({ resource: activeOfficialTarget.resource, action })
+    return !!path && verified.includes(`official:${path}`)
+      || verified.includes(verificationKey(activeOfficialTarget.resource, `action:${action}`))
+  }
   const isOperationAvailable = (operation: CrudVerb) => supportsOperation(cmd, operation)
   const operationHelp = cmd?.maintenanceReboot
     ? crudOperation === 'update'
@@ -1926,12 +2512,28 @@ export default function CliBuilderPage() {
   const responseContextOptions = executionContextOptions(CAT.executionContext, contextOverrides, 'response')
   const responseContextEnabled = supportsResponseContext(cmd)
   const resolvedExecutionValues = { ...executionValues }
+  // 리전은 도시명(서울/도쿄/시드니…)을 입력해도 식별자(ap-seoul-1)로 해석해 명령에 넣는다.
+  if (resolvedExecutionValues['--region']) resolvedExecutionValues['--region'] = resolveRegion(resolvedExecutionValues['--region'])
   const queryContextOption = responseContextOptions.find(option => option.name === '--query')
   if (queryContextOption?.multiSelect) {
     const customQuery = (executionValues[subKey('--query', 'custom')] ?? '').trim()
     resolvedExecutionValues['--query'] = customQuery || buildMultiSelectQuery(executionValues['--query'] ?? '')
   }
   const requestContextArguments = serializeExecutionContext(CAT.executionContext, contextOverrides, resolvedExecutionValues, 'request')
+  const discoveryRequestKey = requestContextArguments.join('\n')
+  const discoveryCommandPath = executionSurface?.cmd || cmd?.cmd || ''
+  useEffect(() => {
+    const stale = Object.entries(discoverySelections).filter(([, selected]) => selected.key !== cliDiscoveryContext(discoveryCommandPath, requestContextArguments, selected.scope, values, dyn))
+    if (!stale.length) return
+    const clear = stale.filter(([name, selected]) => values[name] === selected.value).map(([name]) => name)
+    if (clear.length) {
+      setValues(current => Object.fromEntries(Object.entries(current).map(([name, value]) => [name, clear.includes(name) ? '' : value])))
+      showToast('조회 환경이 변경되어 선택한 ID를 비웠습니다. 목록을 다시 조회하세요.')
+    }
+    setDiscoverySelections(current => Object.fromEntries(Object.entries(current).filter(([name]) => !stale.some(([key]) => key === name))))
+    // Request array is represented by its stable serialized key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discoveryCommandPath, discoveryRequestKey, discoverySelections, values, dyn, showToast])
   const responseContextArguments = responseContextEnabled
     ? serializeExecutionContext(CAT.executionContext, contextOverrides, resolvedExecutionValues, 'response')
     : []
@@ -1942,51 +2544,223 @@ export default function CliBuilderPage() {
     ? buildCli(cmd, effectiveValues, dyn, crudOperation, selectedAction ?? undefined, requestContextArguments, responseContextArguments)
     : customText
 
-  const selectResource = (res: string) => {
+  const selectResource = (res: string, requestedOperation?: CrudVerb, requestedAction?: string) => {
     const next = CAT.commands[res]
-    setActive(res); setDyn({}); setShowOptional(false); setShowDeprecated(false); setSelectedAction(null); setInstancePreflightInput(''); setInstancePreflightError('')
+    setOfficialCommand(null); setOfficialPresentation('official'); setActive(res); setDyn({}); setShowOptional(false); setShowDeprecated(false); setSelectedAction(null); setInstancePreflightInput(''); setInstancePreflightError('')
     if (next) {
-      const operation = defaultCliOperation(next)
-      const surface = selectedSurface(next, operation)
-      setCrudOperation(operation); setValues(operationDefaults(next, operation)); setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides))
+      const operation = requestedOperation && supportsOperation(next, requestedOperation) ? requestedOperation : defaultCliOperation(next)
+      const action = requestedAction && next.actions?.[requestedAction] ? requestedAction : undefined
+      const surface = selectedSurface(next, operation, action)
+      setCrudOperation(operation); setSelectedAction(action ?? null)
+      setValues(action ? actionDefaults(next, action) : operationDefaults(next, operation))
+      setExecutionValues(executionContextDefaults(CAT.executionContext, surface.contextOverrides))
     } else { setValues({}); setExecutionValues({}) }
   }
+  const rememberOfficialCommand = (command: OfficialCliCommand) => {
+    setRecentOfficialCommands(current => {
+      const next = [
+        { path: command.path, label: command.help || command.path, openedAt: new Date().toISOString() },
+        ...current.filter(item => item.path !== command.path),
+      ].slice(0, 30)
+      saveRecentOfficialCommands(next)
+      return next
+    })
+  }
+  const selectOfficialCommand = (
+    command: OfficialCliCommand,
+    savedValues?: Record<string, string>,
+    savedContext?: Record<string, string>,
+    savedDyn?: Record<string, boolean>,
+    savedPresentation?: OfficialCommandPresentation,
+  ) => {
+    const target = curatedPathMap.get(command.path)
+    const enhanced = target ? CAT.commands[target.resource] : undefined
+    const operation = enhanced && target?.operation && supportsOperation(enhanced, target.operation)
+      ? target.operation
+      : enhanced ? defaultCliOperation(enhanced) : 'list'
+    const action = enhanced && target?.action && enhanced.actions?.[target.action] ? target.action : undefined
+    const surface = enhanced ? selectedSurface(enhanced, operation, action) : undefined
+    setOfficialCommand(command); setOfficialPresentation(enhanced ? savedPresentation ?? 'enhanced' : 'official')
+    setActive(target?.resource ?? '__official'); setDyn(savedDyn ?? {}); setShowOptional(false); setShowDeprecated(false)
+    setSelectedAction(action ?? null); setCrudOperation(operation)
+    setValues(savedValues ?? (enhanced ? action ? actionDefaults(enhanced, action) : operationDefaults(enhanced, operation) : {}))
+    setExecutionValues(savedContext ?? executionContextDefaults(CAT.executionContext, surface?.contextOverrides ?? {}))
+    setInstancePreflightInput(''); setInstancePreflightError('')
+    rememberOfficialCommand(command)
+    requestAnimationFrame(() => document.getElementById('cli-command-workspace')?.scrollIntoView({ block: 'start' }))
+  }
+  const openOfficialPath = (path: string, favorite?: Favorite) => {
+    loadOfficialCliCommand(path)
+      .then(command => selectOfficialCommand(command, favorite?.values, favorite?.context, favorite?.dyn))
+      .catch(error => showToast(error instanceof Error ? error.message : String(error)))
+  }
+  const openOfficialPathRef = useRef(openOfficialPath)
+  openOfficialPathRef.current = openOfficialPath
+  useEffect(() => {
+    if (!rParam) return
+    const command = CAT.commands[rParam]
+    if (!command || isAutomationRecipe(command)) return
+    const operation = defaultCliOperation(command)
+    const path = curatedTargetPathMap.get(curatedTargetKey({ resource: rParam, operation }))
+      ?? curatedTargetPathMap.get(curatedTargetKey({ resource: rParam }))
+    if (path) openOfficialPathRef.current(path)
+  }, [rParam, CAT, curatedTargetPathMap])
   const selectOperation = (operation: CrudVerb) => {
     if (!isOperationAvailable(operation)) return
+    if (isOperationallyEnhanced && activeOfficialTarget) {
+      const path = officialPathForTarget({ resource: activeOfficialTarget.resource, operation })
+      if (path && path !== officialCommand?.path) { openOfficialPath(path); return }
+    }
     const surface = cmd ? selectedSurface(cmd, operation) : undefined
     setCrudOperation(operation); setSelectedAction(null); setValues(cmd ? operationDefaults(cmd, operation) : {}); setExecutionValues(surface ? executionContextDefaults(CAT.executionContext, surface.contextOverrides) : {}); setDyn({}); setShowOptional(false); setShowDeprecated(false); setInstancePreflightInput(''); setInstancePreflightError('')
   }
   const selectAction = (action: string) => {
     if (!cmd?.actions?.[action]) return
+    if (isOperationallyEnhanced && activeOfficialTarget) {
+      const path = officialPathForTarget({ resource: activeOfficialTarget.resource, action })
+      if (path && path !== officialCommand?.path) { openOfficialPath(path); return }
+    }
     setSelectedAction(action); setValues(actionDefaults(cmd, action)); setExecutionValues(executionContextDefaults(CAT.executionContext, cmd.actions[action].contextOverrides)); setDyn({}); setShowOptional(false); setShowDeprecated(false); setInstancePreflightInput(''); setInstancePreflightError('')
   }
   const formOptions = [...formSections.flatMap(section => section.options), ...formAdvanced]
   const formOptionsByName = new Map(formOptions.map(option => [option.name, option]))
   const setExecutionVal = (name: string, value: string) => setExecutionValues(current => ({ ...current, [name]: value }))
+  // 활성 프로필 선택 — --profile 주입 + 홈리전을 기본 --region 으로. 선택은 localStorage 에 sticky.
+  const activateProfile = (name: string) => {
+    setSelectedProfileNameState(name); setSelectedProfileName(name)
+    const prof = profiles.find(p => p.name === name)
+    // 선택 → 주입, 해제('') → --profile·--region 을 비워 프로필 흔적을 남기지 않는다.
+    setExecutionValues(current => prof
+      ? { ...current, '--profile': prof.name, ...(prof.homeRegion ? { '--region': prof.homeRegion } : {}) }
+      : { ...current, '--profile': '', '--region': '' })
+  }
+  // 자원을 바꾸면 실행 컨텍스트가 리셋되므로, 선택된 프로필을 다시 채워 sticky 를 유지한다.
+  useEffect(() => {
+    if (!selectedProfile) return
+    setExecutionValues(current => ({
+      ...current, '--profile': selectedProfile.name,
+      '--region': current['--region'] || selectedProfile.homeRegion || '',
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileName, active])
+  // 활성 프로필의 오브젝트 스토리지 네임스페이스를 --namespace(-name) 에 자동주입(폼에 옵션이 있고 빈값일 때만; 사용자 입력 우선).
+  useEffect(() => {
+    const ns = selectedProfile?.namespace
+    if (!ns) return
+    setValues(current => {
+      let next = current
+      for (const name of ['--namespace-name', '--namespace']) {
+        if (formOptionsByName.has(name) && !String(current[name] ?? '').trim()) {
+          if (next === current) next = { ...current }
+          next[name] = ns
+        }
+      }
+      return next
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileName, active])
+  const registerProfiles = () => {
+    const result = registerProfilesFromPaste(profilePaste, profiles)
+    if (result.error) { setProfileMsg(result.error); return }
+    setProfiles(result.profiles); setProfilePaste('')
+    const parts = [result.added ? `신규 ${result.added}개` : '', result.updated ? `갱신 ${result.updated}개` : ''].filter(Boolean)
+    setProfileMsg(`프로필 ${parts.join(' · ') || '변경 없음'}.`)
+  }
+  // 동일 이름 프로필만 갱신(신규 추가 안 함) — 전체 삭제·재등록 없이 기존 내용(예: ns) 최신화.
+  const updateProfiles = () => {
+    const result = updateProfilesFromPaste(profilePaste, profiles)
+    if (result.error) { setProfileMsg(result.error); return }
+    if (!result.updated) { setProfileMsg('갱신할 동일 이름 프로필이 없습니다. 새 프로필은 “프로필 등록”을 쓰세요.'); return }
+    setProfiles(result.profiles); setProfilePaste('')
+    setProfileMsg(`프로필 ${result.updated}개 갱신 완료${result.skipped ? ` · 미등록 ${result.skipped}개 건너뜀` : ''}.`)
+  }
+  const removeProfile = (name: string) => {
+    setProfiles(current => deleteProfile(name, current))
+    // 활성 프로필을 지우면 선택 해제 + 주입된 --profile·--region 도 함께 비운다.
+    if (selectedProfileName === name) {
+      setSelectedProfileNameState(''); setSelectedProfileName('')
+      setExecutionValues(current => ({ ...current, '--profile': '', '--region': '' }))
+    }
+  }
+  // One readiness contract for form, Alt+I and preflight. Automatic != already fetched.
+  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.compartmentCleanup || cmd?.manualBackup || cmd?.iamMfaReset || cmd?.monitoringComposition || cmd?.customWorkflow)
+  const dynamicAllowedFor = (option: CliOption) => {
+    const mysql = option.name !== '--db-system-id' || cmd?.resource === 'mysql-backup' && crudOperation === 'create' || cmd?.resource === 'mysql' && crudOperation === 'get'
+    return (!!option.dynamicLookup || option.name in DYNAMIC && (mysql || !!cmd?.iamResource))
+      && (option.dynamicLookup?.kind === 'compartment' || !noDyn)
+  }
+  const inputDynamic = Object.fromEntries(formOptions.map(option => [option.name,
+    dynamicAllowedFor(option) && isDynamic(dyn, option.name, true)]))
   const validationValues = { ...effectiveValues }
   for (const option of formOptions) {
     if (JSONSPEC[option.name]) validationValues[option.name] = buildJsonValue(option.name, values)
   }
-  if (cmd?.rootTenancyLookup && isDynamic(dyn, '--compartment-id')) {
-    validationValues['--compartment-id'] = '__root-tenancy-from-profile__'
+  const inputResolution = resolveCliInputs(formOptions, validationValues, { rootTenancyLookup: cmd?.rootTenancyLookup, dynamic: inputDynamic })
+  const automaticInputs = Object.fromEntries(Object.entries(inputResolution).map(([name, resolution]) => [name, resolution.state === 'automatic']))
+  // Alt+I 마법사에서도 동적조회(컴파트먼트·리소스 이름)를 드롭다운으로 고를 수 있게 — 폼과 동일한
+  // fieldDynamic 조건에서만 이름 후보를 준다(동적 OFF 면 plain 입력). 값은 이름, OCID 는 실행시점 live 해석.
+  const wizardLookupNames = (option: CliOption): string[] => {
+    const lookup = option.dynamicLookup
+    if (!lookup || !selectedProfile) return []
+    if (!(dynamicAllowedFor(option) && isDynamic(dyn, option.name, true))) return []
+    const target = lookup.kind === 'compartment' ? 'compartment' : (!lookup.multiple ? lookup.target : undefined)
+    return target ? lookupNamesFor(selectedProfile, target) : []
   }
-  if (formOptionsByName.has('--availability-domain') && isDynamic(dyn, '--availability-domain')) {
-    validationValues['--availability-domain'] = values['--availability-domain']?.trim() || '1'
-  }
+  const wizardQuestions = useMemo<CliWizardQuestion[]>(() => {
+    const questions: CliWizardQuestion[] = []
+    const seen = new Set<string>()
+    const add = (option: CliOption, scope: 'context' | 'resource', recommended = false) => {
+      if (seen.has(option.name) || option.deprecated) return
+      seen.add(option.name)
+      const dependencyRequired = Object.values(inputResolution).some(state => state.requiredInputs?.includes(option.name))
+      const requirement = dependencyRequired ? 'conditional' : option.requirement ?? (option.required ? 'required' : 'optional')
+      const spec = JSONSPEC[option.name]
+      questions.push({
+        id: scope + ':' + option.name,
+        valueId: option.name,
+        label: scope === 'context'
+          ? (option.name === '--profile' ? '프로필' : option.name === '--region' ? '리전' : option.name)
+          : (option.displayLabel || option.name),
+        type: option.type,
+        choices: option.choices ?? undefined,
+        optional: requirement === 'optional',
+        recommended,
+        essential: scope === 'context' && (option.name === '--profile' || option.name === '--region'),
+        requirement,
+        help: option.help,
+        placeholder: inputResolution[option.name]?.state === 'automatic' ? inputResolution[option.name].label + ' — Enter로 다음' : option.placeholder,
+        meta: option,
+        statusLabel: () => inputResolution[option.name]?.state === 'automatic' ? inputResolution[option.name].label : undefined,
+        dependencies: inputResolution[option.name]?.dependencies,
+        isFilled: current => {
+          if (inputResolution[option.name]?.state === 'automatic') return true
+          if (inputResolution[option.name]?.state === 'blocked') return false
+          if (String(current[option.name] ?? '').trim()) return true
+          if (option.multiSelect && String(current[subKey(option.name, 'custom')] ?? '').trim()) return true
+          return !!spec?.fields?.some(field => String(current[subKey(option.name, field.key)] ?? '').trim())
+        },
+      })
+    }
+    const request = [...requestContextOptions].sort((a, b) => {
+      const order = ['--profile', '--region', '--auth', '--endpoint']
+      return order.indexOf(a.name) - order.indexOf(b.name)
+    })
+    request.forEach(option => add(option as CliOption, 'context', option.name === '--profile' || option.name === '--region'))
+    const resourceOptions = [...visibleFormSections.flatMap(section => section.options), ...visibleFormAdvanced]
+    resourceOptions.forEach(option => add(option, 'resource'))
+    if (responseContextEnabled) responseContextOptions.forEach(option => add(option as CliOption, 'context'))
+    // 필수 항목을 먼저 쫙(essential·required → 조건부 → 선택), 그다음 선택 항목. 안정 정렬로 그룹 내 순서 보존.
+    const priority = (q: CliWizardQuestion) => q.essential || q.requirement === 'required' ? 0 : q.requirement === 'conditional' ? 1 : 2
+    questions.sort((a, b) => priority(a) - priority(b))
+    return foldOneOfGroups(questions, formRules)
+  }, [formRules, inputResolution, requestContextOptions, responseContextEnabled, responseContextOptions, visibleFormAdvanced, visibleFormSections])
+  const wizardValues = { ...values, ...executionValues }
   const baseCommandValidation = cmd
-    ? validateCliOptions(formOptions, validationValues, formRules)
+    ? validateCliOptions(formOptions, validationValues, formRules, automaticInputs)
     : { valid: true, issues: [], missing: [] }
   const jsonIssues = validateJsonInputs(formOptions, validationValues)
   const lookupIssues = formOptions.flatMap(option => {
-    const lookup = option.dynamicLookup
-    if (!lookup || !isDynamic(dyn, option.name, true) || lookup.kind !== 'exactName') return []
-    const requiredInputs = [
-      ...(lookup.scope === 'compartment' ? [lookup.scopeInput].filter((name): name is string => !!name) : []),
-      ...(lookup.prerequisites ?? []).map(prerequisite => prerequisite.input),
-    ]
-    return requiredInputs
-      .filter(name => !(values[name] ?? '').trim())
-      .map(name => ({
+    return (inputResolution[option.name]?.dependencies ?? []).map(name => ({
         code: 'required' as const,
         message: `${option.name} 동적 조회에는 ${name} 값이 필요합니다.`,
         options: [name],
@@ -2010,6 +2784,11 @@ export default function CliBuilderPage() {
     }
     return next
   })
+  const setWizardValue = (name: string, value: string) => {
+    if (isExecutionContextName(name) || name.startsWith('--query::')) setExecutionVal(name, value)
+    else if (formOptionsByName.has(name)) setFormVal(formOptionsByName.get(name)!, value)
+    else setVal(name, value)
+  }
   const setFormVal = (option: CliOption, value: string) => {
     if (option.name !== '--shape') { setVal(option.name, value); return }
     setValues(current => ({
@@ -2021,7 +2800,7 @@ export default function CliBuilderPage() {
   }
   const preflightMeta = executionSurface?.instanceLaunchPreflight
   const instancePreflightCommand = preflightMeta
-    ? buildInstanceLaunchPreflightCommand(values, dyn, requestContextArguments, executionValues)
+    ? buildInstanceLaunchPreflightCommand(values, dyn, requestContextArguments, resolvedExecutionValues)
     : ''
   const applyInstanceLaunchPreflight = () => {
     const parsed = parseInstanceLaunchPreflight(instancePreflightInput)
@@ -2063,7 +2842,6 @@ export default function CliBuilderPage() {
     }
     requestAnimationFrame(() => requestAnimationFrame(focusField))
   }
-  const toggleCat = (id: string) => setOpenCats(s => ({ ...s, [id]: !s[id] }))
 
   const copy = useCallback(async () => {
     if (!commandReady) {
@@ -2103,8 +2881,9 @@ export default function CliBuilderPage() {
     }
     const name = prompt('즐겨찾기 이름', cmd ? `${cmd.label} ${values['--display-name'] || ''}`.trim() : 'custom')
     if (!name) return
+    const favoriteResource = officialCommand ? `official:${officialCommand.path}` : active
     const fav: Favorite = {
-      id: `fav-${favs.length}-${name}`, name, resource: active,
+      id: `fav-${favs.length}-${name}`, name, resource: favoriteResource,
       values: active === '__custom' ? { __custom: customText } : values,
       context: active === '__custom' ? undefined : executionValues,
       dyn, operation: crudOperation, action: selectedAction ?? undefined,
@@ -2112,13 +2891,22 @@ export default function CliBuilderPage() {
     const next = [...favs, fav]; setFavs(next); saveFavs(next); showToast('즐겨찾기 저장됨')
   }
   const loadFav = (f: Favorite) => {
-    if (f.resource === '__custom') { setActive('__custom'); setCustomText(f.values.__custom || 'oci '); setExecutionValues({}); setCustomOpen(true) }
+    if (f.resource === '__custom') { setOfficialCommand(null); setOfficialPresentation('official'); setActive('__custom'); setCustomText(f.values.__custom || 'oci '); setExecutionValues({}); setSidebarView('automation') }
+    else if (f.resource.startsWith('official:')) {
+      const path = f.resource.slice('official:'.length)
+      openOfficialPath(path, f)
+    }
     else {
       const legacy = splitLegacyExecutionContext(f.values)
-      setActive(f.resource); setValues(legacy.resource); setDyn(f.dyn ?? {}); setShowOptional(true); setShowDeprecated(false); setSelectedAction(null)
       const favoriteCommand = CAT.commands[f.resource]
       if (favoriteCommand) {
         const operation = f.operation && supportsOperation(favoriteCommand, f.operation) ? f.operation : defaultCliOperation(favoriteCommand)
+        const officialPath = officialPathForTarget({ resource: f.resource, operation, action: f.action })
+        if (officialPath) {
+          openOfficialPath(officialPath, { ...f, values: legacy.resource, context: f.context ?? legacy.context })
+          return
+        }
+        setOfficialCommand(null); setOfficialPresentation('official'); setActive(f.resource); setValues(legacy.resource); setDyn(f.dyn ?? {}); setShowOptional(true); setShowDeprecated(false); setSelectedAction(null)
         setCrudOperation(operation)
         if (f.action && favoriteCommand.actions?.[f.action]) setSelectedAction(f.action)
         const favoriteOperation = (f.action ? favoriteCommand.actions?.[f.action] : favoriteCommand.operations?.[operation]) ?? favoriteCommand
@@ -2127,7 +2915,7 @@ export default function CliBuilderPage() {
           ...(f.context ?? legacy.context),
         })
         setShowDeprecated(allOptions(favoriteOperation).some(option => option.deprecated && isCliOptionValueActive(option, legacy.resource[option.name] ?? '')))
-        if (favoriteCommand.crossCopy || favoriteCommand.compartmentCleanup || favoriteCommand.allSubscriptionBalances || favoriteCommand.iamMfaReset) setCustomOpen(true)
+        if (isAutomationRecipe(favoriteCommand)) setSidebarView('automation')
       }
     }
   }
@@ -2136,28 +2924,74 @@ export default function CliBuilderPage() {
 
 
   // 전용 레시피 화면에선 동적 조회 비활성 — OCID와 실행 환경을 직접 입력
-  const noDyn = !!(cmd?.disableDynamic || cmd?.crossCopy || cmd?.compartmentCleanup || cmd?.manualBackup || cmd?.iamMfaReset)
-  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(c => c.crossCopy || c.compartmentCleanup || c.allSubscriptionBalances || c.iamMfaReset)
+  const SPECIAL_COMMANDS = Object.values(CAT.commands).filter(isAutomationRecipe)
+  const verifiedOfficialPaths = [...new Set(verified.flatMap(key => {
+    if (key.startsWith('official:')) return [key.slice('official:'.length)]
+    const migrated = curatedTargetPathMap.get(key) ?? curatedTargetPathMap.get(`${key}:command`)
+    return migrated ? [migrated] : []
+  }))]
+  const verifiedAutomationCommands = [...new Map(verified.flatMap(key => {
+    if (key.startsWith('official:') || curatedTargetPathMap.has(key) || curatedTargetPathMap.has(`${key}:command`)) return []
+    const resource = key.split(':')[0]
+    const command = CAT.commands[resource]
+    return command && isAutomationRecipe(command)
+      ? [[resource, command] as const]
+      : []
+  })).values()]
+  const discovery = (option?: CliOption) => {
+    if (!option?.name || !cmd) return null
+    const relation = cliDiscoveryRelation(executionSurface?.cmd || cmd.cmd, option)
+    if (!relation) return null
+    const source = Object.values(CAT.commands).find(candidate => !isAutomationRecipe(candidate) && (candidate.cmd === relation.command || candidate.operations?.list?.cmd === relation.command))
+    if (!source) return null
+    const surface = source.operations?.list ?? source
+    const sourceOptions = allOptions(surface)
+    const sourceValues: Record<string, string> = Object.fromEntries(Object.entries(relation.inputs).map(([argument, input]) => [argument, values[input] || '']))
+    if (sourceOptions.some(item => item.name === '--all')) sourceValues['--all'] = 'true'
+    const sourceDyn = { ...dyn }
+    if (!cmd.rootTenancyLookup) delete sourceDyn['--compartment-id']
+    const sourceResolution = resolveCliInputs(sourceOptions, sourceValues, {
+      rootTenancyLookup: source.rootTenancyLookup,
+      dynamic: Object.fromEntries(sourceOptions.map(item => [item.name, (!!item.dynamicLookup || item.name in DYNAMIC) && isDynamic(sourceDyn, item.name, true)])),
+    })
+    const automatic = Object.fromEntries(Object.entries(sourceResolution).map(([name, state]) => [name, state.state === 'automatic']))
+    const check = validateCliOptions(sourceOptions, sourceValues, surface.rules, automatic)
+    const issues = [...check.issues.map(issue => issue.message), ...Object.values(sourceResolution).filter(state => state.state === 'blocked').map(state => state.label)]
+    const lookupCommand = buildCli(source, { ...sourceValues, ...resolvedExecutionValues }, sourceDyn, 'list', undefined, requestContextArguments, ['--output json'])
+    const scope = Object.values(relation.inputs)
+    const selectionKey = cliDiscoveryContext(discoveryCommandPath, requestContextArguments, scope, values, dyn)
+    return <CliDiscoveryPanel key={relation.command + JSON.stringify(sourceValues) + requestContextArguments.join(' ') + JSON.stringify(sourceDyn)}
+      relation={relation} command={wrapCliDiscoveryCommand(lookupCommand)} issues={issues} multiple={option.multiple || option.multi}
+      onSelect={id => { setFormVal(option, id); setDiscoverySelections(current => ({ ...current, [option.name]: { value: id, key: selectionKey, scope } })) }} />
+  }
   const field = (o: CliOption, optional?: boolean) => {
-    const mysqlBackupTarget = cmd?.resource === 'mysql-backup' && crudOperation === 'create'
-    const mysqlDbSystemGet = cmd?.resource === 'mysql' && crudOperation === 'get'
-    const iamDynamic = !!cmd?.iamResource && ['--user-id', '--group-id', '--policy-id', '--compartment-id'].includes(o.name)
-    const catalogDynamic = !!o.dynamicLookup
-    const legacyDynamic = o.name in DYNAMIC && (iamDynamic || o.name !== '--db-system-id' || mysqlBackupTarget || mysqlDbSystemGet)
-    const dynamicAllowed = !noDyn && (catalogDynamic || legacyDynamic)
-    return <Field key={o.name} o={o} value={o.name === '--shape-config' ? (effectiveValues[o.name] || '') : (values[o.name] || '')} onChange={v => setFormVal(o, v)} optional={optional}
-      dynamic={dynamicAllowed && isDynamic(dyn, o.name, true)}
+    // compartment 동적조회(이름→OCID)는 disableDynamic/특수빌더여도 항상 허용 — 사용자가 compartment 를 OCID 로만 입력하도록 강요하지 않는다.
+    // (DIRECT_ONLY_LOOKUPS 의 compartment 는 dynamicLookup 자체가 없어 여기서 자연히 제외된다.)
+    const dynamicAllowed = dynamicAllowedFor(o)
+    const fieldDynamic = dynamicAllowed && isDynamic(dyn, o.name, true)
+    // 선택된 프로필에 캐시된 이름 후보(컴파트먼트·리소스)를 드롭다운으로. OCID 해석은 여전히 실행시점 live.
+    const lookupTarget = o.dynamicLookup?.kind === 'compartment'
+      ? 'compartment'
+      : (!o.dynamicLookup?.multiple ? o.dynamicLookup?.target : undefined)
+    const lookupNames = fieldDynamic && selectedProfile && lookupTarget
+      ? lookupNamesFor(selectedProfile, lookupTarget)
+      : undefined
+    return <Fragment key={o.name}><Field o={o} value={o.name === '--shape-config' ? (effectiveValues[o.name] || '') : (values[o.name] || '')} onChange={v => setFormVal(o, v)} optional={optional}
+      automaticLabel={inputResolution[o.name]?.state === 'automatic' ? inputResolution[o.name].label : undefined}
+      dynamic={fieldDynamic}
+      lookupNames={lookupNames}
       rootTenancy={!!cmd?.rootTenancyLookup && o.name === '--compartment-id'}
       onToggleDynamic={dynamicAllowed ? (on => setDyn(s => ({ ...s, [o.name]: on }))) : undefined}
       imageDiscoveryCommand={o.imagePicker ? buildImageDiscoveryCommand(effectiveValues, dyn, requestContextArguments) : undefined}
       currentShape={values['--shape'] || ''}
       subVal={k => values[subKey(o.name, k)] || ''}
-      onSub={(k, v) => setVal(subKey(o.name, k), v)} />
+      onSub={(k, v) => setVal(subKey(o.name, k), v)} />{discovery(o)}</Fragment>
   }
   const executionField = (option: CliOption) => (
     <Field key={option.name} o={option} value={executionValues[option.name] || ''}
       onChange={value => setExecutionVal(option.name, value)} optional
       dynamic={false} onToggleDynamic={undefined}
+      regionOptions={option.name === '--region' ? selectedProfile?.regions : undefined}
       subVal={key => executionValues[subKey(option.name, key)] || ''}
       onSub={(key, value) => setExecutionVal(subKey(option.name, key), value)} />
   )
@@ -2168,6 +3002,17 @@ export default function CliBuilderPage() {
     </div>
   )
 
+  // Blueprint 모드 — 자원 조립(선언형) 워크스페이스. ?mode=blueprint 딥링크로 진입.
+  if (sp.get('mode') === 'blueprint') return (
+    <CliBlueprintWorkspace
+      catalog={CAT as unknown as { commands: Record<string, unknown> }}
+      blueprintCatalog={protectedState.data.cliBlueprints as BlueprintCatalog | undefined}
+      initialId={sp.get('blueprint')}
+      initialVersion={sp.get('version')}
+      onExit={() => nav('/knowledge/oci-cli')}
+    />
+  )
+
   const cliLayoutStyle = {
     '--cli-left-width': `${leftSidebarWidth}px`,
     '--cli-right-width': `${rightSidebarWidth}px`,
@@ -2175,55 +3020,152 @@ export default function CliBuilderPage() {
 
   return (
     <div className="cli-layout" style={cliLayoutStyle}>
-      {/* 좌측 계층 네비 — 대분류 아코디언 (기본 닫힘) */}
+      {/* 공식 정본·개인 보기·자동화를 한 사이드바에서 탐색 */}
       <aside id="cli-resource-nav" className="cli-nav">
-        <div className="cli-cat cli-custom-cat">
-          <button className="cli-cat-toggle" onClick={() => setCustomOpen(open => !open)}>
-            <span className={`caret${customOpen ? ' open' : ''}`}>▸</span> Custom CLI
-          </button>
-          {customOpen && (
-            <div className="cli-group">
-              <button className={`cli-navitem${active === '__custom' ? ' on' : ''}`} onClick={() => setActive('__custom')}>
-                Custom Command
-              </button>
-              {SPECIAL_COMMANDS.map(c => (
-                <button key={c.resource} className={`cli-navitem${active === c.resource ? ' on' : ''}${isResourceVerified(c.resource) ? ' verified' : ''}`}
-                  onClick={() => selectResource(c.resource)}>
-                  {c.label}
-                  {isResourceVerified(c.resource) && <span className="cli-vmark" title="검증됨">✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {CAT.categories.map(c => (
-          <div key={c.id} className="cli-cat">
-            <button className="cli-cat-toggle" onClick={() => toggleCat(c.id)}>
-              <span className={`caret${openCats[c.id] ? ' open' : ''}`}>▸</span> {c.label}
+        <div className="cli-unified-tabs" role="tablist" aria-label="OCI CLI 탐색 보기">
+          {([
+            ['all', '전체 명령'],
+            ['recent', '최근'],
+            ['favorites', '즐겨찾기'],
+            ['verified', '실행 확인'],
+            ['automation', '자동화'],
+            ['profiles', '프로필'],
+          ] as [CliSidebarView, string][]).map(([view, label]) => (
+            <button type="button" role="tab" key={view} aria-selected={sidebarView === view}
+              className={sidebarView === view ? 'on' : ''} onClick={() => setSidebarView(view)}>
+              {label}
             </button>
-            {openCats[c.id] && c.groups.map(g => (
-              <div key={g.label} className="cli-group">
-                <div className="cli-group-label px">{g.label}</div>
-                {g.resources.map(r => (
-                  <button key={r} className={`cli-navitem${active === r ? ' on' : ''}${isResourceVerified(r) ? ' verified' : ''}`} onClick={() => selectResource(r)}>
-                    {CAT.commands[r].label}
-                    {isResourceVerified(r) && <span className="cli-vmark" title="하나 이상의 명령 검증됨">✓</span>}
-                  </button>
-                ))}
-              </div>
+          ))}
+        </div>
+
+        {sidebarView === 'all' && (
+          <OciOfficialCommandNav activePath={officialCommand?.path} curatedPaths={curatedPathMap}
+            onSelect={selectOfficialCommand} />
+        )}
+
+        {sidebarView === 'recent' && (
+          <section className="cli-personal-view" aria-label="최근 열어본 공식 명령">
+            <div className="cli-personal-heading"><span>최근 열어본 명령</span><b>{recentOfficialCommands.length}</b></div>
+            {recentOfficialCommands.map(item => (
+              <button type="button" key={item.path} className={`cli-personal-command${officialCommand?.path === item.path ? ' on' : ''}`}
+                onClick={() => openOfficialPath(item.path)}>
+                <code>{item.path}</code><span>{item.label}</span>
+              </button>
             ))}
-          </div>
-        ))}
-        {favs.length > 0 && (
-          <div className="cli-cat">
-            <div className="cli-cat-label px">FAVORITES</div>
+            {!recentOfficialCommands.length && <p className="cli-personal-empty">공식 명령을 열면 최대 30개까지 기록됩니다.</p>}
+          </section>
+        )}
+
+        {sidebarView === 'favorites' && (
+          <section className="cli-personal-view" aria-label="OCI CLI 즐겨찾기">
+            <div className="cli-personal-heading"><span>즐겨찾기</span><b>{favs.length}</b></div>
             {favs.map(f => (
               <div key={f.id} className="cli-fav">
                 <button className="cli-navitem fav" onClick={() => loadFav(f)}>{f.name}</button>
                 <button className="cli-favdel" onClick={() => delFav(f.id)} title="삭제">✕</button>
               </div>
             ))}
-          </div>
+            {!favs.length && <p className="cli-personal-empty">현재 입력값과 명령을 저장하면 여기에 표시됩니다.</p>}
+          </section>
+        )}
+
+        {sidebarView === 'verified' && (
+          <section className="cli-personal-view" aria-label="직접 실행해 확인한 공식 명령">
+            <div className="cli-personal-heading"><span>실행 확인</span><b>{verifiedOfficialPaths.length + verifiedAutomationCommands.length}</b></div>
+            {verifiedOfficialPaths.map(path => (
+              <button type="button" key={path} className={`cli-personal-command verified${officialCommand?.path === path ? ' on' : ''}`}
+                onClick={() => openOfficialPath(path)}>
+                <code>{path}</code><span>직접 실행해 확인함</span>
+              </button>
+            ))}
+            {verifiedAutomationCommands.map(command => (
+              <button type="button" key={command.resource}
+                className={`cli-personal-command verified${active === command.resource && !officialCommand ? ' on' : ''}`}
+                onClick={() => selectResource(command.resource)}>
+                <code>{command.label}</code><span>자동화 · 직접 실행해 확인함</span>
+              </button>
+            ))}
+            {!verifiedOfficialPaths.length && !verifiedAutomationCommands.length && <p className="cli-personal-empty">실행 결과를 확인한 뒤 명령 화면의 체크박스로 기록하세요.</p>}
+          </section>
+        )}
+
+        {sidebarView === 'automation' && (
+          <section className="cli-personal-view cli-automation-view" aria-label="OCI CLI 자동화">
+            <div className="cli-personal-heading"><span>자동화</span><b>{SPECIAL_COMMANDS.length + 2}</b></div>
+            <button className="cli-navitem automation" onClick={() => nav('/knowledge/oci-cli?mode=blueprint')} title="선언형 자원 조립 — 여러 자원을 한 번에 계획·생성">
+              <span className="cli-bp-mark">◆</span> Blueprints
+            </button>
+            <button className={`cli-navitem automation${active === '__custom' && !officialCommand ? ' on' : ''}`}
+              onClick={() => { setOfficialCommand(null); setOfficialPresentation('official'); setActive('__custom') }}>
+              Custom Command
+            </button>
+            {SPECIAL_COMMANDS.map(c => (
+              <button key={c.resource} className={`cli-navitem automation${active === c.resource && !officialCommand ? ' on' : ''}${isResourceVerified(c.resource) ? ' verified' : ''}`}
+                onClick={() => selectResource(c.resource)}>
+                {c.label}
+                {isResourceVerified(c.resource) && <span className="cli-vmark" title="검증됨">✓</span>}
+              </button>
+            ))}
+          </section>
+        )}
+
+        {sidebarView === 'profiles' && (
+          <section className="cli-personal-view cli-profile-hub" aria-label="OCI 프로필 관리">
+            <div className="cli-personal-heading"><span>프로필</span><b>{profiles.length}</b></div>
+            <p className="cli-profile-intro">
+              로컬 <code>~/.oci/config</code> 에서 리전·컴파트먼트·리소스 이름을 한 번 수집해 두면,
+              프로필을 고르기만 해도 <code>--profile</code>·리전·이름이 자동으로 채워집니다.
+              크리덴셜은 저장하지 않습니다.
+            </p>
+
+            <details className="cli-profile-collect">
+              <summary>1. 수집 스크립트 (복사 → 로컬 실행)</summary>
+              <p>읽기전용(list/get/search)만 실행합니다. 셸에서 돌린 뒤 출력을 아래에 붙여넣으세요.
+                config 가 바뀌면 다시 실행해 갱신합니다.</p>
+              <div className="cli-inline-command">
+                <pre>{profileCollectScript}</pre>
+                <button type="button" onClick={() => void navigator.clipboard.writeText(profileCollectScript)}>스크립트 복사</button>
+              </div>
+            </details>
+
+            <label className="cli-profile-paste">
+              <span><b>2. 실행 결과 붙여넣기</b> JSON 배열</span>
+              <textarea className="cli-input cli-json" rows={4} value={profilePaste}
+                placeholder='[{"name":"locktonkorea","tenancy":"ocid1.tenancy...","subscriptions":{"data":[...]},...}]'
+                onChange={event => { setProfilePaste(event.target.value); setProfileMsg('') }} />
+              <div className="cli-profile-actions">
+                <button type="button" className="cli-json-apply" onClick={registerProfiles} disabled={!profilePaste.trim()}>프로필 등록</button>
+                <button type="button" className="cli-json-update" onClick={updateProfiles}
+                  disabled={!profilePaste.trim() || profiles.length === 0}
+                  title="같은 이름 프로필의 내용만 갱신합니다(신규 추가·삭제 없음)">기존 프로필 업데이트</button>
+              </div>
+              <small className="cli-profile-hint">같은 이름 프로필은 <b>등록·업데이트 모두 자동으로 내용만 갱신</b>됩니다 — 삭제 후 재등록할 필요 없습니다.</small>
+              {profileMsg && <span className="cli-profile-msg">{profileMsg}</span>}
+            </label>
+
+            {profiles.length > 0 && (
+              <div className="cli-profile-list" role="list">
+                <div className="cli-profile-list-title">등록된 프로필</div>
+                {profiles.map(p => {
+                  const s = profileSummary(p)
+                  return (
+                    <div key={p.name} className={`cli-profile-row${p.name === selectedProfileName ? ' on' : ''}`} role="listitem">
+                      <button type="button" className="cli-profile-pick"
+                        onClick={() => activateProfile(p.name === selectedProfileName ? '' : p.name)}
+                        title={p.name === selectedProfileName ? '활성 해제' : '활성 프로필로 선택'}>
+                        <span className="cli-profile-name">{p.name === selectedProfileName ? '● ' : '○ '}{p.name}</span>
+                        <span className="cli-profile-meta">
+                          {p.homeRegion || '리전?'} · 리전 {s.regions} · 컴파트먼트 {s.compartments} · 이름 {s.resources}
+                        </span>
+                      </button>
+                      <button type="button" className="cli-profile-del" title="프로필 삭제"
+                        onClick={() => removeProfile(p.name)}>✕</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
         )}
       </aside>
 
@@ -2239,21 +3181,21 @@ export default function CliBuilderPage() {
 
       {/* 우측 폼 + 결과 */}
       <main id="cli-command-workspace" className="cli-main">
-        <div className="crumb"><span className="px">OCI CLI</span> / {cmd ? cmd.label : 'Custom'}</div>
-        <h1 className={`sheet-h1${cmd && isOperationVerified(active, currentVerificationOperation) ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
+        <div className="crumb"><span className="px">OCI CLI</span> / {officialCommand ? `Official / ${officialCommand.path}` : cmd ? cmd.label : 'Custom'}</div>
+        <h1 className={`sheet-h1${cmd && isCurrentCommandVerified ? ' cli-verified' : ''}`}>{cmd ? cmd.label : 'Custom 명령'}</h1>
         {hasCrud && (
           <div className="cli-crud-strip" aria-label={`${cmd?.label} 명령 선택`}>
             {CRUD_OPERATIONS.map(operation => {
               const available = isOperationAvailable(operation.verb)
               return (
               <button type="button" key={operation.verb} disabled={!available}
-                className={`cli-crud-op verb-${operation.verb}${!selectedAction && crudOperation === operation.verb ? ' selected' : ''}${available && isOperationVerified(active, operation.verb) ? ' verified' : ''}`}
+                className={`cli-crud-op verb-${operation.verb}${!selectedAction && crudOperation === operation.verb ? ' selected' : ''}${available && isEnhancedOperationVerified(operation.verb) ? ' verified' : ''}`}
                 aria-pressed={available ? !selectedAction && crudOperation === operation.verb : undefined}
                 title={`${operation.verb.toUpperCase()}${available ? ' 명령 선택' : ' 명령 없음'}`}
                 onClick={() => selectOperation(operation.verb)}>
                 <span className="cli-crud-icon" aria-hidden="true">{operation.icon}</span>
                 <span className="cli-crud-verb">{operation.verb.toUpperCase()}</span>
-                {available && isOperationVerified(active, operation.verb) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
+                {available && isEnhancedOperationVerified(operation.verb) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
               </button>
               )
             })}
@@ -2264,12 +3206,12 @@ export default function CliBuilderPage() {
             <span className="cli-action-label px">ACTIONS</span>
             {Object.entries(cmd.actions).map(([key, action]) => (
               <button type="button" key={key}
-                className={`cli-action-op tone-${action.tone ?? 'create'}${selectedAction === key ? ' selected' : ''}${isOperationVerified(active, `action:${key}`) ? ' verified' : ''}`}
+                className={`cli-action-op tone-${action.tone ?? 'create'}${selectedAction === key ? ' selected' : ''}${isEnhancedActionVerified(key) ? ' verified' : ''}`}
                 aria-pressed={selectedAction === key}
                 onClick={() => selectAction(key)}>
                 <span aria-hidden="true">{action.icon ?? '→'}</span>
                 <span>{action.label}</span>
-                {isOperationVerified(active, `action:${key}`) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
+                {isEnhancedActionVerified(key) && <span className="cli-crud-verified" title="직접 실행해 확인함">✓</span>}
               </button>
             ))}
           </div>
@@ -2277,10 +3219,26 @@ export default function CliBuilderPage() {
         {cmd
           ? <p className="cli-help">{operationHelp}</p>
           : <p className="cli-help">자유 입력 — 직접 작성하거나, 왼쪽에서 자원을 골라 폼으로 만드세요. 저장하면 즐겨찾기로 재사용됩니다.</p>}
+        {officialCommand && (
+          <div className="cli-official-source">
+            <span className="cli-official-source-badge">공식 정본</span>
+            <code>OCI CLI v{officialCommand.docsUrl.match(/oci-cli\/([^/]+)\//)?.[1] ?? 'pinned'}</code>
+            <span>최종 Click 트리에서 자동 생성</span>
+            {activeEnhancedCommand && <span className="cli-official-enhanced-badge">운영 강화됨</span>}
+            <a href={officialCommand.docsUrl} target="_blank" rel="noreferrer">Oracle 명령 문서 ↗</a>
+            {activeEnhancedCommand && (
+              <button type="button" aria-pressed={officialPresentation === 'official'}
+                onClick={() => setOfficialPresentation(current => current === 'enhanced' ? 'official' : 'enhanced')}>
+                {officialPresentation === 'enhanced' ? '공식 원본 보기' : '운영 강화 보기'}
+              </button>
+            )}
+          </div>
+        )}
         {cmd && (
           <label className="cli-verify">
-            <input type="checkbox" checked={isOperationVerified(active, currentVerificationOperation)} onChange={() => toggleVerified(active, currentVerificationOperation)} />
-            <span>현재 <b>{selectedActionMeta?.label ?? (hasCrud ? crudOperation.toUpperCase() : 'CUSTOM')}</b> 명령을 직접 실행해 확인함 — 확인한 동작만 <b className="cli-verified">파란색</b>으로 표시</span>
+            <input type="checkbox" checked={isCurrentCommandVerified}
+              onChange={() => toggleVerified(activeVerificationResource, currentVerificationOperation, currentLegacyVerificationKey ? [currentLegacyVerificationKey] : [])} />
+            <span>현재 <b>{officialCommand ? `${activeOfficialTarget?.action ? activeEnhancedCommand?.actions?.[activeOfficialTarget.action]?.label ?? activeOfficialTarget.action : activeOfficialTarget?.operation?.toUpperCase() ?? officialCommand.path.split(' ').at(-1)?.toUpperCase()} · 공식 정본` : selectedActionMeta?.label ?? (hasCrud ? crudOperation.toUpperCase() : 'CUSTOM')}</b> 명령을 직접 실행해 확인함 — 확인한 동작만 <b className="cli-verified">파란색</b>으로 표시</span>
           </label>
         )}
 
@@ -2295,8 +3253,25 @@ export default function CliBuilderPage() {
                 <span>{executionValues['--auth'] || '기본 인증'}</span>
               </span>
             </button>
+            <div className="cli-context-actions">
+              <button type="button" className="cli-input-wizard-launch" aria-keyshortcuts="Alt+I"
+                onClick={() => setWizardOpen(true)}>
+                입력 마법사 <kbd>Alt+I</kbd><span>프로필·리전 → 필수 → 선택</span>
+              </button>
+            </div>
             {contextOpen && (
               <div className="cli-context-body">
+                <div className="cli-active-profile">
+                  <label>활성 프로필
+                    <select value={selectedProfileName} onChange={event => activateProfile(event.target.value)}>
+                      <option value="">(없음 · 직접 입력)</option>
+                      {profiles.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                    </select>
+                  </label>
+                  {selectedProfile
+                    ? <span className="cli-active-profile-meta">홈 {selectedProfile.homeRegion || '—'} · 가용리전 {selectedProfile.regions.length} · 컴파트먼트 {selectedProfile.compartments.length}</span>
+                    : <button type="button" className="cli-active-profile-link" onClick={() => setSidebarView('profiles')}>프로필 수집·관리 →</button>}
+                </div>
                 <p>이 값은 자원 입력과 분리되며 동적 조회와 실제 명령에 동일하게 전달됩니다. Region을 비우면 프로필 설정을 사용합니다.</p>
                 <div className="cli-context-groups">
                   <div className="cli-context-group">
@@ -2333,6 +3308,19 @@ export default function CliBuilderPage() {
           <div className="cross-note cleanup-note">
             기본 <b>PREVIEW</b>는 등록 장치만 조회합니다. <b>RESET</b>은 실제 User 이름을 다시 확인한 뒤 TOTP 장치를 모두 삭제합니다.
             MFA 등록은 CLI만으로 완료할 수 없으므로, 삭제 후 사용자가 Console에서 다시 등록해야 합니다.
+          </div>
+        )}
+
+        {cmd?.customWorkflow === 'wizocm-functions-foundation' && (
+          <div className="cross-note cleanup-note">
+            <b>PLAN</b>은 읽기 전용입니다. <b>APPLY</b>는 정확한 확인 문구를 요구하며, private subnet·NAT/Service Gateway·이미지 tag·기존 자원 불변식을 통과할 때만 진행합니다.
+            고객 API key, secret 값, cross-tenancy 정책은 이 레시피가 다루지 않습니다.
+          </div>
+        )}
+        {cmd?.customWorkflow === 'wizocm-devops-cicd' && (
+          <div className="cross-note cleanup-note">
+            <b>PLAN</b>은 조회만 합니다. <b>APPLY</b>는 Generic Artifact·Manual Approval·정확히 한 대의 Compute instance를 묶습니다.
+            GitHub PAT는 받지 않으므로, 먼저 안전하게 생성한 Connection OCID를 입력하세요.
           </div>
         )}
 
@@ -2461,6 +3449,7 @@ export default function CliBuilderPage() {
             <span>실행 전 입력 확인</span>
             <span className="cli-validation-count">{commandReady ? '✓' : commandValidation.issues.length}</span>
           </div>
+          {Object.entries(inputResolution).filter(([, state]) => state.state === 'automatic').map(([name, state]) => <p key={name} className="cli-input-automatic">{name} · {state.label}</p>)}
           {commandReady ? (
             <p className="cli-validation-ready">필수 입력이 모두 준비됐습니다. 최종 명령을 복사하거나 즐겨찾기에 저장할 수 있습니다.</p>
           ) : (
@@ -2487,6 +3476,11 @@ export default function CliBuilderPage() {
           </>
         )}
       </aside>
+      {wizardOpen && cmd ? (
+        <CliInputWizard questions={wizardQuestions} values={wizardValues} setValue={setWizardValue}
+          onClose={() => setWizardOpen(false)} title="OCI CLI INPUT"
+          renderControl={ctx => <>{renderCliWizardControl(ctx, selectedProfile?.regions, wizardLookupNames)}{discovery(ctx.question.meta as CliOption | undefined)}</>} />
+      ) : null}
     </div>
   )
 }
@@ -2876,11 +3870,316 @@ function ImageOptionField({ fieldId, option, label, value, onChange, discoveryCo
   )
 }
 
-function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDynamic, imageDiscoveryCommand, currentShape = '', subVal, onSub }: {
+// oneOf 규칙(정확히 하나 선택)을 Alt+I 마법사에서 "먼저 택1 → 해당 입력만" 스텝으로 접는다.
+// 카탈로그에 이미 있는 oneOf 관계를 그대로 재사용 — object sync 방향(src-dir/dest-dir)뿐 아니라
+// 모든 명령의 oneOf 에 자동 적용된다. 방향을 안 고르고 한쪽 입력부터 강제되던 문제를 근본 해소.
+function foldOneOfGroups(questions: CliWizardQuestion[], rules: CliOptionRule[]): CliWizardQuestion[] {
+  const oneOfs = rules.filter(rule => rule.kind === 'oneOf' && (rule.options?.length ?? 0) >= 2)
+  if (!oneOfs.length) return questions
+  let result = questions
+  for (const rule of oneOfs) {
+    const memberNames = new Set(rule.options ?? [])
+    const members = result.filter(question => question.valueId && memberNames.has(question.valueId))
+    if (members.length < 2) continue // 폼에 실제로 2개 이상 노출될 때만 접는다
+    const chooserKey = '__oneof__' + rule.id
+    const rest: CliWizardQuestion[] = []
+    let insertAt = -1
+    result.forEach(question => {
+      if (question.valueId && memberNames.has(question.valueId)) { if (insertAt < 0) insertAt = rest.length }
+      else rest.push(question)
+    })
+    const memberMeta = members.map(member => ({
+      name: member.valueId as string,
+      // 방향이 드러나는 설명(help 첫 문장) 우선 — displayLabel 만으로는 업로드/다운로드 구분이 약할 수 있다.
+      label: (member.help ?? '').split(/[.\n]/)[0].trim() || member.label,
+    }))
+    const chooser: CliWizardQuestion = {
+      id: 'oneof:' + rule.id,
+      valueId: chooserKey,
+      label: rule.message || '옵션 선택 (하나)',
+      type: 'oneOfChooser',
+      choices: memberMeta.map(member => member.name),
+      requirement: 'required',
+      help: '하나를 선택하면 해당 입력만 표시됩니다.',
+      meta: { oneOfMembers: memberMeta },
+      isFilled: current => memberMeta.some(member => current[chooserKey] === member.name),
+    }
+    const gatedMembers: CliWizardQuestion[] = members.map(member => ({
+      ...member,
+      requirement: 'conditional',
+      visibleIf: current => current[chooserKey] === member.valueId,
+    }))
+    rest.splice(insertAt < 0 ? rest.length : insertAt, 0, chooser, ...gatedMembers)
+    result = rest
+  }
+  return result
+}
+
+function renderCliWizardControl(context: CliWizardRenderContext, allowedRegions?: string[], resolveLookupNames?: (option: CliOption) => string[]): ReactNode {
+  if (context.question.type === 'oneOfChooser') {
+    const members = (context.question.meta as { oneOfMembers?: { name: string; label: string }[] } | undefined)?.oneOfMembers ?? []
+    const { value, valueId, setValue, assignRef } = context
+    return (
+      <div className="cli-wizard-checks cli-oneof-choices" role="radiogroup" aria-label={context.question.label}>
+        {members.map((member, index) => (
+          <label key={member.name} className="cli-multiple-choice">
+            <input ref={index === 0 ? assignRef : undefined} type="radio" name={valueId}
+              checked={value ? value === member.name : index === 0}
+              onChange={() => { setValue(valueId, member.name); members.forEach(other => { if (other.name !== member.name) setValue(other.name, '') }) }} />
+            <span>{member.label} <code className="cli-oneof-flag">{member.name}</code></span>
+          </label>
+        ))}
+      </div>
+    )
+  }
+  const option = context.question.meta as CliOption | undefined
+  if (!option) return defaultCliWizardControl(context)
+  const { value, valueId, inputClass, assignRef, setValue, subValue, setSubValue } = context
+  const checked = value !== ''
+  if (option.name === '--region') {
+    return <RegionSelect value={value} onChange={v => setValue(valueId, v)} inputClass={inputClass} assignRef={assignRef} allowedRegions={allowedRegions} />
+  }
+  // 동적조회(컴파트먼트·리소스 이름) → 프로필 캐시 이름 드롭다운. 폼과 동일 UX. OCID 는 실행시점 live 해석.
+  if (option.dynamicLookup && (option.dynamicLookup.kind === 'compartment' || option.dynamicLookup.kind === 'exactName')) {
+    const names = resolveLookupNames?.(option) ?? []
+    if (names.length > 0) {
+      return <NameSelect value={value} onChange={v => setValue(valueId, v)} names={names}
+        placeholder={option.dynamicLookup.inputPlaceholder || option.placeholder} />
+    }
+  }
+  if (option.flag || option.checkbox) {
+    return (
+      <label className="cli-wizard-check">
+        <input ref={assignRef} type="checkbox" checked={checked}
+          onChange={event => setValue(valueId, event.target.checked ? (option.defaultValue ?? 'true') : '')} />
+        <span>{checked ? (option.checkboxLabel || '사용') : '사용 안 함'}</span>
+      </label>
+    )
+  }
+  if (option.type === 'boolean') {
+    return (
+      <select ref={assignRef} className={inputClass} value={value} onChange={event => setValue(valueId, event.target.value)}>
+        {option.requirement === 'optional' ? <option value="">(미설정)</option> : null}
+        <option value="true">예</option><option value="false">아니오</option>
+      </select>
+    )
+  }
+  if (option.multiple && option.choices?.length) {
+    const selected = new Set(value.split(/\r?\n/).map(item => item.trim()).filter(Boolean))
+    return (
+      <div className="cli-wizard-checks" role="group" aria-label={option.name + ' 복수 값 선택'}>
+        {option.choices.map(choice => (
+          <label key={choice} className="cli-multiple-choice">
+            <input type="checkbox" checked={selected.has(choice)} onChange={event => {
+              const next = new Set(selected)
+              if (event.target.checked) next.add(choice); else next.delete(choice)
+              setValue(valueId, [...next].join('\n'))
+            }} />
+            <span>{choice}</span>
+          </label>
+        ))}
+      </div>
+    )
+  }
+  if (option.multiSelect && option.suggestions?.length) {
+    const selected = new Set(value.split(/\r?\n/).map(item => item.trim()).filter(Boolean))
+    const custom = subValue('custom')
+    return (
+      <div className="cli-wizard-checks" role="group" aria-label={option.name + ' 복수 선택'}>
+        {option.suggestions.map(suggestion => (
+          <label key={suggestion} className="cli-multiple-choice">
+            <input type="checkbox" checked={selected.has(suggestion)} disabled={custom.trim() !== ''}
+              onChange={event => {
+                const next = new Set(selected)
+                if (event.target.checked) next.add(suggestion); else next.delete(suggestion)
+                setValue(valueId, [...next].join('\n'))
+              }} />
+            <span>{option.suggestionLabels?.[suggestion] ?? suggestion}</span>
+          </label>
+        ))}
+        <input ref={assignRef} className={inputClass} value={custom} placeholder="직접 JMESPath 입력"
+          onChange={event => setSubValue('custom', event.target.value)} />
+      </div>
+    )
+  }
+  if (!option.multi && option.choices?.length) {
+    return (
+      <select ref={assignRef} className={inputClass} value={value} onChange={event => setValue(valueId, event.target.value)}>
+        {option.requirement !== 'required' ? <option value="">(선택 안 함)</option> : null}
+        {option.choices.map(choice => <option key={choice} value={choice}>{choice}</option>)}
+      </select>
+    )
+  }
+  const spec = JSONSPEC[option.name]
+  if (spec?.list) {
+    return <input ref={assignRef} className={inputClass} value={value} placeholder={spec.ph}
+      onChange={event => setValue(valueId, event.target.value)} />
+  }
+  if (spec?.fields) {
+    return (
+      <div className="cli-wizard-json-fields">
+        {spec.fields.map((field, index) => (
+          <label key={field.key}>
+            <span>{field.label}</span>
+            {field.kind === 'bool'
+              ? <select ref={index === 0 ? assignRef : undefined} className={inputClass} value={subValue(field.key)}
+                  onChange={event => setSubValue(field.key, event.target.value)}>
+                  <option value="">(미설정)</option><option value="true">true</option><option value="false">false</option>
+                </select>
+              : <input ref={index === 0 ? assignRef : undefined} className={inputClass} value={subValue(field.key)}
+                  placeholder={field.ph} onChange={event => setSubValue(field.key, event.target.value)} />}
+          </label>
+        ))}
+      </div>
+    )
+  }
+  if (option.type === 'json' || option.type === 'stringArray' || option.multi) {
+    return <textarea ref={assignRef} className={inputClass + ' bp-wizard-textarea'} rows={5} value={value}
+      placeholder={option.placeholder} onChange={event => setValue(valueId, event.target.value)} />
+  }
+  if (option.suggestions?.length) {
+    const listId = 'cli-wizard-suggestions-' + option.name.replaceAll('-', '')
+    return (
+      <>
+        <input ref={assignRef} className={inputClass} list={listId} value={value} placeholder={option.placeholder}
+          onChange={event => setValue(valueId, event.target.value)} />
+        <datalist id={listId}>{option.suggestions.map(suggestion => <option key={suggestion} value={suggestion} />)}</datalist>
+      </>
+    )
+  }
+  return <input ref={assignRef} className={inputClass} value={value} placeholder={context.question.placeholder || option.placeholder}
+    onChange={event => setValue(valueId, event.target.value)} autoComplete="off" />
+}
+
+// 리전 검색 콤보박스 — "서" 입력 시 서울이 필터되고(한국어 부분일치), 선택하면 식별자(ap-seoul-1)가
+// 값으로 들어간다. 별도 datalist/네이티브 select 대신 사이트 스타일에 맞춘 드롭다운 하나로 통일.
+function RegionSelect({ value, onChange, inputClass = 'cli-input', assignRef, allowedRegions }: {
+  value: string; onChange: (v: string) => void; inputClass?: string
+  assignRef?: (element: HTMLInputElement | null) => void
+  allowedRegions?: string[]
+}) {
+  const [text, setText] = useState(value)
+  const [open, setOpen] = useState(false)
+  const [hi, setHi] = useState(0)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { setText(value) }, [value])
+  useEffect(() => {
+    const onDoc = (event: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+  // 프로필이 활성이면 가용(구독) 리전을 위로·강조(●)하고, 나머지는 구분선 아래로 내린다(숨기지 않음).
+  const availSet = new Set(allowedRegions ?? [])
+  const hasProfile = availSet.size > 0
+  const extras = (allowedRegions ?? [])
+    .filter(id => !REGIONS.some(r => r.id === id))
+    .map(id => ({ id, ko: id, en: id, geo: '' }))
+  const all = hasProfile ? [...extras, ...REGIONS] : REGIONS
+  const raw = text.trim()
+  const q = raw.toLowerCase()
+  const filtered = raw
+    ? all.filter(r => r.ko.includes(raw) || r.en.toLowerCase().includes(q) || r.id.includes(q))
+    : all
+  const ordered = hasProfile
+    ? [...filtered.filter(r => availSet.has(r.id)), ...filtered.filter(r => !availSet.has(r.id))]
+    : filtered
+  const availCount = hasProfile ? ordered.filter(r => availSet.has(r.id)).length : 0
+  const pick = (id: string) => { onChange(id); setText(id); setOpen(false) }
+  const commit = () => { const resolved = resolveRegion(text); setText(resolved); if (resolved !== value) onChange(resolved) }
+  return (
+    <div className="region-select" ref={wrapRef}>
+      <input ref={assignRef} className={inputClass} value={text} placeholder="서울 · tokyo · ap-seoul-1 …"
+        autoComplete="off" role="combobox" aria-expanded={open}
+        onFocus={() => { setOpen(true); setHi(0) }}
+        onChange={event => { setText(event.target.value); setOpen(true); setHi(0) }}
+        onKeyDown={event => {
+          if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); setHi(h => Math.min(h + 1, ordered.length - 1)) }
+          else if (event.key === 'ArrowUp') { event.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
+          else if (event.key === 'Enter' && open && ordered[hi]) { event.preventDefault(); pick(ordered[hi].id) }
+          else if (event.key === 'Escape') setOpen(false)
+        }}
+        onBlur={() => window.setTimeout(() => { commit(); setOpen(false) }, 120)} />
+      {open && ordered.length > 0 && (
+        <ul className="region-menu" role="listbox">
+          {ordered.slice(0, 24).map((r, i) => {
+            const avail = availSet.has(r.id)
+            return (
+              <Fragment key={r.id}>
+                {hasProfile && availCount > 0 && i === availCount && (
+                  <li className="region-divider" aria-hidden="true"><span>그 외 리전</span></li>
+                )}
+                <li>
+                  <button type="button" className={`region-opt${i === hi ? ' on' : ''}${r.id === value ? ' sel' : ''}${avail ? ' avail' : ''}`}
+                    onMouseEnter={() => setHi(i)} onMouseDown={event => { event.preventDefault(); pick(r.id) }}>
+                    {avail && <span className="region-avail-dot" aria-hidden="true">●</span>}
+                    <span className="region-city"><b>{r.ko}</b> · {r.en}</span>
+                    <span className="region-id">{r.id}</span>
+                  </button>
+                </li>
+              </Fragment>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// 이름 후보 콤보박스 — 선택된 프로필에 캐시된 컴파트먼트·리소스 이름을 드롭다운으로 고르거나 자유 입력.
+// 선택하면 값은 "이름"이 되고, 최종 bash 가 이름→OCID 를 실행시점에 조회한다(값 캐시 아님).
+function NameSelect({ value, onChange, names, placeholder }: {
+  value: string; onChange: (v: string) => void; names: string[]; placeholder?: string
+}) {
+  const [text, setText] = useState(value)
+  const [open, setOpen] = useState(false)
+  const [hi, setHi] = useState(0)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { setText(value) }, [value])
+  useEffect(() => {
+    const onDoc = (event: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+  const raw = text.trim().toLowerCase()
+  const matches = raw ? names.filter(n => n.toLowerCase().includes(raw)) : names
+  const pick = (name: string) => { onChange(name); setText(name); setOpen(false) }
+  return (
+    <div className="region-select name-select" ref={wrapRef}>
+      <input className="cli-input" value={text} placeholder={placeholder || '이름 선택 또는 입력'}
+        autoComplete="off" role="combobox" aria-expanded={open}
+        onFocus={() => { setOpen(true); setHi(0) }}
+        onChange={event => { setText(event.target.value); onChange(event.target.value); setOpen(true); setHi(0) }}
+        onKeyDown={event => {
+          if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); setHi(h => Math.min(h + 1, matches.length - 1)) }
+          else if (event.key === 'ArrowUp') { event.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
+          else if (event.key === 'Enter' && open && matches[hi]) { event.preventDefault(); pick(matches[hi]) }
+          else if (event.key === 'Escape') setOpen(false)
+        }}
+        onBlur={() => window.setTimeout(() => setOpen(false), 120)} />
+      {open && matches.length > 0 && (
+        <ul className="region-menu" role="listbox">
+          {matches.slice(0, 30).map((n, i) => (
+            <li key={n}>
+              <button type="button" className={`region-opt${i === hi ? ' on' : ''}${n === value ? ' sel' : ''}`}
+                onMouseEnter={() => setHi(i)} onMouseDown={event => { event.preventDefault(); pick(n) }}>
+                <span className="region-city">{n}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function Field({ o, value, onChange, optional, dynamic, rootTenancy, automaticLabel, onToggleDynamic, imageDiscoveryCommand, currentShape = '', lookupNames, regionOptions, subVal, onSub }: {
   o: CliOption; value: string; onChange: (v: string) => void; optional?: boolean
   dynamic: boolean; rootTenancy?: boolean; onToggleDynamic?: (on: boolean) => void
+  automaticLabel?: string
   imageDiscoveryCommand?: string
   currentShape?: string
+  lookupNames?: string[]
+  regionOptions?: string[]
   subVal: (key: string) => string; onSub: (key: string, v: string) => void
 }) {
   const fieldId = cliFieldAnchorId(o.name)
@@ -2898,9 +4197,10 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
           ? <span className="cli-requirement conditional">조건부 필수</span>
           : <span className="cli-requirement optional">선택</span>)}
       {o.deprecated && <span className="cli-requirement deprecated">사용 중단</span>}
+      {automaticLabel && <span className="cli-input-automatic">✓ {automaticLabel}</span>}
       {o.multiple && <span className="cli-type-tag">여러 값</span>}
       {['json', 'file', 'datetime'].includes(o.type) && <span className="cli-type-tag">{o.type.toUpperCase()}</span>}
-      {o.directLookupReason && <span className="cli-type-tag">직접 OCID</span>}
+      {o.directLookupReason && <span className="cli-type-tag">ID 직접 입력</span>}
       {o.conflictsWith?.length && <span className="cli-conflict-note">{o.conflictsWith.join(', ')}와 동시 사용 불가</span>}
       {onToggleDynamic && (
         <span className="cli-dyn-toggle" title={dynMeta.note}>
@@ -2912,6 +4212,23 @@ function Field({ o, value, onChange, optional, dynamic, rootTenancy, onToggleDyn
       {o.deprecated && o.replacement?.length && <span className="cli-replacement">대체: {o.replacement.join(', ')}</span>}
     </label>
   )
+  if (o.name === '--region') {
+    return (
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
+        {label}
+        <RegionSelect value={value} onChange={onChange} allowedRegions={regionOptions} />
+      </div>
+    )
+  }
+  // 동적 조회 필드 + 선택된 프로필의 이름 후보 → 콤보박스(선택 or 자유입력). OCID 는 실행시점 live 해석.
+  if (lookupNames && lookupNames.length > 0 && dynamic) {
+    return (
+      <div id={fieldId} className="cli-field" data-cli-option={o.name}>
+        {label}
+        <NameSelect value={value} onChange={onChange} names={lookupNames} placeholder={o.dynamicLookup?.inputPlaceholder || o.placeholder} />
+      </div>
+    )
+  }
   if (o.flag) {
     return (
       <div id={fieldId} className="cli-field" data-cli-option={o.name}>

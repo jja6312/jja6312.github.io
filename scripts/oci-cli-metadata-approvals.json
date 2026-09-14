@@ -1,11 +1,26 @@
 {
   "schemaVersion": 1,
   "source": {
-    "tag": "v3.90.2",
-    "commit": "ad59a1f4c7df10decf51816ac16991621dae1b15"
+    "tag": "v3.91.0",
+    "commit": "fbff93ae6744ed23671b974fd876adb239545cea"
   },
   "officialManualResources": [
-    "mysql-backup"
+    "announcement-subscription",
+    "announcement",
+    "iam-compartment",
+    "iam-group",
+    "iam-policy",
+    "iam-region-subscription",
+    "iam-user",
+    "mysql-backup",
+    "object-bulk-upload",
+    "object-sync",
+    "object-put",
+    "object-get",
+    "object-bulk-download",
+    "subscription-balance",
+    "subscription-list",
+    "support-incident"
   ],
   "approvedDifferences": [
     {
@@ -29,6 +44,47 @@
       "guard": {
         "lookupOnly": true
       }
+    },
+    {
+      "id": "iam-policy:delete:extraOption:--lookup-compartment-id",
+      "kind": "extraOption",
+      "resource": "iam-policy",
+      "operation": "delete",
+      "subject": "--lookup-compartment-id",
+      "reason": "Policy 이름은 부착 compartment 안에서만 고유하게 찾을 수 있으므로 조회 범위를 먼저 받아 Policy OCID로 변환합니다. 최종 delete 명령에는 직렬화하지 않습니다.",
+      "guard": {
+        "lookupOnly": true
+      }
+    },
+    {
+      "id": "iam-policy:get:extraOption:--lookup-compartment-id",
+      "kind": "extraOption",
+      "resource": "iam-policy",
+      "operation": "get",
+      "subject": "--lookup-compartment-id",
+      "reason": "Policy 이름은 부착 compartment 안에서만 고유하게 찾을 수 있으므로 조회 범위를 먼저 받아 Policy OCID로 변환합니다. 최종 get 명령에는 직렬화하지 않습니다.",
+      "guard": {
+        "lookupOnly": true
+      }
+    },
+    {
+      "id": "iam-policy:update:extraOption:--lookup-compartment-id",
+      "kind": "extraOption",
+      "resource": "iam-policy",
+      "operation": "update",
+      "subject": "--lookup-compartment-id",
+      "reason": "Policy 이름은 부착 compartment 안에서만 고유하게 찾을 수 있으므로 조회 범위를 먼저 받아 Policy OCID로 변환합니다. 최종 update 명령에는 직렬화하지 않습니다.",
+      "guard": {
+        "lookupOnly": true
+      }
+    },
+    {
+      "id": "subscription:create:choices:--protocol",
+      "kind": "choices",
+      "resource": "subscription",
+      "operation": "create",
+      "subject": "--protocol",
+      "reason": "OCI CLI는 --protocol을 free-string(StringParamType)으로 선언하지만 실제 유효값은 고정 enum입니다. 공식 cmdref(ons/subscription/create) 확인분(EMAIL/CUSTOM_HTTPS/PAGERDUTY/SLACK/SMS/ORACLE_FUNCTIONS/HTTPS)을 CHOICE_OVERRIDES로 명시해 선택 실수를 방지합니다."
     }
   ]
 }

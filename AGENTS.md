@@ -25,6 +25,13 @@ OCI CLI changes in this repository must follow these rules before implementation
 
 ## OCI CLI completion plan
 
+### Shared input and discovery contract (2026-09-08)
+
+- Preserve official `required`; never equate it with mandatory human typing. Use `cliInputResolution` for runtime-automatic versus missing/blocked readiness in the form, Alt+I, and preflight. Do not write fake OCIDs/sentinels into values to satisfy validation.
+- A blank optional lookup is unused, and a direct OCID must not require exact-name lookup scope. Automatic readiness requires a real builder path with no unresolved user input.
+- Register prerequisite discovery through `cliDiscovery` and reuse `CliDiscoveryPanel` + existing LIST builders. Preserve request context, force raw LIST JSON (no final query/table/raw-output), require explicit selection, and invalidate candidates when context or lookup mode changes. SPM Subscription IDs are not Organizations Subscription OCIDs.
+- Run `test:oci-input-flow`, existing generated-command Bash tests, and real Enter/required-only/context-change/mobile flows. Child autocomplete/IME must receive key events before the wizard advances. Normal form and wizard must call the same value-change handler.
+
 1. Before any OCI CLI catalog, command, action, dynamic lookup, or builder UI work, read `OCI_CLI_COMPLETION_PLAN.md`.
 2. Work in the plan's numbered order unless a user request explicitly changes priority. Do not expand the catalog broadly before the Phase 1 accuracy foundation is complete.
 3. Mark an item complete only after its item-specific and common completion criteria pass, including deployment and live artifact verification.

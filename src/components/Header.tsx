@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-import { activityDay, useHub, xpNeeded } from '../store'
+import { useHub, xpNeeded } from '../store'
 import { requiredLevel } from '../lib/auth'
 import LockIcon from './LockIcon'
 import Locks from './Locks'
@@ -22,9 +22,12 @@ const tabs: Tab[] = [
     to: '/knowledge', label: '지식모음', children: [
       { to: '/knowledge/inventory', label: '리소스 현행화' },
       { to: '/knowledge/oci-cli', label: 'OCI CLI' },
+      { to: '/knowledge/oci-policy', label: 'OCI Policy' },
+      { to: '/knowledge/oci-grammar', label: 'OCI Grammar' },
       { to: '/knowledge/terraform', label: 'Terraform' },
       { to: '/knowledge/troubleshooting', label: '트러블슈팅' },
       { to: '/knowledge/support-history', label: '지원이력' },
+      { to: '/knowledge/sr', label: 'SR' },
       { to: '/knowledge/quote', label: '견적' },
       { to: '/knowledge/provisioning', label: '프로비저닝 관리' },
       { to: '/knowledge/meetings', label: '회의록' },
@@ -34,17 +37,19 @@ const tabs: Tab[] = [
   {
     to: '/schedule', label: '일정관리', children: [
       { to: '/schedule/calendar', label: '월간일정' },
+      { to: '/schedule/tasks', label: '업무관리' },
       { to: '/schedule/todo', label: 'TODO LIST' },
       { to: '/schedule/goals', label: '목표' },
+      { to: '/schedule/automation-inbox', label: '업무 자동 수집함' },
     ],
   },
   { to: '/profile', label: '프로필' },
 ]
 
 export default function Header() {
-  const { xp, level, streak, activityAwards, toggleTheme, setHelpOpen, authLevel, openAuth, adjustUiScale } = useHub()
+  const { xp, level, activityDays, toggleTheme, setHelpOpen, authLevel, openAuth, adjustUiScale } = useHub()
   const req = xpNeeded(level)
-  const todaySystems = Object.entries(activityAwards).filter(([id, day]) => id.startsWith('system:') && day === activityDay()).length
+  const daysUsed = activityDays.length   // 이 시스템을 사용한 누적 일수(고유 날짜, 리셋 없음)
   const [menuOpen, setMenuOpen] = useState(false)
 
   // 네비 + 게이트 + (모바일)드로어 닫기 를 한 번에
@@ -82,8 +87,8 @@ export default function Header() {
       </nav>
 
       <div className="hdr-right">
-        <span className="streak px hide-mobile" title="오늘 처음 사용한 시스템마다 +3 XP">
-          {streak}일차 · 오늘 {todaySystems}곳
+        <span className="streak px hide-mobile" title="이 업무허브를 사용한 누적 일수(리셋 없음)">
+          누적 {daysUsed}일
         </span>
         <div className="flex items-center gap-[10px] hide-mobile">
           <span className="lvbadge px">Lv.{level}</span>

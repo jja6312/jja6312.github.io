@@ -204,12 +204,14 @@
   - 최신 전수 결과: 카탈로그 확장분을 포함한 필수 OCID 232회·48종 중 동적 조회 220회, 사유가 명시된 직접 입력 12회, 미분류 0회
   - 동적 조회 구성: compartment 안전 조회 72회, 리소스 정확한 이름 조회 126회, IAM·MySQL 등 전용 안전 빌더 22회
   - 안전 처리: 공식 LIST JSON에서 이름을 정확히 비교하고 1건일 때만 실행하며, 0건 또는 중복 N건이면 후보를 출력하고 본 명령 전에 종료
+  - 2026-08-20 회귀 수정: Announcement LIST의 중첩 응답(`data.items[]`)을 일반 `data[]`로 처리하던 오류를 교정하고, 참조번호→OCID 변환 및 실제 GET 성공을 전용 fixture·219개 생성 Bash·DEFAULT 프로필 읽기 검증으로 고정
   - 직접 입력 유지: cross-tenancy IAM 주체·원본 볼륨, 삭제 범위 compartment, 고유 이름이 없는 Subscription ID처럼 자동 추론이 위험하거나 불가능한 12회에 이유와 선행 경로 표시
   - 감사표: `OCI_CLI_REQUIRED_OCID_AUDIT.md`를 보호 데이터 생성 체인에서 자동 생성하고 드리프트를 차단
   - 회귀 검증: 일반·Action·특수 화면 219개와 동적 조회 입력 247개 조합을 생성해 `bash -n` 통과; Instance, Announcement, Export, Load Balancer, Maintenance 대표 흐름 고정
   - 사이트 커밋: `346d110`
   - 배포: GitHub Pages run `31884186670` 성공; 라이브 JS `assets/index-DyjqkMjj.js` SHA-256 `5DFB07E1C83211E74B68FCACD33FB5BCC22D8C75427270AA36690AC6DB4005DC`, CSS `assets/index-CEVH-R3Q.css` SHA-256 `73C56BC3FC7F6A14A2CE7C234F6060A54235E0D3908DA390E2B08392CDAFC947`, 보호 데이터 SHA-256 `E0C3994416F5A081766D4EADCFCD92300824E44C46CAE057CC8BA6F126DA7556`이 로컬과 일치
 - [ ] `P2-03` 발견 → 선택 → 실행 → 결과 해석 UX 완성
+  - 2026-09-08 사용자 우선 작업 완료(UI-only): Subscription Balance 인라인 LIST/JSON/ID 선택과 재사용 가능한 `cliDiscovery` 관계 패널, `cliInputResolution`의 일반 폼·Alt+I·preflight 공통 판정, 선택/직접 OCID 조회 조건 교정, 조회 컨텍스트 변경 시 후보·선택 ID 무효화. 코드 `9e1f898`, Pages run `34194735817` 성공; 라이브 JS/CSS/보호 데이터 SHA-256 일치·L1 Alt+I 자동 tenancy 통과 확인. 보호/프로필/Blueprint/242개 Bash·lint·build 통과. 기존 v3.91.0→v3.92.0 freshness gate는 우회하지 않고 별도 검토 대기로 기록했다. 설계도·추가 결함·검증 상세는 `docs/OCI_CLI_DESIGN_REVIEW_2026-09-08.md` 참조. 전체 P2-03은 완료로 올리지 않음.
   - 입력창에 OCID만 요구하지 않고 관련 LIST/GET으로 찾는 경로 제공
   - 성공 출력 예시, 핵심 응답 필드, 다음 판단, 실패 진단을 표시
   - 상태: 진행 중
@@ -240,6 +242,42 @@
 - Console 맵 검증 결과: —
 - 배포·라이브 검증: —
 
+### Phase 2.5 — Blueprint Foundation
+
+사용자 우선순위 변경(2026-08-22): 서비스 범위 확장(Phase 3) 전에 First-class Blueprint Engine을 구축한다. 정본 설계 = `OCI_CLI_BLUEPRINT_ENGINE_DESIGN.md`. 첫 자산 = `network-baseline-2tier/v1`(VCN·IGW·NAT·SGW·Public/Private RT·Public/Private SL·Public/Private Subnet 10개). 블로그는 OCI를 직접 실행하지 않고 read-only Discover + Apply/Resume/Verify/Rollback Bash를 생성하고 결과 JSON을 다시 Import한다. 각 하위 Phase는 테스트 통과 후 진행하며, 배포·라이브 검증 전까지 완료 처리하지 않는다.
+
+- [x] `P2.5-01` Contracts & generator — 8 schema(envelope·run-result·verification·run-manifest·discovery·blueprint-input·blueprint·blueprint-schema), blog-db source 3(catalog·blueprint def·naming policy), 응답 pointer 레지스트리, 검증 코어 `scripts/lib/blueprint-validate.mjs` + `generate-cli-blueprints.mjs`/`verify-oci-cli-blueprints.mjs`(commandRef/option/deprecated/required/derived/pointer/DAG/cycle/nodeOutput ancestry 검증), RFC 8785+SHA-256 digest, protected L1 `cliBlueprints` 파이프라인. **green: 정본 통과 + negative fixture 8종 거부 + digest 결정성 + lint + `tsc -b`.** 라이브 bake(`generate-protected-data.mjs`)는 HUB_LOCK 비번 필요 → 사용자 실행 대기
+- [x] `P2.5-02` Pure engine — 완료(green): 타입/canonical/graph/shellQuote + `blueprintNaming`(정규화·pattern·DNS·충돌) + `blueprintDerive`(10키, __ref 토큰) + `blueprintResolve`(compare/render 2단계, json 중첩 value-source 재귀, jq JSON 빌더) + `blueprintPlan`(discovery→CREATE/REUSE/CONFLICT/BLOCKED, planDigest, kebab↔camel 통일 comparator) + `blueprintRender`(Discover/Apply/Resume/Verify/Rollback bash) + `blueprintManifest`(provisional/verify평가/final merge/digest). `scripts/test-blueprint-engine.mjs` **40건 통과 + 5개 스크립트 bash -n 통과** · tsc · oxlint
+- [x] `P2.5-03` Network Blueprint — 10노드 2-Tier 정의(P2.5-01) + Service Gateway discovery(oracleServicesNetworkAll) + per-resource comparison/verify/rollback 계약 엔진 반영. 실제 Apply bash 검수: run-id 태그 주입·route rules(IGW/NAT/SGW)·sgw services·subnet 참조·소유권 롤백 정상
+- [x] `P2.5-04` UI — `CliBlueprintWorkspace`(6탭 DESIGN/DISCOVER/PLAN/APPLY/VERIFY/MANIFEST) + 좌측 `Blueprints` 진입 + 딥링크 `?mode=blueprint&blueprint=&version=` + JSON Import/Export(artifactType 검증) + 검증 사이드바 + 반응형. tsc·lint·vite build 통과. (라이브 렌더는 L1 bake 후)
+- [x] `P2.5-04.5` 적대적 리뷰(ultracode 5-lens 워크플로우) — **CRITICAL 인젝션 수정**: 위조 `__var` 셸 인젝션 → `VarRef` 클래스 + bash 식별자 검증 + `stripReserved`. 그 외: discover 실패→DISCOVERY_ERROR(중복생성 차단), Apply EXIT trap 부분 run-result(resume 가능), rollback get 멱등, verify `--argjson`, ownership 빈 run-id 가드, `--wait-for-state AVAILABLE`, compartment 이중검증, derive ref ancestry 게이트. 보안 regression 테스트 3건 추가(총 43건) 및 Windows Git Bash 경로 호환 수정
+- [x] `P2.5-05` Release — v3.90.3 source lock 검토·갱신, metadata contract/OCI provenance 갱신, HUB_LOCK bake 및 protected-data 검증 완료. 남은 작업 없음
+- [x] `P2.5-06` Blueprint Input UX — SSH source `0.0.0.0/0` 차단 제거 및 실제 ingress rule 회귀 고정. 네이밍 컨벤션의 요소별 포함 체크·구분자(`-`/`_`/`.`/없음)·drag/키보드 순서 변경·전체 MANUAL 이름 입력을 엔진과 UI 계약에 반영했다. 우측 `실행 전 입력 확인`에서 누락 필드를 안내하고 클릭 시 실제 input으로 포커스한다. `Alt+I` 전체화면 질답은 이전/현재/다음 질문 대비, Enter 전환·Esc 종료·자동 종료, 요소 선택/정렬 키보드 조작을 제공한다. 모바일 375px overflow 0 및 우측 패널 하단 재배치를 라이브에서 확인했다.
+- [x] `P2.5-07` 공통 OCI CLI Alt+I 입력 오케스트레이터 — Blueprint 전용 질답 흐름을 공통 `CliInputWizard` 모듈로 승격했다. 모든 일반 OCI CLI 화면에서 공통 실행 컨텍스트(Profile/Region/Auth/Endpoint) → 필수·조건부 필드 → 선택 필드 순으로 안내하고, 필수/권장/선택 표식·값 입력 상태·진행 이정표·Enter/Esc/Alt+←→ 키보드 이동을 동일하게 제공한다. 서비스별 JSON·복수선택·동적 목록 컨트롤은 공통 렌더 컨텍스트에 주입해 재사용한다. **완료: 2026-08-24**
+  - 커밋(site): `7b17a33`; GitHub Actions deploy `32649136213` 성공
+  - 라이브 검증: 자물쇠1 → OCI CLI → Compute → Instance → LIST → Alt+I에서 프로필/리전 → 필수 compartment → 선택 필드 순서, 필수 빈값 차단, Esc 종료, Blueprint Alt+I 재사용을 확인했다. 375px에서 `scrollWidth === innerWidth === 375`, console errors 0.
+- [x] `P2.5-08` OCI CLI 전체 공식 레퍼런스 + 운영 Overlay — 고정한 공식 릴리스의 최종 Click 트리를 모든 public service까지 수집하고, 전체 명령을 기본 탐색면으로 제공한다. 기존 큐레이션은 동적 조회·안전 기본값·Custom/Blueprint를 담당하는 운영 Overlay로 분리하며 공식 옵션 스키마를 복제하지 않는다. **완료: 2026-08-30**
+  - 상태: 구현·보호 데이터 bake·로컬/CI 검증·배포·라이브 검증 완료
+  - 고정 원천: OCI CLI `v3.91.0`, commit `fbff93ae6744ed23671b974fd876adb239545cea`, Click 8.4.2, OCI SDK 2.185.0
+  - 전체 범위: 14개 공식 그룹·171개 public service·9,130개 leaf command·75,307개 option을 171개 지연 로딩 shard와 전역 검색 index로 생성
+  - 화면: 전체 공식 트리와 검색을 기본 노출하고, 명령 선택 시 기존 공통 실행 컨텍스트·Alt+I·필수/선택 입력·JSON schema 불러오기·최종 명령·즐겨찾기·실행 확인을 재사용
+  - Overlay 계약: 53개 운영 리소스·229개 동작·2,258개 옵션의 공식 누락·명령 경로 차이 0. UI 전용 lookup 5개와 공식 Click이 enum으로 선언하지 않은 ONS protocol 1개만 사유·guard가 있는 승인 예외로 유지
+  - 추가 교정: `iam region-subscription list --tenancy-id`를 선택 profile에서 동적으로 조회·OCID 검증 후 주입하고 Bash 회귀로 고정
+  - 커밋(site): `25b0491`(전체 카탈로그) → `dd503c7`(CI 빈 캐시 수집 경로 수정)
+  - GitHub Actions: deploy `33263602402`, OCI CLI metadata guard `33263602418` 성공
+  - 라이브 자산: `current.json`, `3.91.0/index.json`, `services/compute.json`의 SHA-256이 로컬 생성본과 일치
+  - 라이브 화면: 전체 14개 그룹, 171개 서비스, 9,130개 명령 검색, 공식 명령 입력/JSON schema, 같은 CREATE 운영 Overlay 전환, Alt+I/필수 입력 모드, 375px 수평 overflow 0, console errors 0 확인
+  - 순서 회귀 교정(2026-08-30): 공식 카탈로그의 알파벳 직렬화 순서를 좌측 패널이 그대로 사용하던 결함을 제거했다. CLI 전체 명령과 Policy가 `ociConsoleNavigation` 공용 계약을 사용해 Console 순서(Compute→Storage→Networking→Oracle Database→Databases→Analytics & AI→Developer Services→Identity & Security→Observability & Management→Hybrid→Migration→Billing→Governance)를 강제하며, 정확한 14개 렌더 순서를 전용 회귀 테스트로 고정했다.
+
+#### Phase 2.5 완료 증거
+
+- 완료일: 2026-08-22 (v3.90.3 source lock + HUB_LOCK bake 완료)
+- 커밋(site): bb01221→7688de6→ed2734a→e7f3b36→c1dffbe→7e95601 (6커밋, main push, CI deploy success). blog-db: network-baseline-2tier 정의 + msp-standard 정책
+- 테스트 명령·결과: `npm run gen:protected` 성공(L1 4 docs·L2 schedule·L3 2 customers/1 support cases/1 meetings/17 announcements). `npm run test:blueprint` = generate(1 blueprint·1 policy) + verify(정본+negative fixture 8 + digest 결정성) + 엔진/UI 48건(보안 regression 3, Blueprint 입력 UX regression 포함) 전부 통과. `tsc -b` 0, `oxlint` 0, `vite build` 성공. protected/source/click/options/requirements/validation/context/defaults/lookups/metadata/commands 회귀 전부 통과
+- 생성 Bash `bash -n` 결과: discover/apply/resume/verify/rollback 5종 전부 통과. emit_result 부분/전체 flush 기능검증
+- 적대적 리뷰: ultracode 5-lens 워크플로우 → CRITICAL 셸 인젝션(__var 위조) + HIGH 4건 발견·전부 수정+regression
+- 배포·라이브 검증: site `68d050a`, blog-db `3243e80`, GitHub Actions deploy `32576083546` 성공. 자물쇠1 로그인 → OCI CLI → Blueprints에서 네이밍 control 7개·우측 필수입력 패널·Alt+I 질답·모바일 375px overflow 0·console error 0 확인. 라이브 JS/CSS 파일명과 `protected-data.json` SHA-256이 로컬 최종 산출물과 일치
+
 ### Phase 3 — 운영 핵심 서비스 확장
 
 이 Phase에서는 조회·생성·변경·삭제의 닫힌 흐름을 먼저 확장한다. Actions가 필요한 항목은 Phase 4에서 이어서 완성한다.
@@ -264,6 +302,12 @@
 - [ ] `P3-CS-06` Volume Group Backups
 - [ ] `P3-CS-07` Backup Policies와 Volume 할당 관계
 - [ ] `P3-CS-08` File Storage Snapshots
+- [x] `P3-CS-09` Object Storage `bulk-upload`·`object sync` — 최초 폴더 업로드, 반복 동기화, dry-run·체크섬·심볼릭 링크 안전 흐름
+  - 구현: 카탈로그·공식 옵션 계약·메뉴·사용 문서·보호 회귀검증 추가 완료
+  - 완료: 2026-08-23
+  - 검증: OCI CLI v3.90.3 공식 Click 메타데이터·source lock·옵션 관계·명령 생성·블루프린트·lint·build·L1/L2/L3 보호 복호화 회귀 통과
+  - 커밋: 사이트 `24ad8e1` / blog-db `05615eb`
+  - 배포: GitHub Pages deploy run `32645218532` 성공; 라이브 JS `assets/index-c29gjZQD.js`, CSS `assets/index-CaBu59RP.css`, `protected-data.json` SHA-256이 로컬 산출물과 일치
 
 #### Governance·Observability·Cost
 
@@ -401,12 +445,19 @@
 
 ## 5. 다음 작업
 
-다음 착수 항목은 `P2-03 발견 → 선택 → 실행 → 결과 해석 UX 완성`이다.
+2026-09-08 사용자 요청으로 `P2-03` 공통 입력·선행 조회 UX와 설계 검토를 우선한다. Object Storage `P3-CS-09`는 위 완료 증거대로 이미 배포 완료했으며 bake 대기가 아니다. 다음 개선 권고는 설계 검토 보고서의 P1(컨텍스트 무효화·비동기 선택·원천 최신성)이며, 일반 서비스 확장 순서로 복귀할 때의 첫 미완료 항목은 `P3-CS-01`이다.
 
 ## 6. 변경 이력
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-09-08 | P2-03 공통 입력 상태/조회 바로가기 및 코드 기반 구조도·설계 검토. v3.92.0 freshness gate 발견, 원천/보호 데이터 변경 없이 UI 수정 검증 | 이번 커밋 | Codex |
+| 2026-08-30 | P2.5-08 순서 회귀 교정 — 공식 전체 카탈로그의 알파벳순 노출을 제거하고 CLI·Policy 공용 Console IA 정렬 모듈 및 14개 그룹 순서 회귀 게이트 추가 | 이번 커밋 | Codex |
+| 2026-08-24 | P2.5-07 완료 — 모든 일반 OCI CLI에 공통 Alt+I 입력 오케스트레이터 적용. 프로필·리전 권장 입력, 필수/조건부/선택 표식, 서비스별 JSON·복수선택 렌더러, 키보드 이동·진행 이정표·필수값 차단을 공유 모듈로 통합하고 Blueprint와 회귀 검증 | `7b17a33` / blog-db — | Codex |
+| 2026-08-23 | P3-CS-09 완료 — Object Storage Bulk Upload·Object Sync 메뉴/옵션/안전 관계/문서 추가. 보호 데이터 L1/L2/L3 회귀·lint·build·Pages deploy `32645218532`·라이브 JS/CSS/protected-data SHA-256 일치 검증 | `24ad8e1` / blog-db `05615eb` | Codex |
+| 2026-08-22 | P2.5-06 — Blueprint 입력 UX: SSH 0.0.0.0/0 허용, 선택·구분자·순서·수동 네이밍, 우측 필수입력 포커스, Alt+I 전체화면 키보드 질답, 모바일 overflow 회귀 수정. 엔진/UI 48건·lint·build·보호 데이터·라이브 artifact 일치 검증 | `68d050a` / blog-db `3243e80` | Codex |
+| 2026-08-22 | Phase 2.5 — Blueprint Engine 코드 완료(P2.5-01~04.5): 계약 8스키마+생성기/검증(negative fixture 8), 순수 엔진(naming·derive·resolve·plan·render·manifest, 43 테스트+5 bash -n), 6탭 UI+딥링크, ultracode 5-lens 적대적 리뷰로 CRITICAL 셸 인젝션+HIGH 4건 수정. 6커밋 push·CI deploy success·앱셸 스모크 통과. 라이브 데이터는 HUB_LOCK bake(사용자) 대기 | `7e95601` | Claude |
+| 2026-08-20 | P2-02 회귀 수정 — Announcement LIST `data.items[]` 응답 경로를 반영해 GET 동적 조회의 Bash 조기 종료 제거, 실제 OCI GET·219개 생성 Bash 회귀 검증 | — | Codex |
 | 2026-08-15 | P2-03 부분 구현 — 범용 JSON 구조화 입력·유효성 검사, Instance 부팅 소스 variant, 현재 컨텍스트 기반 Image 조회·OS/버전 선택 흐름과 회귀 게이트 구축 | `b45e378` | Codex |
 | 2026-08-15 | P2-02 완료 — 필수 OCID 232회 전수 분류, 220회 안전 동적 조회·12회 사유 있는 직접 입력, 0/1/N 중단 및 생성 Bash 회귀 구축 | `346d110` | Codex |
 | 2026-08-15 | P2-01 완료 — 44개 CRUD 리소스 LIST 기본 진입, 유지보수 GET 기본 진입, 공통 안전 정책·회귀 게이트 구축 | `4c54320` | Codex |

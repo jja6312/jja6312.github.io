@@ -24,6 +24,8 @@ const XP_SYSTEMS = [
   { match: /^\/learning/, id: 'learning', label: '학습' },
   { match: /^\/feedback/, id: 'feedback', label: '피드백' },
   { match: /^\/knowledge\/oci-cli/, id: 'oci-cli', label: 'OCI CLI' },
+  { match: /^\/knowledge\/cli-wizard/, id: 'cli-wizard', label: 'CLI UI Wizard' },
+  { match: /^\/knowledge\/mobaxterm/, id: 'mobaxterm', label: 'MobaXterm 제어' },
   { match: /^\/knowledge\/terraform/, id: 'terraform', label: 'Terraform' },
   { match: /^\/knowledge\/troubleshooting/, id: 'troubleshooting', label: '트러블슈팅' },
   { match: /^\/knowledge\/support-history/, id: 'support-history', label: '지원이력' },
@@ -33,8 +35,10 @@ const XP_SYSTEMS = [
   { match: /^\/knowledge\/announcements/, id: 'announcements', label: 'Announcement' },
   { match: /^\/knowledge/, id: 'knowledge', label: '지식모음' },
   { match: /^\/schedule\/calendar/, id: 'calendar', label: '월간일정' },
+  { match: /^\/schedule\/tasks/, id: 'tasks', label: '업무관리' },
   { match: /^\/schedule\/todo/, id: 'todo', label: 'TODO LIST' },
   { match: /^\/schedule\/goals/, id: 'goals', label: '목표' },
+  { match: /^\/schedule\/automation-inbox/, id: 'automation-inbox', label: '업무 자동 수집함' },
   { match: /^\/profile/, id: 'profile', label: '프로필' },
 ] as const
 
@@ -86,8 +90,13 @@ function Hotkeys() {
         else if (e.key === 'k') nav('/knowledge')
         else if (e.key === 's') nav('/knowledge/troubleshooting')
         else if (e.key === 'h') nav('/knowledge/support-history')
+        else if (e.key === 'e') nav('/knowledge/sr')           // SR(Service Request) 목록
         else if (e.key === 'a') nav('/knowledge/announcements')
         else if (e.key === 'c') nav('/knowledge/oci-cli')
+        else if (e.key === 'w') nav('/knowledge/cli-wizard')
+        else if (e.key === 'i') nav('/knowledge/oci-policy')   // IAM policy 라이브러리
+        else if (e.key === 'u') nav('/knowledge/oci-grammar')  // 쿼리 문법 (qUery)
+        else if (e.key === 'x') nav('/knowledge/mobaxterm')    // MobaXterm
         else if (e.key === 't') nav('/knowledge/terraform')
         else if (e.key === 'q') nav('/knowledge/quote')
         else if (e.key === 'v') nav('/knowledge/provisioning')

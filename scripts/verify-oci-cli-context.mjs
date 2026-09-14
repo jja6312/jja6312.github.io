@@ -126,7 +126,7 @@ if ((builder.match(/\.\.\.requestContext/g) ?? []).length < 6
 if (builder.includes('CTX=(--profile "$PROFILE" --region "$REGION")')) fail('A builder still hard-codes the old Profile/Region-only context')
 
 const buildStart = builder.indexOf('function buildCli(')
-const buildEnd = builder.indexOf('\nconst catOfResource', buildStart)
+const buildEnd = builder.indexOf('\nexport default function CliBuilderPage', buildStart)
 if (buildStart < 0 || buildEnd < 0) fail('Generic CLI builder extraction failed')
 const buildHarness = `
 const DYNAMIC = {'--compartment-id': {}}

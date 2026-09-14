@@ -40,6 +40,9 @@ export interface SupportHistoryCase {
 export interface ProtectedBundle {
   cliCatalog?: unknown
   cliVerified?: string[]
+  cliBlueprints?: unknown
+  ociPolicy?: unknown
+  ociGrammar?: unknown
   terraformDocs?: ProtectedDoc[]
   quoteHtml?: string
   schedule?: {
@@ -47,13 +50,16 @@ export interface ProtectedBundle {
     board: unknown
     journal: unknown
     goals: unknown
+    tasks: unknown
   }
   meetings?: ProtectedDoc[]
   announcements?: {
     catalog: ProtectedDoc[]
     snapshots: ProtectedDoc[]
   }
+  automationInbox?: unknown
   provisioning?: unknown
+  sr?: unknown
   supportHistory?: SupportHistoryCase[]
 }
 
@@ -125,11 +131,16 @@ export function useProtectedData() {
 export function protectedJson(bundle: ProtectedBundle | null, path: string): unknown {
   if (!bundle) return undefined
   const map: Record<string, unknown> = {
+    'knowledge/oci-policy/policies.json': bundle.ociPolicy,
+    'knowledge/oci-grammar/grammar.json': bundle.ociGrammar,
     'profile/calendar.json': bundle.schedule?.calendar,
     'todo/board.json': bundle.schedule?.board,
     'schedule/journal.json': bundle.schedule?.journal,
     'schedule/goals.json': bundle.schedule?.goals,
+    'schedule/tasks.json': bundle.schedule?.tasks,
+    'automation/inbox.json': bundle.automationInbox,
     'provisioning/contracts.json': bundle.provisioning,
+    'sr/incidents.json': bundle.sr,
   }
   return map[path]
 }

@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jja6312.github.io/schemas/oci-cli-verification-result.schema.json",
+  "title": "CliBlueprintVerificationResultPayload",
+  "description": "Verify Bash 가 marker 사이에 출력하는 oci-cli-blueprint-verification-result/v1 wire payload. Provisional Manifest 의 OCID 만 read-only 로 확인한 결과다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "planDigest", "runResultDigest", "provisionalManifestDigest", "startedAt", "finishedAt", "status", "nodes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "planDigest": { "$ref": "#/$defs/digest" },
+    "runResultDigest": { "$ref": "#/$defs/digest" },
+    "provisionalManifestDigest": { "$ref": "#/$defs/digest" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "status": { "$ref": "#/$defs/vstatus" },
+    "nodes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ocid", "status", "assertions"],
+        "properties": {
+          "ocid": { "type": "string", "pattern": "^ocid1\\.[a-z0-9_-]+\\." },
+          "status": { "$ref": "#/$defs/vstatus" },
+          "assertions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "status", "message"],
+              "properties": {
+                "id": { "type": "string" },
+                "status": { "$ref": "#/$defs/vstatus" },
+                "message": { "type": "string" },
+                "expected": {},
+                "actual": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "vstatus": { "enum": ["PASS", "WARN", "FAIL", "ERROR"] }
+  }
+}

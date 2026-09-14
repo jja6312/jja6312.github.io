@@ -58,9 +58,10 @@ export function validateCliOptions(
   options: CliValidationOption[],
   values: Record<string, string>,
   rules: CliValidationRule[] = [],
+  automatic: Record<string, boolean> = {},
 ): CliValidationResult {
   const optionByName = new Map(options.map(option => [option.name, option]))
-  const active = (name: string) => isCliOptionValueActive(optionByName.get(name), values[name] ?? '')
+  const active = (name: string) => automatic[name] === true || isCliOptionValueActive(optionByName.get(name), values[name] ?? '')
   const issues: CliValidationIssue[] = []
   const coveredConflictPairs = new Set<string>()
   const pairKey = (left: string, right: string) => [left, right].sort().join('\u0000')

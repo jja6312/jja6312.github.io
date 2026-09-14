@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jja6312.github.io/schemas/oci-cli-artifact-envelope.schema.json",
+  "title": "CliBlueprintArtifactEnvelope",
+  "description": "Discover/Apply/Verify Bash 가 marker 사이에 출력한 wire payload 를 브라우저/Node 공용 RFC 8785+SHA-256 모듈이 감싼 import envelope. digest 는 payload 를 RFC 8785 로 canonicalize 한 UTF-8 bytes 의 SHA-256 lowercase hex.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["envelopeVersion", "artifactType", "digest", "computedBy", "importedAt", "payload"],
+  "properties": {
+    "envelopeVersion": { "const": 1 },
+    "artifactType": { "enum": ["DISCOVERY_RESULT", "RUN_RESULT", "VERIFICATION_RESULT"] },
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "computedBy": { "const": "blueprint-engine-rfc8785-sha256" },
+    "importedAt": { "type": "string", "format": "date-time" },
+    "payload": { "type": "object" }
+  }
+}

@@ -9,6 +9,7 @@ const fail = message => { throw new Error(message) }
 const catalog = JSON.parse(readFileSync(resolve('.protected-cache/cliCatalog.json'), 'utf8'))
 const page = readFileSync(resolve('src/pages/CliBuilderPage.tsx'), 'utf8')
 const optionSource = readFileSync(resolve('src/lib/cliOptionModel.ts'), 'utf8')
+const dynamicLookupSource = readFileSync(resolve('src/lib/cliDynamicLookup.ts'), 'utf8')
 
 const compiledOptionModel = ts.transpileModule(optionSource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -18,13 +19,14 @@ vm.runInNewContext(compiledOptionModel, { module: optionModule, exports: optionM
 const optionModel = optionModule.exports
 
 const builderStart = page.indexOf('const formatCliCommand')
-const builderEnd = page.indexOf('\nconst catOfResource', builderStart)
+const builderEnd = page.indexOf('\nexport default function CliBuilderPage', builderStart)
 if (builderStart < 0 || builderEnd < 0) fail('OCI CLI builder extraction failed')
 const commonNames = [
   ...catalog.executionContext.request.map(option => option.name),
   ...catalog.executionContext.response.map(option => option.name),
 ]
 const harness = `
+${dynamicLookupSource.replace(/\bexport /g, '')}
 const JSONSPEC = {}
 const allOptions = command => [...(command.lookupInputs ?? []), ...command.sections.flatMap(section => section.options), ...command.advanced]
 const isDynamic = (dynamic, name) => dynamic[name] === true
@@ -40,6 +42,7 @@ ${page.slice(builderStart, builderEnd)}
 globalThis.buildCli = buildCli
 globalThis.buildImageDiscoveryCommand = buildImageDiscoveryCommand
 globalThis.buildInstanceLaunchPreflightCommand = buildInstanceLaunchPreflightCommand
+globalThis.dynamicLookupItemIterator = dynamicLookupItemIterator
 `
 const builderContext = {}
 vm.runInNewContext(ts.transpileModule(harness, {
@@ -48,9 +51,11 @@ vm.runInNewContext(ts.transpileModule(harness, {
 const buildCli = builderContext.buildCli
 const buildImageDiscoveryCommand = builderContext.buildImageDiscoveryCommand
 const buildInstanceLaunchPreflightCommand = builderContext.buildInstanceLaunchPreflightCommand
+const dynamicLookupItemIterator = builderContext.dynamicLookupItemIterator
 if (typeof buildCli !== 'function') fail('OCI CLI buildCli harness did not compile')
 if (typeof buildImageDiscoveryCommand !== 'function') fail('OCI image discovery harness did not compile')
 if (typeof buildInstanceLaunchPreflightCommand !== 'function') fail('OCI Instance preflight harness did not compile')
+if (typeof dynamicLookupItemIterator !== 'function') fail('Dynamic lookup response iterator did not compile')
 
 const allOptions = surface => [
   ...(surface.lookupInputs ?? []),
@@ -138,7 +143,7 @@ for (const [resource, command] of Object.entries(catalog.commands)) {
     records.push({ resource, command, operation: command.preferredOperation ?? 'get', action, surface })
   }
 }
-if (records.length !== 219) fail(`Expected 219 command surfaces, got ${records.length}`)
+if (records.length !== 242) fail(`Expected 242 command surfaces, got ${records.length}`)
 
 let requiredGuards = 0
 let actionScripts = 0
@@ -162,7 +167,7 @@ for (const record of records) {
     if (empty.valid) fail(`${resource}:${action ? `action:${action}` : operation} accepts empty required input`)
   }
   const responseEnabled = !command.crossCopy && !command.maintenanceReboot && !command.compartmentCleanup
-    && !command.allSubscriptionBalances && !command.iamMfaReset && !command.manualBackup
+    && !command.allSubscriptionBalances && !command.iamMfaReset && !command.manualBackup && !command.customWorkflow
   const script = buildCli(command, values, {}, operation, action,
     ["--profile 'DEFAULT'"], responseEnabled ? ['--output json'] : [])
   const key = `${resource}:${action ? `action:${action}` : operation}`
@@ -170,7 +175,7 @@ for (const record of records) {
   scripts.set(key, script)
   actionScripts += action ? 1 : 0
   specialScripts += !!(command.crossCopy || command.maintenanceReboot || command.compartmentCleanup
-    || command.allSubscriptionBalances || command.iamMfaReset || command.manualBackup)
+    || command.allSubscriptionBalances || command.iamMfaReset || command.manualBackup || command.customWorkflow)
 }
 
 const bash = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash'
@@ -267,8 +272,9 @@ for (const record of records) {
   const script = buildCli(command, values, dynamic, operation, action,
     ["--profile 'DEFAULT'"], command.maintenanceReboot ? [] : ['--output json'])
   const key = `${resource}:${action ? `action:${action}` : operation}`
-  const rootOnly = command.rootTenancyLookup
-    && dynamicOptions.every(option => option.dynamicLookup.kind === 'compartment')
+  const rootOnly = dynamicOptions.every(option => option.dynamicLookup.kind === 'tenancy')
+    || (command.rootTenancyLookup
+      && dynamicOptions.every(option => option.dynamicLookup.kind === 'compartment'))
   if (rootOnly) {
     if (!script.includes('ocid1.tenancy.*')) fail(`${key}: root tenancy derivation lacks OCID validation`)
   } else if (!script.includes('found=$') || !script.includes('exit 1')) {
@@ -288,10 +294,11 @@ if (dynamicLookups < 200) fail(`Too few required-ID dynamic lookup surfaces cove
 
 const dynamicFlowAssertions = [
   ['instance:get', ['oci compute instance list', 'display-name', 'LOOKUP_INSTANCE_ID_COUNT']],
-  ['announcement:get', ['oci announce announcements list', 'reference-ticket-number']],
+  ['announcement:get', ['oci announce announcements list', 'reference-ticket-number', '.["data"]["items"][]?']],
   ['export:create', ['oci fs export-set list', 'oci fs file-system list', 'oci iam availability-domain list']],
   ['load-balancer:create', ['oci network subnet list', 'LOOKUP_SUBNET_IDS_JSON']],
   ['instance-maintenance-reboot:get', ['oci compute instance list', 'INSTANCE_COUNT']],
+  ['iam-region-subscription:list', ['oci iam availability-domain list', 'ocid1.tenancy.*', '--tenancy-id "$TENANCY_ID"']],
 ]
 for (const [key, markers] of dynamicFlowAssertions) {
   const script = dynamicScriptMap.get(key)
@@ -299,6 +306,21 @@ for (const [key, markers] of dynamicFlowAssertions) {
   for (const marker of markers) {
     if (!script.includes(marker)) fail(`${key}: missing dynamic lookup marker ${marker}`)
   }
+}
+
+const announcementIterator = dynamicLookupItemIterator('announcement')
+const announcementFixture = JSON.stringify({ data: {
+  items: [{ id: 'ocid1.announcement.oc1..example', 'reference-ticket-number': 'ANN00001' }],
+  'user-statuses': [],
+} })
+const announcementFilter = `[${announcementIterator} | select((.["reference-ticket-number"] // "") == $NAME)][0].id // empty`
+const announcementResolution = spawnSync('jq', ['-r', '--arg', 'NAME', 'ANN00001', announcementFilter], {
+  input: announcementFixture,
+  encoding: 'utf8',
+})
+if (announcementResolution.status !== 0
+  || announcementResolution.stdout.trim() !== 'ocid1.announcement.oc1..example') {
+  fail(`Announcement nested LIST response lookup failed: ${announcementResolution.stderr || announcementResolution.stdout}`)
 }
 
 const quoted = optionModel.serializeCliOption({ name: '--name' }, "O'Reilly; echo unsafe")
@@ -329,6 +351,31 @@ if (!cleanup?.includes('CONFIRM_COMPARTMENT') || !cleanup.includes('confirm comp
 const mfa = scripts.get('iam-user-mfa-reset:create')
 if (!mfa?.includes('CONFIRM_USER_NAME') || !mfa.includes('confirm user name')) {
   fail('IAM MFA reset confirmation guard missing from generated command')
+}
+const functionsFoundation = scripts.get('wizocm-functions-foundation:create')
+for (const marker of [
+  'APPLY_WIZOCM_FUNCTIONS', 'oci fn application create', 'oci fn function create',
+  '--detached-mode-timeout-in-seconds', 'oci network nsg rules add',
+  'oci artifacts container repository create', 'oci resource-scheduler schedule create',
+  'oci logging log create', 'ocid1.vaultsecret.*', 'no resource will be changed',
+]) {
+  if (!functionsFoundation?.includes(marker)) fail(`Functions foundation missing safety/flow marker: ${marker}`)
+}
+if (functionsFoundation.includes('personal-access-token') || functionsFoundation.includes('private-key')) {
+  fail('Functions foundation must not accept source-control or private-key secrets')
+}
+const devopsFoundation = scripts.get('wizocm-devops-cicd:create')
+for (const marker of [
+  'APPLY_WIZOCM_DEVOPS', 'oci devops project create', 'oci artifacts repository create-generic-repository',
+  'oci devops build-pipeline-stage create-build-stage', 'create-deliver-artifact-stage',
+  'create-trigger-deployment-stage', 'create-manual-approval-stage',
+  'create-deploy-compute-instance-group-stage', 'ocid1.devopsconnection.*',
+  'is-pass-all-parameters-enabled true', 'COUNT_BASED_APPROVAL', 'INSTANCE_IDS',
+]) {
+  if (!devopsFoundation?.includes(marker)) fail(`DevOps foundation missing safety/flow marker: ${marker}`)
+}
+if (devopsFoundation.includes('personal-access-token') || devopsFoundation.includes('--password')) {
+  fail('DevOps foundation must use a pre-created Connection OCID, not a raw secret')
 }
 
 console.log(JSON.stringify({

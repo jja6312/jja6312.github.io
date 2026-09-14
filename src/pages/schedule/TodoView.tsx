@@ -1,10 +1,13 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  useSyncedJson, SYNC_LABEL, EMPTY_BOARD, EMPTY_JOURNAL, EMPTY_GOALS,
-  CARD_KINDS, kindColor, cardDoneDate,
-  type Board, type Card, type CardKind, type Journal, type GoalsFile,
+  useSyncedJson, SYNC_LABEL, EMPTY_BOARD, EMPTY_JOURNAL, EMPTY_GOALS, EMPTY_TASKS,
+  CARD_KINDS, kindColor, cardDoneDate, reconcileTasksToBoard,
+  type Board, type Card, type CardKind, type Journal, type GoalsFile, type TasksFile, type TodoRef,
 } from '../../lib/scheduleDb'
+import { allowTodoCardDrop, startTodoCardDrag } from '../../lib/todoDnd.mjs'
+import { removeTaskSource, taskSourceFromCard } from '../../lib/taskReconcile.mjs'
 import { useHub } from '../../store'
+import DatePicker from '../../components/DatePicker'
 
 const isoOf = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -16,13 +19,25 @@ const formatCardTime = (value: string) => {
     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(parsed)
 }
+const formatCardDate = (value: string) => value.replaceAll('-', '.')
 
 export default function TodoView() {
   const { rewardActivity, showToast } = useHub()
   const goals = useSyncedJson<GoalsFile>('schedule/goals.json', EMPTY_GOALS, '').data.goals
   const board = useSyncedJson<Board>('todo/board.json', EMPTY_BOARD, 'todo: 보드 갱신')
   const journal = useSyncedJson<Journal>('schedule/journal.json', EMPTY_JOURNAL, 'journal: 일지 갱신')
-  const writable = board.writable && journal.writable
+  const tasks = useSyncedJson<TasksFile>('schedule/tasks.json', EMPTY_TASKS, '')
+  const tasksData = tasks.data
+  const writable = board.writable && journal.writable && tasks.writable
+
+  // TODO 를 열 때 업무관리 미완료 항목을 카드로 반영(주기성은 주기마다). 변경 없으면 no-op.
+  useEffect(() => {
+    // 두 파일이 모두 실제 데이터를 읽기 전에 조정하면 EMPTY_BOARD에 주기성 카드만
+    // 합쳐 저장하면서 수동 카드가 덮어써질 수 있다. 로딩 완료 후에만 reconcile한다.
+    if (!board.writable || board.sync === 'loading' || tasks.sync === 'loading') return
+    const next = reconcileTasksToBoard(board.data, tasksData)
+    if (next) board.update(next)
+  }, [tasksData, tasks.sync, board])
 
   const [date, setDate] = useState(todayIso())
   const [inputs, setInputs] = useState<Record<string, string>>({})
@@ -35,6 +50,8 @@ export default function TodoView() {
   const [editKind, setEditKind] = useState<CardKind>('task')
   const [editDueAt, setEditDueAt] = useState('')
   const [editDueUndated, setEditDueUndated] = useState(true)
+  const [editDoneAt, setEditDoneAt] = useState('')
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)   // 상세·참조 모달 대상
   const dragRef = useRef<{ colId: string; cardId: string } | null>(null)
 
   const goalOf = (id?: string) => goals.find(g => g.id === id)
@@ -42,9 +59,25 @@ export default function TodoView() {
   const setEntry = (patch: Partial<typeof entry>) =>
     journal.update({ ...journal.data, [date]: { goal: entry.goal, learned: entry.learned, goalIds: entry.goalIds, ...patch } })
 
-  const shiftDate = (delta: number) => {
-    const d = new Date(date + 'T00:00:00'); d.setDate(d.getDate() + delta); setDate(isoOf(d))
-  }
+  const shiftDate = (delta: number) => setDate(cur => {
+    const d = new Date(cur + 'T00:00:00'); d.setDate(d.getDate() + delta); return isoOf(d)
+  })
+  // 방향키 ← → 로 날짜 이동 — 입력/셀렉트 타이핑 중이거나 모달·편집·캘린더 열림 중엔 무시.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      if (detailCardId || editId) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return
+      if (document.querySelector('.datepicker-pop')) return
+      e.preventDefault()
+      shiftDate(e.key === 'ArrowLeft' ? -1 : 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailCardId, editId])
 
   // ── 칸반 ──
   const addCard = (colId: string) => {
@@ -64,22 +97,46 @@ export default function TodoView() {
     setDueInputs({ ...dueInputs, [colId]: '' })
     setDueUndated({ ...dueUndated, [colId]: true })
   }
-  const removeCard = (colId: string, cardId: string) =>
-    board.update({ columns: board.data.columns.map(c => c.id === colId ? { ...c, cards: c.cards.filter(x => x.id !== cardId) } : c) })
+  const removeCard = (colId: string, cardId: string) => {
+    const card = board.data.columns.find(column => column.id === colId)?.cards.find(item => item.id === cardId)
+    const source = taskSourceFromCard(card?.source)
+    if (source) {
+      const removal = removeTaskSource(tasksData, card?.source)
+      // 업무 파일을 아직 읽지 못한 상태에서 카드만 지우면 reconcile이 다시 생성한다.
+      if (!removal) { showToast('원본 업무를 불러오는 중입니다. 잠시 후 다시 삭제해 주세요.'); return }
+      if (!confirm(`「${removal.label}」 ${removal.kind}과(와) 현재 TODO 카드를 함께 삭제할까요?`)) return
+      tasks.update(removal.tasks)
+    }
+    board.update({ columns: board.data.columns.map(column => column.id === colId ? { ...column, cards: column.cards.filter(item => item.id !== cardId) } : column) })
+  }
   const patchCard = (cardId: string, patch: Partial<Card>) =>
     board.update({ columns: board.data.columns.map(c => ({ ...c, cards: c.cards.map(x => x.id === cardId ? { ...x, ...patch } : x) })) })
   const saveEdit = () => {
     const t = editText.trim()
+    const editingColumn = editId ? board.data.columns.find(c => c.cards.some(card => card.id === editId)) : undefined
+    const editingDoneCard = editingColumn?.id === 'done'
     if (!editDueUndated && !editDueAt) { showToast('마감 일시를 입력하거나 미정을 선택하세요'); return }
-    if (editId && t) patchCard(editId, { text: t, kind: editKind, dueAt: editDueUndated ? undefined : editDueAt })
-    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true)
+    if (editingDoneCard && !editDoneAt) { showToast('완료일을 입력하세요'); return }
+    if (editId && t) {
+      patchCard(editId, {
+        text: t,
+        kind: editKind,
+        dueAt: editDueUndated ? undefined : editDueAt,
+        ...(editingDoneCard ? { doneAt: editDoneAt } : {}),
+      })
+      if (editingDoneCard && editDoneAt !== date) {
+        setDate(editDoneAt)
+        showToast(`완료일을 ${formatCardDate(editDoneAt)}로 변경했습니다`)
+      }
+    }
+    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true); setEditDoneAt('')
   }
   const cancelEdit = () => {
-    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true)
+    setEditId(null); setEditText(''); setEditDueAt(''); setEditDueUndated(true); setEditDoneAt('')
   }
   const startEdit = (card: Card) => {
     setEditId(card.id); setEditText(card.text); setEditKind(card.kind ?? 'task')
-    setEditDueAt(card.dueAt ?? ''); setEditDueUndated(!card.dueAt)
+    setEditDueAt(card.dueAt ?? ''); setEditDueUndated(!card.dueAt); setEditDoneAt(cardDoneDate(card))
   }
   const moveCard = (toCol: string, beforeCardId?: string) => {
     const src = dragRef.current
@@ -106,10 +163,11 @@ export default function TodoView() {
       <div className="sched-head">
         <h1 className="sheet-h1">TODO LIST</h1>
         <div className="todo-datenav" style={{ marginLeft: 'auto' }}>
-          <button className="iconbtn" onClick={() => shiftDate(-1)} title="이전 날">‹</button>
-          <input className="cli-input todo-dateinput" type="date" value={date} onChange={e => setDate(e.target.value)} />
-          <button className="iconbtn" onClick={() => shiftDate(1)} title="다음 날">›</button>
+          <button className="iconbtn" onClick={() => shiftDate(-1)} title="이전 날 (←)">‹</button>
+          <DatePicker value={date} onChange={setDate} className="todo-datepicker" />
+          <button className="iconbtn" onClick={() => shiftDate(1)} title="다음 날 (→)">›</button>
           <button className="cal-today" onClick={() => setDate(todayIso())}>오늘</button>
+          <span className="todo-datenav-hint px" title="방향키 ← → 로 날짜 이동">← →</span>
         </div>
         <span className="px sched-sync">{SYNC_LABEL[journal.sync === 'synced' ? board.sync : journal.sync]}</span>
       </div>
@@ -148,7 +206,7 @@ export default function TodoView() {
           const cards = col.id === 'done' ? col.cards.filter(c => cardDoneDate(c) === date) : col.cards
           return (
             <div key={col.id} className="kcol"
-              onDragOver={e => e.preventDefault()}
+              onDragOver={e => { e.preventDefault(); allowTodoCardDrop(e.dataTransfer) }}
               onDrop={e => { e.preventDefault(); moveCard(col.id) }}>
               <div className="kcol-hd">
                 <b>{col.title}</b>
@@ -162,8 +220,12 @@ export default function TodoView() {
                 return (
                   <div key={card.id} className={`kcard${overdue ? ' overdue' : ''}`} draggable={!editing && writable}
                     style={kc ? { borderLeft: `3px solid ${kc}` } : undefined}
-                    onDragStart={() => { dragRef.current = { colId: col.id, cardId: card.id } }}
-                    onDragOver={e => e.preventDefault()}
+                    onDragStart={e => {
+                      dragRef.current = { colId: col.id, cardId: card.id }
+                      startTodoCardDrag(e.dataTransfer, card.id)
+                    }}
+                    onDragEnd={() => { dragRef.current = null }}
+                    onDragOver={e => { e.preventDefault(); allowTodoCardDrop(e.dataTransfer) }}
                     onDrop={e => { e.preventDefault(); e.stopPropagation(); moveCard(col.id, card.id) }}>
                     {editing ? (
                       <div className="kcard-edit-form">
@@ -185,6 +247,12 @@ export default function TodoView() {
                             <input type="checkbox" checked={editDueUndated} onChange={e => setEditDueUndated(e.target.checked)} /> 미정
                           </label>
                         </div>
+                        {col.id === 'done' && (
+                          <div className="kcard-completed-row">
+                            <span className="px">완료일</span>
+                            <DatePicker value={editDoneAt} onChange={setEditDoneAt} className="kdone-picker" />
+                          </div>
+                        )}
                         <div className="kcard-edit-actions">
                           <button className="iconbtn" onClick={cancelEdit}>취소</button>
                           <button className="submitbtn" onClick={saveEdit}>저장</button>
@@ -202,13 +270,22 @@ export default function TodoView() {
                           <span className={`kcard-due${!card.dueAt ? ' undated' : overdue ? ' overdue' : ''}`}>
                             {card.dueAt ? `${overdue ? '기한 지남 · ' : '마감 '}${formatCardTime(card.dueAt)}` : '마감 미정'}
                           </span>
+                          {col.id === 'done' && <span className="kcard-completed">완료 {formatCardDate(cardDoneDate(card))}</span>}
                         </div>
+                        {(Boolean(card.detail) || (card.references?.length ?? 0) > 0) && (
+                          <button type="button" className="kcard-refs" onClick={e => { e.stopPropagation(); setDetailCardId(card.id) }} title="상세·참조 보기">
+                            {card.detail && <span className="kref-chip detail">📄 상세</span>}
+                            {card.references?.some(r => r.kind === 'mail') && <span className="kref-chip mail">✉ {card.references.filter(r => r.kind === 'mail').length}</span>}
+                            {card.references?.some(r => r.kind === 'url') && <span className="kref-chip url">🔗 {card.references.filter(r => r.kind === 'url').length}</span>}
+                          </button>
+                        )}
                       </div>
                     )}
                     {!editing && writable && (
                       <div className="kcard-btns">
-                        <button className="kedit" onClick={() => startEdit(card)} title="수정">✎</button>
-                        <button className="kdel" onClick={() => removeCard(col.id, card.id)} title="삭제">✕</button>
+                        <button className="kdetail" onClick={() => setDetailCardId(card.id)} title="상세·참조 편집">＋상세</button>
+                        <button className="kedit" onClick={() => startEdit(card)} title="내용·마감·완료일 수정">✎</button>
+                        <button className="kdel" onClick={() => removeCard(col.id, card.id)} title={taskSourceFromCard(card.source) ? '원본 업무와 함께 삭제' : '삭제'}>✕</button>
                       </div>
                     )}
                   </div>
@@ -258,6 +335,97 @@ export default function TodoView() {
           </div>
         )}
       </section>
+
+      {detailCardId && (() => {
+        const card = board.data.columns.flatMap(c => c.cards).find(c => c.id === detailCardId)
+        if (!card) return null
+        return <CardDetailModal card={card} writable={writable}
+          onSave={patch => patchCard(card.id, patch)} onClose={() => setDetailCardId(null)} />
+      })()}
+    </div>
+  )
+}
+
+/* ── 카드 상세·참조 편집 모달 ── */
+function CardDetailModal({ card, writable, onSave, onClose }: {
+  card: Card; writable: boolean
+  onSave: (patch: Partial<Card>) => void; onClose: () => void
+}) {
+  const [detail, setDetail] = useState(card.detail ?? '')
+  const [refs, setRefs] = useState<TodoRef[]>(card.references ?? [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+  const uid = () => `ref-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  const addRef = (kind: TodoRef['kind']) => setRefs([...refs, { id: uid(), kind }])
+  const patchRef = (id: string, patch: Partial<TodoRef>) => setRefs(refs.map(r => r.id === id ? { ...r, ...patch } : r))
+  const delRef = (id: string) => setRefs(refs.filter(r => r.id !== id))
+  const save = () => {
+    // 빈 참조는 저장하지 않는다(메일=제목·내용 둘 다 비면 제외, url=주소 비면 제외)
+    const cleaned = refs.filter(r => r.kind === 'mail' ? (r.subject?.trim() || r.body?.trim()) : r.url?.trim())
+    onSave({ detail: detail.trim() || undefined, references: cleaned.length ? cleaned : undefined })
+    onClose()
+  }
+  return (
+    <div className="todo-modal-backdrop" onClick={onClose}>
+      <div className="todo-modal" role="dialog" aria-label="상세·참조 편집" onClick={e => e.stopPropagation()}>
+        <div className="todo-modal-hd">
+          <b>{card.text}</b>
+          <button className="iconbtn" onClick={onClose} aria-label="닫기">✕</button>
+        </div>
+
+        <label className="todo-modal-sec">
+          <span className="todo-modal-label px">Detail</span>
+          <textarea className="cli-input todo-detail-area" rows={6} value={detail} readOnly={!writable}
+            placeholder="상세 내용 — 자유 텍스트" onChange={e => setDetail(e.target.value)} />
+        </label>
+
+        <div className="todo-modal-sec">
+          <div className="todo-ref-head">
+            <span className="todo-modal-label px">Reference</span>
+            {writable && <div className="todo-ref-add">
+              <button type="button" className="iconbtn" onClick={() => addRef('mail')}>✉ 메일</button>
+              <button type="button" className="iconbtn" onClick={() => addRef('url')}>🔗 URL</button>
+            </div>}
+          </div>
+          {refs.length === 0 && <p className="todo-ref-empty">참조 없음 — 메일(제목·내용)이나 URL을 추가하세요.</p>}
+          {refs.map(r => (
+            <div key={r.id} className={`todo-ref todo-ref-${r.kind}`}>
+              <div className="todo-ref-top">
+                <span className="todo-ref-kind px">{r.kind === 'mail' ? '메일' : 'URL'}</span>
+                <label className="todo-ref-date px">날짜
+                  <DatePicker value={r.date ?? ''} onChange={v => patchRef(r.id, { date: v || undefined })}
+                    disabled={!writable} clearable placeholder="미지정" />
+                </label>
+                {writable && <button type="button" className="kdel" onClick={() => delRef(r.id)} aria-label="참조 삭제">✕</button>}
+              </div>
+              {r.kind === 'mail' ? (
+                <>
+                  <input className="cli-input" placeholder="메일 제목" value={r.subject ?? ''} readOnly={!writable}
+                    onChange={e => patchRef(r.id, { subject: e.target.value })} />
+                  <textarea className="cli-input todo-ref-body" rows={4} placeholder="메일 내용" value={r.body ?? ''} readOnly={!writable}
+                    onChange={e => patchRef(r.id, { body: e.target.value })} />
+                </>
+              ) : (
+                <>
+                  <input className="cli-input" placeholder="https://…" value={r.url ?? ''} readOnly={!writable}
+                    onChange={e => patchRef(r.id, { url: e.target.value })} />
+                  <input className="cli-input" placeholder="라벨(선택)" value={r.label ?? ''} readOnly={!writable}
+                    onChange={e => patchRef(r.id, { label: e.target.value })} />
+                  {!writable && r.url && <a className="todo-ref-open" href={r.url} target="_blank" rel="noreferrer">열기 ↗</a>}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="todo-modal-actions">
+          <button className="iconbtn" onClick={onClose}>{writable ? '취소' : '닫기'}</button>
+          {writable && <button className="submitbtn" onClick={save}>저장</button>}
+        </div>
+      </div>
     </div>
   )
 }

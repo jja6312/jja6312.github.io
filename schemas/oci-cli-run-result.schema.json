@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jja6312.github.io/schemas/oci-cli-run-result.schema.json",
+  "title": "CliBlueprintRunResultPayload",
+  "description": "Apply/Resume Bash 가 marker 사이에 출력하는 oci-cli-blueprint-run-result/v1 wire payload. CREATED↔createdByRun=true, REUSED↔createdByRun=false, resumeFrom↔resource 같은 semantic invariant 는 엔진 semantic validation 이 별도로 강제한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "attemptId", "planDigest", "blueprintDigest", "contextDigest", "inputDigest", "startedAt", "status", "nodes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "attemptId": { "type": "string", "minLength": 1 },
+    "planDigest": { "$ref": "#/$defs/digest" },
+    "blueprintDigest": { "$ref": "#/$defs/digest" },
+    "contextDigest": { "$ref": "#/$defs/digest" },
+    "inputDigest": { "$ref": "#/$defs/digest" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["SUCCEEDED", "PARTIAL", "FAILED"] },
+    "nodes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/nodeResult" }
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "ocid": { "type": "string", "pattern": "^ocid1\\.[a-z0-9_-]+\\." },
+    "ownedResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actualAction", "ocid", "createdByRun"],
+      "properties": {
+        "actualAction": { "enum": ["CREATED", "REUSED"] },
+        "ocid": { "$ref": "#/$defs/ocid" },
+        "createdByRun": { "type": "boolean" },
+        "configDigest": { "$ref": "#/$defs/digest" },
+        "lifecycleState": { "type": "string" }
+      }
+    },
+    "nodeResult": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "name", "actualAction", "ocid", "createdByRun", "attempt", "startedAt", "finishedAt", "configDigest"],
+          "properties": {
+            "status": { "const": "SUCCEEDED" },
+            "name": { "type": "string" },
+            "actualAction": { "enum": ["CREATED", "REUSED"] },
+            "ocid": { "$ref": "#/$defs/ocid" },
+            "createdByRun": { "type": "boolean" },
+            "attempt": { "type": "integer", "minimum": 1 },
+            "startedAt": { "type": "string", "format": "date-time" },
+            "finishedAt": { "type": "string", "format": "date-time" },
+            "configDigest": { "$ref": "#/$defs/digest" },
+            "lifecycleState": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "name", "attempt", "startedAt", "finishedAt", "error", "resumeEligible", "resumeFrom"],
+          "properties": {
+            "status": { "const": "FAILED" },
+            "name": { "type": "string" },
+            "attempt": { "type": "integer", "minimum": 1 },
+            "startedAt": { "type": "string", "format": "date-time" },
+            "finishedAt": { "type": "string", "format": "date-time" },
+            "error": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "message"],
+              "properties": {
+                "code": { "type": "string" },
+                "message": { "type": "string" },
+                "command": { "type": "string" }
+              }
+            },
+            "resource": { "$ref": "#/$defs/ownedResource" },
+            "resumeEligible": { "type": "boolean" },
+            "resumeFrom": { "enum": ["CREATE", "WAIT", "POST_CREATE_GET"] }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "name", "attempt", "reason"],
+          "properties": {
+            "status": { "enum": ["PENDING", "SKIPPED"] },
+            "name": { "type": "string" },
+            "attempt": { "const": 0 },
+            "reason": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}

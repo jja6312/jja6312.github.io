@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>OCI CLI — 입력과 조회의 설계</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f5f5;color:#2d3142;font-family:Geist,"Malgun Gothic",system-ui,sans-serif;padding:48px 24px}.frame{max-width:1120px;margin:auto}.eyebrow{font:12px "Geist Mono",monospace;color:#4f5d75;letter-spacing:.12em}h1{font:400 40px "Instrument Serif","Malgun Gothic",serif;margin:16px 0}h2{font-size:24px;font-weight:500;margin:48px 0 12px}p,li{font-size:16px;line-height:1.8}p{max-width:880px}.lead{font-size:20px}.figure{overflow-x:auto;margin:24px 0}svg{width:100%;min-width:900px;display:block}svg text{font-family:Geist,"Malgun Gothic",sans-serif;font-size:16px;fill:#2d3142}.sub{font:12px "Geist Mono",monospace;fill:#4f5d75}.node{fill:#fff;stroke:#b7bbc4;stroke-width:1;rx:8}.focus{fill:#fff3ed;stroke:#eb6c36}.zone{fill:#f0f0f1;stroke:#aab0bb;stroke-dasharray:4 4;rx:8}.arrow{fill:none;stroke:#4f5d75;stroke-width:1.2}.legend{font-size:12px;fill:#4f5d75}.findings{display:grid;grid-template-columns:1.15fr 1fr;gap:24px;margin-top:24px}.finding{border-top:2px solid #b7bbc4;padding-top:16px}.finding:first-child{border-color:#eb6c36}.finding h3{font-size:20px;margin:0 0 8px}.finding p{font-size:16px}.badge{display:inline-block;font:12px "Geist Mono",monospace;border:1px solid #b7bbc4;padding:4px 8px;border-radius:4px}footer{border-top:1px solid #ccc;margin-top:48px;padding:24px 0;font-size:12px;color:#4f5d75}a{color:#2e5aa8}@media(max-width:700px){body{padding:24px 16px}h1{font-size:32px}.findings{grid-template-columns:1fr}}@media print{body{padding:0}.figure{overflow:visible;break-inside:avoid}svg{min-width:0}h2{break-after:avoid}}
+</style></head><body><main class="frame">
+<p class="eyebrow">CODE-BASED DESIGN REVIEW · 2026-09-08</p><h1>OCI CLI — 입력과 조회의 설계</h1>
+<p class="lead">“필수 옵션”과 “사람이 입력해야 하는 값”은 다릅니다.</p>
+<p>공식 스키마의 정확성은 유지하고, 입력·자동 조회·선행 조건을 한 기준으로 판단합니다. 브라우저는 명령을 만드는 도구이며 OCI 실행 주체는 사용자의 터미널입니다.</p>
+<h2>01. 전체 구조와 실행 경계</h2><p>공식 원천은 무엇을 실행할 수 있는지 정의하고, 운영 Overlay는 사람이 어떻게 완주하는지 보충합니다. 보호 데이터 잠금 해제는 OCI 로그인과 별개입니다.</p>
+<div class="figure"><svg viewBox="0 0 1000 480" role="img" aria-labelledby="overview-title overview-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="overview-title">OCI CLI 원천에서 실제 실행까지</title><desc id="overview-desc">공식 Click 원천과 운영 Overlay가 생성 데이터로 합쳐져 브라우저 입력과 Bash 생성을 거치고, 사용자의 터미널이 OCI API를 호출한다.</desc>
+<defs><marker id="overview-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#4f5d75"/></marker></defs>
+<rect class="zone" x="20" y="40" width="960" height="252"/><text x="40" y="68" class="sub">REPOSITORIES → BUILD → BROWSER · NO OCI EXECUTION</text>
+<g class="arrow" marker-end="url(#overview-arrow)"><path d="M240 128H328"/><path d="M240 236H280Q288 236 288 228V168Q288 160 296 160H328"/><path d="M528 144H588"/><path d="M788 144H816Q824 144 824 152V192"/><path d="M888 264V348"/><path d="M768 384H584"/></g>
+<rect class="node" x="40" y="92" width="200" height="72"/><text x="56" y="120">공식 Click 원천</text><text class="sub" x="56" y="144">source.lock · options</text>
+<rect class="node" x="40" y="200" width="200" height="72"/><text x="56" y="228">운영 Overlay</text><text class="sub" x="56" y="252">lookup · rules · helpers</text>
+<rect class="node" x="328" y="108" width="200" height="88"/><text x="344" y="140">생성·검증 데이터</text><text class="sub" x="344" y="164">shards + protected L1</text><text class="sub" x="344" y="184">metadata / Bash gates</text>
+<rect class="node focus" x="588" y="108" width="200" height="72"/><text x="604" y="136">공통 명령 화면</text><text class="sub" x="604" y="160">Console IA · inputs</text>
+<rect class="node" x="788" y="192" width="168" height="72"/><text x="804" y="220">Bash 생성</text><text class="sub" x="804" y="244">preview → copy</text>
+<rect class="node" x="768" y="348" width="200" height="72"/><text x="784" y="376">사용자 터미널</text><text class="sub" x="784" y="400">OCI profile / auth</text>
+<rect class="node" x="384" y="348" width="200" height="72"/><text x="400" y="376">OCI API</text><text class="sub" x="400" y="400">IAM · state · results</text>
+<text x="40" y="456" class="legend">실선: 데이터·명령 전달　 점선 경계: 브라우저까지의 처리　 주황: 이번 입력 UX 교정 지점</text>
+</svg></div>
+<h2>02. 입력 상태는 한 번만 판정</h2><p>기존에는 preflight만 자동 조회를 인정했습니다. 이제 폼·Alt+I·실행 전 확인이 같은 상태를 읽습니다. 자동 상태는 “이미 조회됨”이 아니라 “실행 시 조회 가능”입니다.</p>
+<div class="figure"><svg viewBox="0 0 1000 480" role="img" aria-labelledby="readiness-title readiness-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="readiness-title">공통 입력 상태 판정</title><desc id="readiness-desc">입력값과 동적 조회 설정을 공통 resolver가 판정해 일반 폼, Alt+I, 실행 전 확인에 제공하며 자동 조회 가능과 추가 입력 필요를 구분한다.</desc>
+<defs><marker id="readiness-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#4f5d75"/></marker></defs>
+<g class="arrow" marker-end="url(#readiness-arrow)"><path d="M260 220H348"/><path d="M608 192H648Q656 192 656 184V96Q656 88 664 88H716"/><path d="M608 224H716"/><path d="M608 256H676Q684 256 684 264V352Q684 360 692 360H716"/></g>
+<rect class="node" x="40" y="168" width="220" height="104"/><text x="56" y="200">현재 입력 + 옵션 규칙</text><text class="sub" x="56" y="224">values · dynamic mode</text><text class="sub" x="56" y="248">required · dependencies</text>
+<rect class="node focus" x="348" y="144" width="260" height="160"/><text x="364" y="176">공통 입력 Resolver</text><text class="sub" x="364" y="204">provided   직접 입력</text><text class="sub" x="364" y="228">automatic  실행 시 자동 조회</text><text class="sub" x="364" y="252">missing    입력 필요</text><text class="sub" x="364" y="276">blocked    조회 조건 부족</text>
+<rect class="node" x="716" y="52" width="240" height="72"/><text x="732" y="80">일반 입력 폼</text><text class="sub" x="732" y="104">자동 표시 · placeholder</text>
+<rect class="node" x="716" y="188" width="240" height="72"/><text x="732" y="216">Alt+I 질답</text><text class="sub" x="732" y="240">Enter · 필수 조건 안내</text>
+<rect class="node" x="716" y="324" width="240" height="72"/><text x="732" y="352">실행 전 입력 확인</text><text class="sub" x="732" y="376">불완전하면 복사 차단</text>
+<text x="40" y="444" class="legend">실선: 같은 상태의 세 화면 소비　 주황: 단일 판정 모듈　 런타임 권한·조회 성공을 보장하지 않음</text>
+</svg></div>
+<h2>03. Subscription ID — 메뉴 왕복 없는 선택</h2><p>현재 프로필·리전과 초안은 유지합니다. 조회 명령의 JSON 출력을 붙여넣으면 ID를 명시적으로 선택할 수 있습니다. 다른 exactName 조회에도 같은 연결 패널을 사용합니다.</p>
+<div class="figure"><svg viewBox="0 0 1000 488" role="img" aria-labelledby="discovery-title discovery-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="discovery-title">조회 바로가기와 ID 선택</title><desc id="discovery-desc">현재 폼의 컨텍스트로 목록 조회 명령을 생성하고 사용자가 터미널에서 실행한 JSON을 검사한 뒤 ID를 선택해 원래 입력에 적용한다.</desc>
+<defs><marker id="discovery-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#4f5d75"/></marker></defs>
+<rect class="zone" x="20" y="40" width="596" height="368"/><rect class="zone" x="660" y="40" width="320" height="368"/><text class="sub" x="40" y="68">BROWSER · LOCAL MEMORY</text><text class="sub" x="680" y="68">USER TERMINAL</text>
+<g class="arrow" marker-end="url(#discovery-arrow)"><path d="M256 132H356"/><path d="M580 132H704"/><path d="M816 168V280"/><path d="M704 316H580" stroke-dasharray="4 4"/><path d="M356 316H256"/><path d="M144 280V168"/></g>
+<rect class="node" x="40" y="96" width="216" height="72"/><text x="56" y="124">작성 중인 Balance 폼</text><text class="sub" x="56" y="148">profile / region 유지</text>
+<rect class="node focus" x="356" y="96" width="224" height="72"/><text x="372" y="124">Subscriptions 바로가기</text><text class="sub" x="372" y="148">기존 LIST builder 재사용</text>
+<rect class="node" x="704" y="96" width="240" height="72"/><text x="720" y="124">복사한 LIST 실행</text><text class="sub" x="720" y="148">--all --output json</text>
+<rect class="node" x="704" y="280" width="240" height="72"/><text x="720" y="308">JSON 원본 결과</text><text class="sub" x="720" y="332">data[].id · SPM ID</text>
+<rect class="node" x="356" y="280" width="224" height="72"/><text x="372" y="308">붙여넣기 · 결과 검사</text><text class="sub" x="372" y="332">오류 / 0건 / 중복 구분</text>
+<rect class="node" x="40" y="280" width="216" height="72"/><text x="56" y="308">검색 · ID 직접 선택</text><text class="sub" x="56" y="332">기존 입력칸에 적용</text>
+<text class="legend" x="40" y="444">실선: 작성·실행·선택 흐름　 점선 화살표: 사용자가 결과를 붙여넣음　 최초 1건 자동 선택 없음</text><text class="legend" x="40" y="468">조회 컨텍스트 변경 → 붙여넣은 후보 초기화. 다른 종류의 Subscription OCID는 적용 거부.</text>
+</svg></div>
+<div class="findings"><section class="finding"><span class="badge">CORRECTED HERE</span><h3>이번 교정</h3><p>테넌시 자동 조회와 Alt+I 차단 불일치, 선행 조회의 메뉴 왕복, 빈 선택값·직접 OCID에 불필요한 조회 조건 요구를 교정합니다. 동일 상태·동일 조회 모듈을 재사용합니다.</p></section><section class="finding"><span class="badge">NEXT PRIORITIES</span><h3>남은 구조적 과제</h3><p>① 프로필 변경 시 파생값 무효화 ② 비동기 명령 전환의 최신 응답 보장 ③ 입력·검증·Bash가 공유하는 실행 계획 ④ pinned source 갱신과 브라우저 회귀 확대.</p></section></div>
+<p>근거와 우선순위는 <a href="OCI_CLI_DESIGN_REVIEW_2026-09-08.md">코드 기반 검토 보고서</a>에 기록했습니다. 이 도면은 현재 코드의 주요 책임 경계를 요약하며, 세부 리소스별 adapter·모든 옵션·네트워크 실증은 생략했습니다.</p>
+<footer>ARCHITECTURE · DOC-WIDE · NEUTRAL LIGHT · STATIC HTML + INLINE SVG<br>가정: 블로그는 OCI를 직접 호출하지 않음. Google Fonts가 없으면 시스템 글꼴로 표시하며 한글은 Malgun Gothic/system fallback 사용. 브랜드 신규 변경 없음.</footer>
+</main></body></html>

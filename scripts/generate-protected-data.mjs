@@ -9,6 +9,7 @@ import { webcrypto } from 'node:crypto'
 const SITE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const DB = resolve(SITE, '..', 'blog-db')
 const CACHE = join(SITE, '.protected-cache', 'cliCatalog.json')
+const BLUEPRINT_CACHE = join(SITE, '.protected-cache', 'cliBlueprintCatalog.json')
 const OUT = join(SITE, 'public', 'protected-data.json')
 const SITE_VERIFIERS = join(SITE, 'src', 'data', 'authVerifiers.json')
 const DB_VERIFIERS = join(DB, 'auth', 'verifiers.json')
@@ -74,9 +75,13 @@ const readJsonDocs = rel => {
     .sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')))
 }
 
+if (!existsSync(BLUEPRINT_CACHE)) throw new Error('cliBlueprintCatalog.json 없음 — generate-cli-blueprints.mjs 를 먼저 실행하세요')
 const level1 = {
   cliCatalog: JSON.parse(readFileSync(CACHE, 'utf8')),
   cliVerified: readJson('knowledge/oci-cli/verified.json', { verified: [] }).verified ?? [],
+  cliBlueprints: JSON.parse(readFileSync(BLUEPRINT_CACHE, 'utf8')),
+  ociPolicy: readJson('knowledge/oci-policy/policies.json', { statements: [], bundles: [] }),
+  ociGrammar: readJson('knowledge/oci-grammar/grammar.json', { snippets: [] }),
   terraformDocs: readDocs('knowledge/terraform'),
   quoteHtml: readText('tools/quote_form.html'),
 }
@@ -86,10 +91,13 @@ const level2 = {
     board: readJson('todo/board.json', { columns: [] }),
     journal: readJson('schedule/journal.json', {}),
     goals: readJson('schedule/goals.json', { goals: [] }),
+    tasks: readJson('schedule/tasks.json', { recurring: [], oneoff: [], projects: [] }),
   },
 }
 const level3 = {
+  automationInbox: readJson('automation/inbox.json', { schemaVersion: 1, updatedAt: '', candidates: [], runs: [] }),
   provisioning: readJson('provisioning/contracts.json', { customers: [] }),
+  sr: readJson('sr/incidents.json', { incidents: [] }),
   supportHistory: readJsonDocs('support-history/cases'),
   meetings: readDocs('meetings/minutes'),
   announcements: {

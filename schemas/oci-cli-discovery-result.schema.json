@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jja6312.github.io/schemas/oci-cli-discovery-result.schema.json",
+  "title": "CliBlueprintDiscoveryResultPayload",
+  "description": "read-only Discover Bash 가 marker 사이에 출력하는 oci-cli-blueprint-discovery/v1 wire payload. 일부 조회 실패를 0건으로 취급하지 않고 node 별 DISCOVERY_ERROR 로 남긴다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "blueprint", "namingPolicy", "cliSource", "context", "services", "nodes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "blueprint": { "$ref": "#/$defs/idVersionDigest" },
+    "namingPolicy": { "$ref": "#/$defs/idVersionDigest" },
+    "cliSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "tag", "commit"],
+      "properties": {
+        "version": { "type": "string" },
+        "tag": { "type": "string" },
+        "commit": { "type": "string" }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "tenancyId", "region", "compartmentId"],
+      "properties": {
+        "profile": { "type": "string" },
+        "auth": { "type": "string" },
+        "tenancyId": { "type": "string" },
+        "region": { "type": "string" },
+        "compartmentId": { "type": "string" }
+      }
+    },
+    "services": {
+      "description": "Service Gateway 대상 Oracle Services Network 목록(read-only discovery). 하드코딩하지 않는다.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "cidrBlock": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "nodes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "candidates"],
+        "properties": {
+          "status": { "enum": ["OK", "DISCOVERY_ERROR"] },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ocid", "name", "config"],
+              "properties": {
+                "ocid": { "type": "string", "pattern": "^ocid1\\.[a-z0-9_-]+\\." },
+                "name": { "type": "string" },
+                "config": { "type": "object" }
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "idVersionDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "digest"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string" },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
+    }
+  }
+}

@@ -233,12 +233,40 @@ for (const level of [1, 2, 3]) {
       throw new Error(`L${level} MySQL Backup optional field marked required: ${name}`)
     }
   }
-  const governanceCategory = bundle.cliCatalog.categories.find(category => category.id === '07-governance')
-  const accountManagementGroup = governanceCategory?.groups.find(group => group.label === 'Account Management')
-  if (JSON.stringify(accountManagementGroup?.resources) !== JSON.stringify(['announcement'])) {
-    throw new Error(`L${level} Governance & Administration > Account Management menu invalid`)
+  const storageCategory = bundle.cliCatalog.categories.find(category => category.id === '02-storage')
+  const objectStorageGroup = storageCategory?.groups.find(group => group.label === 'Object Storage')
+  if (JSON.stringify(objectStorageGroup?.resources) !== JSON.stringify(['bucket', 'object-put', 'object-get', 'object-bulk-upload', 'object-bulk-download', 'object-sync'])) {
+    throw new Error(`L${level} Storage > Object Storage menu invalid`)
   }
-  const billingCategory = bundle.cliCatalog.categories.find(category => category.id === '08-billing')
+  const bulkUpload = bundle.cliCatalog.commands['object-bulk-upload']
+  const objectSync = bundle.cliCatalog.commands['object-sync']
+  if (bulkUpload?.operations?.create?.cmd !== 'oci os object bulk-upload'
+    || objectSync?.operations?.create?.cmd !== 'oci os object sync') {
+    throw new Error(`L${level} Object Storage transfer commands invalid`)
+  }
+  if (bulkUpload.safeCreateOnly !== true || objectSync.safeCreateOnly !== true) {
+    throw new Error(`L${level} Object Storage transfer safety metadata invalid`)
+  }
+  if (JSON.stringify(requiredNames(bulkUpload.operations.create)) !== JSON.stringify(['--bucket-name', '--namespace', '--src-dir']))
+    throw new Error(`L${level} Bulk Upload required fields invalid`)
+  if (JSON.stringify(requiredNames(objectSync.operations.create)) !== JSON.stringify(['--bucket-name', '--namespace']))
+    throw new Error(`L${level} Object Sync required fields invalid`)
+  for (const name of ['--dry-run', '--verify-checksum', '--no-follow-symlinks']) {
+    if (!publicOptionNames(bulkUpload.operations.create).has(name)) throw new Error(`L${level} Bulk Upload option missing: ${name}`)
+  }
+  for (const name of ['--src-dir', '--dest-dir', '--delete', '--dry-run']) {
+    if (!publicOptionNames(objectSync.operations.create).has(name)) throw new Error(`L${level} Object Sync option missing: ${name}`)
+  }
+  if (bulkUpload.operations.create.rules?.find(rule => rule.id === 'bulk-upload-overwrite-policy')?.kind !== 'mutuallyExclusive'
+    || objectSync.operations.create.rules?.find(rule => rule.id === 'object-sync-direction')?.kind !== 'oneOf') {
+    throw new Error(`L${level} Object Storage transfer option rules invalid`)
+  }
+  const governanceCategory = bundle.cliCatalog.categories.find(category => category.id === '10-governance')
+  const announcementsGroup = governanceCategory?.groups.find(group => group.label === 'Announcements')
+  if (JSON.stringify(announcementsGroup?.resources) !== JSON.stringify(['announcement', 'announcement-subscription'])) {
+    throw new Error(`L${level} Governance & Administration > Announcements menu invalid`)
+  }
+  const billingCategory = bundle.cliCatalog.categories.find(category => category.id === '09-billing')
   const billingGroup = billingCategory?.groups.find(group => group.label === 'Billing')
   if (JSON.stringify(billingGroup?.resources) !== JSON.stringify(['subscription-list', 'subscription-balance'])) {
     throw new Error(`L${level} Billing & Cost Management > Billing menu invalid`)
@@ -320,12 +348,43 @@ for (const level of [1, 2, 3]) {
   for (const field of ['reference-ticket-number', 'announcement-type', 'affected-regions', 'time-one-value']) {
     if (!announcementQuery.includes(field)) throw new Error(`L${level} Announcements query missing ${field}`)
   }
-  const identityCategory = bundle.cliCatalog.categories.find(category => category.id === '06-identity-security')
+  const identityCategory = bundle.cliCatalog.categories.find(category => category.id === '07-identity-security')
   const identityGroup = identityCategory?.groups.find(group => group.label === 'Identity')
-  if (JSON.stringify(identityGroup?.resources) !== JSON.stringify(['iam-user', 'iam-group', 'iam-policy'])) {
+  if (JSON.stringify(identityGroup?.resources) !== JSON.stringify(['iam-compartment', 'iam-user', 'iam-group', 'iam-policy'])) {
     throw new Error(`L${level} Identity & Security > Identity menu invalid`)
   }
+  const regionsGroup = identityCategory?.groups.find(group => group.label === 'Regions')
+  if (JSON.stringify(regionsGroup?.resources) !== JSON.stringify(['iam-region-subscription'])) {
+    throw new Error(`L${level} Identity & Security > Regions menu invalid`)
+  }
+  const regionSubscription = bundle.cliCatalog.commands['iam-region-subscription']
+  if (regionSubscription?.preferredOperation !== 'list'
+    || JSON.stringify(Object.keys(regionSubscription.operations ?? {})) !== JSON.stringify(['list'])) {
+    throw new Error(`L${level} Region Subscriptions LIST metadata invalid`)
+  }
+  const regionSubscriptionList = regionSubscription.operations.list
+  if (regionSubscriptionList.cmd !== 'oci iam region-subscription list'
+    || JSON.stringify(requiredNames(regionSubscriptionList)) !== JSON.stringify(['--tenancy-id'])) {
+    throw new Error(`L${level} Region Subscriptions command or required fields invalid`)
+  }
+  const regionSubscriptionOptions = regionSubscriptionList.sections.flatMap(section => section.options)
+  const regionSubscriptionOption = name => regionSubscriptionOptions.find(option => option.name === name)
+    ?? contextOption(regionSubscriptionList, name)
+  if (regionSubscriptionOption('--tenancy-id')?.required !== true
+    || regionSubscriptionOption('--tenancy-id')?.dynamicLookup?.kind !== 'tenancy'
+    || !regionSubscriptionOption('--all')?.flag
+    || regionSubscriptionOption('--all')?.defaultValue !== 'true'
+    || regionSubscriptionOption('--output')?.defaultValue !== 'table') {
+    throw new Error(`L${level} Region Subscriptions option defaults invalid`)
+  }
+  const regionSubscriptionQuery = regionSubscriptionOption('--query')?.defaultValue ?? ''
+  for (const field of ['region-name', 'region-key', 'status', 'is-home-region']) {
+    if (!regionSubscriptionQuery.includes(field)) {
+      throw new Error(`L${level} Region Subscriptions query missing ${field}`)
+    }
+  }
   const expectedIamCommands = {
+    'iam-compartment': 'oci iam compartment',
     'iam-user': 'oci iam user', 'iam-group': 'oci iam group', 'iam-policy': 'oci iam policy',
   }
   for (const [resource, prefix] of Object.entries(expectedIamCommands)) {
@@ -341,6 +400,19 @@ for (const level of [1, 2, 3]) {
     }
   }
   const iamUser = bundle.cliCatalog.commands['iam-user']
+  const iamCompartment = bundle.cliCatalog.commands['iam-compartment']
+  if (JSON.stringify(requiredNames(iamCompartment.operations.create))
+    !== JSON.stringify(['--compartment-id', '--description', '--name'])) {
+    throw new Error(`L${level} IAM Compartment CREATE required fields invalid`)
+  }
+  const compartmentListOptions = iamCompartment.operations.list.sections.flatMap(section => section.options)
+  const compartmentListOption = name => compartmentListOptions.find(option => option.name === name)
+  if (compartmentListOption('--compartment-id')?.defaultValue !== 'ROOT'
+    || compartmentListOption('--compartment-id-in-subtree')?.defaultValue !== 'true'
+    || compartmentListOption('--access-level')?.defaultValue !== 'ACCESSIBLE'
+    || !compartmentListOption('--all')?.flag) {
+    throw new Error(`L${level} IAM Compartment LIST defaults invalid`)
+  }
   if (JSON.stringify(requiredNames(iamUser.operations.create)) !== JSON.stringify(['--description', '--name'])) {
     throw new Error(`L${level} IAM User CREATE required fields invalid`)
   }
@@ -375,6 +447,27 @@ for (const level of [1, 2, 3]) {
     || contextOption(allBalances, '--region')?.defaultValue !== 'ap-seoul-1') {
     throw new Error(`L${level} all Subscription balances execution defaults invalid`)
   }
+  const functionsFoundation = bundle.cliCatalog.commands['wizocm-functions-foundation']
+  if (functionsFoundation?.customWorkflow !== 'wizocm-functions-foundation'
+    || functionsFoundation.cmd !== 'oci fn application create') {
+    throw new Error(`L${level} WizOCM Functions custom workflow metadata invalid`)
+  }
+  const functionsRequired = requiredNames(functionsFoundation)
+  for (const name of ['--compartment-input', '--vcn-input', '--private-subnet-input', '--spring-vnic-id', '--spring-instance-id', '--log-group-input', '--spring-internal-url', '--hmac-secret-ocid', '--ocir-namespace', '--release-version']) {
+    if (!functionsRequired.includes(name)) throw new Error(`L${level} Functions workflow required input missing: ${name}`)
+  }
+  const devopsFoundation = bundle.cliCatalog.commands['wizocm-devops-cicd']
+  if (devopsFoundation?.customWorkflow !== 'wizocm-devops-cicd'
+    || devopsFoundation.cmd !== 'oci devops project create') {
+    throw new Error(`L${level} WizOCM DevOps custom workflow metadata invalid`)
+  }
+  const devopsRequired = requiredNames(devopsFoundation)
+  for (const name of ['--github-connection-id', '--target-instance-id', '--build-image', '--deployment-spec-file', '--ons-topic-id']) {
+    if (!devopsRequired.includes(name)) throw new Error(`L${level} DevOps workflow required input missing: ${name}`)
+  }
+  if (JSON.stringify(devopsFoundation).includes('personal-access-token')) {
+    throw new Error(`L${level} DevOps workflow must not store GitHub PAT input`)
+  }
   const cleanup = bundle.cliCatalog.commands['compartment-resource-cleansing']
   if (!cleanup?.compartmentCleanup) throw new Error(`L${level} compartment cleansing 메뉴 누락`)
   const cleanupOptions = cleanup.sections.flatMap(section => section.options)
@@ -386,7 +479,10 @@ for (const level of [1, 2, 3]) {
   }
   const fullCrudCommands = Object.values(bundle.cliCatalog.commands).filter(command => command.operations
     && ['get', 'list', 'create', 'update', 'delete'].every(operation => command.operations[operation]?.cmd))
-  if (fullCrudCommands.length !== 41) throw new Error(`L${level} full CRUD resource count invalid: ${fullCrudCommands.length}`)
+  if (fullCrudCommands.length !== 43) throw new Error(`L${level} full CRUD resource count invalid: ${fullCrudCommands.length}`)
+  if (!fullCrudCommands.some(command => command.resource === 'iam-compartment')) {
+    throw new Error(`L${level} IAM Compartment CRUD metadata missing`)
+  }
   for (const command of fullCrudCommands) {
     for (const operation of ['get', 'list', 'create', 'update', 'delete']) {
       if (!command.operations[operation]?.cmd) throw new Error(`L${level} ${command.resource} ${operation} 명령 누락`)
@@ -429,7 +525,8 @@ if (!cliBuilder.includes('visibleFormSections') || !cliBuilder.includes('showDep
   || !cliBuilder.includes('cli-rule-panel') || !cliBuilder.includes('조건부 필수')) {
   throw new Error('OCI CLI required/conditional/deprecated UI 누락')
 }
-if (!cliBuilder.includes('validateCliOptions(formOptions, validationValues, formRules)')
+if (!cliBuilder.includes('validateCliOptions(formOptions, validationValues, formRules, automaticInputs)')
+  || !cliBuilder.includes('resolveCliInputs(formOptions')
   || !cliBuilder.includes('미완성 명령 미리보기')
   || !cliBuilder.includes('disabled={!commandReady}')
   || !cliBuilder.includes('cli-validation-nav')
@@ -476,10 +573,15 @@ if (!cliBuilder.includes('function buildIamCommand')
 if (!cliBuilder.includes('cli-action-strip') || !cliBuilder.includes('action:${selectedAction}')) {
   throw new Error('IAM action selection or verification UI missing')
 }
-if (!cliBuilder.includes('Custom CLI') || !cliBuilder.includes('setCustomOpen(open => !open)')) {
-  throw new Error('Custom CLI accordion missing')
+if (!cliBuilder.includes("sidebarView === 'automation'") || !cliBuilder.includes('Custom Command')
+  || cliBuilder.includes('setCustomOpen(open => !open)')) {
+  throw new Error('Unified Automation view or Custom Command entry missing')
 }
-if (!cliBuilder.includes('`${r}:${operation}`') || !cliBuilder.includes('isOperationVerified(active, operation.verb)')) {
+if (!cliBuilder.includes('const verificationKey = (r: string, operation: string)')
+  || !cliBuilder.includes('`${r}:${operation}`')
+  || !cliBuilder.includes('isEnhancedOperationVerified(operation.verb)')
+  || !cliBuilder.includes('official:${path}')
+  || !cliBuilder.includes('currentVerificationOperation')) {
   throw new Error('CRUD-level verification controls missing')
 }
 if (!cliBuilder.includes('function buildMysqlBackupCreate')
@@ -578,6 +680,7 @@ if (!context.dynamicGetScript.includes('oci mysql db-system list')
 const iamBuilderStart = cliBuilder.indexOf('function buildIamCommand')
 const iamBuilderEnd = cliBuilder.indexOf('\nfunction buildCli', iamBuilderStart)
 if (iamBuilderStart < 0 || iamBuilderEnd < 0) throw new Error('IAM builder source extraction failed')
+const iamCompartmentCatalog = generatedCliCatalog.commands['iam-compartment']
 const iamUserCatalog = generatedCliCatalog.commands['iam-user']
 const iamPolicyCatalog = generatedCliCatalog.commands['iam-policy']
 const iamHarness = `
@@ -585,8 +688,16 @@ const allOptions = c => [...c.sections.flatMap(s => s.options), ...c.advanced]
 const DYNAMIC = {'--compartment-id': {}, '--user-id': {}, '--group-id': {}, '--policy-id': {}}
 const isDynamic = (dyn, name) => name in DYNAMIC ? (dyn[name] ?? true) : false
 ${cliBuilder.slice(iamBuilderStart, iamBuilderEnd)}
+const compartmentCommand = ${JSON.stringify(iamCompartmentCatalog)}
 const userCommand = ${JSON.stringify(iamUserCatalog)}
 const policyCommand = ${JSON.stringify(iamPolicyCatalog)}
+globalThis.compartmentCreate = buildIamCommand(compartmentCommand, compartmentCommand.operations.create, {
+  '--compartment-id': 'ROOT', '--name': 'prod-app', '--description': 'Production application resources',
+  '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+}, {}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
+globalThis.compartmentGetDirect = buildIamCommand(compartmentCommand, compartmentCommand.operations.get, {
+  '--compartment-id': 'ocid1.compartment.oc1..example', '--profile': 'ADMIN', '--region': 'ap-seoul-1',
+}, {}, ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token'])
 globalThis.userCreate = buildIamCommand(userCommand, userCommand.operations.create, {
   '--name': 'ops.user@example.com', '--description': 'OCI operations', '--email': 'ops.user@example.com',
   '--profile': 'ADMIN', '--region': 'ap-seoul-1',
@@ -620,6 +731,8 @@ vm.runInNewContext(ts.transpileModule(iamHarness, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
 }).outputText, iamContext)
 const iamScripts = {
+  compartmentCreate: iamContext.compartmentCreate,
+  compartmentGetDirect: iamContext.compartmentGetDirect,
   userCreate: iamContext.userCreate,
   passwordReset: iamContext.passwordReset,
   groupAssign: iamContext.groupAssign,
@@ -633,6 +746,8 @@ for (const [name, script] of Object.entries(iamScripts)) {
   if (syntax.status !== 0) throw new Error(`IAM ${name} bash syntax invalid: ${syntax.stderr}`)
 }
 for (const [name, expected] of Object.entries({
+  compartmentCreate: 'oci iam compartment create',
+  compartmentGetDirect: 'oci iam compartment get',
   userCreate: 'oci iam user create',
   passwordReset: 'oci iam user ui-password create-or-reset',
   groupAssign: 'oci iam group add-user',
@@ -641,7 +756,7 @@ for (const [name, expected] of Object.entries({
 })) {
   if (!iamScripts[name].includes(expected)) throw new Error(`IAM ${name} command missing: ${expected}`)
 }
-for (const script of [iamContext.userCreate, iamContext.passwordReset, iamContext.groupAssign, iamContext.policyCreate]) {
+for (const script of [iamContext.compartmentCreate, iamContext.compartmentGetDirect, iamContext.userCreate, iamContext.passwordReset, iamContext.groupAssign, iamContext.policyCreate]) {
   for (const expected of ["--profile 'ADMIN'", "--region 'ap-seoul-1'", '--auth security_token']) {
     if (!script.includes(expected)) throw new Error(`IAM request context missing: ${expected}`)
   }
@@ -660,6 +775,16 @@ if (!iamContext.policyCreate.includes('TENANCY_ID=$(oci iam availability-domain 
   || !iamContext.policyCreate.includes('--compartment-id "$TENANCY_ID"')
   || !iamContext.policyCreate.includes('--statements "[\\"Allow group OCI-Operators')) {
   throw new Error('IAM Policy ROOT tenancy or statement handling invalid')
+}
+if (!iamContext.compartmentCreate.includes('TENANCY_ID=$(oci iam availability-domain list')
+  || !iamContext.compartmentCreate.includes('--compartment-id "$TENANCY_ID"')
+  || !iamContext.compartmentCreate.includes('--name "prod-app"')
+  || !iamContext.compartmentCreate.includes('--description "Production application resources"')) {
+  throw new Error('IAM Compartment ROOT parent or required input handling invalid')
+}
+if (!iamContext.compartmentGetDirect.includes('--compartment-id "ocid1.compartment.oc1..example"')
+  || iamContext.compartmentGetDirect.includes('oci iam compartment list')) {
+  throw new Error('IAM Compartment direct OCID must not trigger a name lookup')
 }
 for (const script of [iamContext.mfaPreview, iamContext.mfaReset]) {
   for (const expected of ['oci iam mfa-totp-device list', 'oci iam mfa-totp-device delete', '--mfa-totp-device-id "$MFA_ID"', '--force']) {

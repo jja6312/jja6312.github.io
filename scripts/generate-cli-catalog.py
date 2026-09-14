@@ -21,41 +21,51 @@ ensure_source()
 CLICK_TREE = load_click_tree()
 CLICK_COMMANDS = CLICK_TREE['commands']
 
+# OCI 콘솔 햄버거 네비게이션 메뉴 구조를 그대로 미러링(2026-08-25, 공식문서 검증).
+# 최상위 카테고리명은 콘솔 verbatim, 순서도 콘솔 관찰 순서. 우리 리소스가 없는 카테고리
+# (Analytics & AI, Hybrid, Migration & DR 등)는 생략. 콘솔에서 서브리소스인 subnet/route-table/
+# security-list/nsg/게이트웨이는 콘솔대로 'Virtual Cloud Networks' 그룹 안에 둔다.
+# Announcements/Support 는 콘솔 헤더(별도) 항목이지만 문서 분류상 Governance & Administration.
 STRUCTURE = [
-  ('02-compute', 'Compute', [
+  ('01-compute', 'Compute', [
     ('Instances', ['instance', 'instance-boot-volume-backup', 'instance-maintenance-reboot', 'instance-configuration', 'instance-pool']),
     ('Dedicated Infrastructure', ['dedicated-vm-host', 'capacity-reservation', 'compute-cluster']),
-    ('Images', ['custom-image']),
+    ('Custom Images', ['custom-image']),
   ]),
-  ('03-storage', 'Storage', [
+  ('02-storage', 'Storage', [
     ('Block Storage', ['block-volume', 'boot-volume', 'volume-group', 'volume-backup-policy']),
     ('File Storage', ['file-system', 'mount-target', 'export']),
-    ('Object Storage', ['bucket']),
+    ('Object Storage', ['bucket', 'object-put', 'object-get', 'object-bulk-upload', 'object-bulk-download', 'object-sync']),
   ]),
-  ('04-network', 'Networking', [
-    ('Virtual Cloud Networks', ['vcn', 'subnet', 'route-table', 'dhcp-options']),
-    ('Security', ['security-list', 'nsg']),
-    ('Gateways', ['internet-gateway', 'nat-gateway', 'service-gateway', 'drg', 'drg-attachment', 'local-peering-gateway', 'remote-peering-connection']),
+  ('03-networking', 'Networking', [
+    ('Virtual Cloud Networks', ['vcn', 'subnet', 'route-table', 'dhcp-options', 'security-list', 'nsg', 'internet-gateway', 'nat-gateway', 'service-gateway', 'local-peering-gateway']),
+    ('Customer Connectivity', ['drg', 'drg-attachment', 'remote-peering-connection']),
     ('IP Management', ['public-ip']),
     ('Load Balancers', ['load-balancer', 'network-load-balancer']),
   ]),
-  ('05-database', 'Database', [
+  ('04-oracle-database', 'Oracle Database', [
     ('Autonomous Database', ['autonomous-database']),
-    ('Oracle Base Database', ['base-db']),
+    ('Base Database Service', ['base-db']),
+  ]),
+  ('05-databases', 'Databases', [
     ('MySQL HeatWave', ['mysql', 'mysql-backup']),
   ]),
-  ('06-identity-security', 'Identity & Security', [
-    ('Identity', ['iam-user', 'iam-group', 'iam-policy']),
-  ]),
-  ('06-observability', 'Observability', [
-    ('Monitoring', ['alarm']),
+  ('06-developer-services', 'Developer Services', [
     ('Notifications', ['topic', 'subscription']),
   ]),
-  ('07-governance', 'Governance & Administration', [
-    ('Account Management', ['announcement']),
+  ('07-identity-security', 'Identity & Security', [
+    ('Identity', ['iam-compartment', 'iam-user', 'iam-group', 'iam-policy']),
+    ('Regions', ['iam-region-subscription']),
   ]),
-  ('08-billing', 'Billing & Cost Management', [
+  ('08-observability', 'Observability & Management', [
+    ('Monitoring', ['alarm']),
+  ]),
+  ('09-billing', 'Billing & Cost Management', [
     ('Billing', ['subscription-list', 'subscription-balance']),
+  ]),
+  ('10-governance', 'Governance & Administration', [
+    ('Announcements', ['announcement', 'announcement-subscription']),
+    ('Support', ['support-incident']),
   ]),
 ]
 
@@ -64,16 +74,22 @@ RES_LABEL = {
   'dedicated-vm-host': 'Dedicated VM Host', 'capacity-reservation': 'Capacity Reservation', 'compute-cluster': 'Compute Cluster',
   'custom-image': 'Custom Image', 'block-volume': 'Block Volume', 'boot-volume': 'Boot Volume', 'volume-group': 'Volume Group',
   'volume-backup-policy': 'Volume Backup Policy', 'file-system': 'File System', 'mount-target': 'Mount Target', 'export': 'Export',
-  'bucket': 'Bucket', 'vcn': 'VCN', 'subnet': 'Subnet', 'route-table': 'Route Table', 'dhcp-options': 'DHCP Options',
+  'bucket': 'Bucket', 'object-put': 'Object Upload', 'object-get': 'Object Download',
+  'object-bulk-upload': 'Bulk Upload', 'object-bulk-download': 'Bulk Download', 'object-sync': 'Object Sync',
+  'vcn': 'VCN', 'subnet': 'Subnet', 'route-table': 'Route Table', 'dhcp-options': 'DHCP Options',
   'security-list': 'Security List', 'nsg': 'Network Security Group', 'internet-gateway': 'Internet Gateway',
   'nat-gateway': 'NAT Gateway', 'service-gateway': 'Service Gateway', 'drg': 'DRG', 'drg-attachment': 'DRG Attachment',
   'local-peering-gateway': 'Local Peering Gateway', 'remote-peering-connection': 'Remote Peering Connection',
   'public-ip': 'Public IP', 'load-balancer': 'Load Balancer', 'network-load-balancer': 'Network Load Balancer',
   'autonomous-database': 'Autonomous Database', 'base-db': 'Base Database System', 'mysql': 'MySQL DB System',
   'mysql-backup': 'MySQL Backup',
-  'iam-user': 'Users', 'iam-group': 'Groups', 'iam-policy': 'Policies',
+  'iam-compartment': 'Compartments', 'iam-user': 'Users', 'iam-group': 'Groups', 'iam-policy': 'Policies',
+  'iam-region-subscription': 'Region Subscriptions',
   'subscription-list': 'Subscriptions', 'subscription-balance': 'Subscription Balance',
   'alarm': 'Alarm', 'topic': 'Topic', 'subscription': 'Subscription', 'announcement': 'Announcements',
+  'announcement-subscription': 'Announcement Subscription',
+  'support-incident': 'Service Request (SR)',
+  'wizbase-monitoring-setup': 'MSP 모니터링 일괄등록',
 }
 
 # 항상 '고급'으로 보내는 옵션 (콘솔에서도 고급/태그 영역)
@@ -149,7 +165,16 @@ CURATION = {
     'sections': [
       ('기본 정보', ['--display-name', '--compartment-id']),
       ('Placement·크기·성능', ['--availability-domain', '--size-in-gbs', '--vpus-per-gb', '--is-auto-tune-enabled', '--autotune-policies']),
-      ('소스·백업·암호화', ['--source-details', '--volume-backup-id', '--backup-policy-id', '--kms-key-id']),
+      ('복제·복원 소스', ['--source-volume-id', '--volume-backup-id', '--source-volume-replica-id']),
+      ('백업정책·암호화', ['--backup-policy-id', '--kms-key-id', '--block-volume-replicas']),
+    ],
+  },
+  'boot-volume': {
+    'sections': [
+      ('기본 정보', ['--display-name', '--compartment-id', '--availability-domain']),
+      ('복제·복원 소스', ['--source-boot-volume-id', '--boot-volume-backup-id', '--source-volume-replica-id']),
+      ('크기·성능', ['--size-in-gbs', '--vpus-per-gb', '--is-auto-tune-enabled', '--autotune-policies']),
+      ('백업정책·암호화', ['--backup-policy-id', '--kms-key-id', '--boot-volume-replicas']),
     ],
   },
   'bucket': {
@@ -157,6 +182,24 @@ CURATION = {
       ('기본 정보', ['--name', '--compartment-id', '--namespace-name']),
       ('설정', ['--public-access-type', '--storage-tier', '--versioning', '--auto-tiering', '--object-events-enabled']),
       ('암호화', ['--kms-key-id']),
+    ],
+  },
+  'object-bulk-upload': {
+    'sections': [
+      ('대상과 경로', ['--namespace', '--bucket-name', '--src-dir', '--prefix']),
+      ('업로드 정책', ['--overwrite', '--no-overwrite', '--dry-run', '--verify-checksum', '--include', '--exclude', '--no-follow-symlinks']),
+      ('전송 성능', ['--no-multipart', '--part-size', '--parallel-upload-count', '--disable-parallel-uploads']),
+      ('객체 메타데이터', ['--metadata', '--content-type', '--content-language', '--content-encoding', '--cache-control', '--content-disposition']),
+      ('암호화와 저장 계층', ['--storage-tier', '--encryption-key-file', '--opc-sse-kms-key-id']),
+    ],
+  },
+  'object-sync': {
+    'sections': [
+      ('동기화 방향', ['--namespace', '--bucket-name', '--src-dir', '--dest-dir', '--prefix']),
+      ('동기화 정책', ['--dry-run', '--delete', '--include', '--exclude', '--no-follow-symlinks']),
+      ('전송 성능', ['--no-multipart', '--part-size', '--parallel-operations-count']),
+      ('객체 메타데이터', ['--metadata', '--content-type', '--content-language', '--content-encoding', '--cache-control', '--content-disposition']),
+      ('암호화와 저장 계층', ['--storage-tier', '--encryption-key-file']),
     ],
   },
   'load-balancer': {
@@ -229,10 +272,14 @@ RESOURCE_ID_TARGETS = {
     '--rt-id': 'route-table',
     '--security-list-id': 'security-list',
     '--service-gateway-id': 'service-gateway',
+    '--source-boot-volume-id': 'boot-volume',
+    '--source-volume-id': 'block-volume',
     '--subnet-id': 'subnet',
     '--subnet-ids': 'subnet',
     '--subscription-id': 'subscription',
     '--topic-id': 'topic',
+    '--ons-topic-id': 'topic',
+    '--announcement-subscription-id': 'announcement-subscription',
     '--user-id': 'iam-user',
     '--vcn-id': 'vcn',
     '--volume-group-id': 'volume-group',
@@ -288,6 +335,12 @@ DIRECT_ONLY_LOOKUPS = {
     ('block-volume-cross-copy', '--source-volume-id'): '여러 원본 tenancy volume을 순회하므로 검증된 OCID 목록을 직접 입력합니다.',
 }
 
+# OCI CLI 가 free-string(StringParamType)으로 선언하지만 실제로는 고정 enum 인 옵션.
+# 공식 cmdref 검증분만 등록. (resource, option-name) → choices. 첫 값이 사실상 기본값.
+CHOICE_OVERRIDES = {
+    ('subscription', '--protocol'): ['EMAIL', 'CUSTOM_HTTPS', 'PAGERDUTY', 'SLACK', 'SMS', 'ORACLE_FUNCTIONS', 'HTTPS'],
+}
+
 def recipe_cmd(res):
     p = os.path.join(RECIPE, 'ocicli_%s.md' % res)
     if not os.path.exists(p):
@@ -297,22 +350,52 @@ def recipe_cmd(res):
     return m.group(0) if m else None
 
 def placeholder(name, typ):
+    """옵션 입력 힌트(예시값). 이 시스템은 placeholder 가 비는 것을 허용하지 않는다 —
+    어떤 이름/타입이 와도 마지막 폴백까지 반드시 비어있지 않은 값을 돌려준다.
+    (bool/flag/choices 옵션은 select 로 렌더되어 placeholder 를 쓰지 않으므로 예외)."""
     n = name.lstrip('-')
-    if n.endswith('-id') or 'compartment' in n:
-        return 'ocid1.' + n.replace('-id', '').replace('-', '') + '.oc1..xxxx'
-    if n in ('display-name', 'name'):
+    if n.endswith('-id') or n.endswith('-ids') or 'compartment' in n:
+        base = n.replace('-ids', '').replace('-id', '').replace('-', '') or 'resource'
+        return 'ocid1.%s.oc1..xxxx' % base
+    if n in ('display-name', 'name') or n.endswith('-name'):
         return 'my-resource'
     if typ == 'json':
         return '{ }'
     if typ == 'file':
         return './path/to/file'
-    if typ == 'datetime':
+    if typ == 'datetime' or n.startswith('time-') or n.endswith('-time'):
         return '2026-08-30T23:18:00Z'
     if 'cidr' in n:
         return '10.0.0.0/16'
     if 'shape' in n:
         return 'VM.Standard.E4.Flex'
-    return ''
+    if 'protocol' in n:
+        return 'EMAIL'
+    if 'email' in n:
+        return 'ops@example.com'
+    if 'endpoint' in n or 'url' in n or n.endswith('-uri'):
+        return 'ops@example.com 또는 https://example.com'
+    if 'namespace' in n:
+        return 'my_namespace'
+    if 'availability-domain' in n or n == 'ad':
+        return '1 또는 xxxx:AP-SEOUL-1-AD-1'
+    if 'region' in n:
+        return 'ap-seoul-1'
+    if 'password' in n or 'secret' in n:
+        return '••••••••'
+    if 'port' in n:
+        return '443'
+    if n.endswith('-path') or n == 'path':
+        return '/mnt/data'
+    if 'bucket' in n:
+        return 'my-bucket'
+    if typ in ('int', 'float') or n.endswith('-seconds') or n.endswith('-count') or n.endswith('-size') \
+            or n.endswith('-in-gbs') or n.endswith('-in-mbps') or 'limit' in n or 'number' in n or 'ocpus' in n:
+        return '0'
+    if typ == 'bool':
+        return ''  # select 로 렌더 — placeholder 불필요
+    # 최종 폴백: 절대 빈 문자열을 돌려주지 않는다.
+    return '<%s>' % n
 
 raw = {}
 for f in glob.glob(os.path.join(DATA, '*.json')):
@@ -373,6 +456,44 @@ OPTION_RULES_BY_COMMAND = {
             'id': 'instance-boot-size-requires-image', 'kind': 'requires',
             'when': '--boot-volume-size-in-gbs', 'requires': ['--image-id'],
             'message': '--boot-volume-size-in-gbs를 사용하려면 --image-id를 선택해야 합니다.',
+        },
+    ],
+    'oci os object bulk-upload': [
+        {
+            'id': 'bulk-upload-overwrite-policy', 'kind': 'mutuallyExclusive',
+            'options': ['--overwrite', '--no-overwrite'],
+            'message': '--overwrite와 --no-overwrite는 함께 사용할 수 없습니다.',
+        },
+        {
+            'id': 'bulk-upload-file-filter', 'kind': 'mutuallyExclusive',
+            'options': ['--include', '--exclude'],
+            'message': '--include와 --exclude는 함께 사용할 수 없습니다.',
+        },
+    ],
+    'oci os object sync': [
+        {
+            'id': 'object-sync-direction', 'kind': 'oneOf',
+            'options': ['--src-dir', '--dest-dir'],
+            'message': '업로드는 --src-dir, 다운로드는 --dest-dir 중 정확히 하나를 지정합니다.',
+        },
+        {
+            'id': 'object-sync-file-filter', 'kind': 'mutuallyExclusive',
+            'options': ['--include', '--exclude'],
+            'message': '--include와 --exclude는 함께 사용할 수 없습니다.',
+        },
+    ],
+    'oci bv boot-volume create': [
+        {
+            'id': 'boot-volume-source', 'kind': 'oneOf',
+            'options': ['--source-boot-volume-id', '--boot-volume-backup-id', '--source-volume-replica-id'],
+            'message': '부트볼륨 소스는 복제(기존 부트볼륨), 백업 복원, 복제본 중 정확히 하나를 선택합니다.',
+        },
+    ],
+    'oci bv volume create': [
+        {
+            'id': 'block-volume-source', 'kind': 'mutuallyExclusive',
+            'options': ['--source-volume-id', '--volume-backup-id', '--source-volume-replica-id'],
+            'message': '블록볼륨 소스(복제·백업·복제본)는 최대 하나만 지정합니다(비우면 빈 볼륨 생성).',
         },
     ],
 }
@@ -630,7 +751,8 @@ catalog['source'].update({
 })
 MANUAL_CATEGORY_RESOURCES = {
     'instance-maintenance-reboot', 'instance-boot-volume-backup',
-    'iam-user', 'iam-group', 'iam-policy',
+    'iam-compartment', 'iam-user', 'iam-group', 'iam-policy', 'iam-region-subscription',
+    'object-bulk-upload', 'object-sync',
 }
 placed = set()
 for cat_id, cat_label, groups in STRUCTURE:
@@ -772,14 +894,14 @@ for res, d in raw.items():
         'cmd': cmd, 'help': (primary.get('help') or '').strip()[:200],
         'sections': sections, 'advanced': advanced, 'operations': operations,
     }
-    for metadata_key in ('preferredOperation', 'disableDynamic', 'rootTenancyLookup'):
+    for metadata_key in ('preferredOperation', 'disableDynamic', 'rootTenancyLookup', 'safeCreateOnly'):
         if metadata_key in d:
             catalog_command[metadata_key] = d[metadata_key]
     catalog['commands'][res] = catalog_command
 
 # ── 커스텀 레시피 (backbone 없음) ──
 # 여러 명령을 묶거나 별도 조립이 필요한 작업은 CliBuilderPage 의 전용 빌더가 최종 명령을 만든다.
-def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=False, typ='str'):
+def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=False, typ='str', **metadata):
     o = {'name': name, 'required': req, 'type': 'bool' if flag else typ, 'choices': None, 'help': help, 'placeholder': ph}
     if multi:
         o['multi'] = True
@@ -789,6 +911,7 @@ def _co(name, req, help, ph='', multi=False, default=None, choices=None, flag=Fa
         o['choices'] = choices
     if flag:
         o['flag'] = True
+    o.update(metadata)
     return o
 
 def _io(name, req, help, ph='', **metadata):
@@ -879,6 +1002,89 @@ def _iam_op(cmd, help_text, sections, advanced=None, **metadata):
     operation = {'cmd': cmd, 'help': help_text, 'sections': sections, 'advanced': advanced or []}
     operation.update(metadata)
     return operation
+
+def _iam_compartment():
+    compartment_id = _io('--compartment-id', True,
+        '대상 Compartment OCID. 동적 조회가 켜져 있으면 정확한 이름, ROOT 또는 직접 OCID를 입력합니다.',
+        'prod 또는 ROOT', shellQuote=True)
+    tags = [
+        _io('--freeform-tags', False, '간단한 키·값 태그. 구조화 입력기로 JSON 필드를 구성합니다.',
+            '구조화 입력기로 JSON 필드를 구성하세요.', type='json', shellQuote=True),
+        _io('--defined-tags', False, '정의된 태그 namespace와 키·값. 구조화 입력기로 JSON 필드를 구성합니다.',
+            '구조화 입력기로 JSON 필드를 구성하세요.', type='json', shellQuote=True),
+    ]
+    wait_active = [
+        _io('--wait-for-state', False, '생성 뒤 지정 lifecycle state까지 대기',
+            choices=['ACTIVE', 'CREATING', 'DELETED', 'DELETING', 'INACTIVE']),
+        _io('--max-wait-seconds', False, '대기 최대 시간(초)', '1200', shellQuote=True),
+        _io('--wait-interval-seconds', False, '상태 재확인 간격(초)', '30', shellQuote=True),
+    ]
+    return {
+        'resource': 'iam-compartment', 'label': 'Compartments', 'cmd': 'oci iam compartment create', 'iamResource': 'compartment',
+        'preferredOperation': 'list',
+        'help': ('Identity & Security > Identity > Compartments. Compartment는 권한, 비용, 자원 격리의 기본 경계입니다. '
+                 '생성 후에는 lifecycle-state가 ACTIVE가 된 것을 확인한 뒤 자원을 배치하세요.'),
+        'sections': [], 'advanced': [],
+        'operations': {
+            'get': _iam_op('oci iam compartment get', 'Compartment 한 건의 이름, 부모, 상태, 태그를 조회합니다. 내부 자원 목록은 별도 리소스 LIST로 확인합니다.', [
+                {'label': '대상 Compartment', 'options': [compartment_id]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'list': _iam_op('oci iam compartment list', 'ROOT를 기준으로 ACTIVE 하위 Compartment 전체를 이름순으로 조회합니다. 상위 Compartment를 지정하면 직계 하위만 조회하세요.', [
+                {'label': '조회 범위 · 필터', 'options': [
+                    _io('--compartment-id', False, 'ROOT, 상위 Compartment 이름 또는 OCID. 비우면 프로필의 root tenancy가 기본입니다.',
+                        'ROOT', default='ROOT', shellQuote=True),
+                    _io('--compartment-id-in-subtree', False, 'ROOT 조회에서 모든 하위 Compartment까지 포함합니다. 상위 Compartment를 지정했다면 false로 두세요.',
+                        choices=['true', 'false'], default='true', shellQuote=True),
+                    _io('--access-level', False, 'ACCESSIBLE은 현재 권한으로 접근 가능한 Compartment만 표시합니다.',
+                        choices=['ACCESSIBLE', 'ANY'], default='ACCESSIBLE'),
+                    _io('--name', False, '정확히 일치하는 Compartment 이름만 조회', 'prod', shellQuote=True),
+                    _io('--lifecycle-state', False, 'Compartment 수명주기 상태',
+                        choices=['ACTIVE', 'CREATING', 'INACTIVE', 'DELETING', 'DELETED'], default='ACTIVE'),
+                    _io('--include-root', False, 'root tenancy도 결과에 포함', flag=True),
+                    _io('--all', False, '--limit과 함께 사용할 수 없는 전체 페이지 조회', flag=True, default='true'),
+                    _io('--sort-by', False, '정렬 기준', choices=['NAME', 'TIMECREATED'], default='NAME'),
+                    _io('--sort-order', False, '정렬 순서', choices=['ASC', 'DESC'], default='ASC'),
+                    _io('--output', False, '결과 출력 형식', choices=['table', 'json'], default='table'),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ]),
+            'create': _iam_op('oci iam compartment create', '지정한 상위 Compartment 또는 ROOT tenancy 아래에 새 Compartment를 생성합니다.', [
+                {'label': '상위 위치', 'options': [
+                    _io('--compartment-id', True, '새 Compartment를 담을 상위 Compartment. ROOT면 프로필에서 tenancy OCID를 자동 조회합니다.',
+                        'ROOT', default='ROOT', shellQuote=True),
+                ]},
+                {'label': 'Compartment 정보', 'options': [
+                    _io('--name', True, '테넌시에서 고유한 Compartment 이름. 영문·숫자·마침표·하이픈·밑줄만 사용하세요.', 'prod-app', shellQuote=True),
+                    _io('--description', True, 'Compartment 용도와 소유 팀을 설명합니다. 빈 문자열도 허용됩니다.', 'Production application resources', shellQuote=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ], advanced=[dict(option) for option in tags + wait_active]),
+            'update': _iam_op('oci iam compartment update', 'Compartment의 이름, 설명 또는 태그를 변경합니다. root tenancy는 수정할 수 없습니다.', [
+                {'label': '대상 Compartment', 'options': [compartment_id]},
+                {'label': '변경 값', 'options': [
+                    _io('--name', False, '새 Compartment 이름', 'prod-app-renamed', shellQuote=True),
+                    _io('--description', False, '새 설명', 'Production application resources', shellQuote=True),
+                    _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 수정', 'etag-value', shellQuote=True),
+                    _io('--force', False, '변경 값 확인 프롬프트 없이 수정', flag=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ], advanced=[dict(option) for option in tags + wait_active]),
+            'delete': _iam_op('oci iam compartment delete', '비어 있는 Compartment만 삭제합니다. 하위 Compartment, 자원, 부착된 Policy를 먼저 확인하세요.', [
+                {'label': '대상 Compartment', 'options': [
+                    compartment_id,
+                    _io('--if-match', False, 'GET 응답의 ETag와 일치할 때만 삭제', 'etag-value', shellQuote=True),
+                    _io('--force', False, '확인 프롬프트 없이 삭제', flag=True),
+                ]},
+                {'label': '실행 환경', 'options': _iam_env()},
+            ], advanced=[
+                _io('--wait-for-state', False, '삭제 work request가 지정 상태가 될 때까지 대기',
+                    choices=['ACCEPTED', 'CANCELED', 'CANCELING', 'FAILED', 'IN_PROGRESS', 'SUCCEEDED']),
+                _io('--max-wait-seconds', False, '대기 최대 시간(초)', '1200', shellQuote=True),
+                _io('--wait-interval-seconds', False, '상태 재확인 간격(초)', '30', shellQuote=True),
+            ]),
+        },
+    }
 
 def _iam_user():
     user_id = _io('--user-id', True, '대상 User OCID. 동적 조회에서는 정확한 User 이름을 입력합니다.', 'operator@example.com', shellQuote=True)
@@ -1053,6 +1259,43 @@ def _iam_policy():
         },
     }
 
+def _iam_region_subscription():
+    query = 'sort_by(data,&"region-name")[].{Region:"region-name",Key:"region-key",Status:status,Home:"is-home-region"}'
+    return {
+        'resource': 'iam-region-subscription',
+        'label': 'Region Subscriptions',
+        'cmd': 'oci iam region-subscription list',
+        'preferredOperation': 'list',
+        'help': ('OCI Console의 Region 메뉴 > Manage regions에 대응합니다. 선택한 프로필의 테넌시가 구독한 리전과 '
+                 'READY/IN_PROGRESS 상태, 홈 리전 여부를 조회합니다.'),
+        'sections': [],
+        'advanced': [],
+        'operations': {
+            'list': _iam_op(
+                'oci iam region-subscription list',
+                ('선택한 프로필의 테넌시가 구독한 모든 리전을 조회합니다. OCI CLI에서 --tenancy-id는 필수지만, '
+                 '화면 입력을 비우면 선택한 프로필로 tenancy OCID를 조회·검증해 자동으로 전달합니다.'),
+                [
+                    {'label': '조회 범위', 'options': [
+                        _io('--tenancy-id', True,
+                            'OCI CLI 필수 옵션입니다. 직접 입력하지 않으면 선택한 프로필의 tenancy OCID를 안전하게 조회해 사용합니다.',
+                            'ocid1.tenancy.oc1..xxxx', shellQuote=True),
+                        _io('--all', False, '페이지가 나뉘어도 구독 리전을 모두 조회합니다.',
+                            flag=True, default='true'),
+                    ]},
+                    {'label': '결과 표시', 'options': [
+                        _io('--query', False,
+                            '리전명, 리전 키, 구독 상태, 홈 리전 여부만 이름순으로 표시합니다.',
+                            query, default=query, shellQuote=True),
+                        _io('--output', False, 'table은 요약 표, json은 JSON 응답을 출력합니다.',
+                            choices=['table', 'json'], default='table'),
+                    ]},
+                    {'label': '실행 환경', 'options': _iam_env()},
+                ],
+            ),
+        },
+    }
+
 def _iam_mfa_reset():
     return {
         'resource': 'iam-user-mfa-reset', 'label': 'IAM User — MFA Reset',
@@ -1197,15 +1440,133 @@ def _instance_boot_volume_backup():
         'advanced': [],
     }
 
+def _wizbase_monitoring():
+    return {
+        'resource': 'wizbase-monitoring-setup',
+        'label': 'MSP 모니터링 일괄등록 (Topic→구독→알람15)',
+        'cmd': 'oci monitoring alarm create',
+        'monitoringComposition': True,
+        'preferredOperation': 'create',
+        'help': ('Notification Topic 1개 + Email 구독 + 표준 알람 15개(Compute/DB/LB/Storage/Network/MySQL)를 '
+                 'compartment 서브트리 전체에 한 번에 등록하는 Bash 스크립트를 생성합니다. '
+                 'compartment 이름을 비우면 root(테넌시 전체)를 감시하며, 새 고객 온보딩 시 테넌시당 1회만 실행하면 됩니다. '
+                 'Topic은 이름으로 재사용(idempotent)하고, Email 구독은 각 수신함의 확인 링크를 눌러야 활성화됩니다.'),
+        'sections': [
+            {'label': '토픽 · 수신', 'options': [
+                _co('--topic-name', True, '생성/재사용할 Notification Topic 이름', 'MSP_Alarm_Topic'),
+                _co('--emails', False, '알림 받을 이메일 (여러 개는 줄바꿈). 확인 링크 클릭 후 활성화됩니다.', 'ops@wizbase.co.kr', multi=True),
+                _co('--compartment-name', False, '알람/토픽을 만들 compartment 이름. 비우면 root(테넌시 전체) 감시', 'heuron'),
+            ]},
+            {'label': '실행 환경', 'options': [
+                _co('--profile', True, 'OCI CLI 프로파일 이름 (~/.oci/config)', 'DEFAULT', default='DEFAULT'),
+                _co('--region', True, 'Topic/구독/알람을 만들 리전 (멀티리전이면 리전별 반복)', 'ap-seoul-1', default='ap-seoul-1'),
+            ]},
+        ],
+        'advanced': [],
+    }
+
+def _wizocm_functions_foundation():
+    """Safe, idempotent foundation for the Functions migration described in
+    OCI_FUNCTIONS_IMPLEMENTATION_SPEC.md.  This intentionally does not accept
+    customer credentials or a Git/OCIR password: those are not CLI catalog
+    inputs and must remain in Vault/each customer tenancy's approved flow.
+    """
+    return {
+        'resource': 'wizocm-functions-foundation',
+        'label': 'WizOCM Functions — 기반 구축·검증',
+        'cmd': 'oci fn application create',
+        'customWorkflow': 'wizocm-functions-foundation',
+        'preferredOperation': 'create',
+        'help': ('PLAN은 기존 private subnet·NAT/Service Gateway 경로, NSG, OCIR image와 이름 충돌만 읽어 확인합니다. '
+                 'APPLY는 확인 문구가 일치할 때만 Functions 기반(NSG, immutable OCIR repository, application, 3개 function, '
+                 '최소 Runtime IAM, daily schedule, invoke log)을 idempotent하게 만듭니다. customer API key·secret 값·cross-tenancy Admit/Endorse는 만들지 않습니다.'),
+        'sections': [
+            {'label': '실행 안전장치', 'options': [
+                _co('--mode', True, 'PLAN은 조회만, APPLY는 신규 기반 자원을 생성/병합합니다.',
+                    choices=['PLAN', 'APPLY'], default='PLAN'),
+                _co('--confirm-apply', False, 'APPLY일 때 정확히 APPLY_WIZOCM_FUNCTIONS 를 입력해야 합니다.', 'APPLY_WIZOCM_FUNCTIONS', shellQuote=True),
+            ]},
+            {'label': '네트워크 · 로그 대상', 'options': [
+                _co('--compartment-input', True, '대상 Compartment의 정확한 이름 또는 OCID. 이름은 tenancy 전체에서 1건일 때만 사용합니다.', 'prod 또는 ocid1.compartment.oc1..xxxx', shellQuote=True),
+                _co('--vcn-input', True, 'Functions private subnet이 들어 있는 VCN의 정확한 이름 또는 OCID.', 'vcn-prod 또는 ocid1.vcn.oc1..xxxx', shellQuote=True),
+                _co('--private-subnet-input', True, 'Functions application에 연결할 private subnet의 정확한 이름 또는 OCID.', 'private-subnet-prod 또는 ocid1.subnet.oc1..xxxx', shellQuote=True),
+                _co('--spring-vnic-id', True, 'Spring internal API가 있는 Compute VNIC OCID. 기존 NSG 배열을 보존해 Spring NSG를 추가합니다.', 'ocid1.vnic.oc1.ap-seoul-1.xxxx', shellQuote=True,
+                    directLookupReason='NSG를 병합할 정확한 VNIC를 지정해야 하며, 이름이나 primary VNIC 추정은 잘못된 인터페이스의 보안 구성을 바꿀 수 있어 OCID GET 검증 후에만 사용합니다.'),
+                _co('--spring-instance-id', True, 'Spring HMAC secret을 읽을 정확한 Compute instance OCID. dynamic group을 이 1대에만 제한합니다.', 'ocid1.instance.oc1.ap-seoul-1.xxxx', shellQuote=True,
+                    directLookupReason='Dynamic Group을 단일 Spring 인스턴스에만 제한하는 보안 경계이므로, 중복 가능한 display name 대신 사용자가 확정한 OCID를 GET 검증합니다.'),
+                _co('--log-group-input', True, 'Functions invoke log를 둘 기존 Log Group의 정확한 이름 또는 OCID.', 'operations-prod 또는 ocid1.loggroup.oc1.ap-seoul-1.xxxx', shellQuote=True),
+                _co('--spring-internal-url', True, 'Functions가 호출할 private Spring internal URL. public endpoint를 넣지 않습니다.', 'http://10.0.1.145:8080', shellQuote=True),
+                _co('--hmac-secret-ocid', True, 'HMAC secret의 OCID만 입력합니다. secret 값은 절대 입력하지 않습니다.', 'ocid1.vaultsecret.oc1.ap-seoul-1.xxxx', shellQuote=True),
+            ]},
+            {'label': '이미지 · 스케줄', 'options': [
+                _co('--ocir-namespace', True, 'OCIR tenancy namespace. 이미지 URI 생성에만 사용합니다.', 'tenancynamespace', shellQuote=True),
+                _co('--release-version', True, '이미 push된 세 image의 immutable full Git commit SHA tag.', '0123456789abcdef0123456789abcdef01234567', shellQuote=True),
+                _co('--schedule-cron', True, '매일 dispatcher를 호출할 5-field UNIX cron(UTC). KST 03:10은 전날 18:10 UTC입니다.', '10 18 * * *', default='10 18 * * *', shellQuote=True),
+            ]},
+        ],
+        'advanced': [],
+    }
+
+def _wizocm_devops_cicd():
+    """Native Artifact + manual approval + one exact Compute target.
+
+    The Oracle CLI currently accepts a GitHub PAT as a raw connection argument.
+    This workflow deliberately accepts an already-created connection OCID instead
+    of a PAT, so the catalog never prints, stores, or passes a secret value.
+    """
+    return {
+        'resource': 'wizocm-devops-cicd',
+        'label': 'WizOCM DevOps — CI/CD Release Foundation',
+        'cmd': 'oci devops project create',
+        'customWorkflow': 'wizocm-devops-cicd',
+        'preferredOperation': 'create',
+        'help': ('Generic Artifact 기반 native release → Manual Approval → 정확히 1개 Compute instance 배포 흐름을 준비합니다. '
+                 'PLAN은 입력·기존 자원을 확인하고, APPLY는 Project·immutable repository·pipeline·environment·artifact 참조·stage를 생성합니다. '
+                 'GitHub PAT는 입력받지 않으며, Vault/Console 등으로 안전하게 만든 GitHub Connection OCID만 참조합니다.'),
+        'sections': [
+            {'label': '실행 안전장치', 'options': [
+                _co('--mode', True, 'PLAN은 조회만, APPLY는 DevOps control-plane 자원을 생성합니다.', choices=['PLAN', 'APPLY'], default='PLAN'),
+                _co('--confirm-apply', False, 'APPLY일 때 정확히 APPLY_WIZOCM_DEVOPS 를 입력해야 합니다.', 'APPLY_WIZOCM_DEVOPS', shellQuote=True),
+            ]},
+            {'label': '소스 · 프로젝트', 'options': [
+                _co('--compartment-input', True, 'DevOps project와 Artifact Registry repository를 둘 Compartment 이름 또는 OCID.', 'prod 또는 ocid1.compartment.oc1..xxxx', shellQuote=True),
+                _co('--project-name', True, 'DevOps Project의 고유 이름.', 'wizocm-native-cicd-prod', default='wizocm-native-cicd-prod', shellQuote=True),
+                _co('--generic-repository-name', True, 'immutable Generic Artifact Repository 이름.', 'wizocm-release-prod', default='wizocm-release-prod', shellQuote=True),
+                _co('--github-connection-id', True, '이미 안전하게 만든 GitHub Connection OCID. PAT 원문은 입력하지 않습니다.', 'ocid1.devopsconnection.oc1.ap-seoul-1.xxxx', shellQuote=True,
+                    directLookupReason='GitHub Connection은 Project와 자격증명 경계를 함께 가지므로 이름으로 임의 선택하지 않고, 안전하게 사전 생성한 Connection OCID를 GET 검증해 사용합니다.'),
+                _co('--github-repository-url', True, 'Build가 읽을 GitHub HTTPS repository URL.', 'https://github.com/example/wizocm.git', shellQuote=True),
+                _co('--github-branch', True, 'CI trigger 및 Managed Build source branch.', 'main', default='main', shellQuote=True),
+                _co('--build-image', True, 'Console에서 현재 확인한 Managed Build base image 식별자. OCI가 목록을 바꿀 수 있어 추측값을 넣지 않습니다.', 'OL8_X86_64_STANDARD_10', shellQuote=True),
+                _co('--build-spec-file', True, 'repository 안의 build spec 상대 경로. RELEASE_VERSION exported variable 계약을 포함해야 합니다.', 'build_spec.yaml', default='build_spec.yaml', shellQuote=True),
+            ]},
+            {'label': '배포 대상 · artifact 계약', 'options': [
+                _co('--target-instance-id', True, '배포할 정확한 Compute instance OCID 1개. compartment/이름 selector는 사용하지 않습니다.', 'ocid1.instance.oc1.ap-seoul-1.xxxx', shellQuote=True,
+                    directLookupReason='운영 배포 대상을 정확히 한 인스턴스로 고정해야 하므로 이름·query selector를 사용하지 않고, OCID GET으로 compartment와 상태를 재검증합니다.'),
+                _co('--release-artifact-path', True, 'build_spec이 deliver할 Generic Artifact 경로.', 'releases/wizocm-release.zip', default='releases/wizocm-release.zip', shellQuote=True),
+                _co('--release-version-variable', True, 'build_spec이 export할 immutable version 변수명. full commit SHA를 값으로 export합니다.', 'RELEASE_VERSION', default='RELEASE_VERSION', shellQuote=True),
+                _co('--deployment-spec-file', True, '현재 실행 호스트의 versioned deployment specification 파일. 최초 bootstrap 때만 repository에 upload합니다.', './deploy/deployment_spec.yaml', shellQuote=True, typ='file'),
+                _co('--deployment-spec-path', True, 'Generic Artifact Repository 안의 deployment specification 경로.', 'deploy/deployment_spec.yaml', default='deploy/deployment_spec.yaml', shellQuote=True),
+                _co('--deployment-spec-version', True, 'deployment specification의 immutable bootstrap version.', 'bootstrap-1', default='bootstrap-1', shellQuote=True),
+                _co('--ons-topic-id', True, 'Project notification에 연결할 기존 ONS Topic OCID. 현재 OCI CLI의 Project create는 notification-config를 필수로 요구하므로, 빈 Topic으로 우회하지 않습니다.', 'ocid1.onstopic.oc1.ap-seoul-1.xxxx', shellQuote=True),
+            ]},
+        ],
+        'advanced': [],
+    }
+
 EXTRA = {
+    'wizbase-monitoring-setup': _wizbase_monitoring(),
     'compartment-resource-cleansing': _compartment_cleanup(),
     'all-subscription-balances': _all_subscription_balances(),
     'iam-user-mfa-reset': _iam_mfa_reset(),
+    'iam-compartment': _iam_compartment(),
     'iam-user': _iam_user(),
     'iam-group': _iam_group(),
     'iam-policy': _iam_policy(),
+    'iam-region-subscription': _iam_region_subscription(),
     'instance-maintenance-reboot': _maintenance_reboot(),
     'instance-boot-volume-backup': _instance_boot_volume_backup(),
+    'wizocm-functions-foundation': _wizocm_functions_foundation(),
+    'wizocm-devops-cicd': _wizocm_devops_cicd(),
     'boot-volume-cross-copy': _cross('boot-volume', '--source-boot-volume-id', 'Boot Volume', 'ocid1.bootvolume.oc1.ap-seoul-1.xxxx'),
     'block-volume-cross-copy': _cross('volume', '--source-volume-id', 'Block Volume', 'ocid1.volume.oc1.ap-seoul-1.xxxx'),
 }
@@ -1219,6 +1580,59 @@ def surface_options(surface):
         for section in surface.get('sections', [])
         for option in section.get('options', [])
     ] + surface.get('advanced', [])
+
+OFFICIAL_OVERLAY_MANIFEST = os.path.join(HERE, 'oci-cli-metadata-approvals.json')
+OFFICIAL_OVERLAY_RESOURCES = set(
+    json.load(open(OFFICIAL_OVERLAY_MANIFEST, encoding='utf-8')).get('officialManualResources', [])
+)
+
+def synchronize_official_overlay(resource, surface):
+    """Keep the OCI command surface exact while preserving presentation metadata.
+
+    Hand-curated resources are an overlay, not a second command schema.  Required,
+    type, flag, multiple, choices and deprecation always come from the pinned final
+    Click tree.  Friendly labels/defaults/lookups remain local, and official options
+    omitted from the curated layout are appended to Advanced automatically.
+    """
+    official = CLICK_COMMANDS.get(surface.get('cmd'))
+    if not official:
+        raise RuntimeError('%s: official overlay command is absent from pinned Click tree: %s'
+                           % (resource, surface.get('cmd')))
+    official_by_name = {option['name']: option for option in official.get('options', [])}
+    present = set()
+    for option in surface_options(surface):
+        name = option['name']
+        source = official_by_name.get(name)
+        if not source:
+            if option.get('lookupOnly') or name in COMMON_CONTEXT_NAMES:
+                continue
+            raise RuntimeError('%s: non-official option must be lookupOnly: %s %s'
+                               % (resource, surface.get('cmd'), name))
+        authoritative = build_option(source)
+        presentation = {
+            key: value for key, value in option.items()
+            if key not in {
+                'required', 'requirement', 'type', 'choices', 'flag', 'multiple',
+                'deprecated', 'deprecation',
+            }
+        }
+        option.clear()
+        option.update(authoritative)
+        option.update(presentation)
+        present.add(name)
+    for source in official.get('options', []):
+        if source['name'] not in present:
+            surface.setdefault('advanced', []).append(build_option(source))
+
+def synchronize_official_overlays(catalog):
+    missing_resources = sorted(OFFICIAL_OVERLAY_RESOURCES - set(catalog.get('commands', {})))
+    if missing_resources:
+        raise RuntimeError('Official overlay resources are absent from catalog: %s'
+                           % ', '.join(missing_resources))
+    for resource in sorted(OFFICIAL_OVERLAY_RESOURCES):
+        command = catalog['commands'][resource]
+        for surface in command.get('operations', {}).values():
+            synchronize_official_overlay(resource, surface)
 
 def lookup_input(name, label, help_text, placeholder='', default=None, choices=None):
     option = {
@@ -1253,6 +1667,15 @@ def annotate_dynamic_lookups(resource, surface):
         direct_reason = DIRECT_ONLY_LOOKUPS.get((resource, option_name))
         if direct_reason:
             option['directLookupReason'] = direct_reason
+            continue
+        if option_name == '--tenancy-id':
+            option['dynamicLookup'] = {
+                'kind': 'tenancy',
+                'inputLabel': '현재 프로필의 Tenancy',
+                'inputPlaceholder': '비우면 OCI config의 tenancy를 안전하게 조회',
+                'note': '선택한 profile로 Availability Domain을 조회해 응답의 tenancy OCID를 검증한 뒤 사용합니다.',
+                'scope': 'tenancy',
+            }
             continue
         if option_name == '--compartment-id':
             option['dynamicLookup'] = {
@@ -1330,6 +1753,20 @@ def annotate_dynamic_lookups(resource, surface):
     if lookup_inputs:
         surface['lookupInputs'] = list(lookup_inputs.values())
 
+def ensure_option_completeness(resource, surface):
+    """이 시스템은 옵션 메타데이터가 비는 것을 허용하지 않는다(사용자 규칙, 2026-08-25).
+    - CLI 가 선언 안 한 enum 은 CHOICE_OVERRIDES 로 choices 를 채운다.
+    - placeholder 는 select(bool/flag/choices)가 아닌 한 반드시 비어있지 않게 채운다.
+    generated/manual/custom(EXTRA) 모든 surface 에 최종 정규화로 적용."""
+    for option in surface_options(surface):
+        if option.get('choices') is None:
+            override = CHOICE_OVERRIDES.get((resource, option['name']))
+            if override:
+                option['choices'] = list(override)
+        is_select = bool(option.get('flag') or option.get('type') == 'bool' or option.get('choices'))
+        if not is_select and not option.get('placeholder'):
+            option['placeholder'] = placeholder(option['name'], option.get('type', 'str'))
+
 def set_safe_preferred_operation(command):
     """Persist the same LIST > GET > mutation default enforced by the UI."""
     if command.get('maintenanceReboot'):
@@ -1341,16 +1778,21 @@ def set_safe_preferred_operation(command):
             command['preferredOperation'] = operation
             return
 
+synchronize_official_overlays(catalog)
+
 for resource, command in catalog['commands'].items():
     set_safe_preferred_operation(command)
     annotate_dynamic_lookups(resource, command)
     annotate_option_relationships(command)
+    ensure_option_completeness(resource, command)
     for operation in command.get('operations', {}).values():
         annotate_dynamic_lookups(resource, operation)
         annotate_option_relationships(operation)
+        ensure_option_completeness(resource, operation)
     for action in command.get('actions', {}).values():
         annotate_dynamic_lookups(resource, action)
         annotate_option_relationships(action)
+        ensure_option_completeness(resource, action)
     annotate_json_inputs(command)
     for operation in command.get('operations', {}).values():
         annotate_json_inputs(operation)
