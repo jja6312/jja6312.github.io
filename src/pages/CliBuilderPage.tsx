@@ -4101,15 +4101,18 @@ function RegionSelect({ value, onChange, inputClass = 'cli-input', assignRef, al
         onBlur={() => window.setTimeout(() => { commit(); setOpen(false) }, 120)} />
       {open && ordered.length > 0 && (
         <ul className="region-menu" role="listbox">
-          {ordered.slice(0, 24).map((r, i) => {
+          {ordered.slice(0, raw ? 40 : 24).map((r, i) => {
             const avail = availSet.has(r.id)
             return (
               <Fragment key={r.id}>
+                {hasProfile && availCount > 0 && i === 0 && (
+                  <li className="region-divider region-divider-active" aria-hidden="true"><span>활성 리전 · 구독됨</span></li>
+                )}
                 {hasProfile && availCount > 0 && i === availCount && (
-                  <li className="region-divider" aria-hidden="true"><span>그 외 리전</span></li>
+                  <li className="region-divider" aria-hidden="true"><span>그 외 리전 · 검색해 사용</span></li>
                 )}
                 <li>
-                  <button type="button" className={`region-opt${i === hi ? ' on' : ''}${r.id === value ? ' sel' : ''}${avail ? ' avail' : ''}`}
+                  <button type="button" className={`region-opt${i === hi ? ' on' : ''}${r.id === value ? ' sel' : ''}${avail ? ' avail' : hasProfile ? ' dim' : ''}`}
                     onMouseEnter={() => setHi(i)} onMouseDown={event => { event.preventDefault(); pick(r.id) }}>
                     {avail && <span className="region-avail-dot" aria-hidden="true">●</span>}
                     <span className="region-city"><b>{r.ko}</b> · {r.en}</span>

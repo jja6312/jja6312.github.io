@@ -879,6 +879,14 @@ select.cli-input { cursor: pointer; }
 .region-avail-dot { color: var(--accent); font-size: 8px; line-height: 1; align-self: center; margin-right: -4px; }
 .region-divider { display: flex; align-items: center; gap: 8px; padding: 5px 9px 3px; margin-top: 3px; border-top: 1px solid var(--line-soft); }
 .region-divider span { color: var(--text-faint); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+/* 활성(구독) 리전 그룹 헤더 — 목록 맨 위, 위쪽 구분선 없이 accent 색으로 강조 */
+.region-divider-active { border-top: 0; margin-top: 0; padding-top: 8px; }
+.region-divider-active span { color: var(--accent); }
+/* 비활성 리전 — 프로필이 활성일 때 회색으로 낮춰 보이되 검색·선택은 가능 */
+.region-opt.dim .region-city, .region-opt.dim .region-city b { color: var(--text-faint); font-weight: 500; }
+.region-opt.dim .region-id { color: var(--text-faint); opacity: .7; }
+.region-opt.dim:hover .region-city, .region-opt.dim.on .region-city,
+.region-opt.dim:hover .region-city b, .region-opt.dim.on .region-city b { color: var(--text); }
 
 /* ── 프로필: 활성 셀렉터(컨텍스트 패널) ── */
 .cli-active-profile {
