@@ -1,22 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  defaultPort, defaultUser, emptyMobaSession, mobaTemplate, parseMobaInput, renderMobaExport,
-  validateMobaSessions, type MobaSession, type MobaSessionType,
+  aoaToSessions, cloneSession, defaultPort, defaultUser, emptyMobaSession, loadStoredSessions, mobaTemplate,
+  parseMobaIni, parseMobaInput, renderMobaExport, sessionsToAoa, storeSessions, validateMobaSessions,
+  xlsxTemplateAoa, type MobaSession, type MobaSessionType,
 } from '../lib/mobaxtermSessions'
 import {
   deleteKeyProfile, getLastKeyPath, loadKeyProfiles, setLastKeyPath, upsertKeyProfile,
   type MobaKeyProfile,
 } from '../lib/mobaKeyStore'
+import { buildXlsx, readXlsx } from '../lib/xlsxLite'
 import CliInputWizard, {
   defaultCliWizardControl, useCliInputWizardShortcut,
   type CliWizardQuestion, type CliWizardRenderContext,
 } from '../components/CliInputWizard'
 import './MobaXtermPage.css'
 
-const download = (text: string, filename: string, type = 'text/plain;charset=windows-949') => {
-  const blob = new Blob([text], { type }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a')
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob); const anchor = document.createElement('a')
   anchor.href = url; anchor.download = filename; document.body.appendChild(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+const download = (text: string, filename: string, type = 'text/plain;charset=windows-949') =>
+  downloadBlob(new Blob([text], { type }), filename)
 
 const KEY_DATALIST_ID = 'moba-key-datalist'
 const TYPE_LABEL: Record<MobaSessionType, string> = { ssh: 'SSH (Linux)', rdp: 'RDP (Windows)' }
@@ -53,10 +57,10 @@ const wizardQuestions: CliWizardQuestion[] = [
 ]
 
 export default function MobaXtermPage() {
-  const [sessions, setSessions] = useState<MobaSession[]>([])
+  const [sessions, setSessions] = useState<MobaSession[]>(() => loadStoredSessions())
   const [draft, setDraft] = useState<MobaSession>(() => emptyMobaSession('ssh'))
   const [bulk, setBulk] = useState(mobaTemplate)
-  const [bulkMessage, setBulkMessage] = useState('세션 종류(SSH/RDP)를 고르고 입력하세요. Excel 범위를 붙여넣어도 됩니다.')
+  const [bulkMessage, setBulkMessage] = useState('세션 종류(SSH/RDP)를 고르고 한 줄로 입력하세요. 목록은 자동 저장됩니다.')
   const [copied, setCopied] = useState(false)
   const [keyProfiles, setKeyProfiles] = useState<MobaKeyProfile[]>([])
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -70,6 +74,8 @@ export default function MobaXtermPage() {
   const folders = useMemo(() => [...new Set(sessions.map(session => session.folder || '(루트)'))], [sessions])
 
   useEffect(() => { setKeyProfiles(loadKeyProfiles()) }, [])
+  // 작업 중인 세션 목록을 브라우저에 자동 저장 — 새로고침·재방문에도 유지된다.
+  useEffect(() => { storeSessions(sessions) }, [sessions])
 
   const setDraftType = useCallback((type: MobaSessionType) => {
     setDraft(current => ({ ...current, type, port: defaultPort(type), user: defaultUser(type) }))
@@ -167,6 +173,14 @@ export default function MobaXtermPage() {
   const onDraftKey = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') { event.preventDefault(); addDraft() }
   }
+  const duplicateSession = (session: MobaSession) => setSessions(current => {
+    const index = current.findIndex(item => item.id === session.id)
+    if (index < 0) return current
+    const next = [...current]
+    next.splice(index + 1, 0, cloneSession(session, current))
+    setBulkMessage(`복제됨 · 세션 ${next.length}개`)
+    return next
+  })
 
   const importBulk = () => {
     try {
@@ -175,10 +189,40 @@ export default function MobaXtermPage() {
       setSessions(parsed); setBulkMessage(`${parsed.length}개 세션을 불러왔습니다.`)
     } catch (error) { setBulkMessage(error instanceof Error ? error.message : '입력 형식을 확인하세요.') }
   }
+
+  // 파일 불러오기 — .xlsx / .mxtsessions·.ini / JSON·CSV·TSV 자동 판별. 다른 PC 에서 저장한 설정 로드에도 사용.
   const importFile = async (file?: File) => {
     if (!file) return
-    if (file.name.toLowerCase().endsWith('.xlsx')) { setBulkMessage('웹에서는 Excel의 표를 복사해 붙여넣으세요. .xlsx 파일 직접 적용은 Codex Skill이 담당합니다.'); return }
-    setBulk(await file.text()); setBulkMessage(`${file.name}을 읽었습니다. “목록으로 적용”을 누르세요.`)
+    const lower = file.name.toLowerCase()
+    try {
+      let parsed: MobaSession[]
+      if (lower.endsWith('.xlsx')) parsed = aoaToSessions(await readXlsx(file))
+      else {
+        const text = await file.text()
+        parsed = (lower.endsWith('.mxtsessions') || lower.endsWith('.ini') || /^\s*\[Bookmarks/im.test(text))
+          ? parseMobaIni(text)
+          : parseMobaInput(text)
+      }
+      if (!parsed.length) { setBulkMessage('불러온 세션이 없습니다. 파일 형식을 확인하세요.'); return }
+      setSessions(parsed)
+      const problems = validateMobaSessions(parsed)
+      setBulkMessage(problems.length
+        ? `${file.name}: ${parsed.length}개 불러옴 · 확인 필요 — ${problems.at(-1)}`
+        : `${file.name}: ${parsed.length}개 세션 불러옴`)
+    } catch (error) {
+      setBulkMessage(error instanceof Error ? error.message : '파일을 읽지 못했습니다.')
+    }
+  }
+
+  const exportXlsx = () => {
+    if (!sessions.length) { setBulkMessage('내보낼 세션이 없습니다.'); return }
+    downloadBlob(buildXlsx(sessionsToAoa(sessions), 'MobaXterm Sessions'), 'mobaxterm-sessions.xlsx')
+    setBulkMessage(`Excel(.xlsx) 내보내기 · 세션 ${sessions.length}개`)
+  }
+  const exportMxt = () => {
+    if (!output) { setBulkMessage(issues[0] ?? '유효한 세션이 없어 .mxtsessions 저장 불가'); return }
+    download(`\uFEFF${output}`, 'mobaxterm-sessions.mxtsessions')
+    setBulkMessage(`.mxtsessions 저장 · 다른 PC 에서 '파일 불러오기' 또는 MobaXterm Import 로 그대로 사용`)
   }
 
   const renderWizardControl = useCallback((context: CliWizardRenderContext) => {
@@ -211,19 +255,19 @@ export default function MobaXtermPage() {
 
   return <main className="moba-page">
     <header className="moba-hero">
-      <div><span className="moba-eyebrow">KNOWLEDGE · SESSION TOOL</span><h1>MobaXterm 제어</h1><p>SSH·RDP 세션을 입력하면 MobaXterm이 바로 가져올 수 있는 파일을 만듭니다.</p></div>
+      <div><span className="moba-eyebrow">KNOWLEDGE · SESSION TOOL</span><h1>MobaXterm 제어</h1><p>SSH·RDP 세션을 한 줄로 입력하면 MobaXterm이 바로 가져올 수 있는 파일을 만듭니다.</p></div>
       <button type="button" className="moba-primary" onClick={openWizard}>빠른 입력 <kbd>Alt+I</kbd></button>
     </header>
 
     <section className="moba-storage" aria-label="MobaXterm 저장 위치">
       <div><b>현재 설정 파일</b><code>%APPDATA%\MobaXterm\MobaXterm.ini</code></div>
       <div><b>세션 저장 구조</b><span><code>[Bookmarks_N]</code> + <code>SubRep=폴더\하위폴더</code> + <code>세션명=#109#…(SSH) / #91#…(RDP)</code></span></div>
-      <p>이 화면은 비밀번호나 키 파일 내용은 다루지 않습니다. 키는 로컬 경로 문자열만 넣습니다. 다운로드한 파일은 MobaXterm의 <b>Import sessions from file</b>로 가져오세요.</p>
+      <p>이 화면은 비밀번호나 키 파일 내용은 다루지 않습니다. 키는 로컬 경로 문자열만 넣습니다. 목록은 브라우저에 자동 저장되며, <b>Excel·.mxtsessions</b>로 내보내 다른 PC 에서 다시 불러올 수 있습니다.</p>
     </section>
 
     <div className="moba-grid">
       <section id="moba-quick-input" className="moba-card">
-        <div className="moba-card-head"><div><span>01</span><h2>세션 한 개 빠르게 추가</h2></div><small>Enter 추가 · Alt+I 팝업</small></div>
+        <div className="moba-card-head"><div><span>01</span><h2>세션 한 개 빠르게 추가</h2></div><small>한 줄 입력 · Enter 추가 · Alt+I 팝업</small></div>
 
         <div className="moba-seg" role="tablist" aria-label="세션 종류">
           {(['ssh', 'rdp'] as const).map(option => (
@@ -232,28 +276,32 @@ export default function MobaXtermPage() {
           ))}
         </div>
 
-        <div className="moba-form">
-          <label>폴더<input value={draft.folder} placeholder="wizocm\production" onChange={e => setDraft(c => ({ ...c, folder: e.target.value }))} onKeyDown={onDraftKey} /></label>
-          <label>세션명<input ref={nameRef} value={draft.name} placeholder="app-01" onChange={e => setDraft(c => ({ ...c, name: e.target.value }))} onKeyDown={onDraftKey} /></label>
-          <label>호스트 / IP<input value={draft.host} placeholder="10.0.1.10" onChange={e => setDraft(c => ({ ...c, host: e.target.value }))} onKeyDown={onDraftKey} /></label>
-          <label>{isRdp ? 'RDP 포트' : 'SSH 포트'}<input value={draft.port} onChange={e => setDraft(c => ({ ...c, port: e.target.value }))} onKeyDown={onDraftKey} /></label>
-          <label>사용자<input value={draft.user} placeholder={defaultUser(draft.type)} onChange={e => setDraft(c => ({ ...c, user: e.target.value }))} onKeyDown={onDraftKey} /></label>
+        <div className="moba-form moba-form-main">
+          <label className="fld-folder">폴더<input value={draft.folder} placeholder="wizocm\production" onChange={e => setDraft(c => ({ ...c, folder: e.target.value }))} onKeyDown={onDraftKey} /></label>
+          <label className="fld-name">세션명<input ref={nameRef} value={draft.name} placeholder="app-01" onChange={e => setDraft(c => ({ ...c, name: e.target.value }))} onKeyDown={onDraftKey} /></label>
+          <label className="fld-host">호스트 / IP<input value={draft.host} placeholder="10.0.1.10" onChange={e => setDraft(c => ({ ...c, host: e.target.value }))} onKeyDown={onDraftKey} /></label>
+          <label className="fld-port">포트<input value={draft.port} onChange={e => setDraft(c => ({ ...c, port: e.target.value }))} onKeyDown={onDraftKey} /></label>
+          <label className="fld-user">사용자<input value={draft.user} placeholder={defaultUser(draft.type)} onChange={e => setDraft(c => ({ ...c, user: e.target.value }))} onKeyDown={onDraftKey} /></label>
           {isRdp
-            ? <label>도메인<input value={draft.domain} placeholder="없으면 비움 (예: CORP)" onChange={e => setDraft(c => ({ ...c, domain: e.target.value }))} onKeyDown={onDraftKey} /></label>
-            : <label className="moba-keyfield">개인키 경로
+            ? <label className="fld-domain">도메인<input value={draft.domain} placeholder="없으면 비움 (예: CORP)" onChange={e => setDraft(c => ({ ...c, domain: e.target.value }))} onKeyDown={onDraftKey} /></label>
+            : <label className="fld-key moba-keyfield">개인키 경로
                 <span className="moba-keyrow">
                   <input value={draft.keyPath} placeholder="C:\keys\customer.key" list={KEY_DATALIST_ID}
                     onChange={e => setDraft(c => ({ ...c, keyPath: e.target.value }))} onKeyDown={onDraftKey} />
                   <button type="button" className="moba-key-save" title="현재 키 경로를 프로필로 저장" onClick={() => saveCurrentKey(draft.keyPath)}>＋ 저장</button>
                 </span>
               </label>}
-          {!isRdp && <>
-            <label className="bastion">점프 호스트<input value={draft.bastionHost} placeholder="없으면 비움" onChange={e => setDraft(c => ({ ...c, bastionHost: e.target.value }))} onKeyDown={onDraftKey} /></label>
-            <label className="bastion">점프 포트<input value={draft.bastionPort} onChange={e => setDraft(c => ({ ...c, bastionPort: e.target.value }))} onKeyDown={onDraftKey} /></label>
-            <label className="bastion">점프 사용자<input value={draft.bastionUser} onChange={e => setDraft(c => ({ ...c, bastionUser: e.target.value }))} onKeyDown={onDraftKey} /></label>
-            <label className="bastion">점프 키 경로<input value={draft.bastionKeyPath} placeholder="비우면 개인키 재사용" onChange={e => setDraft(c => ({ ...c, bastionKeyPath: e.target.value }))} onKeyDown={onDraftKey} /></label>
-          </>}
         </div>
+
+        {!isRdp && (
+          <div className="moba-form moba-form-bastion">
+            <span className="moba-bastion-tag">경유(bastion) · 선택</span>
+            <label>점프 호스트<input value={draft.bastionHost} placeholder="없으면 비움" onChange={e => setDraft(c => ({ ...c, bastionHost: e.target.value }))} onKeyDown={onDraftKey} /></label>
+            <label>점프 포트<input value={draft.bastionPort} onChange={e => setDraft(c => ({ ...c, bastionPort: e.target.value }))} onKeyDown={onDraftKey} /></label>
+            <label>점프 사용자<input value={draft.bastionUser} onChange={e => setDraft(c => ({ ...c, bastionUser: e.target.value }))} onKeyDown={onDraftKey} /></label>
+            <label>점프 키 경로<input value={draft.bastionKeyPath} placeholder="비우면 개인키 재사용" onChange={e => setDraft(c => ({ ...c, bastionKeyPath: e.target.value }))} onKeyDown={onDraftKey} /></label>
+          </div>
+        )}
 
         {!isRdp && keyProfiles.length > 0 && (
           <div className="moba-keychips" aria-label="저장된 키 프로필">
@@ -272,20 +320,26 @@ export default function MobaXtermPage() {
       </section>
 
       <section className="moba-card">
-        <div className="moba-card-head"><div><span>02</span><h2>JSON · Excel 표 한 번에 입력</h2></div><small>첫 행은 열 이름 · type 열로 ssh/rdp</small></div>
-        <textarea className="moba-bulk" rows={12} value={bulk} onChange={event => setBulk(event.target.value)} spellCheck={false} />
-        <div className="moba-inline-actions">
-          <button type="button" onClick={importBulk}>목록으로 적용</button>
-          <label className="moba-file">JSON·CSV 파일 열기<input type="file" accept=".json,.csv,.tsv,.xlsx" onChange={event => void importFile(event.target.files?.[0])} /></label>
-          <button type="button" onClick={() => download(mobaTemplate.replaceAll('\t', ','), 'mobaxterm-sessions-template.csv', 'text/csv;charset=utf-8')}>Excel용 CSV 양식</button>
+        <div className="moba-card-head"><div><span>02</span><h2>가져오기 · 내보내기</h2></div><small>다른 PC 이전 · Excel 편집</small></div>
+        <div className="moba-io">
+          <label className="moba-file moba-file-strong">파일 불러오기<input type="file" accept=".xlsx,.mxtsessions,.ini,.json,.csv,.tsv" onChange={event => { void importFile(event.target.files?.[0]); event.target.value = '' }} /></label>
+          <button type="button" onClick={exportXlsx}>Excel(.xlsx) 내보내기</button>
+          <button type="button" onClick={exportMxt}>.mxtsessions 저장</button>
+          <button type="button" className="moba-io-sec" onClick={() => downloadBlob(buildXlsx(xlsxTemplateAoa(), 'Template'), 'mobaxterm-template.xlsx')}>Excel 양식</button>
         </div>
+        <p className="moba-io-note">불러오기는 <b>.xlsx · .mxtsessions · .ini · JSON · CSV/TSV</b> 를 자동 판별합니다. 다른 PC 에서 저장한 파일을 그대로 올리면 목록이 복원됩니다.</p>
+        <details className="moba-paste">
+          <summary>또는 표를 직접 붙여넣기 (JSON · Excel/CSV 범위)</summary>
+          <textarea className="moba-bulk" rows={8} value={bulk} onChange={event => setBulk(event.target.value)} spellCheck={false} />
+          <button type="button" className="moba-add" onClick={importBulk}>목록으로 적용</button>
+        </details>
         <p className="moba-message" role="status">{bulkMessage}</p>
       </section>
     </div>
 
     <section className="moba-card moba-sessions">
       <div className="moba-card-head"><div><span>03</span><h2>폴더와 세션 확인</h2></div><small>{sessions.length} sessions · {folders.length} folders</small></div>
-      {sessions.length === 0 ? <p className="moba-empty">아직 세션이 없습니다. 빠른 입력이나 일괄 입력으로 추가하세요.</p> : <>
+      {sessions.length === 0 ? <p className="moba-empty">아직 세션이 없습니다. 빠른 입력·일괄 입력·파일 불러오기로 추가하세요.</p> : <>
         <div className="moba-folder-chips">{folders.map(folder => <span key={folder}>▾ {folder}</span>)}</div>
         <div className="moba-table-wrap"><table><thead><tr><th>종류</th><th>폴더</th><th>세션명</th><th>접속 대상</th><th>사용자</th><th>경유</th><th></th></tr></thead><tbody>
           {sessions.map(session => <tr key={session.id}>
@@ -294,7 +348,10 @@ export default function MobaXtermPage() {
             <td><code>{session.host}:{session.port}</code></td>
             <td>{session.type === 'rdp' && session.domain ? `${session.domain}\\${session.user}` : session.user}</td>
             <td>{session.type === 'ssh' && session.bastionHost ? `${session.bastionHost}:${session.bastionPort}` : '직접'}</td>
-            <td><button type="button" onClick={() => setSessions(current => current.filter(item => item.id !== session.id))}>삭제</button></td>
+            <td className="moba-row-actions">
+              <button type="button" onClick={() => duplicateSession(session)}>복제</button>
+              <button type="button" className="moba-del" onClick={() => setSessions(current => current.filter(item => item.id !== session.id))}>삭제</button>
+            </td>
           </tr>)}
         </tbody></table></div>
       </>}
@@ -304,7 +361,7 @@ export default function MobaXtermPage() {
       <div><span>04 · IMPORT FILE</span><h2>{issues.length ? '입력을 확인하세요' : 'MobaXterm 세션 파일 준비 완료'}</h2><p>{issues[0] ?? '가져오기 파일을 다운로드하거나 설정 내용을 복사할 수 있습니다.'}</p></div>
       <div className="moba-result-actions">
         <button type="button" onClick={() => void copyOutput()} disabled={!output}>{copied ? '복사됨 ✓' : '설정 복사'} <kbd>Alt+C</kbd></button>
-        <button type="button" className="moba-primary" onClick={() => download(`\uFEFF${output}`, 'mobaxterm-sessions.mxtsessions')} disabled={!output}>.mxtsessions 다운로드</button>
+        <button type="button" className="moba-primary" onClick={exportMxt} disabled={!output}>.mxtsessions 다운로드</button>
       </div>
       {output && <details><summary>생성된 설정 미리보기</summary><pre>{output}</pre></details>}
     </section>

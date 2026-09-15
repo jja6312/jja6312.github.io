@@ -154,3 +154,97 @@ export function renderMobaExport(sessions: MobaSession[]) {
 export const mobaTemplate = `type\tfolder\tname\thost\tport\tuser\tkey_path\tdomain\tbastion_host\tbastion_port\tbastion_user\tbastion_key_path
 ssh\twizocm\\production\tapp-01\t10.0.1.10\t22\topc\tC:\\keys\\wizocm.key\t\t203.0.113.10\t22\topc\tC:\\keys\\bastion.key
 rdp\twizocm\\production\twin-db\t10.0.1.20\t3389\topc\t\tCORP\t\t\t\t`
+
+// ── Excel(xlsx)/CSV 표 브리지 ──
+export const SESSION_COLUMNS: [Exclude<keyof MobaSession, 'id'>, string][] = [
+  ['type', 'type'], ['folder', 'folder'], ['name', 'name'], ['host', 'host'], ['port', 'port'], ['user', 'user'],
+  ['keyPath', 'key_path'], ['domain', 'domain'], ['bastionHost', 'bastion_host'], ['bastionPort', 'bastion_port'],
+  ['bastionUser', 'bastion_user'], ['bastionKeyPath', 'bastion_key_path'],
+]
+
+/** 세션 목록 → 2차원 배열(첫 행 헤더). xlsx/CSV 내보내기용. */
+export function sessionsToAoa(sessions: MobaSession[]): string[][] {
+  const headers = SESSION_COLUMNS.map(([, header]) => header)
+  const rows = sessions.map(session => SESSION_COLUMNS.map(([key]) => String(session[key] ?? '')))
+  return [headers, ...rows]
+}
+
+/** 2차원 배열(첫 행 헤더) → 세션 목록. 빈 행은 건너뛴다. 헤더 별칭은 fromRecord 가 처리. */
+export function aoaToSessions(aoa: (string | number | null | undefined)[][]): MobaSession[] {
+  if (!aoa.length) return []
+  const headers = aoa[0].map(cell => String(cell ?? '').trim())
+  return aoa.slice(1)
+    .filter(row => row.some(cell => String(cell ?? '').trim() !== ''))
+    .map(row => fromRecord(Object.fromEntries(headers.map((header, index) => [header, row[index] ?? '']))))
+}
+
+/** Excel 양식(헤더 + SSH·RDP 예시 2행). */
+export function xlsxTemplateAoa(): string[][] {
+  return [
+    SESSION_COLUMNS.map(([, header]) => header),
+    ['ssh', 'wizocm\\production', 'app-01', '10.0.1.10', '22', 'opc', 'C:\\keys\\wizocm.key', '', '203.0.113.10', '22', 'opc', ''],
+    ['rdp', 'wizocm\\production', 'win-db', '10.0.1.20', '3389', 'opc', '', 'CORP', '', '', '', ''],
+  ]
+}
+
+// ── MobaXterm .mxtsessions(.ini) → 세션 목록 (내보낸 파일을 다시 읽어들이거나 다른 PC 설정 로드) ──
+export function parseMobaIni(text: string): MobaSession[] {
+  const sessions: MobaSession[] = []
+  let folder = ''
+  for (const raw of String(text ?? '').replace(/\r/g, '').split('\n')) {
+    const line = raw.trim()
+    if (!line) continue
+    if (/^\[Bookmarks(_\d+)?\]$/i.test(line)) { folder = ''; continue }
+    const sub = /^SubRep=(.*)$/i.exec(line)
+    if (sub) { folder = sub[1].trim(); continue }
+    if (/^ImgNum=/i.test(line)) continue
+    const match = /^(.+?)=#(109|91)#(.*)$/.exec(line)
+    if (!match) continue
+    const name = match[1].trim()
+    const fields = match[3].split('#')[0].split('%')
+    if (match[2] === '91') {
+      let user = fields[3] ?? ''
+      let domain = ''
+      const slash = user.indexOf('\\')
+      if (slash >= 0) { domain = user.slice(0, slash); user = user.slice(slash + 1) }
+      sessions.push({ ...emptyMobaSession('rdp'), folder, name, host: fields[1] ?? '', port: fields[2] || '3389', user: user || defaultUser('rdp'), domain })
+    } else {
+      const keyPath = fields[14] ?? ''
+      const bastionKey = fields[15] ?? ''
+      sessions.push({
+        ...emptyMobaSession('ssh'), folder, name, host: fields[1] ?? '', port: fields[2] || '22', user: fields[3] || defaultUser('ssh'),
+        keyPath, bastionHost: fields[8] ?? '', bastionPort: fields[9] || '22', bastionUser: fields[10] || 'opc',
+        bastionKeyPath: bastionKey && bastionKey !== keyPath ? bastionKey : '',
+      })
+    }
+  }
+  return sessions
+}
+
+// ── 세션 복제 (같은 폴더 내 고유 이름 보장) ──
+export function cloneSession(session: MobaSession, existing: MobaSession[]): MobaSession {
+  const taken = new Set(existing.filter(s => s.folder === session.folder).map(s => s.name.toLowerCase()))
+  const base = `${session.name}-copy`
+  let name = base
+  for (let i = 2; taken.has(name.toLowerCase()); i += 1) name = `${base}${i}`
+  return { ...session, id: crypto.randomUUID(), name }
+}
+
+// ── 작업 중인 세션 목록 저장/복원 (localStorage per-user) ──
+const SESSIONS_KEY = 'moba:sessions'
+export function loadStoredSessions(): MobaSession[] {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]')
+    if (!Array.isArray(raw)) return []
+    return raw.map(item => {
+      const stored = (item ?? {}) as Partial<MobaSession>
+      const type: MobaSessionType = stored.type === 'rdp' ? 'rdp' : 'ssh'
+      return { ...emptyMobaSession(type), ...stored, id: stored.id || crypto.randomUUID(), type }
+    }).filter(session => session.name || session.host)
+  } catch {
+    return []
+  }
+}
+export function storeSessions(sessions: MobaSession[]): void {
+  try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions)) } catch { /* per-user 저장소 사용 불가 — 무시 */ }
+}

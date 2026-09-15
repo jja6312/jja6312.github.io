@@ -7,7 +7,7 @@
 .moba-page kbd{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.68rem;padding:2px 6px;border:1px solid currentColor;border-radius:4px;opacity:.78}
 .moba-storage{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;margin:18px 0 22px;padding:18px 22px;border:1px solid var(--line);border-radius:12px;background:var(--bg-card)}
 .moba-storage div{display:flex;flex-direction:column;gap:6px}.moba-storage b{font-size:.78rem;color:var(--text-dim)}.moba-storage code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--accent)}.moba-storage p{grid-column:1/-1;margin:4px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:.84rem;color:var(--text-dim)}
-.moba-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr);gap:18px}.moba-card{padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--bg-card);min-width:0}.moba-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.moba-card-head>div{display:flex;align-items:center;gap:10px}.moba-card-head h2{font-size:1rem;margin:0}.moba-card-head small{color:var(--text-dim);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.moba-grid{display:grid;grid-template-columns:1fr;gap:18px}.moba-card{padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--bg-card);min-width:0}.moba-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.moba-card-head>div{display:flex;align-items:center;gap:10px}.moba-card-head h2{font-size:1rem;margin:0}.moba-card-head small{color:var(--text-dim);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
 .moba-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.moba-form label{display:flex;flex-direction:column;gap:6px;color:var(--text-dim);font-size:.76rem;font-weight:700}.moba-form label.bastion{padding-top:9px;border-top:1px dashed color-mix(in srgb,var(--accent) 25%,var(--line))}.moba-form input,.moba-bulk{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);padding:10px 11px;font:inherit;outline:none}.moba-form input:focus,.moba-bulk:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}.moba-add{width:100%;margin-top:16px;background:color-mix(in srgb,var(--accent) 11%,var(--bg-soft));border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
 .moba-bulk{resize:vertical;line-height:1.55;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.76rem}.moba-inline-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.moba-inline-actions button,.moba-file{font-size:.76rem;padding:8px 10px}.moba-file input{display:none}.moba-message{white-space:pre-line;color:var(--text-dim);font-size:.78rem;margin:12px 0 0;min-height:1.2em}
 .moba-sessions{margin-top:18px}.moba-folder-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.moba-folder-chips span{padding:5px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent) 10%,var(--bg-soft));color:var(--accent);font-size:.74rem;font-weight:750}.moba-table-wrap{overflow:auto}.moba-sessions table{width:100%;border-collapse:collapse;font-size:.82rem}.moba-sessions th{text-align:left;color:var(--text-dim);font-size:.7rem;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--line)}.moba-sessions td{padding:10px;border-bottom:1px solid var(--line)}.moba-sessions td button{border:0;background:none;color:#ef6a6a;cursor:pointer}.moba-empty{color:var(--text-dim);text-align:center;padding:30px}
@@ -37,3 +37,29 @@
 .moba-typebadge{display:inline-block;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.66rem;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:6px}
 .moba-typebadge.ssh{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
 .moba-typebadge.rdp{background:color-mix(in srgb,#3b82f6 18%,transparent);color:#3b82f6}
+
+/* 한 세션 = 한 줄 입력 (메인 필드 가로 배치, 바스티온은 아래줄) */
+.moba-form-main{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end}
+.moba-form-main>label{flex:1 1 130px;min-width:0}
+.moba-form-main .fld-port{flex:0 1 84px}
+.moba-form-main .fld-user{flex:0 1 118px}
+.moba-form-main .fld-key{flex:2 1 220px}
+.moba-form-main .fld-domain{flex:1 1 150px}
+.moba-form-bastion{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end;margin-top:12px;padding-top:12px;border-top:1px dashed color-mix(in srgb,var(--accent) 25%,var(--line))}
+.moba-form-bastion>label{flex:1 1 130px;min-width:0}
+.moba-bastion-tag{flex-basis:100%;font-size:.72rem;font-weight:800;color:var(--text-dim);letter-spacing:.02em}
+/* 가져오기·내보내기 액션 */
+.moba-io{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.moba-io button,.moba-file-strong{border:1px solid var(--line);border-radius:9px;background:var(--bg-soft);color:var(--text);padding:10px 14px;font:inherit;font-weight:750;cursor:pointer;transition:.15s ease}
+.moba-file-strong{background:color-mix(in srgb,var(--accent) 12%,var(--bg-soft));border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.moba-io button:hover,.moba-file-strong:hover{transform:translateY(-1px);filter:brightness(1.06)}
+.moba-io .moba-io-sec{opacity:.85;font-weight:650}
+.moba-io-note{margin:0 0 10px;font-size:.76rem;color:var(--text-dim)}
+.moba-paste{margin-top:4px}
+.moba-paste summary{cursor:pointer;color:var(--text-dim);font-size:.8rem;font-weight:700;margin-bottom:8px}
+.moba-paste .moba-bulk{margin-bottom:8px}
+/* 세션 행 액션 (복제·삭제) */
+.moba-row-actions{white-space:nowrap;display:flex;gap:6px;justify-content:flex-end}
+.moba-sessions .moba-row-actions button{color:var(--text-dim);font-weight:700}
+.moba-sessions .moba-row-actions .moba-del{color:#ef6a6a}
+.moba-sessions .moba-row-actions button:hover{filter:brightness(1.15);text-decoration:underline}
