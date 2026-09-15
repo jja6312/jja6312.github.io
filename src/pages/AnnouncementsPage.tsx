@@ -3,6 +3,7 @@ import { marked } from 'marked'
 import { useHub } from '../store'
 import { getPat, listDir, getFileByUrl, explainGhError } from '../lib/githubDb'
 import { useProtectedData } from '../lib/protectedData'
+import AnnouncementDispatch from './AnnouncementDispatch'
 
 interface AnnDoc { name: string; folder: 'catalog' | 'snapshots'; content: string }
 
@@ -95,6 +96,8 @@ export default function AnnouncementsPage() {
         OCI announcement 지식 DB — blog-db <code className="mono">announcements/</code>.
         같은 공지를 다시 만나면 영문 제목으로 카탈로그 검색. 수집·갱신은 Claude Code 세션.
       </p>
+
+      {pat && <AnnouncementDispatch pat={pat} />}
 
       <input className="cmdinput" style={{ fontFamily: 'Pretendard', marginBottom: 16 }}
         placeholder="검색 (영문 제목·본문 전체 — 예: Reboot Scheduled)"
