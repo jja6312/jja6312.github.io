@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "source": {
-    "tag": "v3.91.0",
-    "version": "3.91.0",
-    "commit": "fbff93ae6744ed23671b974fd876adb239545cea",
+    "tag": "v3.93.0",
+    "version": "3.93.0",
+    "commit": "e1e3918585c0b58cf681a66144f162980f3c5dc1",
     "collector": "final-click-tree"
   },
   "resources": {
@@ -2720,6 +2720,14 @@
               "choices": null,
               "deprecated": false
             },
+            "--scheduled-maintenance-window": {
+              "required": false,
+              "type": "json",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
             "--scheduled-operations": {
               "required": false,
               "type": "json",
@@ -2793,6 +2801,14 @@
               "deprecated": false
             },
             "--time-scheduled-db-version-upgrade": {
+              "required": false,
+              "type": "datetime",
+              "flag": false,
+              "multiple": false,
+              "choices": null,
+              "deprecated": false
+            },
+            "--time-scheduled-maintenance-window-update": {
               "required": false,
               "type": "datetime",
               "flag": false,

@@ -178,6 +178,24 @@ for (const record of records) {
     || command.allSubscriptionBalances || command.iamMfaReset || command.manualBackup || command.customWorkflow)
 }
 
+const bucketCommand = catalog.commands.bucket
+const bucketNamespaceScript = buildCli(bucketCommand, {
+  '--name': 'example-bucket',
+  '--compartment-id': 'ocid1.compartment.oc1..exampleuniqueid',
+  '--namespace-name': 'stale-profile-value',
+}, { '--namespace-name': true }, 'create', undefined,
+["--profile 'CUSTOMER_A'", "--region 'ap-seoul-1'"], ['--output json'])
+for (const marker of [
+  'OBJECT_STORAGE_NAMESPACE=$(oci os ns get', "--query 'data'", '--raw-output',
+  "--profile 'CUSTOMER_A'", "--region 'ap-seoul-1'",
+  '--namespace-name "$OBJECT_STORAGE_NAMESPACE"',
+]) {
+  if (!bucketNamespaceScript.includes(marker)) fail(`Bucket namespace live lookup missing marker: ${marker}`)
+}
+if (bucketNamespaceScript.includes('stale-profile-value')) fail('Bucket namespace must not use the cached profile value')
+if ((bucketNamespaceScript.match(/oci os ns get/g) ?? []).length !== 1) fail('Bucket namespace must be resolved exactly once')
+scripts.set('bucket:create:namespace-live-lookup', bucketNamespaceScript)
+
 const bash = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash'
 const syntaxBatch = [...scripts.entries()]
   .map(([key, script]) => `# ===== ${key} =====\n{\n${script}\n}\n`)
@@ -275,8 +293,13 @@ for (const record of records) {
   const rootOnly = dynamicOptions.every(option => option.dynamicLookup.kind === 'tenancy')
     || (command.rootTenancyLookup
       && dynamicOptions.every(option => option.dynamicLookup.kind === 'compartment'))
+  const namespaceOnly = dynamicOptions.every(option => option.dynamicLookup.kind === 'namespace')
   if (rootOnly) {
     if (!script.includes('ocid1.tenancy.*')) fail(`${key}: root tenancy derivation lacks OCID validation`)
+  } else if (namespaceOnly) {
+    if (!script.includes('oci os ns get') || !script.includes('OBJECT_STORAGE_NAMESPACE') || !script.includes('exit 2')) {
+      fail(`${key}: Object Storage namespace live lookup lacks output validation`)
+    }
   } else if (!script.includes('found=$') || !script.includes('exit 1')) {
     fail(`${key}: dynamic lookup lacks explicit 0/1/N guard`)
   }

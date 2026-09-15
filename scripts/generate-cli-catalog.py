@@ -1668,6 +1668,15 @@ def annotate_dynamic_lookups(resource, surface):
         if direct_reason:
             option['directLookupReason'] = direct_reason
             continue
+        if option_name in {'--namespace-name', '--namespace'} and surface.get('cmd', '').startswith('oci os '):
+            option['dynamicLookup'] = {
+                'kind': 'namespace',
+                'inputLabel': 'Object Storage namespace',
+                'inputPlaceholder': '비우면 실행 시 oci os ns get으로 조회',
+                'note': '프로필에 저장된 namespace를 사용하지 않고, 최종 명령과 같은 실행 컨텍스트로 매번 조회합니다.',
+                'scope': 'tenancy',
+            }
+            continue
         if option_name == '--tenancy-id':
             option['dynamicLookup'] = {
                 'kind': 'tenancy',

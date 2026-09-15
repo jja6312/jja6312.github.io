@@ -258,10 +258,10 @@
   - 라이브 검증: 자물쇠1 → OCI CLI → Compute → Instance → LIST → Alt+I에서 프로필/리전 → 필수 compartment → 선택 필드 순서, 필수 빈값 차단, Esc 종료, Blueprint Alt+I 재사용을 확인했다. 375px에서 `scrollWidth === innerWidth === 375`, console errors 0.
 - [x] `P2.5-08` OCI CLI 전체 공식 레퍼런스 + 운영 Overlay — 고정한 공식 릴리스의 최종 Click 트리를 모든 public service까지 수집하고, 전체 명령을 기본 탐색면으로 제공한다. 기존 큐레이션은 동적 조회·안전 기본값·Custom/Blueprint를 담당하는 운영 Overlay로 분리하며 공식 옵션 스키마를 복제하지 않는다. **완료: 2026-08-30**
   - 상태: 구현·보호 데이터 bake·로컬/CI 검증·배포·라이브 검증 완료
-  - 고정 원천: OCI CLI `v3.91.0`, commit `fbff93ae6744ed23671b974fd876adb239545cea`, Click 8.4.2, OCI SDK 2.185.0
-  - 전체 범위: 14개 공식 그룹·171개 public service·9,130개 leaf command·75,307개 option을 171개 지연 로딩 shard와 전역 검색 index로 생성
+  - 고정 원천: OCI CLI `v3.93.0`, commit `e1e3918585c0b58cf681a66144f162980f3c5dc1`, Click 8.4.2, OCI SDK 2.186.0
+  - 전체 범위: 14개 공식 그룹·172개 public service·9,170개 leaf command·75,161개 option을 172개 지연 로딩 shard와 전역 검색 index로 생성
   - 화면: 전체 공식 트리와 검색을 기본 노출하고, 명령 선택 시 기존 공통 실행 컨텍스트·Alt+I·필수/선택 입력·JSON schema 불러오기·최종 명령·즐겨찾기·실행 확인을 재사용
-  - Overlay 계약: 53개 운영 리소스·229개 동작·2,258개 옵션의 공식 누락·명령 경로 차이 0. UI 전용 lookup 5개와 공식 Click이 enum으로 선언하지 않은 ONS protocol 1개만 사유·guard가 있는 승인 예외로 유지
+  - Overlay 계약: 53개 운영 리소스·229개 동작·2,260개 옵션의 공식 누락·명령 경로 차이 0. UI 전용 lookup 5개와 공식 Click이 enum으로 선언하지 않은 ONS protocol 1개만 사유·guard가 있는 승인 예외로 유지
   - 추가 교정: `iam region-subscription list --tenancy-id`를 선택 profile에서 동적으로 조회·OCID 검증 후 주입하고 Bash 회귀로 고정
   - 커밋(site): `25b0491`(전체 카탈로그) → `dd503c7`(CI 빈 캐시 수집 경로 수정)
   - GitHub Actions: deploy `33263602402`, OCI CLI metadata guard `33263602418` 성공
@@ -451,6 +451,7 @@
 
 | 날짜 | 변경 | 커밋 | 작성자 |
 |---|---|---|---|
+| 2026-09-15 | Object Storage namespace를 프로필 저장값에서 제거하고, Bucket Create를 포함한 `oci os` 명령 실행 직전에 동일 profile/region/auth 컨텍스트의 `oci os ns get`으로 조회하도록 변경. 공식 OCI CLI v3.93.0 source lock·172개 서비스·9,170개 명령으로 갱신 | 이번 커밋 | Codex |
 | 2026-09-08 | P2-03 공통 입력 상태/조회 바로가기 및 코드 기반 구조도·설계 검토. v3.92.0 freshness gate 발견, 원천/보호 데이터 변경 없이 UI 수정 검증 | 이번 커밋 | Codex |
 | 2026-08-30 | P2.5-08 순서 회귀 교정 — 공식 전체 카탈로그의 알파벳순 노출을 제거하고 CLI·Policy 공용 Console IA 정렬 모듈 및 14개 그룹 순서 회귀 게이트 추가 | 이번 커밋 | Codex |
 | 2026-08-24 | P2.5-07 완료 — 모든 일반 OCI CLI에 공통 Alt+I 입력 오케스트레이터 적용. 프로필·리전 권장 입력, 필수/조건부/선택 표식, 서비스별 JSON·복수선택 렌더러, 키보드 이동·진행 이정표·필수값 차단을 공유 모듈로 통합하고 Blueprint와 회귀 검증 | `7b17a33` / blog-db — | Codex |

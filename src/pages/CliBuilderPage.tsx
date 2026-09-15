@@ -100,7 +100,7 @@ interface CliLookupPrerequisite {
   kind: 'availabilityDomain' | 'value'
 }
 interface CliDynamicLookup {
-  kind: 'exactName' | 'compartment' | 'tenancy'
+  kind: 'exactName' | 'compartment' | 'tenancy' | 'namespace'
   target?: string
   listCommand?: string
   nameField?: string
@@ -2095,6 +2095,7 @@ function buildCli(
   const prelude: string[] = []
   const args: string[] = []
   let rootTenancyReady = false
+  let objectStorageNamespaceReady = false
   let jqReady = false
 
   const ensureRootTenancy = () => {
@@ -2109,6 +2110,18 @@ function buildCli(
       prelude.push('command -v jq >/dev/null 2>&1 || { echo "[ERROR] 동적 조회에는 jq가 필요합니다. OCI Cloud Shell에는 기본 설치되어 있습니다." >&2; exit 2; }')
       jqReady = true
     }
+  }
+  const ensureObjectStorageNamespace = () => {
+    if (!objectStorageNamespaceReady) {
+      prelude.push(
+        `OBJECT_STORAGE_NAMESPACE=$(${formatCliCommand('oci os ns get', [
+          "--query 'data'", '--raw-output', ...requestContext,
+        ])})`,
+        '[[ "$OBJECT_STORAGE_NAMESPACE" =~ ^[[:alnum:]_.-]+$ ]] || { echo "[ERROR] Object Storage namespace 동적 조회 결과가 올바르지 않습니다." >&2; exit 2; }',
+      )
+      objectStorageNamespaceReady = true
+    }
+    return '"$OBJECT_STORAGE_NAMESPACE"'
   }
   const resolveCompartment = (input: string, variable: string) => {
     const raw = (values[input] ?? '').trim() || '<compartment-name-or-ocid>'
@@ -2265,6 +2278,10 @@ function buildCli(
       continue
     }
     if (o.dynamicLookup && isDynamic(dyn, o.name, true)) {
+      if (o.dynamicLookup.kind === 'namespace') {
+        args.push(`  ${o.name} ${ensureObjectStorageNamespace()}`)
+        continue
+      }
       if (o.dynamicLookup.kind === 'tenancy') {
         args.push(`  ${o.name} ${ensureRootTenancy()}`)
         continue
@@ -2641,22 +2658,6 @@ export default function CliBuilderPage() {
       ...current, '--profile': selectedProfile.name,
       '--region': current['--region'] || selectedProfile.homeRegion || '',
     }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProfileName, active])
-  // 활성 프로필의 오브젝트 스토리지 네임스페이스를 --namespace(-name) 에 자동주입(폼에 옵션이 있고 빈값일 때만; 사용자 입력 우선).
-  useEffect(() => {
-    const ns = selectedProfile?.namespace
-    if (!ns) return
-    setValues(current => {
-      let next = current
-      for (const name of ['--namespace-name', '--namespace']) {
-        if (formOptionsByName.has(name) && !String(current[name] ?? '').trim()) {
-          if (next === current) next = { ...current }
-          next[name] = ns
-        }
-      }
-      return next
-    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfileName, active])
   const registerProfiles = () => {

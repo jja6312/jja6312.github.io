@@ -63,7 +63,7 @@ export function registerProfilesFromPaste(
 
 /**
  * 붙여넣은 봉투로 **이미 등록된 동일 이름 프로필만** 갱신(신규 이름은 추가하지 않고 건너뜀).
- * "전체 삭제 후 재등록" 없이 기존 프로필 내용(예: 새로 추가된 ns)만 최신화할 때 사용.
+ * "전체 삭제 후 재등록" 없이 기존 프로필 내용(예: 새 리전·리소스 이름 후보)만 최신화할 때 사용.
  */
 export function updateProfilesFromPaste(
   pasted: string,

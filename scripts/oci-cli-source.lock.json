@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/oracle/oci-cli",
-  "releaseUrl": "https://github.com/oracle/oci-cli/releases/tag/v3.91.0",
+  "releaseUrl": "https://github.com/oracle/oci-cli/releases/tag/v3.93.0",
   "rawBaseUrl": "https://raw.githubusercontent.com/oracle/oci-cli",
-  "tag": "v3.91.0",
-  "version": "3.91.0",
-  "commit": "fbff93ae6744ed23671b974fd876adb239545cea",
-  "tree": "ed3b39c2f8bc1fdb28676272af2460fe49e7a0d0",
-  "publishedAt": "2026-08-25T09:37:02Z",
-  "collectedAt": "2026-08-26T09:48:58+09:00",
+  "tag": "v3.93.0",
+  "version": "3.93.0",
+  "commit": "e1e3918585c0b58cf681a66144f162980f3c5dc1",
+  "tree": "b656d5fc5d95b20b7acd8b10c0ed5a749ef49e01",
+  "publishedAt": "2026-09-15T09:32:26Z",
+  "collectedAt": "2026-09-15T22:59:11+09:00",
   "releaseAsset": {
-    "name": "oci-cli-3.91.0.zip",
-    "bytes": 185091367,
-    "sha256": "0c4959d5eb39d860836cb6ea6349e7a5a062e05f2df3dec91605be041d0eace8"
+    "name": "oci-cli-3.93.0.zip",
+    "bytes": 185860689,
+    "sha256": "ae3e59253aed4ba3972c633c62fb380d3ddd5be902350fbb8a74b742f467ec55"
   },
   "clickTree": {
     "schemaVersion": 2,
     "scope": "all-public-services",
-    "expectedServiceCount": 171,
+    "expectedServiceCount": 172,
     "wheel": {
-      "name": "oci_cli-3.91.0-py3-none-any.whl",
-      "bytes": 66320393,
-      "sha256": "9b978bd9e6c7253d281fcea98acd830804fcf6bafbfc9a7ae73afe1649a699af"
+      "name": "oci_cli-3.93.0-py3-none-any.whl",
+      "bytes": 66311307,
+      "sha256": "79a300d2aa3c88747a71f228e1f62fd6bf61c0cc70dc08557cefa2e9e2d9d01d"
     },
     "pythonRequirements": "oci-cli-runtime-requirements.txt"
   },
@@ -30,7 +30,7 @@
     {
       "path": "src/oci_cli/version.py",
       "bytes": 365,
-      "sha256": "2530b24ff414cf4771a1edcdc8a88ee4a74e1aa367545e83a4fc735cc5984b2a"
+      "sha256": "b9ab66a380e61465e41be75c44ea905b464c93a7fb6e3fcae1f2f8c24cdf25e4"
     },
     {
       "path": "services/core/src/oci_cli_blockstorage/generated/blockstorage_cli.py",
@@ -54,8 +54,8 @@
     },
     {
       "path": "services/database/src/oci_cli_database/generated/database_cli.py",
-      "bytes": 3832457,
-      "sha256": "f5d83930f2c0f48e70c85de10e1e4a81b43c17c8a5722e283fec0a9cf35c744b"
+      "bytes": 3549655,
+      "sha256": "dd0f62bec85823f89159be4c2af838aee537a3f6878f7422b5ce4f92a250c4a5"
     },
     {
       "path": "services/file_storage/src/oci_cli_file_storage/generated/filestorage_cli.py",

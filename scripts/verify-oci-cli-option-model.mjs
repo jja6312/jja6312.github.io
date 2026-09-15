@@ -4,7 +4,8 @@ import { resolve } from 'node:path'
 import vm from 'node:vm'
 import ts from 'typescript'
 
-const tree = JSON.parse(readFileSync(resolve('.protected-cache/oci-cli-runtime/v3.90.2/click-tree.json'), 'utf8'))
+const lock = JSON.parse(readFileSync(resolve('scripts/oci-cli-source.lock.json'), 'utf8'))
+const tree = JSON.parse(readFileSync(resolve(`.protected-cache/oci-cli-runtime/${lock.tag}/click-tree.json`), 'utf8'))
 const catalog = JSON.parse(readFileSync(resolve('.protected-cache/cliCatalog.json'), 'utf8'))
 const modelSource = readFileSync(resolve('src/lib/cliOptionModel.ts'), 'utf8')
 const compiled = ts.transpileModule(modelSource, {

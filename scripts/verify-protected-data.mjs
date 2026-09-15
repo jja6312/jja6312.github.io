@@ -240,6 +240,7 @@ for (const level of [1, 2, 3]) {
   }
   const bulkUpload = bundle.cliCatalog.commands['object-bulk-upload']
   const objectSync = bundle.cliCatalog.commands['object-sync']
+  const bucket = bundle.cliCatalog.commands.bucket
   if (bulkUpload?.operations?.create?.cmd !== 'oci os object bulk-upload'
     || objectSync?.operations?.create?.cmd !== 'oci os object sync') {
     throw new Error(`L${level} Object Storage transfer commands invalid`)
@@ -251,6 +252,26 @@ for (const level of [1, 2, 3]) {
     throw new Error(`L${level} Bulk Upload required fields invalid`)
   if (JSON.stringify(requiredNames(objectSync.operations.create)) !== JSON.stringify(['--bucket-name', '--namespace']))
     throw new Error(`L${level} Object Sync required fields invalid`)
+  const namespaceSurfaces = Object.values(bundle.cliCatalog.commands)
+    .flatMap(command => [command, ...Object.values(command.operations ?? {}), ...Object.values(command.actions ?? {})])
+    .filter(surface => surface?.cmd?.startsWith('oci os '))
+  for (const surface of namespaceSurfaces) {
+    const namespaceOptions = [
+      ...(surface.lookupInputs ?? []),
+      ...(surface.sections ?? []).flatMap(section => section.options),
+      ...(surface.advanced ?? []),
+    ].filter(option => option.name === '--namespace-name' || option.name === '--namespace')
+    for (const option of namespaceOptions) {
+      if (option.dynamicLookup?.kind !== 'namespace') {
+        throw new Error(`L${level} Object Storage namespace must use live lookup: ${surface.cmd} ${option.name}`)
+      }
+    }
+  }
+  const bucketNamespace = [...bucket.operations.create.sections.flatMap(section => section.options), ...bucket.operations.create.advanced]
+    .find(option => option.name === '--namespace-name')
+  if (bucketNamespace?.dynamicLookup?.kind !== 'namespace') {
+    throw new Error(`L${level} Bucket CREATE namespace live lookup missing`)
+  }
   for (const name of ['--dry-run', '--verify-checksum', '--no-follow-symlinks']) {
     if (!publicOptionNames(bulkUpload.operations.create).has(name)) throw new Error(`L${level} Bulk Upload option missing: ${name}`)
   }

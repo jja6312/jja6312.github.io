@@ -50,11 +50,7 @@ t('regions = READY 만(IN_PROGRESS 제외)', () => {
   assert.deepEqual(p.regions, ['ap-seoul-1', 'ap-tokyo-1'])
 })
 t('tenancyId 추출', () => { assert.equal(p.tenancyId, 'ocid1.tenancy.oc1..aaaa') })
-t('namespace 추출', () => { assert.equal(p.namespace, 'axaxnpcrorw5') })
-t('namespace 없으면 undefined', () => {
-  const r = parseCollectedProfiles('{"name":"nons","subscriptions":{"data":[]}}')
-  assert.equal(r.profiles[0].namespace, undefined)
-})
+t('과거 namespace 캐시는 저장하지 않음', () => { assert.equal(p.namespace, undefined) })
 t('compartments = DELETED 제외', () => {
   assert.deepEqual(p.compartments.map(c => c.name), ['prod', 'dev'])
 })
@@ -153,14 +149,16 @@ t('renderProfileCollectScript → bash -n 통과', () => {
   const dir = mkdtempSync(join(tmpdir(), 'oci-profile-'))
   const file = join(dir, 'collect.sh')
   writeFileSync(file, renderProfileCollectScript())
-  execFileSync('bash', ['-n', file])
+  const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
+  execFileSync(bash, ['-n', file])
 })
 t('레시피에 읽기전용 명령만(mutating 없음)', () => {
   const script = renderProfileCollectScript()
   assert.ok(script.includes('region-subscription list'))
   assert.ok(script.includes('compartment list'))
   assert.ok(script.includes('structured-search'))
-  assert.ok(script.includes('os ns get'))
+  assert.ok(!script.includes('os ns get'))
+  assert.ok(!script.includes('"namespace"'))
   assert.ok(!/\b(create|delete|update|terminate)\b/.test(script))
 })
 

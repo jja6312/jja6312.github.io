@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CLI UI Wizard 컴파일러 테스트 — 캔버스 그래프를 CliBlueprint 로 컴파일하고 기존 엔진에 통과시킨다.
 import assert from 'node:assert/strict'
-import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -18,6 +18,9 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const CATALOG = JSON.parse(readFileSync(resolve(HERE, '..', '.protected-cache', 'cliCatalog.json'), 'utf8'))
 const POLICY = JSON.parse(readFileSync(resolve(HERE, '..', '..', 'blog-db', 'knowledge', 'oci-cli', 'naming-policies', 'msp-standard.v1.json'), 'utf8'))
 const REGISTRY = JSON.parse(readFileSync(resolve(HERE, 'oci-cli-blueprint-response-registry.json'), 'utf8'))
+const BASH = process.platform === 'win32' && existsSync('C:\\Program Files\\Git\\bin\\bash.exe')
+  ? 'C:\\Program Files\\Git\\bin\\bash.exe'
+  : 'bash'
 // 주: validateBlueprints(빌드 게이트)는 baked blueprint 전용이라, 위저드가 쓰는 런타임 전용
 // 구성(generic dnsLabel 파생키·인라인 security-rule JSON)을 거부한다. 따라서 위저드-compose
 // 블루프린트 전체를 게이트에 넣지 않고, 신설 자원(instance)의 응답계약만 국소 검증한다.
@@ -97,7 +100,7 @@ t('compose+render: Apply/Discover/Rollback bash -n 통과', () => {
   const manifest = buildProvisionalManifest({ blueprint, plan, runResult: rr, naming: nm })
   const scripts = [renderApply({ blueprint, catalog: CATALOG, inputs, naming: nm, plan, planDigest: 'd' }), renderDiscover({ blueprint, catalog: CATALOG, inputs, naming: nm }), renderRollback({ blueprint, catalog: CATALOG, inputs, naming: nm, manifest })]
   const TMP = mkdtempSync(resolve(tmpdir(), 'wiz-'))
-  for (const s of scripts) { const f = resolve(TMP, s.name); writeFileSync(f, s.content); execFileSync('bash', ['-n', f]) }
+  for (const s of scripts) { const f = resolve(TMP, s.name); writeFileSync(f, s.content); execFileSync(BASH, ['-n', f]) }
 })
 
 t('route rules: 공용 RT→IGW, 사설 RT→NAT+SGW(서비스 CIDR discovery)', () => {
@@ -234,7 +237,7 @@ t('instance 최소 그래프 → compose issue 0 + 게이트 통과(계약 증�
   const manifest = buildProvisionalManifest({ blueprint, plan, runResult: rr, naming: nm })
   const scripts = [renderApply({ blueprint, catalog: CATALOG, inputs, naming: nm, plan, planDigest: 'd' }), renderDiscover({ blueprint, catalog: CATALOG, inputs, naming: nm }), renderRollback({ blueprint, catalog: CATALOG, inputs, naming: nm, manifest })]
   const TMP = mkdtempSync(resolve(tmpdir(), 'wiz-inst-'))
-  for (const s of scripts) { const f = resolve(TMP, s.name); writeFileSync(f, s.content); execFileSync('bash', ['-n', f]) }
+  for (const s of scripts) { const f = resolve(TMP, s.name); writeFileSync(f, s.content); execFileSync(BASH, ['-n', f]) }
   // Apply 스크립트에 instance launch 가 포함되는지
   assert.ok(scripts[0].content.includes('compute instance launch'), 'apply 에 instance launch 없음')
 })

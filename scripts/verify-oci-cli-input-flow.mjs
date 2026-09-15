@@ -35,6 +35,13 @@ test('region-subscription tenancy shares the same contract', () => {
   assert.equal(resolveCliInputs([tenancy], {}, { dynamic: { '--tenancy-id': true } })['--tenancy-id'].state, 'automatic')
   assert.equal(resolveCliInputs([tenancy], {}, { dynamic: { '--tenancy-id': false } })['--tenancy-id'].state, 'missing')
 })
+const namespace = { name: '--namespace-name', required: true, dynamicLookup: { kind: 'namespace' } }
+test('Object Storage namespace ignores cached values and resolves at execution time', () => {
+  const automatic = resolveCliInputs([namespace], { '--namespace-name': 'stale-profile-value' }, { dynamic: { '--namespace-name': true } })['--namespace-name']
+  assert.equal(automatic.state, 'automatic')
+  assert.match(automatic.label, /Object Storage namespace/)
+  assert.equal(resolveCliInputs([namespace], {}, { dynamic: { '--namespace-name': false } })['--namespace-name'].state, 'missing')
+})
 const scope = { name: '--lookup-compartment-id' }
 const instance = { name: '--instance-id', required: true, dynamicLookup: { kind: 'exactName', scope: 'compartment', scopeInput: scope.name } }
 test('name lookup needs scope but direct OCID does not', () => {
@@ -103,5 +110,7 @@ const page = readFileSync('src/pages/CliBuilderPage.tsx', 'utf8')
 test('UI uses shared readiness and original builder/context; results invalidated on context changes', () => {
   for (const marker of ['resolveCliInputs(formOptions', 'formRules, automaticInputs)', 'inputResolution[option.name]', 'requestContextArguments, [\'--output json\']', 'JSON.stringify(sourceValues) + requestContextArguments.join', 'setFormVal(formOptionsByName.get(name)!']) assert.ok(page.includes(marker), marker)
   assert.ok(!page.includes('__root-tenancy-from-profile__'))
+  assert.ok(!page.includes('selectedProfile?.namespace'))
+  assert.ok(page.includes('ensureObjectStorageNamespace'))
 })
 console.log('OCI CLI input/discovery regression passed')

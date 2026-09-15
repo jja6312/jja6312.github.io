@@ -4,7 +4,7 @@ export interface ResolvableCliOption {
   required?: boolean
   flag?: boolean
   dynamicLookup?: {
-    kind: 'tenancy' | 'compartment' | 'exactName'
+    kind: 'tenancy' | 'compartment' | 'exactName' | 'namespace'
     scope?: 'tenancy' | 'compartment'
     scopeInput?: string | null
     prerequisites?: { input: string; kind: 'availabilityDomain' | 'value' }[]
@@ -41,6 +41,8 @@ export function resolveCliInputs(
     let value: CliInputResolution = { state: active ? 'provided' : 'missing', ready: active, label: active ? '입력됨' : '입력 필요', dependencies: [] }
     if (dynamic && (option?.required || raw) && (lookup?.kind === 'tenancy' || name === '--compartment-id' && context.rootTenancyLookup)) {
       value = { state: 'automatic', ready: true, label: '실행 시 자동 조회 · 테넌시', dependencies: [] }
+    } else if (dynamic && option?.required && lookup?.kind === 'namespace') {
+      value = { state: 'automatic', ready: true, label: '실행 시 자동 조회 · Object Storage namespace', dependencies: [] }
     } else if (dynamic && option?.required && name === '--availability-domain' && !raw) {
       const scope = byName.has('--compartment-id') ? '--compartment-id' : undefined
       const missing = scope && !resolve(scope, next).ready ? [scope] : []

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "source": {
-    "tag": "v3.91.0",
-    "commit": "fbff93ae6744ed23671b974fd876adb239545cea"
+    "tag": "v3.93.0",
+    "commit": "e1e3918585c0b58cf681a66144f162980f3c5dc1"
   },
   "officialManualResources": [
     "announcement-subscription",
