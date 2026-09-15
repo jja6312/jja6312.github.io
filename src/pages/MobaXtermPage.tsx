@@ -43,7 +43,7 @@ const wizardQuestions: CliWizardQuestion[] = [
   { id: 'name', valueId: 'name', label: '세션명', type: 'string', requirement: 'required', placeholder: 'app-01' },
   { id: 'host', valueId: 'host', label: '호스트 / IP', type: 'string', requirement: 'required', placeholder: '10.0.1.10' },
   { id: 'port', valueId: 'port', label: '포트', type: 'string', requirement: 'required', help: 'SSH 기본 22 · RDP 기본 3389' },
-  { id: 'user', valueId: 'user', label: '사용자', type: 'string', requirement: 'required', help: 'SSH 기본 opc · RDP 기본 Administrator' },
+  { id: 'user', valueId: 'user', label: '사용자', type: 'string', requirement: 'required', help: '기본 opc (OCI 는 RDP 도 opc 로 접속)' },
   { id: 'keyPath', valueId: 'keyPath', label: '개인키 경로', type: 'string', optional: true, placeholder: 'C:\\keys\\customer.key', help: '저장된 키를 목록에서 고르거나 경로 입력', visibleIf: v => v.type !== 'rdp' },
   { id: 'domain', valueId: 'domain', label: '도메인', type: 'string', optional: true, placeholder: '없으면 비움 (예: CORP)', visibleIf: v => v.type === 'rdp' },
   { id: 'bastionHost', valueId: 'bastionHost', label: '점프 호스트', type: 'string', optional: true, placeholder: '없으면 비움', visibleIf: v => v.type !== 'rdp' },

@@ -16,9 +16,9 @@ export type MobaSession = {
   bastionKeyPath: string
 }
 
-// 타입별 기본값 — SSH 는 opc/22, RDP(Windows) 는 Administrator/3389.
+// 타입별 기본값 — 포트는 SSH 22 / RDP 3389, 사용자는 공통 opc (OCI 는 RDP 도 opc 로 접속).
 export const defaultPort = (type: MobaSessionType) => (type === 'rdp' ? '3389' : '22')
-export const defaultUser = (type: MobaSessionType) => (type === 'rdp' ? 'Administrator' : 'opc')
+export const defaultUser = (_type: MobaSessionType) => 'opc'
 
 export const emptyMobaSession = (type: MobaSessionType = 'ssh'): MobaSession => ({
   id: crypto.randomUUID(), type, folder: '', name: '', host: '', port: defaultPort(type), user: defaultUser(type),
@@ -153,4 +153,4 @@ export function renderMobaExport(sessions: MobaSession[]) {
 
 export const mobaTemplate = `type\tfolder\tname\thost\tport\tuser\tkey_path\tdomain\tbastion_host\tbastion_port\tbastion_user\tbastion_key_path
 ssh\twizocm\\production\tapp-01\t10.0.1.10\t22\topc\tC:\\keys\\wizocm.key\t\t203.0.113.10\t22\topc\tC:\\keys\\bastion.key
-rdp\twizocm\\production\twin-db\t10.0.1.20\t3389\tAdministrator\t\tCORP\t\t\t\t`
+rdp\twizocm\\production\twin-db\t10.0.1.20\t3389\topc\t\tCORP\t\t\t\t`
