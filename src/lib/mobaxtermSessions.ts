@@ -98,7 +98,7 @@ export function validateMobaSessions(sessions: MobaSession[]): string[] {
     if (!session.name) issues.push(`${label}: 세션명이 비어 있습니다.`)
     if (!session.host) issues.push(`${label}: 호스트가 비어 있습니다.`)
     if (!validPort(session.port)) issues.push(`${label}: 포트는 1~65535여야 합니다.`)
-    if (session.type === 'ssh' && session.bastionHost && !validPort(session.bastionPort)) issues.push(`${label}: 점프 포트는 1~65535여야 합니다.`)
+    if (session.bastionHost && !validPort(session.bastionPort)) issues.push(`${label}: 점프 포트는 1~65535여야 합니다.`)
     for (const [field, value] of [['폴더', session.folder], ['세션명', session.name], ['호스트', session.host]] as const) {
       if (forbidden.test(value)) issues.push(`${label}: ${field}에 INI 예약문자를 사용할 수 없습니다.`)
     }
@@ -130,12 +130,19 @@ function buildSshLine(session: MobaSession) {
 // 23:unk 24:credSsp(-1) 25:mic 26:autoScale(-1) 27:zoom 28:colorDepth 29:smartCards 30:serverAuth
 function buildRdpLine(session: MobaSession) {
   const login = session.domain ? `${session.domain}\\${session.user}` : session.user
-  const groupA = [
+  const g = [
     '4', session.host, session.port || '3389', login,
     '0', '0', '0', '0', '-1', '0', '0', '-1', '', '', '', '',
     '0', '0', '', '-1', '', '-1', '-1', '0', '-1', '0', '-1', '0', '0', '0', '0',
-  ].join('%')
-  return `${session.name}=#91#${groupA}${MOBA_TRAILER}`
+  ]
+  // 경유(bastion) = RDP 의 SSH 게이트웨이. host/port/user 는 13/14/15, 키는 18.
+  if (session.bastionHost) {
+    g[13] = session.bastionHost
+    g[14] = session.bastionPort || '22'
+    g[15] = session.bastionUser || 'opc'
+    g[18] = session.bastionKeyPath || ''
+  }
+  return `${session.name}=#91#${g.join('%')}${MOBA_TRAILER}`
 }
 
 export function buildMobaLine(session: MobaSession) {
@@ -207,7 +214,11 @@ export function parseMobaIni(text: string): MobaSession[] {
       let domain = ''
       const slash = user.indexOf('\\')
       if (slash >= 0) { domain = user.slice(0, slash); user = user.slice(slash + 1) }
-      sessions.push({ ...emptyMobaSession('rdp'), folder, name, host: fields[1] ?? '', port: fields[2] || '3389', user: user || defaultUser('rdp'), domain })
+      const gwKey = fields[18] ?? ''
+      sessions.push({
+        ...emptyMobaSession('rdp'), folder, name, host: fields[1] ?? '', port: fields[2] || '3389', user: user || defaultUser('rdp'), domain,
+        bastionHost: fields[13] ?? '', bastionPort: fields[14] || '22', bastionUser: fields[15] || 'opc', bastionKeyPath: gwKey,
+      })
     } else {
       const keyPath = fields[14] ?? ''
       const bastionKey = fields[15] ?? ''

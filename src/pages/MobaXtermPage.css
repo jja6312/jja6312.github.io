@@ -63,3 +63,9 @@
 .moba-sessions .moba-row-actions button{color:var(--text-dim);font-weight:700}
 .moba-sessions .moba-row-actions .moba-del{color:#ef6a6a}
 .moba-sessions .moba-row-actions button:hover{filter:brightness(1.15);text-decoration:underline}
+
+/* 경유(bastion) 토글 버튼 — 기본은 은은하게, 켜지면 accent 강조 */
+.moba-bastion-toggle{margin-top:12px;border:1px dashed color-mix(in srgb,var(--accent) 30%,var(--line));border-radius:9px;background:transparent;color:var(--text-dim);padding:8px 14px;font:inherit;font-weight:750;font-size:.8rem;cursor:pointer;transition:.15s ease}
+.moba-bastion-toggle:hover{color:var(--text);border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+.moba-bastion-toggle.on{color:var(--accent);border-style:solid;border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.moba-form-bastion{margin-top:10px}

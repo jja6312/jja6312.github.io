@@ -29,15 +29,16 @@ const TYPE_LABEL: Record<MobaSessionType, string> = { ssh: 'SSH (Linux)', rdp: '
 function valuesToSession(v: Record<string, string>): MobaSession {
   const type: MobaSessionType = v.type === 'rdp' ? 'rdp' : 'ssh'
   const base = emptyMobaSession(type)
+  const useBastion = v.useBastion === 'true'
   return {
     ...base,
     folder: (v.folder ?? '').replaceAll('/', '\\').replace(/^\\+|\\+$/g, ''),
     name: v.name ?? '', host: v.host ?? '', port: v.port || defaultPort(type), user: v.user || defaultUser(type),
     keyPath: type === 'ssh' ? (v.keyPath ?? '') : '',
     domain: type === 'rdp' ? (v.domain ?? '') : '',
-    bastionHost: type === 'ssh' ? (v.bastionHost ?? '') : '',
+    bastionHost: useBastion ? (v.bastionHost ?? '') : '',
     bastionPort: v.bastionPort || '22', bastionUser: v.bastionUser || 'opc',
-    bastionKeyPath: type === 'ssh' ? (v.bastionKeyPath ?? '') : '',
+    bastionKeyPath: useBastion ? (v.bastionKeyPath ?? '') : '',
   }
 }
 
@@ -50,10 +51,11 @@ const wizardQuestions: CliWizardQuestion[] = [
   { id: 'user', valueId: 'user', label: '사용자', type: 'string', requirement: 'required', help: '기본 opc (OCI 는 RDP 도 opc 로 접속)' },
   { id: 'keyPath', valueId: 'keyPath', label: '개인키 경로', type: 'string', optional: true, placeholder: 'C:\\keys\\customer.key', help: '저장된 키를 목록에서 고르거나 경로 입력', visibleIf: v => v.type !== 'rdp' },
   { id: 'domain', valueId: 'domain', label: '도메인', type: 'string', optional: true, placeholder: '없으면 비움 (예: CORP)', visibleIf: v => v.type === 'rdp' },
-  { id: 'bastionHost', valueId: 'bastionHost', label: '점프 호스트', type: 'string', optional: true, placeholder: '없으면 비움', visibleIf: v => v.type !== 'rdp' },
-  { id: 'bastionPort', valueId: 'bastionPort', label: '점프 포트', type: 'string', optional: true, visibleIf: v => v.type !== 'rdp' && !!(v.bastionHost ?? '').trim() },
-  { id: 'bastionUser', valueId: 'bastionUser', label: '점프 사용자', type: 'string', optional: true, visibleIf: v => v.type !== 'rdp' && !!(v.bastionHost ?? '').trim() },
-  { id: 'bastionKeyPath', valueId: 'bastionKeyPath', label: '점프 키 경로', type: 'string', optional: true, placeholder: '비우면 개인키 재사용', visibleIf: v => v.type !== 'rdp' && !!(v.bastionHost ?? '').trim() },
+  { id: 'useBastion', valueId: 'useBastion', label: '경유(bastion) 사용', type: 'boolean', optional: true, help: 'SSH 점프 호스트 / RDP 는 SSH 게이트웨이로 경유 (필요할 때만)' },
+  { id: 'bastionHost', valueId: 'bastionHost', label: '점프 호스트', type: 'string', optional: true, placeholder: '없으면 비움', visibleIf: v => v.useBastion === 'true' },
+  { id: 'bastionPort', valueId: 'bastionPort', label: '점프 포트', type: 'string', optional: true, visibleIf: v => v.useBastion === 'true' && !!(v.bastionHost ?? '').trim() },
+  { id: 'bastionUser', valueId: 'bastionUser', label: '점프 사용자', type: 'string', optional: true, visibleIf: v => v.useBastion === 'true' && !!(v.bastionHost ?? '').trim() },
+  { id: 'bastionKeyPath', valueId: 'bastionKeyPath', label: '점프 키 경로', type: 'string', optional: true, placeholder: '비우면 개인키 재사용', visibleIf: v => v.useBastion === 'true' && !!(v.bastionHost ?? '').trim() },
 ]
 
 export default function MobaXtermPage() {
@@ -65,6 +67,7 @@ export default function MobaXtermPage() {
   const [keyProfiles, setKeyProfiles] = useState<MobaKeyProfile[]>([])
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardValues, setWizardValues] = useState<Record<string, string>>({})
+  const [bastionOpen, setBastionOpen] = useState(false) // 경유(bastion) 행은 기본 숨김, 토글로만 노출
   const nameRef = useRef<HTMLInputElement>(null)
   // 다음 빠른 추가에 반복 필드(폴더·타입·키 등)를 이어받아 여러 세션을 빠르게 넣는다.
   const seedRef = useRef<Partial<MobaSession>>({})
@@ -103,6 +106,7 @@ export default function MobaXtermPage() {
       user: seed.user || defaultUser(type),
       keyPath: seed.keyPath ?? getLastKeyPath(),
       domain: seed.domain ?? '',
+      useBastion: seed.bastionHost ? 'true' : '',
       bastionHost: seed.bastionHost ?? '', bastionPort: seed.bastionPort || '22',
       bastionUser: seed.bastionUser || 'opc', bastionKeyPath: seed.bastionKeyPath ?? '',
     })
@@ -165,7 +169,9 @@ export default function MobaXtermPage() {
   }, [wizardValues, commitSession])
 
   const addDraft = () => {
-    if (commitSession({ ...draft, id: crypto.randomUUID() }, '세션 추가')) {
+    // 경유 토글이 꺼져 있으면 bastion 을 비워 출력에 새지 않게 한다.
+    const candidate = { ...draft, id: crypto.randomUUID(), bastionHost: bastionOpen ? draft.bastionHost : '' }
+    if (commitSession(candidate, '세션 추가')) {
       setDraft(current => ({ ...emptyMobaSession(current.type), folder: current.folder, keyPath: current.keyPath }))
       window.setTimeout(() => nameRef.current?.focus(), 0)
     }
@@ -293,10 +299,13 @@ export default function MobaXtermPage() {
               </label>}
         </div>
 
-        {!isRdp && (
+        <button type="button" className={`moba-bastion-toggle${bastionOpen ? ' on' : ''}`} aria-pressed={bastionOpen} onClick={() => setBastionOpen(o => !o)}>
+          {bastionOpen ? '− 경유(bastion) 사용 안 함' : '＋ 경유(bastion) 추가'}
+        </button>
+        {bastionOpen && (
           <div className="moba-form moba-form-bastion">
-            <span className="moba-bastion-tag">경유(bastion) · 선택</span>
-            <label>점프 호스트<input value={draft.bastionHost} placeholder="없으면 비움" onChange={e => setDraft(c => ({ ...c, bastionHost: e.target.value }))} onKeyDown={onDraftKey} /></label>
+            <span className="moba-bastion-tag">{isRdp ? '경유(bastion) · RDP SSH 게이트웨이' : '경유(bastion) · SSH 점프 호스트'}</span>
+            <label>점프 호스트<input value={draft.bastionHost} placeholder="203.0.113.10" onChange={e => setDraft(c => ({ ...c, bastionHost: e.target.value }))} onKeyDown={onDraftKey} /></label>
             <label>점프 포트<input value={draft.bastionPort} onChange={e => setDraft(c => ({ ...c, bastionPort: e.target.value }))} onKeyDown={onDraftKey} /></label>
             <label>점프 사용자<input value={draft.bastionUser} onChange={e => setDraft(c => ({ ...c, bastionUser: e.target.value }))} onKeyDown={onDraftKey} /></label>
             <label>점프 키 경로<input value={draft.bastionKeyPath} placeholder="비우면 개인키 재사용" onChange={e => setDraft(c => ({ ...c, bastionKeyPath: e.target.value }))} onKeyDown={onDraftKey} /></label>
@@ -347,7 +356,7 @@ export default function MobaXtermPage() {
             <td>{session.folder || '(루트)'}</td><td><b>{session.name}</b></td>
             <td><code>{session.host}:{session.port}</code></td>
             <td>{session.type === 'rdp' && session.domain ? `${session.domain}\\${session.user}` : session.user}</td>
-            <td>{session.type === 'ssh' && session.bastionHost ? `${session.bastionHost}:${session.bastionPort}` : '직접'}</td>
+            <td>{session.bastionHost ? `${session.bastionHost}:${session.bastionPort}` : '직접'}</td>
             <td className="moba-row-actions">
               <button type="button" onClick={() => duplicateSession(session)}>복제</button>
               <button type="button" className="moba-del" onClick={() => setSessions(current => current.filter(item => item.id !== session.id))}>삭제</button>
